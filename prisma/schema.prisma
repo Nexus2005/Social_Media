@@ -70,6 +70,7 @@ model Post {
   comments            Comment[]
   linkedNotifications Notification[]
   detectedObjects     DetectedObject[]
+  aiStatus            String         @default("PENDING")
 
   createdAt DateTime @default(now())
 

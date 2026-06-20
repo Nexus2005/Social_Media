@@ -18,7 +18,8 @@ import {
   Volume2,
   Play,
   Pause,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
@@ -52,6 +53,28 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
   // Shoppable products overlay states
   const [showHotspots, setShowHotspots] = useState(true);
   const [activeSearchQuery, setActiveSearchQuery] = useState<string | null>(null);
+
+  // Polling query for AI status tracking
+  const { data: statusData } = useQuery({
+    queryKey: ["post-ai-status", post.id],
+    queryFn: () =>
+      kyInstance.get(`/api/posts/${post.id}/status`).json<{
+        aiStatus: string;
+        detectedObjects: any[];
+      }>(),
+    initialData: {
+      aiStatus: post.aiStatus || "PENDING",
+      detectedObjects: (post as any).detectedObjects || [],
+    },
+    refetchInterval: (query) => {
+      const currentStatus = query.state.data?.aiStatus || "PENDING";
+      return currentStatus === "PENDING" || currentStatus === "PROCESSING" ? 3000 : false;
+    },
+    enabled: post.aiStatus === "PENDING" || post.aiStatus === "PROCESSING",
+  });
+
+  const currentStatus = statusData?.aiStatus || post.aiStatus || "PENDING";
+  const detectedObjects = statusData?.detectedObjects || (post as any).detectedObjects || [];
 
   // Intersection Observer to autoplay/pause video
   useReelsIntersectionObserver(videoRef, setIsPlaying, isMuted);
@@ -265,9 +288,28 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           </div>
         )}
 
+        {/* AI Scanning Status Loader Overlay */}
+        {(currentStatus === "PENDING" || currentStatus === "PROCESSING") && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[5px] z-20 flex flex-col items-center justify-center gap-3.5 text-white p-6 text-center select-none animate-in fade-in duration-350">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute size-14 rounded-full bg-yellow-500/15 border border-yellow-500/30 animate-ping opacity-75" />
+              <Loader2 className="size-8 animate-spin text-yellow-500" />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[12px] font-bold tracking-wide text-zinc-150 flex items-center gap-1">
+                🛍️ AI Scanning
+              </span>
+              <span className="text-[10px] text-zinc-400">
+                Scanning video frames for shoppable items...
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Bounding box hotspot visual overlays */}
         {showHotspots &&
-          (post as any).detectedObjects?.map((obj: any) => {
+          currentStatus === "COMPLETED" &&
+          detectedObjects.map((obj: any) => {
             const bounds = getBoundingBox(obj.box);
             if (!bounds) return null;
 
@@ -342,8 +384,8 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
             )}
           </div>
 
-          {/* Floating Shop Look tag (appears when objects are detected) */}
-          {(post as any).detectedObjects && (post as any).detectedObjects.length > 0 && (
+          {/* Floating Shop Look tag (appears when objects are detected and processing is complete) */}
+          {currentStatus === "COMPLETED" && detectedObjects.length > 0 && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -351,14 +393,14 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                   videoRef.current.pause();
                   setIsPlaying(false);
                 }
-                setActiveSearchQuery((post as any).detectedObjects[0].name);
+                setActiveSearchQuery(detectedObjects[0].name);
               }}
               className="flex items-center gap-1.5 bg-black/60 hover:bg-black/85 px-3 py-1.5 rounded-full border border-white/20 hover:border-white/45 text-xs font-semibold text-yellow-400 hover:text-yellow-300 w-fit cursor-pointer transition-all duration-200 mt-2 mb-1"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-4 animate-bounce">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
               </svg>
-              <span>Shop Look ({(post as any).detectedObjects.length})</span>
+              <span>Shop Look ({detectedObjects.length})</span>
             </button>
           )}
 
@@ -430,8 +472,8 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           <span className="text-[11px] font-medium tracking-wide text-zinc-300">Save</span>
         </div>
 
-        {/* Shop action button (only if objects are detected) */}
-        {(post as any).detectedObjects && (post as any).detectedObjects.length > 0 && (
+        {/* Shop action button (only if objects are detected and completed) */}
+        {currentStatus === "COMPLETED" && detectedObjects.length > 0 && (
           <div className="flex flex-col items-center gap-1 relative">
             <button
               onClick={() => {

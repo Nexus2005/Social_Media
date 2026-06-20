@@ -13,9 +13,11 @@ const visionClient = new vision.ImageAnnotatorClient({
 export async function POST(req: NextRequest) {
   let tempVideoPath = "";
   let extractedFrames: string[] = [];
+  let postId = "";
 
   try {
-    const { postId } = await req.json();
+    const body = await req.json();
+    postId = body.postId;
 
     if (!postId) {
       return NextResponse.json({ error: "Missing postId" }, { status: 400 });
@@ -34,6 +36,12 @@ export async function POST(req: NextRequest) {
     if (!videoAttachment) {
       return NextResponse.json({ error: "Post does not contain a video" }, { status: 400 });
     }
+
+    // Set status to PROCESSING
+    await prisma.post.update({
+      where: { id: postId },
+      data: { aiStatus: "PROCESSING" },
+    });
 
     const videoUrl = videoAttachment.url;
     console.log(`Processing Reel video URL: ${videoUrl}`);
@@ -106,6 +114,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Set status to COMPLETED
+    await prisma.post.update({
+      where: { id: postId },
+      data: { aiStatus: "COMPLETED" },
+    });
+
     return NextResponse.json({
       success: true,
       detectedCount: objectsToSave.length,
@@ -113,6 +127,16 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error processing reel:", error);
+    if (postId) {
+      try {
+        await prisma.post.update({
+          where: { id: postId },
+          data: { aiStatus: "FAILED" },
+        });
+      } catch (dbErr) {
+        console.error("Failed to update status to FAILED in database:", dbErr);
+      }
+    }
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   } finally {
     // Cleanup temporary files
