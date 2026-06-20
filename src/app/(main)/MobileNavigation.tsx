@@ -12,18 +12,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Bell,
   Heart,
   Home,
   Mail,
   PlusSquare,
   Search,
-  User
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import PostEditor from "@/components/posts/editor/PostEditor";
+import { SpotsIcon } from "./CartlySidebar";
 
 interface MobileNavigationProps {
   initialNotificationsCount: number;
@@ -59,9 +58,9 @@ export default function MobileNavigation({
 
   return (
     <>
-      {/* Mobile Top Header */}
-      <header className="sticky top-0 z-10 flex h-14 w-full items-center justify-between border-b bg-card px-4 sm:hidden">
-        <Link href="/" className="flex items-center gap-2">
+      {/* Mobile Top Header — Instagram style: Logo left, Heart + Mail right */}
+      <header className="sticky top-0 z-30 flex h-11 w-full items-center justify-between border-b border-border/60 bg-background px-4 sm:hidden">
+        <Link href="/" className="flex items-center gap-1.5">
           <img
             src="/cartly-logo.webp"
             alt="Cartly Logo"
@@ -72,22 +71,22 @@ export default function MobileNavigation({
           </span>
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           {/* Notifications */}
-          <Link href="/notifications" className="relative flex items-center justify-center text-muted-foreground hover:text-foreground">
-            <Heart className="size-6" />
+          <Link href="/notifications" className="relative flex items-center justify-center text-foreground">
+            <Heart className="size-[22px]" />
             {!!notificationsData.unreadCount && (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
                 {notificationsData.unreadCount}
               </span>
             )}
           </Link>
 
           {/* Messages */}
-          <Link href="/messages" className="relative flex items-center justify-center text-muted-foreground hover:text-foreground">
-            <Mail className="size-6" />
+          <Link href="/messages" className="relative flex items-center justify-center text-foreground">
+            <Mail className="size-[22px]" />
             {!!messagesData.unreadCount && (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
                 {messagesData.unreadCount}
               </span>
             )}
@@ -95,45 +94,45 @@ export default function MobileNavigation({
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-10 flex h-12 w-full items-center justify-around border-t bg-card pb-safe sm:hidden">
+      {/* Mobile Bottom Navigation Bar — 5 tabs: Home, Search, Create, Spots, Profile */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 w-full items-center justify-around border-t border-border/60 bg-background sm:hidden">
         <Link
           href="/"
-          className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
+          className={`flex items-center justify-center p-2 transition-colors ${
             pathname === "/" ? "text-foreground" : "text-muted-foreground"
           }`}
         >
-          <Home className="size-6" />
+          <Home className="size-[26px]" strokeWidth={pathname === "/" ? 2.5 : 1.8} />
         </Link>
         <Link
           href="/search"
-          className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
+          className={`flex items-center justify-center p-2 transition-colors ${
             pathname.startsWith("/search") ? "text-foreground" : "text-muted-foreground"
           }`}
         >
-          <Search className="size-6" />
+          <Search className="size-[26px]" strokeWidth={pathname.startsWith("/search") ? 2.5 : 1.8} />
         </Link>
         <button
           onClick={() => setIsCreateOpen(true)}
-          className="flex items-center justify-center p-2 rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center justify-center p-2 text-muted-foreground transition-colors hover:text-foreground"
         >
-          <PlusSquare className="size-6" />
+          <PlusSquare className="size-[26px]" strokeWidth={1.8} />
         </button>
         <Link
-          href="/messages"
-          className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
-            pathname.startsWith("/messages") ? "text-foreground" : "text-muted-foreground"
+          href="/reels"
+          className={`flex items-center justify-center p-2 transition-colors ${
+            pathname === "/reels" ? "text-foreground" : "text-muted-foreground"
           }`}
         >
-          <Mail className="size-6" />
+          <SpotsIcon className="size-[26px]" strokeWidth={pathname === "/reels" ? 2.5 : 1.8} />
         </Link>
         <Link
           href={`/users/${user.username}`}
-          className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
-            pathname === `/users/${user.username}` ? "ring-2 ring-foreground" : ""
+          className={`flex items-center justify-center p-2 transition-colors ${
+            pathname === `/users/${user.username}` ? "ring-2 ring-foreground rounded-full" : ""
           }`}
         >
-          <UserAvatar avatarUrl={user.avatarUrl} size={24} />
+          <UserAvatar avatarUrl={user.avatarUrl} size={26} />
         </Link>
       </nav>
 

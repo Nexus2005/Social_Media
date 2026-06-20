@@ -6,7 +6,7 @@ import SuggestedSidebar from "./SuggestedSidebar";
 
 export default function Home() {
   return (
-    <div className="mx-auto flex w-full max-w-[935px] gap-8 px-4 py-6 md:px-8 justify-center">
+    <div className="mx-auto flex w-full max-w-[935px] gap-0 sm:gap-8 px-0 sm:px-4 md:px-8 py-0 sm:py-6 justify-center">
       {/* Column 2 (Center Feed) */}
       <div className="w-full max-w-[600px] space-y-6">
         {/* Stories Carousel */}

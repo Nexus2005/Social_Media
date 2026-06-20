@@ -65,7 +65,7 @@ export default function StoriesCarousel() {
 
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto p-4 bg-card rounded-xl border border-border/40 w-full">
+      <div className="flex gap-4 overflow-x-auto p-4 sm:bg-card sm:rounded-xl sm:border sm:border-border/40 w-full">
         {Array.from({ length: 6 }).map((_, idx) => (
           <div key={idx} className="flex flex-col items-center gap-2 flex-shrink-0">
             <Skeleton className="size-14 rounded-full" />
@@ -78,7 +78,7 @@ export default function StoriesCarousel() {
 
   if (error) {
     return (
-      <div className="p-4 bg-card text-destructive text-sm rounded-xl border border-border/40 text-center">
+      <div className="p-4 sm:bg-card text-destructive text-sm sm:rounded-xl sm:border sm:border-border/40 text-center">
         Failed to load stories
       </div>
     );
@@ -94,12 +94,12 @@ export default function StoriesCarousel() {
     : otherStories;
 
   return (
-    <div className="relative group/carousel w-full rounded-xl bg-card p-4 shadow-sm border border-border/40 select-none">
+    <div className="relative group/carousel w-full sm:rounded-xl bg-transparent sm:bg-card p-3 sm:p-4 sm:shadow-sm sm:border sm:border-border/40 select-none">
       {/* Scroll Left Button */}
       {canScrollLeft && (
         <button
           onClick={() => scroll("left")}
-          className="absolute left-4 top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-black shadow-md border hover:bg-neutral-100 transition-all active:scale-95"
+          className="hidden sm:flex absolute left-4 top-1/2 z-10 size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-black shadow-md border hover:bg-neutral-100 transition-all active:scale-95"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -109,7 +109,7 @@ export default function StoriesCarousel() {
       {canScrollRight && (
         <button
           onClick={() => scroll("right")}
-          className="absolute right-4 top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-black shadow-md border hover:bg-neutral-100 transition-all active:scale-95"
+          className="hidden sm:flex absolute right-4 top-1/2 z-10 size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-black shadow-md border hover:bg-neutral-100 transition-all active:scale-95"
         >
           <ChevronRight className="size-4" />
         </button>
