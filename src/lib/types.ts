@@ -12,6 +12,7 @@ export function getUserDataSelect(loggedInUserId: string) {
     birthDate: true,
     professionalCategory: true,
     headerBannerUrl: true,
+    verified: true,
     createdAt: true,
     followers: {
       where: {
@@ -32,7 +33,7 @@ export function getUserDataSelect(loggedInUserId: string) {
 
 export type UserData = Prisma.UserGetPayload<{
   select: ReturnType<typeof getUserDataSelect>;
-}>;
+ }>;
 
 export function getPostDataInclude(loggedInUserId: string) {
   return {
@@ -57,10 +58,39 @@ export function getPostDataInclude(loggedInUserId: string) {
         userId: true,
       },
     },
+    reposts: {
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    },
+    quotedPost: {
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+          },
+        },
+        attachments: true,
+      },
+    },
+    views: true,
     _count: {
       select: {
         likes: true,
         comments: true,
+        reposts: true,
+        views: true,
       },
     },
     poll: {
@@ -88,6 +118,43 @@ export function getCommentDataInclude(loggedInUserId: string) {
   return {
     user: {
       select: getUserDataSelect(loggedInUserId),
+    },
+    likes: {
+      where: {
+        userId: loggedInUserId,
+      },
+      select: {
+        userId: true,
+      },
+    },
+    replies: {
+      include: {
+        user: {
+          select: getUserDataSelect(loggedInUserId),
+        },
+        likes: {
+          where: {
+            userId: loggedInUserId,
+          },
+          select: {
+            userId: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    },
+    _count: {
+      select: {
+        likes: true,
+        replies: true,
+      },
     },
   } satisfies Prisma.CommentInclude;
 }

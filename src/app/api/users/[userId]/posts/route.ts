@@ -9,6 +9,7 @@ export async function GET(
 ) {
   try {
     const cursor = req.nextUrl.searchParams.get("cursor") || undefined;
+    const tab = req.nextUrl.searchParams.get("tab") || "posts";
 
     const pageSize = 10;
 
@@ -18,8 +19,53 @@ export async function GET(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let whereClause: any = { userId };
+
+    if (tab === "reposts") {
+      whereClause = {
+        reposts: {
+          some: {
+            userId,
+          },
+        },
+      };
+    } else if (tab === "replies") {
+      whereClause = {
+        comments: {
+          some: {
+            userId,
+          },
+        },
+      };
+    } else if (tab === "media") {
+      whereClause = {
+        userId,
+        attachments: {
+          some: {},
+        },
+      };
+    } else if (tab === "likes") {
+      whereClause = {
+        likes: {
+          some: {
+            userId,
+          },
+        },
+      };
+    } else if (tab === "collections") {
+      whereClause = {
+        collectionItems: {
+          some: {
+            collection: {
+              userId,
+            },
+          },
+        },
+      };
+    }
+
     const posts = await prisma.post.findMany({
-      where: { userId },
+      where: whereClause,
       include: getPostDataInclude(user.id),
       orderBy: { createdAt: "desc" },
       take: pageSize + 1,

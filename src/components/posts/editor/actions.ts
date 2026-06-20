@@ -16,6 +16,7 @@ export async function submitPost(input: {
   tags?: any;
   collaborators?: any;
   audience?: string;
+  quotedPostId?: string | null;
   poll?: {
     options: string[];
     duration: {
@@ -39,6 +40,7 @@ export async function submitPost(input: {
     tags,
     collaborators,
     audience,
+    quotedPostId,
     poll,
   } = createPostSchema.parse(input);
 
@@ -57,6 +59,7 @@ export async function submitPost(input: {
       tags: tags || undefined,
       collaborators: collaborators || undefined,
       audience,
+      quotedPostId,
       attachments: {
         connect: mediaIds.map((id) => ({ id })),
       },
@@ -73,6 +76,24 @@ export async function submitPost(input: {
     },
     include: getPostDataInclude(user.id),
   });
+
+  // Trigger QUOTE notification if applicable
+  if (quotedPostId) {
+    const quotedPost = await prisma.post.findUnique({
+      where: { id: quotedPostId },
+      select: { userId: true },
+    });
+    if (quotedPost && quotedPost.userId !== user.id) {
+      await prisma.notification.create({
+        data: {
+          issuerId: user.id,
+          recipientId: quotedPost.userId,
+          postId: newPost.id,
+          type: "QUOTE",
+        },
+      });
+    }
+  }
 
   // If the post has video attachments, process it in the background for object localization
   const hasVideo = newPost.attachments.some((att) => att.mediaType === "VIDEO");

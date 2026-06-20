@@ -4,12 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import kyInstance from "@/lib/ky";
+
 interface VideoPlayerProps {
   src: string;
   className?: string;
+  postId?: string;
 }
 
-export default function VideoPlayer({ src, className }: VideoPlayerProps) {
+export default function VideoPlayer({ src, className, postId }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -98,6 +101,57 @@ export default function VideoPlayer({ src, className }: VideoPlayerProps) {
       video.removeEventListener("pause", handlePauseEvent);
     };
   }, []);
+
+  // Track watch time and completion rate
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !postId) return;
+
+    let totalWatchTime = 0;
+    let lastTime = video.currentTime;
+    let completedSent = false;
+
+    const handleTimeUpdate = () => {
+      if (video.paused) return;
+      const current = video.currentTime;
+      const diff = Math.max(0, current - lastTime);
+      if (diff < 1) {
+        totalWatchTime += diff;
+      }
+      lastTime = current;
+
+      if (video.duration > 0) {
+        const progress = current / video.duration;
+        if (progress >= 0.9 && !completedSent) {
+          completedSent = true;
+          kyInstance
+            .post(`/api/posts/${postId}/views`, {
+              json: { watchDuration: Math.round(totalWatchTime), completed: true },
+            })
+            .catch((err) => console.error("Error logging completion view:", err));
+        }
+      }
+    };
+
+    const handlePauseOrUnmount = () => {
+      if (totalWatchTime > 0) {
+        kyInstance
+          .post(`/api/posts/${postId}/views`, {
+            json: { watchDuration: Math.round(totalWatchTime), completed: completedSent },
+          })
+          .catch((err) => console.error("Error logging watch duration:", err));
+      }
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("pause", handlePauseOrUnmount);
+
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("pause", handlePauseOrUnmount);
+      handlePauseOrUnmount();
+    };
+  }, [postId]);
 
   return (
     <div

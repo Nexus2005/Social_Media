@@ -60,16 +60,17 @@ export default function LikeButton({ postId, initialState, hideLikes }: LikeButt
   });
 
   return (
-    <button onClick={() => mutate()} className="flex items-center gap-2">
+    <button onClick={() => mutate()} className="flex items-center gap-2 hover:text-red-500 transition-colors text-muted-foreground">
       <Heart
         className={cn(
-          "size-5",
+          "size-[22px]",
           data.isLikedByUser && "fill-red-500 text-red-500",
         )}
+        strokeWidth={1.75}
       />
-      {!hideLikes && (
-        <span className="text-sm font-medium tabular-nums">
-          {data.likes} <span className="hidden sm:inline">likes</span>
+      {!hideLikes && data.likes > 0 && (
+        <span className="text-xs font-semibold tabular-nums">
+          {data.likes}
         </span>
       )}
     </button>

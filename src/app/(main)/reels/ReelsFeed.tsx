@@ -6,11 +6,15 @@ import { PostsPage } from "@/lib/types";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import ReelCard from "@/components/reels/ReelCard";
+import { useSearchParams } from "next/navigation";
 
 export default function ReelsFeed() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeReelIndex, setActiveReelIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
+
+  const searchParams = useSearchParams();
+  const focusedPostId = searchParams.get("focusedPostId");
 
   const {
     data,
@@ -20,12 +24,17 @@ export default function ReelsFeed() {
     isFetchingNextPage,
     status,
   } = useInfiniteQuery({
-    queryKey: ["post-feed", "reels"],
+    queryKey: ["post-feed", "reels", focusedPostId],
     queryFn: ({ pageParam }) =>
       kyInstance
         .get(
           "/api/posts/reels",
-          pageParam ? { searchParams: { cursor: pageParam } } : {}
+          {
+            searchParams: {
+              ...(pageParam ? { cursor: pageParam } : {}),
+              ...(focusedPostId ? { focusedPostId } : {}),
+            },
+          }
         )
         .json<PostsPage>(),
     initialPageParam: null as string | null,

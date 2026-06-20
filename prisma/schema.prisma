@@ -42,6 +42,14 @@ model User {
   headerBannerUrl      String?
   pollVotes            PollVote[]
 
+  verified             Boolean        @default(false)
+  reposts              Repost[]
+  views                PostView[]
+  mentions             PostMention[]
+  drafts               DraftPost[]
+  collections          SavedCollection[]
+  commentLikes         CommentLike[]
+
   createdAt DateTime @default(now())
 
   @@map("users")
@@ -89,6 +97,16 @@ model Post {
   audience            String         @default("PUBLIC")
   poll                Poll?
 
+  quotedPostId        String?
+  quotedPost          Post?          @relation("QuotePost", fields: [quotedPostId], references: [id], onDelete: SetNull)
+  quotedIn            Post[]         @relation("QuotePost")
+  isPinned            Boolean        @default(false)
+
+  reposts             Repost[]
+  views               PostView[]
+  mentions            PostMention[]
+  collectionItems     SavedCollectionItem[]
+
   createdAt DateTime @default(now())
 
   @@map("posts")
@@ -116,12 +134,16 @@ enum MediaType {
 }
 
 model Comment {
-  id      String @id @default(cuid())
-  content String
-  userId  String
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  postId  String
-  post    Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  content         String
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId          String
+  post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentCommentId String?
+  parentComment   Comment?      @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         Comment[]     @relation("CommentReplies")
+  likes           CommentLike[]
 
   createdAt DateTime @default(now())
 
@@ -171,6 +193,10 @@ enum NotificationType {
   LIKE
   FOLLOW
   COMMENT
+  REPOST
+  QUOTE
+  REPLY
+  MENTION
 }
 
 model Story {
@@ -256,5 +282,91 @@ model PollVote {
 
   @@unique([userId, pollId])
   @@map("poll_votes")
+}
+
+model PostView {
+  id            String   @id @default(cuid())
+  postId        String
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip            String?
+  watchDuration Int?     // in seconds
+  completed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@map("post_views")
+}
+
+model Repost {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@map("reposts")
+}
+
+model PostMention {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@map("post_mentions")
+}
+
+model DraftPost {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     String?
+  attachments Json?
+  updatedAt   DateTime @updatedAt
+
+  @@map("draft_posts")
+}
+
+model SavedCollection {
+  id        String                @id @default(cuid())
+  name      String
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     SavedCollectionItem[]
+  createdAt DateTime              @default(now())
+
+  @@unique([userId, name])
+  @@map("saved_collections")
+}
+
+model SavedCollectionItem {
+  id           String          @id @default(cuid())
+  collectionId String
+  collection   SavedCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  postId       String
+  post         Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+
+  @@unique([collectionId, postId])
+  @@map("saved_collection_items")
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+  @@map("comment_likes")
 }
 

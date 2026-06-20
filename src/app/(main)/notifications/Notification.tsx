@@ -2,7 +2,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { NotificationData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NotificationType } from "@prisma/client";
-import { Heart, MessageCircle, User2 } from "lucide-react";
+import { Heart, MessageCircle, User2, Repeat2, MessageSquareQuote } from "lucide-react";
 import Link from "next/link";
 
 interface NotificationProps {
@@ -15,18 +15,38 @@ export default function Notification({ notification }: NotificationProps) {
     { message: string; icon: JSX.Element; href: string }
   > = {
     FOLLOW: {
-      message: `${notification.issuer.displayName} followed you`,
+      message: "followed you",
       icon: <User2 className="size-7 text-primary" />,
       href: `/users/${notification.issuer.username}`,
     },
     COMMENT: {
-      message: `${notification.issuer.displayName} commented on your post`,
+      message: "commented on your post",
       icon: <MessageCircle className="size-7 fill-primary text-primary" />,
       href: `/posts/${notification.postId}`,
     },
     LIKE: {
-      message: `${notification.issuer.displayName} liked your post`,
+      message: "liked your post",
       icon: <Heart className="size-7 fill-red-500 text-red-500" />,
+      href: `/posts/${notification.postId}`,
+    },
+    REPOST: {
+      message: "reposted your post",
+      icon: <Repeat2 className="size-7 text-green-500" />,
+      href: `/posts/${notification.postId}`,
+    },
+    QUOTE: {
+      message: "quoted your post",
+      icon: <MessageSquareQuote className="size-7 text-primary" />,
+      href: `/posts/${notification.postId}`,
+    },
+    REPLY: {
+      message: "replied to your comment",
+      icon: <MessageCircle className="size-7 text-primary" />,
+      href: `/posts/${notification.postId}`,
+    },
+    MENTION: {
+      message: "mentioned you in a post",
+      icon: <User2 className="size-7 text-primary" />,
       href: `/posts/${notification.postId}`,
     },
   };

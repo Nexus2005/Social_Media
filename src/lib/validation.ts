@@ -30,6 +30,7 @@ export const createPostSchema = z.object({
   tags: z.any().optional(),
   collaborators: z.any().optional(),
   audience: z.string().optional().default("PUBLIC"),
+  quotedPostId: z.string().optional().nullable(),
   poll: z.object({
     options: z.array(z.string().trim().min(1, "Option text cannot be empty")).min(2, "At least 2 choices required").max(4, "Maximum 4 choices allowed"),
     duration: z.object({
@@ -39,9 +40,9 @@ export const createPostSchema = z.object({
     }),
   }).optional().nullable(),
 }).refine(
-  (data) => (data.content && data.content.trim().length > 0) || data.mediaIds.length > 0 || !!data.poll,
+  (data) => (data.content && data.content.trim().length > 0) || data.mediaIds.length > 0 || !!data.poll || !!data.quotedPostId,
   {
-    message: "Post must contain text, media, or a poll",
+    message: "Post must contain text, media, a poll, or quote a post",
     path: ["content"],
   }
 );
