@@ -10,7 +10,11 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useDropzone } from "react-dropzone";
 import {
-  ImageIcon,
+  Image as LucideImage,
+  FileText as LucideGif,
+  BarChart3 as LucidePoll,
+  MapPin as LucideLocation,
+  Flag as LucideFlag,
   Loader2,
   X,
   Sparkles,
@@ -19,7 +23,6 @@ import {
   ArrowLeft,
   ArrowRight,
   RotateCw,
-  MapPin,
   Users,
   Eye,
   MessageSquare,
@@ -39,6 +42,9 @@ import Cropper from "react-easy-crop";
 import EmojiPickerPanel from "@/components/stories/EmojiPickerPanel";
 import GifPicker from "@/components/stories/GifPicker";
 import { getFilterString, getProcessedImg } from "./imageProcessing";
+import { submitPost } from "./actions";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/use-toast";
 
 // Common hashtags for autocomplete suggestions
 const commonHashtags = [
@@ -47,7 +53,7 @@ const commonHashtags = [
   "productivity", "design", "coding", "business", "marketing"
 ];
 
-// Presets info for Aden, Clarendon, Crema, Gingham, Juno, Lark, Ludwig, Moon, Slumber
+// Presets info
 const filterPresets = [
   { name: "Normal", filter: "none" },
   { name: "Clarendon", filter: "contrast(1.2) saturate(1.35)" },
@@ -59,6 +65,14 @@ const filterPresets = [
   { name: "Ludwig", filter: "brightness(1.05) saturate(1.1) contrast(0.95)" },
   { name: "Moon", filter: "grayscale(1) contrast(1.1) brightness(1.1)" },
   { name: "Slumber", filter: "sepia(0.35) contrast(1.1) saturate(0.7) brightness(1.05)" }
+];
+
+const mockAssets = [
+  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=200&auto=format&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=200&auto=format&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=200&auto=format&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=200&auto=format&fit=crop&q=60"
 ];
 
 interface ImageAdjustmentState {
@@ -80,7 +94,7 @@ const defaultAdjustmentState = (): ImageAdjustmentState => ({
   crop: { x: 0, y: 0 },
   zoom: 1,
   rotation: 0,
-  aspect: 1, // 1:1 default square
+  aspect: 1,
   croppedAreaPixels: null,
   filter: "Normal",
   brightness: 1,
@@ -91,8 +105,28 @@ const defaultAdjustmentState = (): ImageAdjustmentState => ({
   vignette: 0,
 });
 
-export default function PostEditor() {
+interface ThreadNode {
+  id: string;
+  text: string;
+  assets: Attachment[];
+  poll: {
+    options: string[];
+    duration: {
+      days: number;
+      hours: number;
+      minutes: number;
+    };
+  } | null;
+}
+
+interface PostEditorProps {
+  onClose?: () => void;
+}
+
+export default function PostEditor({ onClose }: PostEditorProps) {
   const { user } = useSession();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const mutation = useSubmitPostMutation();
 
   const {
@@ -116,12 +150,21 @@ export default function PostEditor() {
   const [stage, setStage] = useState<1 | 2 | 3>(1);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
 
-  // Poll state
+  // Poll state (Desktop)
   const [hasPoll, setHasPoll] = useState(false);
   const [pollChoices, setPollChoices] = useState<string[]>(["", ""]);
   const [pollDays, setPollDays] = useState(1);
   const [pollHours, setPollHours] = useState(0);
   const [pollMinutes, setPollMinutes] = useState(0);
+
+  // Thread State (Mobile)
+  const [threads, setThreads] = useState<ThreadNode[]>([
+    { id: "1", text: "", assets: [], poll: null }
+  ]);
+  const [activeThreadIndex, setActiveThreadIndex] = useState(0);
+
+  // Image Gallery Picker (Mobile)
+  const [showImageGallery, setShowImageGallery] = useState(false);
 
   // GIF Picker overlay
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -226,7 +269,6 @@ export default function PostEditor() {
 
   // 1. DRAFTS LOGIC: Auto-save, restore, and clear
   useEffect(() => {
-    // Check if draft exists on mount
     const draft = localStorage.getItem("cartly_composer_draft");
     if (draft) {
       setShowDraftBanner(true);
@@ -285,6 +327,22 @@ export default function PostEditor() {
     setShowDraftBanner(false);
   };
 
+  // Bi-directional media upload sync for Mobile thread nodes
+  useEffect(() => {
+    const activeNode = threads[activeThreadIndex];
+    if (activeNode) {
+      setAttachments(activeNode.assets);
+    }
+  }, [activeThreadIndex]);
+
+  useEffect(() => {
+    const updated = [...threads];
+    if (updated[activeThreadIndex]) {
+      updated[activeThreadIndex].assets = attachments;
+      setThreads(updated);
+    }
+  }, [attachments]);
+
   // Autocomplete insert handler
   const selectAutocomplete = (value: string) => {
     if (!editor || !autocomplete) return;
@@ -318,6 +376,18 @@ export default function PostEditor() {
     }
   };
 
+  const addMockAssetToActiveNode = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const filename = `mock_${Date.now()}_${url.split('/').pop()?.split('?')[0] || 'asset.jpg'}`;
+      const file = new File([blob], filename, { type: "image/jpeg" });
+      startUpload([file]);
+    } catch (e) {
+      console.error("Mock asset attach failed", e);
+    }
+  };
+
   // Reorder attachments
   const moveAttachment = (index: number, direction: "left" | "right") => {
     const newIdx = direction === "left" ? index - 1 : index + 1;
@@ -342,6 +412,50 @@ export default function PostEditor() {
         ...updates,
       },
     }));
+  };
+
+  // Thread Nodes controllers
+  const addNewThreadNode = () => {
+    const newNode: ThreadNode = {
+      id: Math.random().toString(),
+      text: "",
+      assets: [],
+      poll: null,
+    };
+    setThreads([...threads, newNode]);
+    setActiveThreadIndex(threads.length);
+  };
+
+  const removeThreadNode = (idx: number) => {
+    if (threads.length <= 1) return;
+    const updated = threads.filter((_, i) => i !== idx);
+    setThreads(updated);
+    setActiveThreadIndex(Math.max(0, idx - 1));
+  };
+
+  const updateThreadText = (idx: number, text: string) => {
+    const updated = [...threads];
+    updated[idx].text = text;
+    setThreads(updated);
+  };
+
+  const togglePollForNode = (idx: number) => {
+    const updated = [...threads];
+    if (updated[idx].poll) {
+      updated[idx].poll = null;
+    } else {
+      updated[idx].poll = {
+        options: ["", ""],
+        duration: { days: 1, hours: 0, minutes: 0 },
+      };
+    }
+    setThreads(updated);
+  };
+
+  const removePollFromNode = (idx: number) => {
+    const updated = [...threads];
+    updated[idx].poll = null;
+    setThreads(updated);
   };
 
   // Interactive tag coordinates selector
@@ -426,118 +540,206 @@ export default function PostEditor() {
     return () => clearTimeout(delay);
   }, [collabQuery]);
 
-  // Main Submit handler (applies crops/filters client-side & uploads)
+  // Main Publish controller (supports single post on Desktop & sequential threads on Mobile)
   const handlePublish = async () => {
     try {
       setIsProcessingAndSubmitting(true);
-      const finalMediaIds: string[] = [];
 
-      // Process and upload images with adjustments in parallel
-      const uploadPromises = attachments.map(async (a) => {
-        const fileAdj = mediaAdjustments[a.file.name];
-        
-        // If it's an image and has adjustments (or custom crop/filter applied)
-        if (a.file.type.startsWith("image") && fileAdj && fileAdj.croppedAreaPixels) {
-          const originalSrc = URL.createObjectURL(a.file);
-          const processedBlob = await getProcessedImg(
-            originalSrc,
-            fileAdj.croppedAreaPixels,
-            fileAdj.rotation,
-            fileAdj.filter,
-            {
-              brightness: fileAdj.brightness,
-              contrast: fileAdj.contrast,
-              fade: fileAdj.fade,
-              saturation: fileAdj.saturation,
-              temperature: fileAdj.temperature,
-              vignette: fileAdj.vignette,
+      const isMobile = window.innerWidth < 768;
+
+      if (isMobile) {
+        // Multi-post thread publishing loop
+        let previousPostId: string | null = null;
+
+        for (let i = 0; i < threads.length; i++) {
+          const node = threads[i];
+          const nodeMediaIds: string[] = [];
+
+          // Process and upload edited image buffers
+          const uploadPromises = node.assets.map(async (a) => {
+            const fileAdj = mediaAdjustments[a.file.name];
+            if (a.file.type.startsWith("image") && fileAdj && fileAdj.croppedAreaPixels) {
+              const originalSrc = URL.createObjectURL(a.file);
+              const processedBlob = await getProcessedImg(
+                originalSrc,
+                fileAdj.croppedAreaPixels,
+                fileAdj.rotation,
+                fileAdj.filter,
+                {
+                  brightness: fileAdj.brightness,
+                  contrast: fileAdj.contrast,
+                  fade: fileAdj.fade,
+                  saturation: fileAdj.saturation,
+                  temperature: fileAdj.temperature,
+                  vignette: fileAdj.vignette,
+                }
+              );
+              URL.revokeObjectURL(originalSrc);
+
+              const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
+              const formData = new FormData();
+              formData.append("endpoint", "attachment");
+              formData.append("files", finalFile);
+              
+              const meta = [{ name: finalFile.name, width: fileAdj.croppedAreaPixels.width, height: fileAdj.croppedAreaPixels.height }];
+              formData.append("metadata", JSON.stringify(meta));
+
+              const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!res.ok) {
+                throw new Error(`Failed to upload edited media ${finalFile.name}`);
+              }
+
+              const uploadResult = await res.json();
+              return uploadResult[0]?.serverData?.mediaId as string;
             }
-          );
-          URL.revokeObjectURL(originalSrc);
-
-          const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
-          
-          // Direct POST to /api/upload
-          const formData = new FormData();
-          formData.append("endpoint", "attachment");
-          formData.append("files", finalFile);
-          
-          const meta = [{ name: finalFile.name, width: fileAdj.croppedAreaPixels.width, height: fileAdj.croppedAreaPixels.height }];
-          formData.append("metadata", JSON.stringify(meta));
-
-          const res = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
+            return a.mediaId || "";
           });
 
-          if (!res.ok) {
-            throw new Error(`Failed to upload edited media ${finalFile.name}`);
-          }
+          const processedMediaIds = await Promise.all(uploadPromises);
+          processedMediaIds.forEach((id) => {
+            if (id) nodeMediaIds.push(id);
+          });
 
-          const uploadResult = await res.json();
-          return uploadResult[0]?.serverData?.mediaId as string;
+          const result = await submitPost({
+            content: node.text,
+            mediaIds: nodeMediaIds,
+            location: location || null,
+            disableComments,
+            hideLikes,
+            altText: altText || null,
+            audience,
+            quotedPostId: previousPostId,
+            poll: node.poll
+              ? {
+                  options: node.poll.options.filter((c) => c.trim() !== ""),
+                  duration: {
+                    days: node.poll.duration.days,
+                    hours: node.poll.duration.hours,
+                    minutes: node.poll.duration.minutes,
+                  },
+                }
+              : null,
+          });
+
+          previousPostId = result.id;
         }
 
-        // Return the existing media ID of the raw file
-        return a.mediaId || "";
-      });
+        queryClient.invalidateQueries({ queryKey: ["post-feed"] });
+        toast({ description: "Thread published successfully!" });
 
-      const processedMediaIds = await Promise.all(uploadPromises);
-      processedMediaIds.forEach((id) => {
-        if (id) finalMediaIds.push(id);
-      });
+        // Reset
+        setThreads([{ id: "1", text: "", assets: [], poll: null }]);
+        setActiveThreadIndex(0);
+        resetMediaUploads();
+        discardDraft();
+        if (onClose) onClose();
 
-      // Map tags into list grouped by attachment index
-      const tagPayload: any[] = [];
-      attachments.forEach((a, idx) => {
-        const fileTags = mediaTags[a.file.name] || [];
-        fileTags.forEach((t) => {
-          tagPayload.push({
-            mediaIndex: idx,
-            username: t.username,
-            x: t.x,
-            y: t.y,
+      } else {
+        // Desktop single post upload
+        const finalMediaIds: string[] = [];
+        const uploadPromises = attachments.map(async (a) => {
+          const fileAdj = mediaAdjustments[a.file.name];
+          if (a.file.type.startsWith("image") && fileAdj && fileAdj.croppedAreaPixels) {
+            const originalSrc = URL.createObjectURL(a.file);
+            const processedBlob = await getProcessedImg(
+              originalSrc,
+              fileAdj.croppedAreaPixels,
+              fileAdj.rotation,
+              fileAdj.filter,
+              {
+                brightness: fileAdj.brightness,
+                contrast: fileAdj.contrast,
+                fade: fileAdj.fade,
+                saturation: fileAdj.saturation,
+                temperature: fileAdj.temperature,
+                vignette: fileAdj.vignette,
+              }
+            );
+            URL.revokeObjectURL(originalSrc);
+
+            const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
+            const formData = new FormData();
+            formData.append("endpoint", "attachment");
+            formData.append("files", finalFile);
+            
+            const meta = [{ name: finalFile.name, width: fileAdj.croppedAreaPixels.width, height: fileAdj.croppedAreaPixels.height }];
+            formData.append("metadata", JSON.stringify(meta));
+
+            const res = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!res.ok) {
+              throw new Error(`Failed to upload edited media ${finalFile.name}`);
+            }
+
+            const uploadResult = await res.json();
+            return uploadResult[0]?.serverData?.mediaId as string;
+          }
+          return a.mediaId || "";
+        });
+
+        const processedMediaIds = await Promise.all(uploadPromises);
+        processedMediaIds.forEach((id) => {
+          if (id) finalMediaIds.push(id);
+        });
+
+        const tagPayload: any[] = [];
+        attachments.forEach((a, idx) => {
+          const fileTags = mediaTags[a.file.name] || [];
+          fileTags.forEach((t) => {
+            tagPayload.push({
+              mediaIndex: idx,
+              username: t.username,
+              x: t.x,
+              y: t.y,
+            });
           });
         });
-      });
 
-      // Submit Mutation
-      mutation.mutate(
-        {
-          content: input,
-          mediaIds: finalMediaIds,
-          location: location || null,
-          disableComments,
-          hideLikes,
-          altText: altText || null,
-          audience,
-          tags: tagPayload.length > 0 ? tagPayload : null,
-          collaborators: collaborators.length > 0 ? collaborators : null,
-          poll: hasPoll
-            ? {
-                options: pollChoices.filter((c) => c.trim() !== ""),
-                duration: {
-                  days: pollDays,
-                  hours: pollHours,
-                  minutes: pollMinutes,
-                },
-              }
-            : null,
-        },
-        {
-          onSuccess: () => {
-            // Reset and Discard Draft
-            editor?.commands.clearContent();
-            resetMediaUploads();
-            discardDraft();
-            setHasPoll(false);
-            setPollChoices(["", ""]);
-            setStage(1);
+        mutation.mutate(
+          {
+            content: input,
+            mediaIds: finalMediaIds,
+            location: location || null,
+            disableComments,
+            hideLikes,
+            altText: altText || null,
+            audience,
+            tags: tagPayload.length > 0 ? tagPayload : null,
+            collaborators: collaborators.length > 0 ? collaborators : null,
+            poll: hasPoll
+              ? {
+                  options: pollChoices.filter((c) => c.trim() !== ""),
+                  duration: {
+                    days: pollDays,
+                    hours: pollHours,
+                    minutes: pollMinutes,
+                  },
+                }
+              : null,
           },
-        }
-      );
+          {
+            onSuccess: () => {
+              editor?.commands.clearContent();
+              resetMediaUploads();
+              discardDraft();
+              setHasPoll(false);
+              setPollChoices(["", ""]);
+              setStage(1);
+              if (onClose) onClose();
+            },
+          }
+        );
+      }
     } catch (error) {
       console.error(error);
+      toast({ variant: "destructive", description: "Failed to publish post." });
     } finally {
       setIsProcessingAndSubmitting(false);
     }
@@ -549,7 +751,6 @@ export default function PostEditor() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // active adjustment values
   const activeFile = attachments[activeMediaIndex]?.file.name;
   const activeAdj = activeFile ? getAdjustment(activeFile) : defaultAdjustmentState();
   const activeTags = activeFile ? mediaTags[activeFile] || [] : [];
@@ -561,949 +762,1187 @@ export default function PostEditor() {
     };
   }, [activeSrc]);
 
+  const activeNodeText = threads[activeThreadIndex]?.text || "";
+  const activeNodeCharCount = activeNodeText.length;
+  const activeNodePercentage = Math.min((activeNodeCharCount / characterLimit) * 100, 100);
+
   return (
-    <div {...rootProps} className="relative flex flex-col bg-card rounded-2xl w-full overflow-hidden text-card-foreground select-none">
-      <input {...getInputProps()} />
-
-      {/* DRAFT NOTIFICATION BANNER */}
-      {showDraftBanner && (
-        <div className="flex items-center justify-between bg-primary/10 border-b border-primary/20 px-6 py-2.5 text-sm">
-          <div className="flex items-center gap-2 text-primary font-medium">
-            <Info className="size-4" />
-            <span>You have an unsaved draft. Resume working on it?</span>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="ghost" className="h-8 text-xs font-semibold" onClick={discardDraft}>
-              Discard
-            </Button>
-            <Button size="sm" className="h-8 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/95" onClick={resumeDraft}>
-              Resume Draft
-            </Button>
-          </div>
+    <>
+      {/* MOBILE COMPOSER VIEW (X-style thread builder) */}
+      <div className="flex md:hidden fixed inset-0 bg-black z-50 flex-col justify-between h-screen h-[100dvh] w-screen overflow-hidden text-white select-none">
+        {/* Top Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-900 bg-black">
+          <button type="button" onClick={onClose} className="text-white hover:opacity-80">
+            <X className="size-6" />
+          </button>
+          <LoadingButton
+            onClick={handlePublish}
+            loading={mutation.isPending || isProcessingAndSubmitting}
+            disabled={!threads[0].text.trim() || isUploading}
+            className="rounded-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-5 py-1.5 text-xs"
+          >
+            {threads.length > 1 ? "Post all" : "Post"}
+          </LoadingButton>
         </div>
-      )}
 
-      {/* LOADING OVERLAY */}
-      {(isProcessingAndSubmitting || mutation.isPending) && (
-        <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
-          <Loader2 className="size-12 animate-spin text-primary" />
-          <span className="text-lg font-bold tracking-wide">Processing and uploading media assets...</span>
-        </div>
-      )}
+        {/* Thread Stack Area */}
+        <div className="relative flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-6 scrollbar-none bg-black">
+          {threads.length > 1 && (
+            <div className="absolute top-10 bottom-16 left-[29px] w-0.5 bg-zinc-800 z-0 pointer-events-none" />
+          )}
 
-      {/* STAGE 1: COMPOSE VIEW */}
-      {stage === 1 && (
-        <div className="flex flex-col p-5 gap-5 min-h-[450px]">
-          {/* User Row + Textarea */}
-          <div className="flex gap-4 items-start flex-grow">
-            <UserAvatar avatarUrl={user.avatarUrl} className="hidden sm:inline-block size-10" />
-            <div className="flex-grow relative">
-              <EditorContent
-                editor={editor}
-                className="w-full min-h-[140px] max-h-[250px] overflow-y-auto outline-none border-0 text-lg bg-transparent border-transparent focus:ring-0 focus:border-transparent placeholder:text-muted-foreground"
-              />
-
-              {/* AUTOCOMPLETE FLOATING OVERLAY */}
-              {autocomplete && (autocomplete.users.length > 0 || autocomplete.tags.length > 0) && (
-                <div className="absolute left-0 top-full mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
-                  {autocomplete.trigger === "@" &&
-                    autocomplete.users.map((u) => (
+          {threads.map((node, idx) => {
+            const isActive = activeThreadIndex === idx;
+            return (
+              <div
+                key={node.id}
+                onClick={() => setActiveThreadIndex(idx)}
+                className={cn(
+                  "relative flex gap-4 items-start z-10 transition-opacity",
+                  !isActive && "opacity-60"
+                )}
+              >
+                <UserAvatar avatarUrl={user.avatarUrl} size={32} className="size-8 rounded-full z-10 bg-black shrink-0" />
+                <div className="flex-grow min-w-0 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-400">@{user.username}</span>
+                    {threads.length > 1 && (
                       <button
-                        key={u.id}
-                        onClick={() => selectAutocomplete(u.username)}
-                        className="flex items-center gap-3 w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white"
-                      >
-                        <UserAvatar avatarUrl={u.avatarUrl} size={24} />
-                        <div className="flex flex-col">
-                          <span className="font-bold">{u.username}</span>
-                          <span className="text-xs text-neutral-400">{u.displayName}</span>
-                        </div>
-                      </button>
-                    ))}
-                  {autocomplete.trigger === "#" &&
-                    autocomplete.tags.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => selectAutocomplete(tag)}
-                        className="w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white font-semibold"
-                      >
-                        #{tag}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* DOCK CAROUSEL PREVIEW ROW */}
-          {attachments.length > 0 && (
-            <div className="flex gap-3 overflow-x-auto py-2 border-t border-border/20">
-              {attachments.map((att, idx) => {
-                const src = URL.createObjectURL(att.file);
-                const isVideo = att.file.type.startsWith("video");
-                const adj = getAdjustment(att.file.name);
-                const filterStr = getFilterString(adj.filter, adj);
-
-                return (
-                  <div key={idx} className="relative size-20 rounded-xl overflow-hidden flex-shrink-0 group bg-neutral-950 border border-neutral-800">
-                    {isVideo ? (
-                      <video src={src} className="w-full h-full object-cover" muted />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={src}
-                        alt="attachment"
-                        style={{ filter: filterStr }}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-
-                    {/* Left/Right Reordering Controls */}
-                    <div className="absolute inset-x-0 bottom-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-between p-0.5 transition-opacity">
-                      <button
-                        onClick={() => moveAttachment(idx, "left")}
-                        disabled={idx === 0}
-                        className="disabled:opacity-30 text-white"
-                      >
-                        <ArrowLeft className="size-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveMediaIndex(idx);
-                          setStage(2);
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeThreadNode(idx);
                         }}
-                        className="text-white text-[10px] font-bold px-1 hover:text-primary transition-colors"
+                        className="text-zinc-500 hover:text-white"
                       >
-                        Edit
+                        <X className="size-4" />
                       </button>
+                    )}
+                  </div>
+                  <textarea
+                    value={node.text}
+                    onChange={(e) => updateThreadText(idx, e.target.value)}
+                    placeholder={idx === 0 ? "What's happening?" : "Add another post..."}
+                    className="w-full bg-transparent border-none outline-none resize-none text-sm text-white placeholder-zinc-650 p-0 focus:ring-0 focus-visible:ring-0 min-h-[60px]"
+                    rows={3}
+                  />
+
+                  {/* Poll option template inside active lane */}
+                  {node.poll && (
+                    <div className="bg-zinc-950 border border-zinc-850 rounded-xl p-3 flex flex-col gap-2 relative max-w-sm">
                       <button
-                        onClick={() => moveAttachment(idx, "right")}
-                        disabled={idx === attachments.length - 1}
-                        className="disabled:opacity-30 text-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePollFromNode(idx);
+                        }}
+                        className="absolute right-2 top-2 text-zinc-500 hover:text-white"
                       >
-                        <ArrowRight className="size-4" />
+                        <X className="size-3.5" />
                       </button>
-                    </div>
-
-                    {/* Delete item */}
-                    <button
-                      onClick={() => removeAttachment(att.file.name)}
-                      className="absolute right-1 top-1 bg-black/80 hover:bg-black text-white rounded-full p-0.5"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* POLL BUILDER MATRIX */}
-          {hasPoll && (
-            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3 relative">
-              <button onClick={() => setHasPoll(false)} className="absolute right-3 top-3 text-neutral-500 hover:text-white">
-                <X className="size-4" />
-              </button>
-              <span className="text-xs font-bold text-neutral-400 tracking-wide uppercase">Poll Builder</span>
-              
-              <div className="flex flex-col gap-2">
-                {pollChoices.map((choice, index) => (
-                  <div key={index} className="relative flex items-center">
-                    <input
-                      type="text"
-                      placeholder={`Choice ${index + 1}`}
-                      maxLength={25}
-                      value={choice}
-                      onChange={(e) => {
-                        const newChoices = [...pollChoices];
-                        newChoices[index] = e.target.value;
-                        setPollChoices(newChoices);
-                      }}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-2 px-3 pr-16 text-sm text-white focus:outline-none placeholder:text-neutral-600"
-                    />
-                    <span className="absolute right-3 text-xs text-neutral-500">
-                      {choice.length}/25
-                    </span>
-                  </div>
-                ))}
-
-                {pollChoices.length < 4 && (
-                  <button
-                    onClick={() => setPollChoices([...pollChoices, ""])}
-                    className="flex items-center gap-2 text-xs font-bold text-primary self-start hover:underline mt-1"
-                  >
-                    <Plus className="size-3.5" />
-                    Add Option
-                  </button>
-                )}
-              </div>
-
-              {/* Poll Duration Dropdowns */}
-              <div className="border-t border-neutral-800 pt-3 mt-1 flex flex-col gap-2">
-                <span className="text-xs text-neutral-500 font-semibold">Poll Length</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-neutral-600 uppercase font-bold">Days</label>
-                    <select
-                      value={pollDays}
-                      onChange={(e) => setPollDays(parseInt(e.target.value))}
-                      className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
-                    >
-                      {Array.from({ length: 8 }, (_, i) => (
-                        <option key={i} value={i}>{i} d</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-neutral-600 uppercase font-bold">Hours</label>
-                    <select
-                      value={pollHours}
-                      onChange={(e) => setPollHours(parseInt(e.target.value))}
-                      className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
-                    >
-                      {Array.from({ length: 24 }, (_, i) => (
-                        <option key={i} value={i}>{i} h</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-neutral-600 uppercase font-bold">Minutes</label>
-                    <select
-                      value={pollMinutes}
-                      onChange={(e) => setPollMinutes(parseInt(e.target.value))}
-                      className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
-                    >
-                      {Array.from({ length: 60 }, (_, i) => (
-                        <option key={i} value={i}>{i} m</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* AI CAPTION FLOATING PREVIEWS */}
-          {showAiCaptionPanel && (
-            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">AI Caption Assistant</span>
-                <button onClick={() => setShowAiCaptionPanel(false)} className="text-neutral-500 hover:text-white">
-                  <X className="size-4" />
-                </button>
-              </div>
-
-              {/* Tone Buttons */}
-              <div className="flex flex-wrap gap-2">
-                {["Professional", "Funny", "Viral", "Startup", "Travel"].map((tone) => (
-                  <button
-                    key={tone}
-                    onClick={() => generateAICaptions(tone)}
-                    className="px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-full text-xs hover:border-primary transition-colors text-white"
-                  >
-                    ✨ {tone}
-                  </button>
-                ))}
-              </div>
-
-              {aiLoading && (
-                <div className="flex items-center gap-2 text-xs text-neutral-500 mt-2">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Generating creative copies...
-                </div>
-              )}
-
-              {aiCaptions.length > 0 && (
-                <div className="flex flex-col gap-2 mt-2">
-                  {aiCaptions.map((caption, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        editor?.commands.setContent(caption);
-                        setShowAiCaptionPanel(false);
-                      }}
-                      className="p-3 bg-neutral-900/60 border border-neutral-850 hover:border-primary hover:bg-neutral-900 rounded-xl text-xs text-neutral-200 cursor-pointer transition-all"
-                    >
-                      {caption}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* DOCK BAR CONTROLS */}
-          <div className="flex justify-between items-center border-t border-border/20 pt-4 mt-auto">
-            <div className="flex items-center gap-3">
-              {/* Add Media */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary hover:text-primary hover:bg-accent"
-                disabled={isUploading || attachments.length >= 10}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImageIcon size={20} />
-              </Button>
-              <input
-                type="file"
-                accept="image/*, video/*"
-                multiple
-                ref={fileInputRef}
-                className="sr-only hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length) {
-                    startUpload(files);
-                    e.target.value = "";
-                  }
-                }}
-              />
-
-              {/* GIF Search trigger */}
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary hover:bg-accent"
-                  onClick={() => setShowGifPicker(!showGifPicker)}
-                >
-                  <span className="text-[10px] font-bold border-2 border-primary rounded-md px-0.5 leading-none">GIF</span>
-                </Button>
-                {showGifPicker && (
-                  <div className="absolute bottom-full left-0 mb-2 w-80 z-50">
-                    <GifPicker onSelect={addGiphyAttachment} onClose={() => setShowGifPicker(false)} />
-                  </div>
-                )}
-              </div>
-
-              {/* Poll trigger */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary hover:text-primary hover:bg-accent"
-                onClick={() => setHasPoll(!hasPoll)}
-              >
-                <span className="text-xs font-bold leading-none">📊</span>
-              </Button>
-
-              {/* AI Assistant trigger */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary hover:text-primary hover:bg-accent"
-                onClick={() => setShowAiCaptionPanel(!showAiCaptionPanel)}
-              >
-                <Sparkles size={18} />
-              </Button>
-
-              {/* Emoji Picker trigger */}
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary hover:bg-accent"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                >
-                  <Smile size={20} />
-                </Button>
-                {showEmojiPicker && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50">
-                    <EmojiPickerPanel
-                      onEmojiSelect={(emoji) => {
-                        editor?.commands.insertContent(emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* character count SVGs & navigation */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                {charCount > characterLimit - 200 && (
-                  <span className={cn("text-xs font-semibold", charCount > characterLimit ? "text-destructive" : "text-neutral-500")}>
-                    {characterLimit - charCount}
-                  </span>
-                )}
-                {/* SVG Character Ring */}
-                <svg className="size-6 transform -rotate-90">
-                  <circle cx="12" cy="12" r="8" className="stroke-neutral-800 fill-none" strokeWidth="1.5" />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="8"
-                    className={cn(
-                      "fill-none transition-all duration-300",
-                      charCount > characterLimit ? "stroke-destructive" : charCount > characterLimit - 200 ? "stroke-yellow-500" : "stroke-primary"
-                    )}
-                    strokeWidth="1.5"
-                    strokeDasharray={2 * Math.PI * 8}
-                    strokeDashoffset={2 * Math.PI * 8 * (1 - percentage / 100)}
-                  />
-                </svg>
-              </div>
-
-              {/* NEXT / SHARE NAVIGATION */}
-              {attachments.length > 0 ? (
-                <Button
-                  onClick={() => {
-                    setActiveMediaIndex(0);
-                    setStage(2);
-                  }}
-                  disabled={isUploading}
-                  className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
-                >
-                  Next
-                </Button>
-              ) : (
-                <LoadingButton
-                  onClick={handlePublish}
-                  loading={mutation.isPending}
-                  disabled={!input.trim() || isUploading}
-                  className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
-                >
-                  Post
-                </LoadingButton>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STAGE 2: FILTER & ADJUSTMENTS EDITOR VIEW */}
-      {stage === 2 && (
-        <div className="flex flex-col md:flex-row h-[550px] w-full bg-black">
-          {/* LEFT IMAGE / CROP CONTAINER */}
-          <div className="flex-1 relative h-[300px] md:h-full bg-neutral-950 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
-            {/* EASY-CROP ELEMENT */}
-            {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") ? (
-              <div className="absolute inset-0">
-                <Cropper
-                  image={activeSrc}
-                  crop={activeAdj.crop}
-                  zoom={activeAdj.zoom}
-                  rotation={activeAdj.rotation}
-                  aspect={activeAdj.aspect}
-                  onCropChange={(crop) => updateAdjustment(activeFile, { crop })}
-                  onZoomChange={(zoom) => updateAdjustment(activeFile, { zoom })}
-                  onCropComplete={(_, croppedAreaPixels) => updateAdjustment(activeFile, { croppedAreaPixels })}
-                  // Overlay styles
-                  style={{
-                    containerStyle: { background: "#000" },
-                    mediaStyle: { filter: getFilterString(activeAdj.filter, activeAdj) }
-                  }}
-                />
-
-                {/* VIGNETTE OVERLAY PREVIEW */}
-                {activeAdj.vignette > 0 && (
-                  <div
-                    style={{
-                      background: `radial-gradient(circle, transparent 45%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
-                    }}
-                    className="absolute inset-0 pointer-events-none z-10"
-                  />
-                )}
-              </div>
-            ) : (
-              <VideoPlayer src={activeSrc} />
-            )}
-
-            {/* ASPECT RATIO PANELS QUICK BUTTON */}
-            {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
-              <div className="absolute bottom-3 left-3 bg-neutral-900/90 text-white rounded-lg p-1.5 z-20 flex gap-2 border border-neutral-850">
-                {[
-                  { label: "1:1", ratio: 1 },
-                  { label: "4:5", ratio: 4 / 5 },
-                  { label: "16:9", ratio: 16 / 9 },
-                  { label: "9:16", ratio: 9 / 16 }
-                ].map((item) => (
-                  <button
-                    key={item.label}
-                    onClick={() => updateAdjustment(activeFile, { aspect: item.ratio })}
-                    className={cn(
-                      "px-2 py-0.5 text-[10px] font-bold rounded hover:bg-neutral-800 transition-colors",
-                      activeAdj.aspect === item.ratio ? "bg-primary text-primary-foreground" : "text-neutral-300"
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* ROTATION BUTTON */}
-            {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
-              <button
-                onClick={() => updateAdjustment(activeFile, { rotation: (activeAdj.rotation + 90) % 360 })}
-                className="absolute bottom-3 right-3 bg-neutral-900/90 hover:bg-neutral-800 text-white p-2 rounded-lg z-20 border border-neutral-850 transition-colors"
-              >
-                <RotateCw className="size-4" />
-              </button>
-            )}
-
-            {/* Back arrow */}
-            <button onClick={() => setStage(1)} className="absolute top-4 left-4 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-20 transition-all">
-              <ArrowLeft className="size-5" />
-            </button>
-          </div>
-
-          {/* RIGHT EDIT TAB CONTROLS PANEL */}
-          <div className="w-full md:w-[350px] h-[250px] md:h-full bg-neutral-950 flex flex-col text-white">
-            {/* EDITING COMPONENT TABS SELECTOR */}
-            <div className="flex border-b border-neutral-900 bg-neutral-950 p-2 gap-2">
-              <button
-                onClick={() => setEditTab("filters")}
-                className={cn(
-                  "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
-                  editTab === "filters" ? "bg-neutral-900 text-white font-bold" : "text-neutral-400 hover:text-white"
-                )}
-              >
-                Filters
-              </button>
-              <button
-                onClick={() => setEditTab("adjustments")}
-                className={cn(
-                  "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
-                  editTab === "adjustments" ? "bg-neutral-900 text-white font-bold" : "text-neutral-400 hover:text-white"
-                )}
-              >
-                Adjustments
-              </button>
-            </div>
-
-            {/* TAB CONTENT */}
-            <div className="flex-grow overflow-y-auto p-4 scrollbar-none">
-              {editTab === "filters" && activeFile && (
-                <div className="grid grid-cols-3 gap-3">
-                  {filterPresets.map((preset) => {
-                    const presetFilter = preset.filter;
-                    return (
-                      <div
-                        key={preset.name}
-                        onClick={() => updateAdjustment(activeFile, { filter: preset.name })}
-                        className={cn(
-                          "flex flex-col gap-1 items-center cursor-pointer rounded-xl overflow-hidden p-1.5 border border-transparent hover:bg-neutral-900 transition-all",
-                          activeAdj.filter === preset.name ? "border-primary bg-neutral-900" : ""
-                        )}
-                      >
-                        <div className="w-full aspect-square rounded-lg overflow-hidden relative bg-neutral-900">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={activeSrc}
-                            alt={preset.name}
-                            style={{ filter: presetFilter }}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className="text-[10px] font-bold text-neutral-300">{preset.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {editTab === "adjustments" && activeFile && (
-                <div className="flex flex-col gap-4">
-                  {/* Brightness */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                      <span>Brightness</span>
-                      <span>{Math.round(activeAdj.brightness * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="1.5"
-                      step="0.05"
-                      value={activeAdj.brightness}
-                      onChange={(e) => updateAdjustment(activeFile, { brightness: parseFloat(e.target.value) })}
-                      className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                  </div>
-
-                  {/* Contrast */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                      <span>Contrast</span>
-                      <span>{Math.round(activeAdj.contrast * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="1.5"
-                      step="0.05"
-                      value={activeAdj.contrast}
-                      onChange={(e) => updateAdjustment(activeFile, { contrast: parseFloat(e.target.value) })}
-                      className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                  </div>
-
-                  {/* Saturation */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                      <span>Saturation</span>
-                      <span>{Math.round(activeAdj.saturation * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.05"
-                      value={activeAdj.saturation}
-                      onChange={(e) => updateAdjustment(activeFile, { saturation: parseFloat(e.target.value) })}
-                      className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                  </div>
-
-                  {/* Temperature */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                      <span>Temperature</span>
-                      <span>{activeAdj.temperature > 0 ? `+${activeAdj.temperature}` : activeAdj.temperature}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="-50"
-                      max="50"
-                      step="1"
-                      value={activeAdj.temperature}
-                      onChange={(e) => updateAdjustment(activeFile, { temperature: parseInt(e.target.value) })}
-                      className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                  </div>
-
-                  {/* Fade */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                      <span>Fade</span>
-                      <span>{activeAdj.fade}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={activeAdj.fade}
-                      onChange={(e) => updateAdjustment(activeFile, { fade: parseInt(e.target.value) })}
-                      className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                  </div>
-
-                  {/* Vignette */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                      <span>Vignette</span>
-                      <span>{Math.round(activeAdj.vignette * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={activeAdj.vignette}
-                      onChange={(e) => updateAdjustment(activeFile, { vignette: parseFloat(e.target.value) })}
-                      className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Stage 2 Footer: active Carousel selections and Next button */}
-            <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between">
-              {/* Carousel strip */}
-              <div className="flex gap-1.5 overflow-x-auto max-w-[150px]">
-                {attachments.map((a, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => setActiveMediaIndex(idx)}
-                    className={cn(
-                      "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-950",
-                      activeMediaIndex === idx ? "border-primary" : "border-transparent"
-                    )}
-                  >
-                    <Image
-                      src={URL.createObjectURL(a.file)}
-                      alt="attachment preview"
-                      width={32}
-                      height={32}
-                      className="object-cover h-full w-full"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                onClick={() => setStage(3)}
-                className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-5 py-2 rounded-lg"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STAGE 3: TAGGING, METADATA & CONFIGURATION VIEW */}
-      {stage === 3 && (
-        <div className="flex flex-col md:flex-row h-[550px] w-full bg-neutral-950 text-white">
-          {/* LEFT BLOCK: PREVIEW & INTERACTIVE TAGGING */}
-          <div className="flex-1 relative h-[300px] md:h-full bg-neutral-950 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
-            {activeFile && (
-              <div onClick={handleTagClick} className="relative max-h-full max-w-full aspect-square md:aspect-auto h-full w-full flex items-center justify-center cursor-crosshair">
-                {!attachments[activeMediaIndex].file.type.startsWith("video") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={activeSrc}
-                    alt="final preview"
-                    style={{ filter: getFilterString(activeAdj.filter, activeAdj) }}
-                    className="max-h-full max-w-full object-contain pointer-events-none"
-                  />
-                ) : (
-                  <video src={activeSrc} className="max-h-full max-w-full object-contain pointer-events-none" muted />
-                )}
-
-                {/* Vignette Preview overlay */}
-                {activeAdj.vignette > 0 && (
-                  <div
-                    style={{
-                      background: `radial-gradient(circle, transparent 45%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
-                    }}
-                    className="absolute inset-0 pointer-events-none z-10"
-                  />
-                )}
-
-                {/* Tag markers rendering */}
-                {activeTags.map((tag, idx) => (
-                  <div
-                    key={idx}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeTag(activeFile, idx);
-                    }}
-                    style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 bg-black/85 hover:bg-destructive hover:scale-102 border border-neutral-700 text-white px-2 py-0.5 rounded-full text-[10px] font-bold z-30 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
-                  >
-                    <span>@{tag.username}</span>
-                    <X className="size-3 flex-shrink-0 opacity-60" />
-                  </div>
-                ))}
-
-                {/* Tag Search Popover Form */}
-                {activeTagCoord && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ left: `${activeTagCoord.x}%`, top: `${activeTagCoord.y}%` }}
-                    className="absolute -translate-x-1/2 mt-3 bg-neutral-900 border border-neutral-850 p-2.5 rounded-xl shadow-2xl z-40 w-48 flex flex-col gap-1.5"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Search username..."
-                      value={tagQuery}
-                      onChange={(e) => setTagQuery(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-850 rounded-lg p-1.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 w-full"
-                    />
-                    <div className="max-h-24 overflow-y-auto flex flex-col gap-1">
-                      {tagSearchUsers.map((u) => (
-                        <div
-                          key={u.id}
-                          onClick={() => addTag(u.username)}
-                          className="flex items-center gap-2 p-1.5 hover:bg-neutral-800 rounded-lg cursor-pointer text-xs"
-                        >
-                          <UserAvatar avatarUrl={u.avatarUrl} size={18} />
-                          <span className="font-bold truncate">{u.username}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => setActiveTagCoord(null)}
-                      className="text-[10px] text-neutral-500 hover:text-white font-bold self-end mt-1"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Back Arrow */}
-            <button onClick={() => setStage(2)} className="absolute top-4 left-4 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-25 transition-all">
-              <ArrowLeft className="size-5" />
-            </button>
-          </div>
-
-          {/* RIGHT BLOCK: METADATA & CONFIGURATIONS SHARING FORM */}
-          <div className="w-full md:w-[350px] h-[250px] md:h-full bg-neutral-950 flex flex-col border-t md:border-t-0 border-neutral-900 text-white">
-            <div className="flex-grow overflow-y-auto p-4 scrollbar-none flex flex-col gap-4">
-              {/* Location Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
-                  <MapPin className="size-4 text-primary" />
-                  <span>Location</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Add location (e.g. San Francisco, CA)"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
-                />
-              </div>
-
-              {/* Collaborators Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
-                  <Users className="size-4 text-primary" />
-                  <span>Collaborators</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search users to collaborate..."
-                    value={collabQuery}
-                    onChange={(e) => setCollabQuery(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
-                  />
-                  {collabUsers.length > 0 && (
-                    <div className="absolute left-0 top-full mt-1.5 w-full bg-neutral-900 border border-neutral-850 rounded-xl shadow-2xl z-40 max-h-32 overflow-y-auto">
-                      {collabUsers
-                        .filter((u) => !collaborators.includes(u.username))
-                        .map((u) => (
-                          <div
-                            key={u.id}
-                            onClick={() => {
-                              setCollaborators([...collaborators, u.username]);
-                              setCollabQuery("");
-                              setCollabUsers([]);
-                            }}
-                            className="flex items-center gap-2.5 p-2 hover:bg-neutral-850 cursor-pointer text-xs"
-                          >
-                            <UserAvatar avatarUrl={u.avatarUrl} size={18} />
-                            <span className="font-bold">{u.username}</span>
+                      <div className="flex flex-col gap-2 mt-2">
+                        {node.poll.options.map((option, oIdx) => (
+                          <div key={oIdx} className="relative flex items-center">
+                            <input
+                              type="text"
+                              placeholder={`Choice ${oIdx + 1}`}
+                              maxLength={25}
+                              value={option}
+                              onChange={(e) => {
+                                const updated = [...threads];
+                                if (updated[idx].poll) {
+                                  updated[idx].poll.options[oIdx] = e.target.value;
+                                  setThreads(updated);
+                                }
+                              }}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 px-3 pr-12 text-xs text-white focus:outline-none placeholder:text-zinc-600"
+                            />
+                            <span className="absolute right-2.5 text-[10px] text-zinc-500">
+                              {option.length}/25
+                            </span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Assets thumbnails preview row inside active lane */}
+                  {node.assets.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto py-1">
+                      {node.assets.map((asset, aIdx) => (
+                        <div key={aIdx} className="relative size-16 rounded-lg overflow-hidden shrink-0 border border-zinc-800">
+                          <img src={URL.createObjectURL(asset.file)} className="w-full h-full object-cover" />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const updated = [...threads];
+                              updated[idx].assets = updated[idx].assets.filter((_, attIdx) => attIdx !== aIdx);
+                              setThreads(updated);
+                              if (isActive) {
+                                setAttachments(updated[idx].assets);
+                              }
+                            }}
+                            className="absolute right-1 top-1 bg-black/80 hover:bg-black text-white rounded-full p-0.5"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-                {/* List of collaborators */}
-                {collaborators.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {collaborators.map((name) => (
-                      <span
-                        key={name}
-                        onClick={() => setCollaborators(collaborators.filter((c) => c !== name))}
-                        className="bg-neutral-800 hover:bg-destructive text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1.5 cursor-pointer"
+              </div>
+            );
+          })}
+
+          {/* Add another post text button */}
+          {activeThreadIndex === threads.length - 1 && (
+            <div
+              onClick={addNewThreadNode}
+              className="flex items-center gap-4 pl-12 py-1 text-purple-400 hover:text-purple-300 text-xs font-semibold cursor-pointer select-none"
+            >
+              <span>Add another post</span>
+            </div>
+          )}
+        </div>
+
+        {/* Image Picker Gallery Row */}
+        {showImageGallery && (
+          <div className="flex gap-2 overflow-x-auto py-2 border-t border-zinc-900 px-4 bg-black select-none">
+            {/* Camera Capture Utility Node */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center rounded-xl w-20 h-24 text-zinc-400 hover:bg-zinc-850 shrink-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+              </svg>
+              <span className="text-[10px] font-bold mt-1">Camera</span>
+            </button>
+
+            {/* Mock recent assets */}
+            {mockAssets.map((url, idx) => (
+              <button
+                key={idx}
+                onClick={() => addMockAssetToActiveNode(url)}
+                className="relative w-20 h-24 rounded-xl overflow-hidden shrink-0 border border-zinc-800 hover:border-purple-500 transition-colors"
+              >
+                <img src={url} alt="mock asset" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Toolbar Footer Sticky */}
+        <div className="sticky bottom-0 bg-black border-t border-zinc-900 px-4 py-2 flex justify-between items-center z-30">
+          <div className="flex gap-5 items-center">
+            <LucideImage
+              onClick={() => setShowImageGallery(!showImageGallery)}
+              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
+            />
+            <div className="relative">
+              <LucideGif
+                onClick={() => setShowGifPicker(!showGifPicker)}
+                className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
+              />
+              {showGifPicker && (
+                <div className="absolute bottom-full left-0 mb-2 w-72 z-50">
+                  <GifPicker onSelect={addGiphyAttachment} onClose={() => setShowGifPicker(false)} />
+                </div>
+              )}
+            </div>
+            <LucidePoll
+              onClick={() => togglePollForNode(activeThreadIndex)}
+              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
+            />
+            <LucideLocation
+              onClick={() => {
+                const loc = prompt("Enter location:");
+                if (loc !== null) setLocation(loc);
+              }}
+              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
+            />
+            <LucideFlag
+              onClick={() => {
+                setDisableComments(!disableComments);
+                toast({ description: disableComments ? "Comments enabled." : "Comments disabled." });
+              }}
+              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
+            />
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* SVG status ring tracker indicator goes here */}
+            {activeNodeCharCount > 0 && (
+              <div className="flex items-center gap-1.5">
+                {activeNodeCharCount > characterLimit - 200 && (
+                  <span className={cn("text-[10px] font-semibold", activeNodeCharCount > characterLimit ? "text-destructive" : "text-zinc-500")}>
+                    {characterLimit - activeNodeCharCount}
+                  </span>
+                )}
+                <svg className="size-5 transform -rotate-90">
+                  <circle cx="10" cy="10" r="7" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
+                  <circle
+                    cx="10"
+                    cy="10"
+                    r="7"
+                    className={cn(
+                      "fill-none transition-all duration-300",
+                      activeNodeCharCount > characterLimit ? "stroke-destructive" : activeNodeCharCount > characterLimit - 200 ? "stroke-yellow-500" : "stroke-purple-500"
+                    )}
+                    strokeWidth="1.5"
+                    strokeDasharray={2 * Math.PI * 7}
+                    strokeDashoffset={2 * Math.PI * 7 * (1 - activeNodePercentage / 100)}
+                  />
+                </svg>
+              </div>
+            )}
+            <button
+              onClick={addNewThreadNode}
+              className="p-1 rounded-full border border-purple-500 text-purple-500 hover:bg-purple-550/10 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP COMPOSER VIEW (Original Wizard and Stages) */}
+      <div {...rootProps} className="hidden md:flex flex-col bg-card rounded-2xl w-full overflow-hidden text-card-foreground">
+        <input {...getInputProps()} />
+
+        {/* DRAFT NOTIFICATION BANNER */}
+        {showDraftBanner && (
+          <div className="flex items-center justify-between bg-primary/10 border-b border-primary/20 px-6 py-2.5 text-sm">
+            <div className="flex items-center gap-2 text-primary font-medium">
+              <Info className="size-4" />
+              <span>You have an unsaved draft. Resume working on it?</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" className="h-8 text-xs font-semibold" onClick={discardDraft}>
+                Discard
+              </Button>
+              <Button size="sm" className="h-8 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/95" onClick={resumeDraft}>
+                Resume Draft
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* LOADING OVERLAY */}
+        {(isProcessingAndSubmitting || mutation.isPending) && (
+          <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
+            <Loader2 className="size-12 animate-spin text-primary" />
+            <span className="text-lg font-bold tracking-wide">Processing and uploading media assets...</span>
+          </div>
+        )}
+
+        {/* STAGE 1: COMPOSE VIEW */}
+        {stage === 1 && (
+          <div className="flex flex-col p-5 gap-5 min-h-[450px]">
+            {/* User Row + Textarea */}
+            <div className="flex gap-4 items-start flex-grow">
+              <UserAvatar avatarUrl={user.avatarUrl} className="hidden sm:inline-block size-10" />
+              <div className="flex-grow relative">
+                <EditorContent
+                  editor={editor}
+                  className="w-full min-h-[140px] max-h-[250px] overflow-y-auto outline-none border-0 text-lg bg-transparent border-transparent focus:ring-0 focus:border-transparent placeholder:text-muted-foreground"
+                />
+
+                {/* AUTOCOMPLETE FLOATING OVERLAY */}
+                {autocomplete && (autocomplete.users.length > 0 || autocomplete.tags.length > 0) && (
+                  <div className="absolute left-0 top-full mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
+                    {autocomplete.trigger === "@" &&
+                      autocomplete.users.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => selectAutocomplete(u.username)}
+                          className="flex items-center gap-3 w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white"
+                        >
+                          <UserAvatar avatarUrl={u.avatarUrl} size={24} />
+                          <div className="flex flex-col">
+                            <span className="font-bold">{u.username}</span>
+                            <span className="text-xs text-neutral-400">{u.displayName}</span>
+                          </div>
+                        </button>
+                      ))}
+                    {autocomplete.trigger === "#" &&
+                      autocomplete.tags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => selectAutocomplete(tag)}
+                          className="w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white font-semibold"
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* DOCK CAROUSEL PREVIEW ROW */}
+            {attachments.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto py-2 border-t border-border/20">
+                {attachments.map((att, idx) => {
+                  const src = URL.createObjectURL(att.file);
+                  const isVideo = att.file.type.startsWith("video");
+                  const adj = getAdjustment(att.file.name);
+                  const filterStr = getFilterString(adj.filter, adj);
+
+                  return (
+                    <div key={idx} className="relative size-20 rounded-xl overflow-hidden flex-shrink-0 group bg-neutral-950 border border-neutral-800">
+                      {isVideo ? (
+                        <video src={src} className="w-full h-full object-cover" muted />
+                      ) : (
+                        <img
+                          src={src}
+                          alt="attachment"
+                          style={{ filter: filterStr }}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+
+                      {/* Left/Right Reordering Controls */}
+                      <div className="absolute inset-x-0 bottom-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-between p-0.5 transition-opacity">
+                        <button
+                          onClick={() => moveAttachment(idx, "left")}
+                          disabled={idx === 0}
+                          className="disabled:opacity-30 text-white"
+                        >
+                          <ArrowLeft className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveMediaIndex(idx);
+                            setStage(2);
+                          }}
+                          className="text-white text-[10px] font-bold px-1 hover:text-primary transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => moveAttachment(idx, "right")}
+                          disabled={idx === attachments.length - 1}
+                          className="disabled:opacity-30 text-white"
+                        >
+                          <ArrowRight className="size-4" />
+                        </button>
+                      </div>
+
+                      {/* Delete item */}
+                      <button
+                        onClick={() => removeAttachment(att.file.name)}
+                        className="absolute right-1 top-1 bg-black/80 hover:bg-black text-white rounded-full p-0.5"
                       >
-                        @{name}
                         <X className="size-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* POLL BUILDER MATRIX */}
+            {hasPoll && (
+              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3 relative">
+                <button onClick={() => setHasPoll(false)} className="absolute right-3 top-3 text-neutral-500 hover:text-white">
+                  <X className="size-4" />
+                </button>
+                <span className="text-xs font-bold text-neutral-400 tracking-wide uppercase">Poll Builder</span>
+                
+                <div className="flex flex-col gap-2">
+                  {pollChoices.map((choice, index) => (
+                    <div key={index} className="relative flex items-center">
+                      <input
+                        type="text"
+                        placeholder={`Choice ${index + 1}`}
+                        maxLength={25}
+                        value={choice}
+                        onChange={(e) => {
+                          const newChoices = [...pollChoices];
+                          newChoices[index] = e.target.value;
+                          setPollChoices(newChoices);
+                        }}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-2 px-3 pr-16 text-sm text-white focus:outline-none placeholder:text-neutral-600"
+                      />
+                      <span className="absolute right-3 text-xs text-neutral-500">
+                        {choice.length}/25
                       </span>
+                    </div>
+                  ))}
+
+                  {pollChoices.length < 4 && (
+                    <button
+                      onClick={() => setPollChoices([...pollChoices, ""])}
+                      className="flex items-center gap-2 text-xs font-bold text-primary self-start hover:underline mt-1"
+                    >
+                      <Plus className="size-3.5" />
+                      Add Option
+                    </button>
+                  )}
+                </div>
+
+                {/* Poll Duration Dropdowns */}
+                <div className="border-t border-neutral-800 pt-3 mt-1 flex flex-col gap-2">
+                  <span className="text-xs text-neutral-500 font-semibold">Poll Length</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-neutral-600 uppercase font-bold">Days</label>
+                      <select
+                        value={pollDays}
+                        onChange={(e) => setPollDays(parseInt(e.target.value))}
+                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
+                      >
+                        {Array.from({ length: 8 }, (_, i) => (
+                          <option key={i} value={i}>{i} d</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-neutral-600 uppercase font-bold">Hours</label>
+                      <select
+                        value={pollHours}
+                        onChange={(e) => setPollHours(parseInt(e.target.value))}
+                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{i} h</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-neutral-600 uppercase font-bold">Minutes</label>
+                      <select
+                        value={pollMinutes}
+                        onChange={(e) => setPollMinutes(parseInt(e.target.value))}
+                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
+                      >
+                        {Array.from({ length: 60 }, (_, i) => (
+                          <option key={i} value={i}>{i} m</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI CAPTION FLOATING PREVIEWS */}
+            {showAiCaptionPanel && (
+              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">AI Caption Assistant</span>
+                  <button onClick={() => setShowAiCaptionPanel(false)} className="text-neutral-500 hover:text-white">
+                    <X className="size-4" />
+                  </button>
+                </div>
+
+                {/* Tone Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  {["Professional", "Funny", "Viral", "Startup", "Travel"].map((tone) => (
+                    <button
+                      key={tone}
+                      onClick={() => generateAICaptions(tone)}
+                      className="px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-full text-xs hover:border-primary transition-colors text-white"
+                    >
+                      ✨ {tone}
+                    </button>
+                  ))}
+                </div>
+
+                {aiLoading && (
+                  <div className="flex items-center gap-2 text-xs text-neutral-500 mt-2">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Generating creative copies...
+                  </div>
+                )}
+
+                {aiCaptions.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    {aiCaptions.map((caption, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          editor?.commands.setContent(caption);
+                          setShowAiCaptionPanel(false);
+                        }}
+                        className="p-3 bg-neutral-900/60 border border-neutral-850 hover:border-primary hover:bg-neutral-900 rounded-xl text-xs text-neutral-200 cursor-pointer transition-all"
+                      >
+                        {caption}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
+            )}
 
-              {/* Audience Selection */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
-                  <Globe className="size-4 text-primary" />
-                  <span>Audience</span>
-                </label>
-                <select
-                  value={audience}
-                  onChange={(e) => setAudience(e.target.value)}
-                  className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+            {/* DOCK BAR CONTROLS */}
+            <div className="flex justify-between items-center border-t border-border/20 pt-4 mt-auto">
+              <div className="flex items-center gap-3">
+                {/* Add Media */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary hover:bg-accent"
+                  disabled={isUploading || attachments.length >= 10}
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <option value="PUBLIC">🌎 Public (Anyone)</option>
-                  <option value="FOLLOWERS">👥 Followers only</option>
-                  <option value="CLOSE_FRIENDS">⭐ Close Friends</option>
-                  <option value="PRIVATE">🔒 Private (Only Me)</option>
-                </select>
-              </div>
-
-              {/* Alt Text / Accessibility Accordion */}
-              <div className="border-t border-neutral-900 pt-3 flex flex-col gap-2">
-                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Accessibility</span>
-                <textarea
-                  placeholder="Write image alt text / accessibility description..."
-                  value={altText}
-                  onChange={(e) => setAltText(e.target.value)}
-                  className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 h-16 resize-none focus:border-neutral-700"
+                  <LucideImage size={20} />
+                </Button>
+                <input
+                  type="file"
+                  accept="image/*, video/*"
+                  multiple
+                  ref={fileInputRef}
+                  className="sr-only hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length) {
+                      startUpload(files);
+                      e.target.value = "";
+                    }
+                  }}
                 />
-              </div>
 
-              {/* Advanced Settings Toggles */}
-              <div className="border-t border-neutral-900 pt-3 flex flex-col gap-3">
-                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Advanced Settings</span>
-                
-                {/* Comments Toggle */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
-                    <MessageSquare className="size-3.5 text-neutral-450" />
-                    Turn off commenting
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={disableComments}
-                    onChange={(e) => setDisableComments(e.target.checked)}
-                    className="accent-primary rounded size-4 bg-neutral-900 border-neutral-850"
-                  />
-                </div>
-
-                {/* Likes Toggle */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
-                    <Heart className="size-3.5 text-neutral-450" />
-                    Hide like and view counts
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={hideLikes}
-                    onChange={(e) => setHideLikes(e.target.checked)}
-                    className="accent-primary rounded size-4 bg-neutral-900 border-neutral-850"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Stage 3 Footer: active Carousel preview and SHARE button */}
-            <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between">
-              {/* Carousel strip */}
-              <div className="flex gap-1.5 overflow-x-auto max-w-[150px]">
-                {attachments.map((a, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => setActiveMediaIndex(idx)}
-                    className={cn(
-                      "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-950",
-                      activeMediaIndex === idx ? "border-primary" : "border-transparent"
-                    )}
+                {/* GIF Search trigger */}
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary hover:text-primary hover:bg-accent"
+                    onClick={() => setShowGifPicker(!showGifPicker)}
                   >
-                    <Image
-                      src={URL.createObjectURL(a.file)}
-                      alt="attachment preview"
-                      width={32}
-                      height={32}
-                      className="object-cover h-full w-full"
-                    />
-                  </div>
-                ))}
+                    <span className="text-[10px] font-bold border-2 border-primary rounded-md px-0.5 leading-none">GIF</span>
+                  </Button>
+                  {showGifPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 w-80 z-50">
+                      <GifPicker onSelect={addGiphyAttachment} onClose={() => setShowGifPicker(false)} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Poll trigger */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary hover:bg-accent"
+                  onClick={() => setHasPoll(!hasPoll)}
+                >
+                  <span className="text-xs font-bold leading-none">📊</span>
+                </Button>
+
+                {/* AI Assistant trigger */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary hover:bg-accent"
+                  onClick={() => setShowAiCaptionPanel(!showAiCaptionPanel)}
+                >
+                  <Sparkles size={18} />
+                </Button>
+
+                {/* Emoji Picker trigger */}
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary hover:text-primary hover:bg-accent"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  >
+                    <Smile size={20} />
+                  </Button>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 z-50">
+                      <EmojiPickerPanel
+                        onEmojiSelect={(emoji) => {
+                          editor?.commands.insertContent(emoji);
+                          setShowEmojiPicker(false);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <LoadingButton
-                onClick={handlePublish}
-                loading={mutation.isPending}
-                disabled={isUploading}
-                className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-6 py-2 rounded-lg"
-              >
-                Share
-              </LoadingButton>
+              {/* character count SVGs & navigation */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  {charCount > characterLimit - 200 && (
+                    <span className={cn("text-xs font-semibold", charCount > characterLimit ? "text-destructive" : "text-neutral-500")}>
+                      {characterLimit - charCount}
+                    </span>
+                  )}
+                  {/* SVG Character Ring */}
+                  <svg className="size-6 transform -rotate-90">
+                    <circle cx="12" cy="12" r="8" className="stroke-neutral-800 fill-none" strokeWidth="1.5" />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8"
+                      className={cn(
+                        "fill-none transition-all duration-300",
+                        charCount > characterLimit ? "stroke-destructive" : charCount > characterLimit - 200 ? "stroke-yellow-500" : "stroke-primary"
+                      )}
+                      strokeWidth="1.5"
+                      strokeDasharray={2 * Math.PI * 8}
+                      strokeDashoffset={2 * Math.PI * 8 * (1 - percentage / 100)}
+                    />
+                  </svg>
+                </div>
+
+                {/* NEXT / SHARE NAVIGATION */}
+                {attachments.length > 0 ? (
+                  <Button
+                    onClick={() => {
+                      setActiveMediaIndex(0);
+                      setStage(2);
+                    }}
+                    disabled={isUploading}
+                    className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <LoadingButton
+                    onClick={handlePublish}
+                    loading={mutation.isPending}
+                    disabled={!input.trim() || isUploading}
+                    className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
+                  >
+                    Post
+                  </LoadingButton>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {/* STAGE 2: FILTER & ADJUSTMENTS EDITOR VIEW */}
+        {stage === 2 && (
+          <div className="flex flex-col md:flex-row h-[550px] w-full bg-black">
+            {/* LEFT IMAGE / CROP CONTAINER */}
+            <div className="flex-1 relative h-[300px] md:h-full bg-neutral-950 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
+              {/* EASY-CROP ELEMENT */}
+              {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") ? (
+                <div className="absolute inset-0">
+                  <Cropper
+                    image={activeSrc}
+                    crop={activeAdj.crop}
+                    zoom={activeAdj.zoom}
+                    rotation={activeAdj.rotation}
+                    aspect={activeAdj.aspect}
+                    onCropChange={(crop) => updateAdjustment(activeFile, { crop })}
+                    onZoomChange={(zoom) => updateAdjustment(activeFile, { zoom })}
+                    onCropComplete={(_, croppedAreaPixels) => updateAdjustment(activeFile, { croppedAreaPixels })}
+                    style={{
+                      containerStyle: { background: "#000" },
+                      mediaStyle: { filter: getFilterString(activeAdj.filter, activeAdj) }
+                    }}
+                  />
+
+                  {/* VIGNETTE OVERLAY PREVIEW */}
+                  {activeAdj.vignette > 0 && (
+                    <div
+                      style={{
+                        background: `radial-gradient(circle, transparent 45%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
+                      }}
+                      className="absolute inset-0 pointer-events-none z-10"
+                    />
+                  )}
+                </div>
+              ) : (
+                <VideoPlayer src={activeSrc} />
+              )}
+
+              {/* ASPECT RATIO PANELS QUICK BUTTON */}
+              {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
+                <div className="absolute bottom-3 left-3 bg-neutral-900/90 text-white rounded-lg p-1.5 z-20 flex gap-2 border border-neutral-850">
+                  {[
+                    { label: "1:1", ratio: 1 },
+                    { label: "4:5", ratio: 4 / 5 },
+                    { label: "16:9", ratio: 16 / 9 },
+                    { label: "9:16", ratio: 9 / 16 }
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => updateAdjustment(activeFile, { aspect: item.ratio })}
+                      className={cn(
+                        "px-2 py-0.5 text-[10px] font-bold rounded hover:bg-neutral-800 transition-colors",
+                        activeAdj.aspect === item.ratio ? "bg-primary text-primary-foreground" : "text-neutral-300"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ROTATION BUTTON */}
+              {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
+                <button
+                  onClick={() => updateAdjustment(activeFile, { rotation: (activeAdj.rotation + 90) % 360 })}
+                  className="absolute bottom-3 right-3 bg-neutral-900/90 hover:bg-neutral-800 text-white p-2 rounded-lg z-20 border border-neutral-850 transition-colors"
+                >
+                  <RotateCw className="size-4" />
+                </button>
+              )}
+
+              {/* Back arrow */}
+              <button onClick={() => setStage(1)} className="absolute top-4 left-4 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-20 transition-all">
+                <ArrowLeft className="size-5" />
+              </button>
+            </div>
+
+            {/* RIGHT EDIT TAB CONTROLS PANEL */}
+            <div className="w-full md:w-[350px] h-[250px] md:h-full bg-neutral-950 flex flex-col text-white">
+              {/* EDITING COMPONENT TABS SELECTOR */}
+              <div className="flex border-b border-neutral-900 bg-neutral-950 p-2 gap-2">
+                <button
+                  onClick={() => setEditTab("filters")}
+                  className={cn(
+                    "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
+                    editTab === "filters" ? "bg-neutral-900 text-white font-bold" : "text-neutral-400 hover:text-white"
+                  )}
+                >
+                  Filters
+                </button>
+                <button
+                  onClick={() => setEditTab("adjustments")}
+                  className={cn(
+                    "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
+                    editTab === "adjustments" ? "bg-neutral-900 text-white font-bold" : "text-neutral-400 hover:text-white"
+                  )}
+                >
+                  Adjustments
+                </button>
+              </div>
+
+              {/* TAB CONTENT */}
+              <div className="flex-grow overflow-y-auto p-4 scrollbar-none">
+                {editTab === "filters" && activeFile && (
+                  <div className="grid grid-cols-3 gap-3">
+                    {filterPresets.map((preset) => {
+                      const presetFilter = preset.filter;
+                      return (
+                        <div
+                          key={preset.name}
+                          onClick={() => updateAdjustment(activeFile, { filter: preset.name })}
+                          className={cn(
+                            "flex flex-col gap-1 items-center cursor-pointer rounded-xl overflow-hidden p-1.5 border border-transparent hover:bg-neutral-900 transition-all",
+                            activeAdj.filter === preset.name ? "border-primary bg-neutral-900" : ""
+                          )}
+                        >
+                          <div className="w-full aspect-square rounded-lg overflow-hidden relative bg-neutral-900">
+                            <img
+                              src={activeSrc}
+                              alt={preset.name}
+                              style={{ filter: presetFilter }}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-neutral-300">{preset.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {editTab === "adjustments" && activeFile && (
+                  <div className="flex flex-col gap-4">
+                    {/* Brightness */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                        <span>Brightness</span>
+                        <span>{Math.round(activeAdj.brightness * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="1.5"
+                        step="0.05"
+                        value={activeAdj.brightness}
+                        onChange={(e) => updateAdjustment(activeFile, { brightness: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+
+                    {/* Contrast */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                        <span>Contrast</span>
+                        <span>{Math.round(activeAdj.contrast * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="1.5"
+                        step="0.05"
+                        value={activeAdj.contrast}
+                        onChange={(e) => updateAdjustment(activeFile, { contrast: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+
+                    {/* Saturation */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                        <span>Saturation</span>
+                        <span>{Math.round(activeAdj.saturation * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={activeAdj.saturation}
+                        onChange={(e) => updateAdjustment(activeFile, { saturation: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+
+                    {/* Temperature */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                        <span>Temperature</span>
+                        <span>{activeAdj.temperature > 0 ? `+${activeAdj.temperature}` : activeAdj.temperature}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-50"
+                        max="50"
+                        step="1"
+                        value={activeAdj.temperature}
+                        onChange={(e) => updateAdjustment(activeFile, { temperature: parseInt(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+
+                    {/* Fade */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                        <span>Fade</span>
+                        <span>{activeAdj.fade}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={activeAdj.fade}
+                        onChange={(e) => updateAdjustment(activeFile, { fade: parseInt(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+
+                    {/* Vignette */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                        <span>Vignette</span>
+                        <span>{Math.round(activeAdj.vignette * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={activeAdj.vignette}
+                        onChange={(e) => updateAdjustment(activeFile, { vignette: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Stage 2 Footer: active Carousel selections and Next button */}
+              <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between">
+                <div className="flex gap-1.5 overflow-x-auto max-w-[150px]">
+                  {attachments.map((a, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setActiveMediaIndex(idx)}
+                      className={cn(
+                        "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-950",
+                        activeMediaIndex === idx ? "border-primary" : "border-transparent"
+                      )}
+                    >
+                      <Image
+                        src={URL.createObjectURL(a.file)}
+                        alt="attachment preview"
+                        width={32}
+                        height={32}
+                        className="object-cover h-full w-full"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={() => setStage(3)}
+                  className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-5 py-2 rounded-lg"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STAGE 3: TAGGING, METADATA & CONFIGURATION VIEW */}
+        {stage === 3 && (
+          <div className="flex flex-col md:flex-row h-[550px] w-full bg-neutral-950 text-white">
+            {/* LEFT BLOCK: PREVIEW & INTERACTIVE TAGGING */}
+            <div className="flex-1 relative h-[300px] md:h-full bg-neutral-950 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
+              {activeFile && (
+                <div onClick={handleTagClick} className="relative max-h-full max-w-full aspect-square md:aspect-auto h-full w-full flex items-center justify-center cursor-crosshair">
+                  {!attachments[activeMediaIndex].file.type.startsWith("video") ? (
+                    <img
+                      src={activeSrc}
+                      alt="final preview"
+                      style={{ filter: getFilterString(activeAdj.filter, activeAdj) }}
+                      className="max-h-full max-w-full object-contain pointer-events-none"
+                    />
+                  ) : (
+                    <video src={activeSrc} className="max-h-full max-w-full object-contain pointer-events-none" muted />
+                  )}
+
+                  {/* Vignette Preview overlay */}
+                  {activeAdj.vignette > 0 && (
+                    <div
+                      style={{
+                        background: `radial-gradient(circle, transparent 45%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
+                      }}
+                      className="absolute inset-0 pointer-events-none z-10"
+                    />
+                  )}
+
+                  {/* Tag markers rendering */}
+                  {activeTags.map((tag, idx) => (
+                    <div
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeTag(activeFile, idx);
+                      }}
+                      style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 bg-black/85 hover:bg-destructive hover:scale-102 border border-neutral-700 text-white px-2 py-0.5 rounded-full text-[10px] font-bold z-30 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
+                    >
+                      <span>@{tag.username}</span>
+                      <X className="size-3 flex-shrink-0 opacity-60" />
+                    </div>
+                  ))}
+
+                  {/* Tag Search Popover Form */}
+                  {activeTagCoord && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ left: `${activeTagCoord.x}%`, top: `${activeTagCoord.y}%` }}
+                      className="absolute -translate-x-1/2 mt-3 bg-neutral-900 border border-neutral-850 p-2.5 rounded-xl shadow-2xl z-40 w-48 flex flex-col gap-1.5"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search username..."
+                        value={tagQuery}
+                        onChange={(e) => setTagQuery(e.target.value)}
+                        className="bg-neutral-950 border border-neutral-850 rounded-lg p-1.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 w-full"
+                      />
+                      <div className="max-h-24 overflow-y-auto flex flex-col gap-1">
+                        {tagSearchUsers.map((u) => (
+                          <div
+                            key={u.id}
+                            onClick={() => addTag(u.username)}
+                            className="flex items-center gap-2 p-1.5 hover:bg-neutral-800 rounded-lg cursor-pointer text-xs"
+                          >
+                            <UserAvatar avatarUrl={u.avatarUrl} size={18} />
+                            <span className="font-bold truncate">{u.username}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setActiveTagCoord(null)}
+                        className="text-[10px] text-neutral-500 hover:text-white font-bold self-end mt-1"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Back Arrow */}
+              <button onClick={() => setStage(2)} className="absolute top-4 left-4 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-25 transition-all">
+                <ArrowLeft className="size-5" />
+              </button>
+            </div>
+
+            {/* RIGHT BLOCK: METADATA & CONFIGURATIONS SHARING FORM */}
+            <div className="w-full md:w-[350px] h-[250px] md:h-full bg-neutral-950 flex flex-col border-t md:border-t-0 border-neutral-900 text-white">
+              <div className="flex-grow overflow-y-auto p-4 scrollbar-none flex flex-col gap-4">
+                {/* Location Input */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
+                    <LucideLocation className="size-4 text-primary" />
+                    <span>Location</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Add location (e.g. San Francisco, CA)"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
+                  />
+                </div>
+
+                {/* Collaborators Input */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
+                    <Users className="size-4 text-primary" />
+                    <span>Collaborators</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search users to collaborate..."
+                      value={collabQuery}
+                      onChange={(e) => setCollabQuery(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
+                    />
+                    {collabUsers.length > 0 && (
+                      <div className="absolute left-0 top-full mt-1.5 w-full bg-neutral-900 border border-neutral-850 rounded-xl shadow-2xl z-40 max-h-32 overflow-y-auto">
+                        {collabUsers
+                          .filter((u) => !collaborators.includes(u.username))
+                          .map((u) => (
+                            <div
+                              key={u.id}
+                              onClick={() => {
+                                setCollaborators([...collaborators, u.username]);
+                                setCollabQuery("");
+                                setCollabUsers([]);
+                              }}
+                              className="flex items-center gap-2.5 p-2 hover:bg-neutral-850 cursor-pointer text-xs"
+                            >
+                              <UserAvatar avatarUrl={u.avatarUrl} size={18} />
+                              <span className="font-bold">{u.username}</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  {collaborators.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {collaborators.map((name) => (
+                        <span
+                          key={name}
+                          onClick={() => setCollaborators(collaborators.filter((c) => c !== name))}
+                          className="bg-neutral-800 hover:bg-destructive text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1.5 cursor-pointer"
+                        >
+                          @{name}
+                          <X className="size-3" />
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Audience Selection */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
+                    <Globe className="size-4 text-primary" />
+                    <span>Audience</span>
+                  </label>
+                  <select
+                    value={audience}
+                    onChange={(e) => setAudience(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                  >
+                    <option value="PUBLIC">🌎 Public (Anyone)</option>
+                    <option value="FOLLOWERS">👥 Followers only</option>
+                    <option value="CLOSE_FRIENDS">⭐ Close Friends</option>
+                    <option value="PRIVATE">🔒 Private (Only Me)</option>
+                  </select>
+                </div>
+
+                {/* Alt Text / Accessibility Accordion */}
+                <div className="border-t border-neutral-900 pt-3 flex flex-col gap-2">
+                  <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Accessibility</span>
+                  <textarea
+                    placeholder="Write image alt text / accessibility description..."
+                    value={altText}
+                    onChange={(e) => setAltText(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 h-16 resize-none focus:border-neutral-700"
+                  />
+                </div>
+
+                {/* Advanced Settings Toggles */}
+                <div className="border-t border-neutral-900 pt-3 flex flex-col gap-3">
+                  <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Advanced Settings</span>
+                  
+                  {/* Comments Toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
+                      <MessageSquare className="size-3.5 text-neutral-450" />
+                      Turn off commenting
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={disableComments}
+                      onChange={(e) => setDisableComments(e.target.checked)}
+                      className="accent-primary rounded size-4 bg-neutral-900 border-neutral-850"
+                    />
+                  </div>
+
+                  {/* Likes Toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
+                      <Heart className="size-3.5 text-neutral-450" />
+                      Hide like and view counts
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={hideLikes}
+                      onChange={(e) => setHideLikes(e.target.checked)}
+                      className="accent-primary rounded size-4 bg-neutral-900 border-neutral-850"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Stage 3 Footer: active Carousel preview and SHARE button */}
+              <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between">
+                <div className="flex gap-1.5 overflow-x-auto max-w-[150px]">
+                  {attachments.map((a, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setActiveMediaIndex(idx)}
+                      className={cn(
+                        "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-950",
+                        activeMediaIndex === idx ? "border-primary" : "border-transparent"
+                      )}
+                    >
+                      <Image
+                        src={URL.createObjectURL(a.file)}
+                        alt="attachment preview"
+                        width={32}
+                        height={32}
+                        className="object-cover h-full w-full"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <LoadingButton
+                  onClick={handlePublish}
+                  loading={mutation.isPending}
+                  disabled={isUploading}
+                  className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-6 py-2 rounded-lg"
+                >
+                  Share
+                </LoadingButton>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
