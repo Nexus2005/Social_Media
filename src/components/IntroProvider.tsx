@@ -36,7 +36,7 @@ export default function IntroProvider({ children }: { children: React.ReactNode 
           }`}
         >
           <video
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain bg-black"
             src="/Cartly Intro.mp4"
             autoPlay
             muted={false}
