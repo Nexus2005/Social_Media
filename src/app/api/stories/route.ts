@@ -12,12 +12,24 @@ export async function GET(req: Request) {
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Fetch all stories created in the last 24 hours
+    // Fetch stories of user themselves or users they follow, created in the last 24 hours
     const stories = await prisma.story.findMany({
       where: {
         createdAt: {
           gt: twentyFourHoursAgo,
         },
+        OR: [
+          { userId: loggedInUser.id },
+          {
+            user: {
+              followers: {
+                some: {
+                  followerId: loggedInUser.id,
+                },
+              },
+            },
+          },
+        ],
       },
       include: {
         user: {

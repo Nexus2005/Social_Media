@@ -12,6 +12,11 @@ export async function GET() {
 
   const cookieStore = await cookies();
 
+  console.log("Setting OAuth cookies in /login/google:", {
+    state,
+    codeVerifier,
+  });
+
   cookieStore.set("state", state, {
     path: "/",
     secure: process.env.NODE_ENV === "production",
@@ -28,5 +33,10 @@ export async function GET() {
     sameSite: "lax",
   });
 
-  return Response.redirect(url);
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: url.toString(),
+    },
+  });
 }

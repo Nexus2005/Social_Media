@@ -213,7 +213,6 @@ export default function StoryViewer({
 
       {/* Story Stage Container */}
       <div
-        ref={videoRef as any}
         onClick={handleScreenClick}
         className="relative w-full max-w-[420px] h-full sm:h-[90vh] sm:max-h-[760px] bg-black sm:rounded-xl overflow-hidden flex items-center justify-center z-10 shadow-2xl"
       >

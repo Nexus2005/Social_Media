@@ -16,6 +16,14 @@ export async function GET(req: NextRequest) {
   const storedState = cookieStore.get("state")?.value;
   const storedCodeVerifier = cookieStore.get("code_verifier")?.value;
 
+  console.log("OAuth Callback Debug:", {
+    code: !!code,
+    state: state,
+    storedState: storedState,
+    storedCodeVerifier: !!storedCodeVerifier,
+    stateMatch: state === storedState,
+  });
+
   if (
     !code ||
     !state ||
@@ -23,6 +31,7 @@ export async function GET(req: NextRequest) {
     !storedCodeVerifier ||
     state !== storedState
   ) {
+    console.log("OAuth Validation Failed");
     return new Response(null, { status: 400 });
   }
 
