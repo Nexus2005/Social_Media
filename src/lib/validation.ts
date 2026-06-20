@@ -27,7 +27,18 @@ export const createPostSchema = z.object({
 
 export const updateUserProfileSchema = z.object({
   displayName: requiredString,
-  bio: z.string().max(1000, "Must be at most 1000 characters"),
+  username: requiredString.regex(
+    /^[a-zA-Z0-9_-]+$/,
+    "Only letters, numbers, - and _ allowed",
+  ),
+  bio: z.string().max(1000, "Must be at most 1000 characters").optional(),
+  location: z.string().max(100, "Must be at most 100 characters").optional(),
+  websiteUrl: z.string().max(200, "Must be at most 200 characters").optional(),
+  birthDate: z.preprocess((val) => {
+    if (!val || val === "") return null;
+    return new Date(val as any);
+  }, z.date().nullable().optional()),
+  professionalCategory: z.string().max(100).optional().nullable(),
 });
 
 export type UpdateUserProfileValues = z.infer<typeof updateUserProfileSchema>;

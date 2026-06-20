@@ -7,6 +7,11 @@ export function getUserDataSelect(loggedInUserId: string) {
     displayName: true,
     avatarUrl: true,
     bio: true,
+    location: true,
+    websiteUrl: true,
+    birthDate: true,
+    professionalCategory: true,
+    headerBannerUrl: true,
     createdAt: true,
     followers: {
       where: {

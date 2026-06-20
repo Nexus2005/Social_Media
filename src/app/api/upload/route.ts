@@ -13,8 +13,10 @@ export async function POST(req: Request) {
     }
 
     const formData = await req.formData();
-    const endpoint = formData.get("endpoint") as "avatar" | "attachment" | "story";
+    const endpoint = formData.get("endpoint") as "avatar" | "banner" | "attachment" | "story";
     const files = formData.getAll("files") as File[];
+    const metadataStr = formData.get("metadata") as string | null;
+    const metadata = metadataStr ? JSON.parse(metadataStr) : null;
 
     if (!endpoint || !files.length) {
       return Response.json({ error: "Missing parameters" }, { status: 400 });
@@ -76,6 +78,45 @@ export async function POST(req: Request) {
             avatarUrl: publicUrl,
           },
         });
+      } else if (endpoint === "banner") {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { headerBannerUrl: true },
+        });
+        const oldBannerUrl = dbUser?.headerBannerUrl;
+        if (oldBannerUrl && oldBannerUrl.includes("/storage/v1/object/public/social-media/")) {
+          const oldKey = oldBannerUrl.split("/storage/v1/object/public/social-media/")[1];
+          if (oldKey) {
+            await supabaseAdmin.storage.from("social-media").remove([oldKey]);
+          }
+        }
+
+        const fileKey = `banners/${user.id}_${uniqueId}.${fileExtension}`;
+
+        const { error } = await supabaseAdmin.storage
+          .from("social-media")
+          .upload(fileKey, buffer, {
+            contentType: file.type,
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) throw error;
+
+        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/social-media/${fileKey}`;
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { headerBannerUrl: publicUrl },
+        });
+
+        uploadResults.push({
+          name: file.name,
+          url: publicUrl,
+          serverData: {
+            bannerUrl: publicUrl,
+          },
+        });
       } else if (endpoint === "attachment") {
         const fileKey = `attachments/${uniqueId}.${fileExtension}`;
 
@@ -91,11 +132,20 @@ export async function POST(req: Request) {
 
         const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/social-media/${fileKey}`;
 
+        // Find matching dimensions
+        const fileMeta = Array.isArray(metadata)
+          ? metadata.find((m: any) => m.name === file.name)
+          : null;
+        const width = fileMeta?.width ?? null;
+        const height = fileMeta?.height ?? null;
+
         // Create Media DB record
         const media = await prisma.media.create({
           data: {
             url: publicUrl,
             mediaType: file.type.startsWith("image") ? "IMAGE" : "VIDEO",
+            width,
+            height,
           },
         });
 

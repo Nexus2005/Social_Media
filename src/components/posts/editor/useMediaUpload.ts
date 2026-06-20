@@ -61,7 +61,36 @@ export default function useMediaUpload() {
     },
   });
 
-  function handleStartUpload(files: File[]) {
+function getMediaDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(null);
+      return;
+    }
+    if (file.type.startsWith("image/")) {
+      const img = new window.Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = () => resolve(null);
+    } else if (file.type.startsWith("video/")) {
+      const video = document.createElement("video");
+      video.src = URL.createObjectURL(file);
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        resolve({ width: video.videoWidth, height: video.videoHeight });
+        URL.revokeObjectURL(video.src);
+      };
+      video.onerror = () => resolve(null);
+    } else {
+      resolve(null);
+    }
+  });
+}
+
+  async function handleStartUpload(files: File[]) {
     if (isUploading) {
       toast({
         variant: "destructive",
@@ -89,7 +118,18 @@ export default function useMediaUpload() {
       }
     }
 
-    startUpload(files);
+    const dimensionsArray = await Promise.all(
+      files.map(async (file) => {
+        const dims = await getMediaDimensions(file);
+        return {
+          name: file.name,
+          width: dims?.width ?? null,
+          height: dims?.height ?? null,
+        };
+      })
+    );
+
+    startUpload(files, dimensionsArray);
   }
 
   function removeAttachment(fileName: string) {

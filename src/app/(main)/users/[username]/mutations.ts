@@ -19,22 +19,27 @@ export function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
 
   const { startUpload: startAvatarUpload } = useUploadThing("avatar");
+  const { startUpload: startBannerUpload } = useUploadThing("banner");
 
   const mutation = useMutation({
     mutationFn: async ({
       values,
       avatar,
+      banner,
     }: {
       values: UpdateUserProfileValues;
       avatar?: File;
+      banner?: File;
     }) => {
       return Promise.all([
         updateUserProfile(JSON.parse(JSON.stringify(values))),
         avatar && startAvatarUpload([avatar]),
+        banner && startBannerUpload([banner]),
       ]);
     },
-    onSuccess: async ([updatedUser, uploadResult]) => {
-      const newAvatarUrl = uploadResult?.[0].serverData.avatarUrl;
+    onSuccess: async ([updatedUser, avatarUploadResult, bannerUploadResult]) => {
+      const newAvatarUrl = avatarUploadResult?.[0].serverData.avatarUrl;
+      const newBannerUrl = bannerUploadResult?.[0].serverData.bannerUrl;
 
       const queryFilter: QueryFilters = {
         queryKey: ["post-feed"],
@@ -58,6 +63,7 @@ export function useUpdateProfileMutation() {
                     user: {
                       ...updatedUser,
                       avatarUrl: newAvatarUrl || updatedUser.avatarUrl,
+                      headerBannerUrl: newBannerUrl || updatedUser.headerBannerUrl,
                     },
                   };
                 }
@@ -68,6 +74,7 @@ export function useUpdateProfileMutation() {
         },
       );
 
+      router.push(`/users/${updatedUser.username}`);
       router.refresh();
 
       toast({

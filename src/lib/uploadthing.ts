@@ -8,12 +8,12 @@ interface UploadOptions {
 }
 
 export function useUploadThing(
-  endpoint: "avatar" | "attachment" | "story",
+  endpoint: "avatar" | "banner" | "attachment" | "story",
   options?: UploadOptions
 ) {
   const [isUploading, setIsUploading] = useState(false);
 
-  const startUpload = async (files: File[]) => {
+  const startUpload = async (files: File[], metadata?: any) => {
     setIsUploading(true);
     try {
       let filesToUpload = files;
@@ -27,6 +27,9 @@ export function useUploadThing(
       filesToUpload.forEach((file) => {
         formData.append("files", file);
       });
+      if (metadata) {
+        formData.append("metadata", JSON.stringify(metadata));
+      }
 
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/upload", true);
