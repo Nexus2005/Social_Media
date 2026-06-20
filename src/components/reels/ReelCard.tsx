@@ -212,7 +212,7 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
   };
 
   return (
-    <div className="w-full h-screen snap-start snap-always shrink-0 flex items-center justify-center bg-black relative select-none overflow-hidden">
+    <div className="w-full h-[calc(100vh-3.5rem)] md:h-screen snap-start snap-always shrink-0 flex items-center justify-center bg-black relative select-none overflow-hidden">
       
       {/* 1. Blurred Reflection Backdrop (Desktop only) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block select-none z-0">
@@ -240,7 +240,7 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
       }} />
 
       {/* 2. Main Aspect 9:16 Video Box */}
-      <div className="aspect-[9/16] h-[85vh] sm:h-[88vh] md:h-[93vh] max-h-[820px] w-full max-w-[410px] sm:max-w-[440px] relative rounded-2xl overflow-hidden bg-zinc-950 shadow-2xl flex items-center justify-center border border-zinc-800/80 z-10">
+      <div className="w-full h-[calc(100vh-3.5rem)] md:h-[93vh] md:aspect-[9/16] md:max-h-[820px] md:max-w-[410px] relative rounded-none md:rounded-2xl overflow-hidden bg-black md:bg-zinc-950 shadow-none md:shadow-2xl flex items-center justify-center border-0 md:border border-zinc-800/80 z-10">
         <video
           ref={videoRef}
           src={videoUrl}
@@ -334,7 +334,7 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           })}
 
         {/* Left Bottom Video Details Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white z-20 flex flex-col gap-2">
+        <div className="absolute bottom-4 left-4 right-16 z-20 flex flex-col gap-2 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] md:bottom-0 md:left-0 md:right-0 md:p-4 md:bg-gradient-to-t md:from-black/80 md:via-black/40 md:to-transparent md:drop-shadow-none">
           {/* Creator Profile & Follow */}
           <div className="flex items-center gap-2.5">
             <Link href={`/users/${post.user.username}`} className="flex-shrink-0">
@@ -398,12 +398,123 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
               </span>
             </div>
           </div>
+          {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: only visible below md) */}
+          <div className="absolute right-2 bottom-20 z-20 flex flex-col items-center gap-5 text-white md:hidden">
+            {/* Like */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleLike();
+                }}
+                className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                title="Like"
+              >
+                <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} />
+              </button>
+              <span className="text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                {likeData.likes.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Comment */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCommentsOpen(true);
+                }}
+                className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                title="Comments"
+              >
+                <MessageCircle className="size-7" />
+              </button>
+              <span className="text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                {post._count.comments.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Share */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShareClick();
+                }}
+                className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                title="Copy Link"
+              >
+                <Send className="size-7" />
+              </button>
+              <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Share</span>
+            </div>
+
+            {/* Save */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBookmark();
+                }}
+                className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                title="Save"
+              >
+                <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-primary text-primary")} />
+              </button>
+              <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Save</span>
+            </div>
+
+            {/* Shop look */}
+            {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHotspots(!showHotspots);
+                    toast({
+                      description: showHotspots ? "Shopping tags hidden" : "Shopping tags visible (click a tag to shop)",
+                    });
+                  }}
+                  className={cn(
+                    "p-1 bg-transparent hover:scale-105 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
+                    showHotspots ? "text-yellow-450" : "text-white"
+                  )}
+                  title="Shop Look"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-7">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                  </svg>
+                </button>
+                <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Shop</span>
+              </div>
+            )}
+
+            {/* More Options */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOptionsOpen(true);
+              }}
+              className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              title="More Options"
+            >
+              <MoreHorizontal className="size-7" />
+            </button>
+
+            {/* Rotating Disc */}
+            <div
+              className="w-8 h-8 rounded-full border border-white/60 overflow-hidden animate-spin flex items-center justify-center bg-zinc-950 mt-1 select-none pointer-events-none"
+              style={{ animationDuration: "8s" }}
+            >
+              <UserAvatar avatarUrl={post.user.avatarUrl} size={22} />
+            </div>
+          </div>
         </div>
       </div>
 
 
-      {/* 3. Right Sidebar Control Actions Stack */}
-      <div className="flex flex-col items-center gap-5 ml-4 sm:ml-5 text-white z-20">
+      {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
+      <div className="hidden md:flex flex-col items-center gap-5 ml-4 sm:ml-5 text-white z-20">
         
         {/* Like action */}
         <div className="flex flex-col items-center gap-1">

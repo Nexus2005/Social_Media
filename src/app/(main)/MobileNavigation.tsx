@@ -59,40 +59,42 @@ export default function MobileNavigation({
   return (
     <>
       {/* Mobile Top Header — Instagram style: Logo left, Heart + Mail right */}
-      <header className="sticky top-0 z-30 flex h-11 w-full items-center justify-between border-b border-border/60 bg-background px-4 sm:hidden">
-        <Link href="/" className="flex items-center gap-1.5">
-          <img
-            src="/cartly-logo.webp"
-            alt="Cartly Logo"
-            className="size-7 object-contain"
-          />
-          <span className="text-xl font-extrabold tracking-tight font-sans cartly-gradient-text">
-            Cartly
-          </span>
-        </Link>
-
-        <div className="flex items-center gap-5">
-          {/* Notifications */}
-          <Link href="/notifications" className="relative flex items-center justify-center text-foreground">
-            <Heart className="size-[22px]" />
-            {!!notificationsData.unreadCount && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                {notificationsData.unreadCount}
-              </span>
-            )}
+      {!pathname.startsWith("/reels") && (
+        <header className="sticky top-0 z-30 flex h-11 w-full items-center justify-between border-b border-border/60 bg-background px-4 sm:hidden">
+          <Link href="/" className="flex items-center gap-1.5">
+            <img
+              src="/cartly-logo.webp"
+              alt="Cartly Logo"
+              className="size-7 object-contain"
+            />
+            <span className="text-xl font-extrabold tracking-tight font-sans cartly-gradient-text">
+              Cartly
+            </span>
           </Link>
 
-          {/* Messages */}
-          <Link href="/messages" className="relative flex items-center justify-center text-foreground">
-            <Mail className="size-[22px]" />
-            {!!messagesData.unreadCount && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                {messagesData.unreadCount}
-              </span>
-            )}
-          </Link>
-        </div>
-      </header>
+          <div className="flex items-center gap-5">
+            {/* Notifications */}
+            <Link href="/notifications" className="relative flex items-center justify-center text-foreground">
+              <Heart className="size-[22px]" />
+              {!!notificationsData.unreadCount && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {notificationsData.unreadCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Messages */}
+            <Link href="/messages" className="relative flex items-center justify-center text-foreground">
+              <Mail className="size-[22px]" />
+              {!!messagesData.unreadCount && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {messagesData.unreadCount}
+                </span>
+              )}
+            </Link>
+          </div>
+        </header>
+      )}
 
       {/* Mobile Bottom Navigation Bar — 5 tabs: Home, Search, Create, Spots, Profile */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 w-full items-center justify-around border-t border-border/60 bg-background sm:hidden">

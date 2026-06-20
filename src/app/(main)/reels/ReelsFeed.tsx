@@ -118,7 +118,7 @@ export default function ReelsFeed() {
   }
 
   return (
-    <div id="reels-page" className="w-full h-screen bg-black relative flex justify-center items-center overflow-hidden select-none">
+    <div id="reels-page" className="w-full h-[calc(100vh-3.5rem)] md:h-screen bg-black relative flex justify-center items-center overflow-hidden select-none">
       {/* Scrollable snapped container */}
       <div
         ref={scrollContainerRef}
