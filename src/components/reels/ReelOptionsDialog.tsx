@@ -8,12 +8,16 @@ interface ReelOptionsDialogProps {
   post: PostData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  hasProducts?: boolean;
+  onShopProductsClick?: () => void;
 }
 
 export default function ReelOptionsDialog({
   post,
   open,
   onOpenChange,
+  hasProducts = false,
+  onShopProductsClick,
 }: ReelOptionsDialogProps) {
   const { toast } = useToast();
 
@@ -37,6 +41,14 @@ export default function ReelOptionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[280px] sm:max-w-xs p-0 overflow-hidden bg-card rounded-xl border border-border/40 gap-0 select-none">
         <DialogTitle className="sr-only">Post Options</DialogTitle>
+        {hasProducts && onShopProductsClick && (
+          <button
+            onClick={onShopProductsClick}
+            className="w-full py-3.5 text-center text-sm font-bold text-yellow-500 hover:bg-muted/30 border-b border-border/40 active:bg-muted/50 transition-colors"
+          >
+            🛒 Shop Products in Video
+          </button>
+        )}
         <button
           onClick={() => handlePlaceholderAction("Report")}
           className="w-full py-3.5 text-center text-sm font-bold text-destructive hover:bg-muted/30 border-b border-border/40 active:bg-muted/50 transition-colors"

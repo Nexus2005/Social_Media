@@ -70,6 +70,7 @@ model Post {
   comments            Comment[]
   linkedNotifications Notification[]
   detectedObjects     DetectedObject[]
+  detectedProducts    DetectedProduct[]
   aiStatus            String         @default("PENDING")
 
   createdAt DateTime @default(now())
@@ -173,5 +174,34 @@ model DetectedObject {
   createdAt DateTime @default(now())
 
   @@map("detected_objects")
+}
+
+model DetectedProduct {
+  id           String          @id @default(cuid())
+  postId       String          @map("post_id")
+  post         Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  label        String
+  category     String
+  box          Json?
+  thumbnailUrl String?         @map("thumbnail_url")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  matches      ShoppingMatch[]
+
+  @@map("detected_products")
+}
+
+model ShoppingMatch {
+  id                String          @id @default(cuid())
+  detectedProductId String          @map("detected_product_id")
+  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
+  title             String
+  price             String
+  currency          String          @default("INR")
+  sourceStore       String          @map("source_store")
+  productUrl        String          @map("product_url")
+  imageUrl          String?         @map("image_url")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@map("shopping_matches")
 }
 

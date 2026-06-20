@@ -15,7 +15,6 @@ import {
   Bell,
   Heart,
   Home,
-  Instagram,
   Mail,
   PlusSquare,
   Search,
@@ -63,9 +62,13 @@ export default function MobileNavigation({
       {/* Mobile Top Header */}
       <header className="sticky top-0 z-10 flex h-14 w-full items-center justify-between border-b bg-card px-4 sm:hidden">
         <Link href="/" className="flex items-center gap-2">
-          <Instagram className="size-6 text-foreground" />
-          <span className="text-xl font-bold tracking-tight font-serif italic text-foreground">
-            Instagram
+          <img
+            src="/cartly-logo.webp"
+            alt="Cartly Logo"
+            className="size-7 object-contain"
+          />
+          <span className="text-xl font-extrabold tracking-tight font-sans cartly-gradient-text">
+            Cartly
           </span>
         </Link>
 

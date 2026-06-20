@@ -21,6 +21,11 @@ export async function GET(
       select: {
         aiStatus: true,
         detectedObjects: true,
+        detectedProducts: {
+          include: {
+            matches: true,
+          },
+        },
       },
     });
 
@@ -31,6 +36,7 @@ export async function GET(
     return NextResponse.json({
       aiStatus: post.aiStatus,
       detectedObjects: post.detectedObjects,
+      detectedProducts: post.detectedProducts,
     });
   } catch (error: any) {
     console.error("Error fetching post AI status:", error);

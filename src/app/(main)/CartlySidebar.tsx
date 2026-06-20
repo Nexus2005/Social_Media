@@ -23,11 +23,9 @@ import {
 import {
   Bell,
   Bookmark,
-  Clapperboard,
   Compass,
   Heart,
   Home,
-  Instagram,
   LogOut,
   Mail,
   Menu,
@@ -39,7 +37,6 @@ import {
   User,
   Activity,
   AlertCircle,
-  Infinity
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,15 +45,47 @@ import { useTheme } from "next-themes";
 import PostEditor from "@/components/posts/editor/PostEditor";
 import { cn } from "@/lib/utils";
 
-interface InstagramSidebarProps {
+// Custom fast-loading SpotsIcon SVG component matching the user's logo design
+export function SpotsIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      {/* Brackets around the corners */}
+      <path d="M3 8V3h5" />
+      <path d="M3 16v5h5" />
+      <path d="M16 21h5v-5" />
+
+      {/* Center Play Button: triangle */}
+      <polygon points="8 7 16 12 8 17 8 7" fill="currentColor" />
+
+      {/* Sparkle/Star in the top-right corner */}
+      <path d="M18 1v8M14 5h8M15.2 2.2l5.6 5.6M15.2 7.8l5.6-5.6" strokeWidth="1.2" />
+
+      {/* Sparkle little accent dots */}
+      <circle cx="14.5" cy="4.5" r="0.4" fill="currentColor" stroke="none" />
+      <circle cx="21.5" cy="5.5" r="0.4" fill="currentColor" stroke="none" />
+      <circle cx="20.5" cy="8" r="0.3" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+interface CartlySidebarProps {
   initialNotificationsCount: number;
   initialMessagesCount: number;
 }
 
-export default function InstagramSidebar({
+export default function CartlySidebar({
   initialNotificationsCount,
   initialMessagesCount,
-}: InstagramSidebarProps) {
+}: CartlySidebarProps) {
   const { user } = useSession();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -96,8 +125,8 @@ export default function InstagramSidebar({
       active: pathname.startsWith("/search"),
     },
     {
-      icon: (props: any) => <Clapperboard {...props} />,
-      label: "Reels",
+      icon: (props: any) => <SpotsIcon {...props} />,
+      label: "Spots",
       href: "/reels",
       active: pathname === "/reels",
     },
@@ -140,13 +169,17 @@ export default function InstagramSidebar({
       )}>
         <div className="flex flex-col gap-6">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 px-3 py-2">
-            <Instagram className="size-7 flex-shrink-0" />
+          <Link href="/" className="flex items-center gap-2 px-2 py-2">
+            <img
+              src="/cartly-logo.webp"
+              alt="Cartly Logo"
+              className="size-9 object-contain flex-shrink-0"
+            />
             <span className={cn(
-              "hidden text-2xl font-bold tracking-tight font-serif italic",
+              "hidden text-2xl font-black tracking-tight font-sans cartly-gradient-text",
               !isReels && "xl:block"
             )}>
-              Instagram
+              Cartly
             </span>
           </Link>
 
@@ -197,15 +230,6 @@ export default function InstagramSidebar({
 
         {/* Bottom Actions */}
         <div className="flex flex-col gap-2">
-          {/* Also from Meta */}
-          <Link
-            href="#"
-            className="flex w-full items-center justify-start gap-4 px-3 py-3 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          >
-            <Infinity className="size-6 flex-shrink-0 text-primary/80" />
-            <span className={cn("hidden text-[16px]", !isReels && "xl:inline")}>Also from Meta</span>
-          </Link>
-
           {/* More Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

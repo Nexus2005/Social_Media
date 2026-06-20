@@ -29,7 +29,7 @@ export default function SuggestedSidebar() {
           ))}
         </nav>
         <p className="font-semibold uppercase tracking-wider text-[10px]">
-          © {new Date().getFullYear()} Instagram from Meta
+          © {new Date().getFullYear()} Cartly
         </p>
       </footer>
     </div>

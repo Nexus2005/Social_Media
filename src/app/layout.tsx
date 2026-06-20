@@ -16,10 +16,10 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | bugbook",
-    default: "bugbook",
+    template: "%s | Cartly",
+    default: "Cartly",
   },
-  description: "The social media app for powernerds",
+  description: "Shop what you see. Social commerce powered by video.",
 };
 
 export default function RootLayout({

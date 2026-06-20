@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import streamServerClient from "@/lib/stream";
 import SessionProvider from "./SessionProvider";
 import ChatProvider from "./ChatProvider";
-import InstagramSidebar from "./InstagramSidebar";
+import CartlySidebar from "./CartlySidebar";
 import MobileNavigation from "./MobileNavigation";
 import FloatingChat from "@/components/FloatingChat";
 
@@ -36,7 +36,7 @@ export default async function Layout({
       <ChatProvider>
         <div className="flex min-h-screen flex-col bg-background">
           {/* Left Sidebar for Desktop */}
-          <InstagramSidebar
+          <CartlySidebar
             initialNotificationsCount={unreadNotificationsCount}
             initialMessagesCount={unreadMessagesCount}
           />

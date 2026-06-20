@@ -104,7 +104,7 @@ export default function ReelsFeed() {
   if (status === "success" && !posts.length && !hasNextPage) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-black text-white px-4">
-        <p className="text-center text-zinc-400 font-medium">No Reels found. Be the first to share a video!</p>
+        <p className="text-center text-zinc-400 font-medium">No Spots found. Be the first to share a video!</p>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export default function ReelsFeed() {
   if (status === "error") {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-black text-white px-4">
-        <p className="text-center text-destructive font-medium">An error occurred while loading Reels.</p>
+        <p className="text-center text-destructive font-medium">An error occurred while loading Spots.</p>
       </div>
     );
   }
@@ -134,7 +134,7 @@ export default function ReelsFeed() {
           />
         ))}
         {isFetchingNextPage && (
-          <div className="w-full h-screen snap-start snap-always flex items-center justify-center bg-black">
+          <div className="w-full h-screen snap-start snap-always shrink-0 flex items-center justify-center bg-black">
             <Loader2 className="size-8 animate-spin text-primary" />
           </div>
         )}
@@ -146,7 +146,7 @@ export default function ReelsFeed() {
           <button
             onClick={scrollUp}
             className="p-3 bg-zinc-900/80 hover:bg-zinc-800 text-white rounded-full transition-all duration-200 shadow-xl border border-zinc-800 hover:scale-105 active:scale-95"
-            title="Previous Reel"
+            title="Previous Spot"
           >
             <ChevronUp className="size-5.5" />
           </button>
@@ -155,7 +155,7 @@ export default function ReelsFeed() {
           <button
             onClick={scrollDown}
             className="p-3 bg-zinc-900/80 hover:bg-zinc-800 text-white rounded-full transition-all duration-200 shadow-xl border border-zinc-800 hover:scale-105 active:scale-95"
-            title="Next Reel"
+            title="Next Spot"
           >
             <ChevronDown className="size-5.5" />
           </button>
