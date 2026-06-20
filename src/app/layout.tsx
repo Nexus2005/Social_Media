@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import localFont from "next/font/local";
 import "./globals.css";
 import ReactQueryProvider from "./ReactQueryProvider";
+import IntroProvider from "@/components/IntroProvider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -19,7 +20,12 @@ export const metadata: Metadata = {
     template: "%s | Cartly",
     default: "Cartly",
   },
-  description: "Shop what you see. Social commerce powered by video.",
+  description: "Fusing the best of social discovery and connection",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -37,7 +43,9 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <IntroProvider>
+              {children}
+            </IntroProvider>
           </ThemeProvider>
         </ReactQueryProvider>
         <Toaster />
