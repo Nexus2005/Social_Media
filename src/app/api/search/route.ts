@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
           OR: [
             { username: { contains: q, mode: "insensitive" } },
             { displayName: { contains: q, mode: "insensitive" } },
+            { bio: { contains: q, mode: "insensitive" } },
+            { location: { contains: q, mode: "insensitive" } },
           ],
         },
         select: {
@@ -31,6 +33,8 @@ export async function GET(req: NextRequest) {
           displayName: true,
           avatarUrl: true,
           bio: true,
+          location: true,
+          verified: true,
           followers: {
             select: {
               followerId: true,

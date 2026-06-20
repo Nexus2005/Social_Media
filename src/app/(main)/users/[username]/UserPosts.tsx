@@ -14,7 +14,7 @@ interface UserPostsProps {
   userId: string;
 }
 
-type ProfileTab = "posts" | "reposts" | "replies" | "media" | "likes" | "collections";
+type ProfileTab = "posts" | "reposts" | "replies" | "media" | "reels" | "likes" | "collections";
 
 export default function UserPosts({ userId }: UserPostsProps) {
   const { user: loggedInUser } = useSession();
@@ -103,6 +103,7 @@ function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorP
     { value: "reposts", label: "Reposts" },
     { value: "replies", label: "Replies" },
     { value: "media", label: "Media" },
+    { value: "reels", label: "Reels" },
     { value: "likes", label: "Likes" },
   ];
 

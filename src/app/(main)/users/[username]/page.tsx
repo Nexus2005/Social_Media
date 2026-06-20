@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import EditProfileButton from "./EditProfileButton";
 import UserPosts from "./UserPosts";
+import ProfileFollowsInfo from "./ProfileFollowsInfo";
 
 interface PageProps {
   params: { username: string };
@@ -178,14 +179,12 @@ async function UserProfile({ user, loggedInUserId }: UserProfileProps) {
         </div>
 
         {/* Stats */}
-        <div className="flex gap-4 text-sm pt-1">
-          <span className="text-muted-foreground hover:underline cursor-pointer">
-            <strong className="text-foreground font-semibold">{formatNumber(user._count.posts)}</strong> posts
-          </span>
-          <span className="text-muted-foreground hover:underline cursor-pointer">
-            <strong className="text-foreground font-semibold">{formatNumber(user._count.followers)}</strong> followers
-          </span>
-        </div>
+        <ProfileFollowsInfo
+          userId={user.id}
+          initialFollowerState={followerInfo}
+          initialFollowingCount={user._count.following}
+          postsCount={user._count.posts}
+        />
       </div>
     </div>
   );

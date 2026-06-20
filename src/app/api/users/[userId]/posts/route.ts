@@ -44,6 +44,15 @@ export async function GET(
           some: {},
         },
       };
+    } else if (tab === "reels") {
+      whereClause = {
+        userId,
+        attachments: {
+          some: {
+            mediaType: "VIDEO",
+          },
+        },
+      };
     } else if (tab === "likes") {
       whereClause = {
         likes: {

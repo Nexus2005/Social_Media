@@ -55,15 +55,28 @@ export default function FollowButton({
     },
   });
 
+  const getButtonText = () => {
+    if (data.isFollowedByUser) {
+      return "Following";
+    }
+    if (data.followsYou) {
+      return "Follow Back";
+    }
+    return "Follow";
+  };
+
   if (variant === "text") {
     return (
       <button
-        onClick={() => mutate()}
+        onClick={(e) => {
+          e.stopPropagation();
+          mutate();
+        }}
         className={`text-xs font-bold hover:text-foreground transition-colors ${
           data.isFollowedByUser ? "text-muted-foreground" : "text-primary hover:text-primary/80"
         }`}
       >
-        {data.isFollowedByUser ? "Following" : "Follow"}
+        {getButtonText()}
       </button>
     );
   }
@@ -71,9 +84,13 @@ export default function FollowButton({
   return (
     <Button
       variant={data.isFollowedByUser ? "secondary" : "default"}
-      onClick={() => mutate()}
+      onClick={(e) => {
+        e.stopPropagation();
+        mutate();
+      }}
+      className={data.isFollowedByUser ? "" : "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-bold px-4"}
     >
-      {data.isFollowedByUser ? "Unfollow" : "Follow"}
+      {getButtonText()}
     </Button>
   );
 }

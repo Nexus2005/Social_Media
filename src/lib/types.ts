@@ -26,6 +26,7 @@ export function getUserDataSelect(loggedInUserId: string) {
       select: {
         posts: true,
         followers: true,
+        following: true,
       },
     },
   } satisfies Prisma.UserSelect;
@@ -195,6 +196,7 @@ export interface NotificationsPage {
 export interface FollowerInfo {
   followers: number;
   isFollowedByUser: boolean;
+  followsYou?: boolean;
 }
 
 export interface LikeInfo {

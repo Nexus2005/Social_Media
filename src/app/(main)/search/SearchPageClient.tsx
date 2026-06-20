@@ -123,7 +123,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const inputRef = useRef<HTMLInputElement>(null);
 
   const categories = ["For You", "Trending", "News", "Sports", "Entertainment", "IG TV / Live", "Shop", "Travel", "Style", "Food"];
-  const filters = ["Top", "Latest", "Accounts", "Photos", "Videos", "Hashtags (#)"];
+  const filters = ["Top", "Latest", "People", "Posts", "Photos", "Videos", "Hashtags"];
 
   // Load recent searches
   useEffect(() => {
@@ -178,9 +178,9 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
     
     // Automatically match appropriate filter tabs
     if (searchQuery.startsWith("@")) {
-      setActiveTab("Accounts");
+      setActiveTab("People");
     } else if (searchQuery.startsWith("#")) {
-      setActiveTab("Hashtags (#)");
+      setActiveTab("Hashtags");
     } else {
       setActiveTab("Top");
     }
@@ -193,8 +193,29 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
     enabled: activeTab === "For You" || activeTab === "Trending",
   });
 
-  // Query accounts directly if active tab is Accounts
-  const isAccountTab = activeTab === "Accounts" || committedQuery.startsWith("@");
+  // Query suggestions dynamically while typing
+  const { data: autocompleteData } = useQuery<any>({
+    queryKey: ["search-autocomplete", searchQuery],
+    queryFn: () =>
+      kyInstance
+        .get("/api/search/autocomplete", {
+          searchParams: { q: searchQuery },
+        })
+        .json<any>(),
+    enabled: !!searchQuery.trim() && showRecentDropdown,
+  });
+
+  const autocompleteUsers = autocompleteData?.users || [];
+
+  // Query dynamic trending hashtags from database activity
+  const { data: trendingHashtags = [] } = useQuery<any[]>({
+    queryKey: ["trending-hashtags"],
+    queryFn: () => kyInstance.get("/api/trending").json<any[]>(),
+    enabled: activeTab === "For You" || activeTab === "Trending" || !committedQuery,
+  });
+
+  // Query accounts directly if active tab is People
+  const isAccountTab = activeTab === "People" || committedQuery.startsWith("@");
   
   const { data: accountsData, isLoading: accountsLoading } = useQuery<any>({
     queryKey: ["search-accounts", committedQuery],
@@ -214,9 +235,11 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const searchTypeMap: Record<string, string> = {
     "Top": "top",
     "Latest": "latest",
+    "People": "accounts",
+    "Posts": "latest",
     "Photos": "photos",
     "Videos": "videos",
-    "Hashtags (#)": "top",
+    "Hashtags": "latest",
   };
 
   const getQueryType = () => {
@@ -288,37 +311,94 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
             )}
           </div>
 
-          {/* Instagram-style 'Recent Searches' dropdown modal */}
-          {showRecentDropdown && recentSearches.length > 0 && (
-            <div className="absolute top-12 left-0 right-0 z-40 bg-zinc-950 border border-zinc-900 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 animate-fade-in max-h-[300px] overflow-y-auto">
-              <div className="flex justify-between items-center text-xs font-bold text-zinc-400">
-                <span>Recent Searches</span>
-                <button onClick={clearAllRecent} className="text-purple-400 hover:text-purple-300">
-                  Clear all
-                </button>
-              </div>
-              <div className="flex flex-col gap-2">
-                {recentSearches.map((item) => (
-                  <div
-                    key={item}
-                    onClick={() => {
-                      setSearchQuery(item);
-                      setCommittedQuery(item);
-                      setShowRecentDropdown(false);
-                      setTimeout(() => handleSearchSubmit(), 50);
-                    }}
-                    className="flex justify-between items-center px-2 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm"
-                  >
-                    <span>{item}</span>
-                    <button
-                      onClick={(e) => removeRecentSearch(e, item)}
-                      className="p-1 text-zinc-500 hover:text-white rounded-full transition-colors"
+          {/* Autocomplete / Recent Searches dropdown modal */}
+          {showRecentDropdown && (
+            <div className="absolute top-12 left-0 right-0 z-40 bg-zinc-950 border border-zinc-900 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 animate-fade-in max-h-[350px] overflow-y-auto">
+              {searchQuery.trim() ? (
+                // Autocomplete Suggestions (Twitter/X style)
+                <>
+                  <div className="flex justify-between items-center text-xs font-bold text-zinc-400 border-b border-zinc-900 pb-2">
+                    <span>Search Suggestions</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {/* First option: Search literally */}
+                    <div
+                      onClick={() => {
+                        setCommittedQuery(searchQuery);
+                        saveSearch(searchQuery);
+                        setShowRecentDropdown(false);
+                        inputRef.current?.blur();
+                      }}
+                      className="px-2 py-2 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-purple-400 font-semibold"
                     >
-                      <X className="size-3.5" />
+                      Search for &quot;{searchQuery}&quot;
+                    </div>
+
+                    {/* Matched Users list */}
+                    {autocompleteUsers.map((acc: any) => (
+                      <Link
+                        key={acc.id}
+                        href={`/users/${acc.username}`}
+                        className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors text-white"
+                      >
+                        <UserAvatar avatarUrl={acc.avatarUrl} size={36} />
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs hover:underline">{acc.displayName}</span>
+                            {acc.verified && (
+                              <span className="size-3.5 rounded-full bg-blue-500 text-[8px] text-white flex items-center justify-center font-bold select-none shrink-0">
+                                ✓
+                              </span>
+                            )}
+                            {acc.followsYou && (
+                              <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1 rounded">
+                                Follows you
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-zinc-500">@{acc.username}</span>
+                        </div>
+                      </Link>
+                    ))}
+                    {autocompleteUsers.length === 0 && (
+                      <p className="text-xs text-zinc-500 px-2 py-1">No matching profiles found.</p>
+                    )}
+                  </div>
+                </>
+              ) : recentSearches.length > 0 ? (
+                // Recent Searches (Instagram style)
+                <>
+                  <div className="flex justify-between items-center text-xs font-bold text-zinc-400">
+                    <span>Recent Searches</span>
+                    <button type="button" onClick={clearAllRecent} className="text-purple-400 hover:text-purple-300">
+                      Clear all
                     </button>
                   </div>
-                ))}
-              </div>
+                  <div className="flex flex-col gap-2">
+                    {recentSearches.map((item) => (
+                      <div
+                        key={item}
+                        onClick={() => {
+                          setSearchQuery(item);
+                          setCommittedQuery(item);
+                          setShowRecentDropdown(false);
+                          setTimeout(() => handleSearchSubmit(), 50);
+                        }}
+                        className="flex justify-between items-center px-2 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm"
+                      >
+                        <span>{item}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => removeRecentSearch(e, item)}
+                          className="p-1 text-zinc-500 hover:text-white rounded-full transition-colors"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
           )}
         </form>
@@ -378,26 +458,26 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   </div>
                 </div>
 
-                {/* infinite text trending rows */}
+                {/* Dynamic trending rows fetched from database */}
                 <div className="flex flex-col gap-4">
-                  {[
-                    { cat: "Technology · Trending", title: "Next.js 15", count: "18.4K posts" },
-                    { cat: "Design · Trending", title: "Instagram Explore Layouts", count: "12.8K posts" },
-                    { cat: "India · Trending", title: "#PrismaORM", count: "8.2K posts" },
-                    { cat: "E-Commerce · Trending", title: "Cartly Rebranding", count: "42.1K posts" },
-                  ].map((row, idx) => (
-                    <div key={row.title} className="flex flex-col w-full">
+                  {trendingHashtags.slice(0, 5).map((trend, idx) => (
+                    <div key={trend.hashtag} className="flex flex-col w-full">
                       {/* Text Trending row */}
-                      <div className="flex justify-between items-start hover:bg-zinc-950 p-2 rounded-xl transition-colors cursor-pointer">
+                      <Link
+                        href={`/hashtag/${trend.hashtag.replace("#", "")}`}
+                        className="flex justify-between items-start hover:bg-zinc-950 p-2 rounded-xl transition-colors cursor-pointer animate-fade-in"
+                      >
                         <div className="flex flex-col">
-                          <span className="text-[11px] text-zinc-500 font-semibold">{row.cat}</span>
-                          <span className="font-bold text-sm text-white mt-0.5">{row.title}</span>
-                          <span className="text-[11px] text-zinc-400 mt-0.5">{row.count}</span>
+                          <span className="text-[11px] text-zinc-500 font-semibold">Trending · #{idx + 1}</span>
+                          <span className="font-bold text-sm text-white mt-0.5">{trend.hashtag}</span>
+                          <span className="text-[11px] text-zinc-400 mt-0.5">
+                            {trend.totalPosts} {trend.totalPosts === 1 ? "post" : "posts"} · {trend.totalEngagement} engagement
+                          </span>
                         </div>
                         <span className="text-zinc-600 text-xs font-bold">···</span>
-                      </div>
+                      </Link>
 
-                      {/* Inline Who to Follow widgets after every 4 items */}
+                      {/* Inline Who to Follow widgets after index 3 */}
                       {idx === 3 && suggestions.length > 0 && (
                         <div className="my-6 bg-zinc-950 border border-zinc-900 rounded-2xl p-4 flex flex-col gap-3">
                           <span className="text-xs font-extrabold tracking-wide uppercase text-zinc-400">Who to follow</span>
@@ -434,6 +514,9 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                       )}
                     </div>
                   ))}
+                  {trendingHashtags.length === 0 && (
+                    <p className="text-center text-zinc-500 py-4 text-xs">No active hashtags found in database.</p>
+                  )}
                 </div>
               </div>
             )}
@@ -516,7 +599,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   ))
                 )}
               </div>
-            ) : activeTab === "Hashtags (#)" ? (
+            ) : activeTab === "Hashtags" ? (
               // HASHTAGS AGGREGATION VIEW STATE
               <div className="flex flex-col gap-4">
                 {status === "pending" ? (
