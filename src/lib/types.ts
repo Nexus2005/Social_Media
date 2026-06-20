@@ -35,6 +35,7 @@ export function getPostDataInclude(loggedInUserId: string) {
       select: getUserDataSelect(loggedInUserId),
     },
     attachments: true,
+    detectedObjects: true,
     likes: {
       where: {
         userId: loggedInUserId,

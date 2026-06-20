@@ -14,7 +14,8 @@ export function useSubmitCommentMutation(postId: string) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: submitComment,
+    mutationFn: (input: Parameters<typeof submitComment>[0]) =>
+      submitComment(input),
     onSuccess: async (newComment) => {
       const queryKey: QueryKey = ["comments", postId];
 
@@ -69,7 +70,7 @@ export function useDeleteCommentMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: deleteComment,
+    mutationFn: (id: string) => deleteComment(id),
     onSuccess: async (deletedComment) => {
       const queryKey: QueryKey = ["comments", deletedComment.postId];
 

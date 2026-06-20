@@ -16,7 +16,7 @@ export default function useInitializeChatClient() {
           id: user.id,
           username: user.username,
           name: user.displayName,
-          image: user.avatarUrl,
+          image: user.avatarUrl || undefined,
         },
         async () =>
           kyInstance

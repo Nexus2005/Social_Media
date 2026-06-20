@@ -4,6 +4,7 @@ import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
 import streamServerClient from "@/lib/stream";
 import { getUserDataSelect } from "@/lib/types";
+import { toPlainObject } from "@/lib/utils";
 import {
   updateUserProfileSchema,
   UpdateUserProfileValues,
@@ -31,5 +32,5 @@ export async function updateUserProfile(values: UpdateUserProfileValues) {
     return updatedUser;
   });
 
-  return updatedUser;
+  return toPlainObject(updatedUser);
 }

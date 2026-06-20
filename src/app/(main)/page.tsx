@@ -1,28 +1,44 @@
-import PostEditor from "@/components/posts/editor/PostEditor";
-import TrendsSidebar from "@/components/TrendsSidebar";
+import StoriesCarousel from "@/components/StoriesCarousel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FollowingFeed from "./FollowingFeed";
 import ForYouFeed from "./ForYouFeed";
+import SuggestedSidebar from "./SuggestedSidebar";
 
 export default function Home() {
   return (
-    <main className="flex w-full min-w-0 gap-5">
-      <div className="w-full min-w-0 space-y-5">
-        <PostEditor />
+    <div className="mx-auto flex w-full max-w-[935px] gap-8 px-4 py-6 md:px-8 justify-center">
+      {/* Column 2 (Center Feed) */}
+      <div className="w-full max-w-[600px] space-y-6">
+        {/* Stories Carousel */}
+        <StoriesCarousel />
+
+        {/* Feeds Tabs */}
         <Tabs defaultValue="for-you">
-          <TabsList>
-            <TabsTrigger value="for-you">For you</TabsTrigger>
-            <TabsTrigger value="following">Following</TabsTrigger>
+          <TabsList className="w-full justify-start border-b bg-transparent p-0 h-11 rounded-none gap-6">
+            <TabsTrigger
+              value="for-you"
+              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-1 py-2.5 h-full font-bold text-muted-foreground data-[state=active]:text-foreground transition-all"
+            >
+              For you
+            </TabsTrigger>
+            <TabsTrigger
+              value="following"
+              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-1 py-2.5 h-full font-bold text-muted-foreground data-[state=active]:text-foreground transition-all"
+            >
+              Following
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="for-you">
+          <TabsContent value="for-you" className="mt-4 outline-none">
             <ForYouFeed />
           </TabsContent>
-          <TabsContent value="following">
+          <TabsContent value="following" className="mt-4 outline-none">
             <FollowingFeed />
           </TabsContent>
         </Tabs>
       </div>
-      <TrendsSidebar />
-    </main>
+
+      {/* Column 3 (Right Sidebar) */}
+      <SuggestedSidebar />
+    </div>
   );
 }

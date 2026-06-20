@@ -15,6 +15,7 @@ import UserTooltip from "../UserTooltip";
 import BookmarkButton from "./BookmarkButton";
 import LikeButton from "./LikeButton";
 import PostMoreButton from "./PostMoreButton";
+import VideoPlayer from "../VideoPlayer";
 
 interface PostProps {
   post: PostData;
@@ -118,7 +119,7 @@ interface MediaPreviewProps {
 }
 
 function MediaPreview({ media }: MediaPreviewProps) {
-  if (media.type === "IMAGE") {
+  if (media.mediaType === "IMAGE") {
     return (
       <Image
         src={media.url}
@@ -130,16 +131,8 @@ function MediaPreview({ media }: MediaPreviewProps) {
     );
   }
 
-  if (media.type === "VIDEO") {
-    return (
-      <div>
-        <video
-          src={media.url}
-          controls
-          className="mx-auto size-fit max-h-[30rem] rounded-2xl"
-        />
-      </div>
-    );
+  if (media.mediaType === "VIDEO") {
+    return <VideoPlayer src={media.url} />;
   }
 
   return <p className="text-destructive">Unsupported media type</p>;

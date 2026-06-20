@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { UTApi } from "uploadthing/server";
+import supabaseAdmin from "@/lib/supabase";
 
 export async function GET(req: Request) {
   try {
@@ -29,17 +29,32 @@ export async function GET(req: Request) {
       },
     });
 
-    new UTApi().deleteFiles(
-      unusedMedia.map(
-        (m) =>
-          m.url.split(`/a/${process.env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/`)[1],
-      ),
-    );
+    const fileKeys = unusedMedia
+      .map((m) => {
+        if (m.url.includes("/storage/v1/object/public/social-media/")) {
+          return m.url.split("/storage/v1/object/public/social-media/")[1];
+        }
+        return null;
+      })
+      .filter(Boolean) as string[];
+
+    if (fileKeys.length > 0) {
+      await supabaseAdmin.storage.from("social-media").remove(fileKeys);
+    }
 
     await prisma.media.deleteMany({
       where: {
         id: {
           in: unusedMedia.map((m) => m.id),
+        },
+      },
+    });
+
+    // Delete expired stories older than 24 hours
+    await prisma.story.deleteMany({
+      where: {
+        createdAt: {
+          lt: new Date(Date.now() - 24 * 60 * 60 * 1000),
         },
       },
     });

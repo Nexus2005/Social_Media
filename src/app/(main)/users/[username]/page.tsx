@@ -2,7 +2,6 @@ import { validateRequest } from "@/auth";
 import FollowButton from "@/components/FollowButton";
 import FollowerCount from "@/components/FollowerCount";
 import Linkify from "@/components/Linkify";
-import TrendsSidebar from "@/components/TrendsSidebar";
 import UserAvatar from "@/components/UserAvatar";
 import prisma from "@/lib/prisma";
 import { FollowerInfo, getUserDataSelect, UserData } from "@/lib/types";
@@ -62,18 +61,15 @@ export default async function Page({ params: { username } }: PageProps) {
   const user = await getUser(username, loggedInUser.id);
 
   return (
-    <main className="flex w-full min-w-0 gap-5">
-      <div className="w-full min-w-0 space-y-5">
-        <UserProfile user={user} loggedInUserId={loggedInUser.id} />
-        <div className="rounded-2xl bg-card p-5 shadow-sm">
-          <h2 className="text-center text-2xl font-bold">
-            {user.displayName}&apos;s posts
-          </h2>
-        </div>
-        <UserPosts userId={user.id} />
+    <div className="mx-auto w-full max-w-[600px] space-y-5 px-4 py-6">
+      <UserProfile user={user} loggedInUserId={loggedInUser.id} />
+      <div className="rounded-2xl bg-card p-5 shadow-sm border border-border/40">
+        <h2 className="text-center text-2xl font-bold">
+          {user.displayName}&apos;s posts
+        </h2>
       </div>
-      <TrendsSidebar />
-    </main>
+      <UserPosts userId={user.id} />
+    </div>
   );
 }
 

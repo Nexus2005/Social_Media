@@ -10,11 +10,13 @@ import { useToast } from "./ui/use-toast";
 interface FollowButtonProps {
   userId: string;
   initialState: FollowerInfo;
+  variant?: "button" | "text";
 }
 
 export default function FollowButton({
   userId,
   initialState,
+  variant = "button",
 }: FollowButtonProps) {
   const { toast } = useToast();
 
@@ -52,6 +54,19 @@ export default function FollowButton({
       });
     },
   });
+
+  if (variant === "text") {
+    return (
+      <button
+        onClick={() => mutate()}
+        className={`text-xs font-bold hover:text-foreground transition-colors ${
+          data.isFollowedByUser ? "text-muted-foreground" : "text-primary hover:text-primary/80"
+        }`}
+      >
+        {data.isFollowedByUser ? "Following" : "Follow"}
+      </button>
+    );
+  }
 
   return (
     <Button

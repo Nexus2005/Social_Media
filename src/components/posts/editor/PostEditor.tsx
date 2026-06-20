@@ -8,13 +8,14 @@ import { cn } from "@/lib/utils";
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useDropzone } from "@uploadthing/react";
+import { useDropzone } from "react-dropzone";
 import { ImageIcon, Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { ClipboardEvent, useRef } from "react";
 import { useSubmitPostMutation } from "./mutations";
 import "./styles.css";
 import useMediaUpload, { Attachment } from "./useMediaUpload";
+import VideoPlayer from "@/components/VideoPlayer";
 
 export default function PostEditor() {
   const { user } = useSession();
@@ -37,6 +38,7 @@ export default function PostEditor() {
   const { onClick, ...rootProps } = getRootProps();
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         bold: false,
@@ -212,14 +214,15 @@ function AttachmentPreview({
           className="size-fit max-h-[30rem] rounded-2xl"
         />
       ) : (
-        <video controls className="size-fit max-h-[30rem] rounded-2xl">
-          <source src={src} type={file.type} />
-        </video>
+        <VideoPlayer src={src} />
       )}
       {!isUploading && (
         <button
-          onClick={onRemoveClick}
-          className="absolute right-3 top-3 rounded-full bg-foreground p-1.5 text-background transition-colors hover:bg-foreground/60"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemoveClick();
+          }}
+          className="absolute right-3 top-3 rounded-full bg-foreground p-1.5 text-background transition-colors hover:bg-foreground/60 z-25"
         >
           <X size={20} />
         </button>

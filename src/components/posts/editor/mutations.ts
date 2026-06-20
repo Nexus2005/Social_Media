@@ -17,7 +17,7 @@ export function useSubmitPostMutation() {
   const { user } = useSession();
 
   const mutation = useMutation({
-    mutationFn: submitPost,
+    mutationFn: (input: Parameters<typeof submitPost>[0]) => submitPost(input),
     onSuccess: async (newPost) => {
       const queryFilter = {
         queryKey: ["post-feed"],

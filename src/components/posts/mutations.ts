@@ -18,7 +18,7 @@ export function useDeletePostMutation() {
   const pathname = usePathname();
 
   const mutation = useMutation({
-    mutationFn: deletePost,
+    mutationFn: (id: string) => deletePost(id),
     onSuccess: async (deletedPost) => {
       const queryFilter: QueryFilters = { queryKey: ["post-feed"] };
 

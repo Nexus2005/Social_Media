@@ -35,3 +35,35 @@ export type UpdateUserProfileValues = z.infer<typeof updateUserProfileSchema>;
 export const createCommentSchema = z.object({
   content: requiredString,
 });
+
+export const allowedMediaExtensions = ["jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "webm"];
+
+export const allowedMediaMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+];
+
+export function validateMediaFile(file: File): string | null {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (!extension || !allowedMediaExtensions.includes(extension)) {
+    return `Unsupported file extension (.${extension || "unknown"}). Allowed: ${allowedMediaExtensions.join(", ")}`;
+  }
+
+  if (!allowedMediaMimeTypes.includes(file.type)) {
+    return `Unsupported file type (${file.type || "unknown"}).`;
+  }
+
+  // Maximum sizes: 10MB for images, 100MB for videos
+  const isVideo = file.type.startsWith("video/");
+  const maxSizeBytes = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+  if (file.size > maxSizeBytes) {
+    return `File is too large. Maximum size is ${isVideo ? "100MB" : "10MB"}.`;
+  }
+
+  return null;
+}

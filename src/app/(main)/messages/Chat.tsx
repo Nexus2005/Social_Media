@@ -6,16 +6,17 @@ import { useState } from "react";
 import { Chat as StreamChat } from "stream-chat-react";
 import ChatChannel from "./ChatChannel";
 import ChatSidebar from "./ChatSidebar";
-import useInitializeChatClient from "./useInitializeChatClient";
+import { useChat } from "../ChatProvider";
 
 export default function Chat() {
-  const chatClient = useInitializeChatClient();
+  const chatClient = useChat();
 
   const { resolvedTheme } = useTheme();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!chatClient) {
+
     return <Loader2 className="mx-auto my-3 animate-spin" />;
   }
 

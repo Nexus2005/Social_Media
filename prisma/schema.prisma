@@ -26,6 +26,7 @@ model User {
   bio                   String?
   sessions              Session[]
   posts                 Post[]
+  stories               Story[]
   following             Follow[]       @relation("Following")
   followers             Follow[]       @relation("Followers")
   likes                 Like[]
@@ -68,18 +69,20 @@ model Post {
   bookmarks           Bookmark[]
   comments            Comment[]
   linkedNotifications Notification[]
+  detectedObjects     DetectedObject[]
 
   createdAt DateTime @default(now())
 
   @@map("posts")
 }
 
+
 model Media {
-  id     String    @id @default(cuid())
-  postId String?
-  post   Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
-  type   MediaType
-  url    String
+  id        String    @id @default(cuid())
+  postId    String?
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
+  mediaType MediaType @map("type")
+  url       String
 
   createdAt DateTime @default(now())
 
@@ -148,3 +151,26 @@ enum NotificationType {
   FOLLOW
   COMMENT
 }
+
+model Story {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaUrl  String
+  mediaType MediaType
+  createdAt DateTime  @default(now())
+
+  @@map("stories")
+}
+
+model DetectedObject {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  name      String
+  box       Json     // Bounding box coordinates
+  createdAt DateTime @default(now())
+
+  @@map("detected_objects")
+}
+

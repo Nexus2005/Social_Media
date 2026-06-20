@@ -32,3 +32,25 @@ export function slugify(input: string): string {
     .replace(/ /g, "-")
     .replace(/[^a-z0-9-]/g, "");
 }
+
+export function toPlainObject<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (obj instanceof Date) {
+    return new Date(obj.getTime()) as any;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => toPlainObject(item)) as any;
+  }
+  if (typeof obj === "object") {
+    const plain: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        plain[key] = toPlainObject(obj[key]);
+      }
+    }
+    return plain;
+  }
+  return obj;
+}

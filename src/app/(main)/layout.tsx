@@ -1,8 +1,12 @@
 import { validateRequest } from "@/auth";
 import { redirect } from "next/navigation";
-import MenuBar from "./MenuBar";
-import Navbar from "./Navbar";
+import prisma from "@/lib/prisma";
+import streamServerClient from "@/lib/stream";
 import SessionProvider from "./SessionProvider";
+import ChatProvider from "./ChatProvider";
+import InstagramSidebar from "./InstagramSidebar";
+import MobileNavigation from "./MobileNavigation";
+import FloatingChat from "@/components/FloatingChat";
 
 export default async function Layout({
   children,
@@ -13,16 +17,49 @@ export default async function Layout({
 
   if (!session.user) redirect("/login");
 
+  // Fetch counts server-side for initial hydration state
+  const [unreadNotificationsCount, unreadMessagesCount] = await Promise.all([
+    prisma.notification.count({
+      where: {
+        recipientId: session.user.id,
+        read: false,
+      },
+    }),
+    streamServerClient
+      .getUnreadCount(session.user.id)
+      .then((res) => res.total_unread_count)
+      .catch(() => 0),
+  ]);
+
   return (
     <SessionProvider value={session}>
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <div className="mx-auto flex w-full max-w-7xl grow gap-5 p-5">
-          <MenuBar className="sticky top-[5.25rem] hidden h-fit flex-none space-y-3 rounded-2xl bg-card px-3 py-5 shadow-sm sm:block lg:px-5 xl:w-80" />
-          {children}
+      <ChatProvider>
+        <div className="flex min-h-screen flex-col bg-background">
+          {/* Left Sidebar for Desktop */}
+          <InstagramSidebar
+            initialNotificationsCount={unreadNotificationsCount}
+            initialMessagesCount={unreadMessagesCount}
+          />
+
+          {/* Top/Bottom Nav for Mobile */}
+          <MobileNavigation
+            initialNotificationsCount={unreadNotificationsCount}
+            initialMessagesCount={unreadMessagesCount}
+          />
+
+          {/* Main Content Area */}
+          <div className="main-content-wrapper flex-grow flex justify-center w-full sm:pl-[72px] xl:pl-[244px] pb-12 sm:pb-0 transition-all duration-300">
+            <main className="w-full">
+              {children}
+            </main>
+          </div>
+
+
+          {/* Floating Chat Window Overlay */}
+          <FloatingChat />
         </div>
-        <MenuBar className="sticky bottom-0 flex w-full justify-center gap-5 border-t bg-card p-3 sm:hidden" />
-      </div>
+      </ChatProvider>
     </SessionProvider>
   );
 }
+

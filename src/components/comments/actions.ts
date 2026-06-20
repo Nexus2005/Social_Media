@@ -2,14 +2,17 @@
 
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
-import { getCommentDataInclude, PostData } from "@/lib/types";
+import { getCommentDataInclude } from "@/lib/types";
+import { toPlainObject } from "@/lib/utils";
 import { createCommentSchema } from "@/lib/validation";
 
 export async function submitComment({
-  post,
+  postId,
+  postUserId,
   content,
 }: {
-  post: PostData;
+  postId: string;
+  postUserId: string;
   content: string;
 }) {
   const { user } = await validateRequest();
@@ -22,18 +25,18 @@ export async function submitComment({
     prisma.comment.create({
       data: {
         content: contentValidated,
-        postId: post.id,
+        postId,
         userId: user.id,
       },
       include: getCommentDataInclude(user.id),
     }),
-    ...(post.user.id !== user.id
+    ...(postUserId !== user.id
       ? [
           prisma.notification.create({
             data: {
               issuerId: user.id,
-              recipientId: post.user.id,
-              postId: post.id,
+              recipientId: postUserId,
+              postId,
               type: "COMMENT",
             },
           }),
@@ -41,7 +44,7 @@ export async function submitComment({
       : []),
   ]);
 
-  return newComment;
+  return toPlainObject(newComment);
 }
 
 export async function deleteComment(id: string) {
@@ -62,5 +65,5 @@ export async function deleteComment(id: string) {
     include: getCommentDataInclude(user.id),
   });
 
-  return deletedComment;
+  return toPlainObject(deletedComment);
 }

@@ -1,6 +1,7 @@
 import { useToast } from "@/components/ui/use-toast";
 import { useUploadThing } from "@/lib/uploadthing";
 import { useState } from "react";
+import { validateMediaFile } from "@/lib/validation";
 
 export interface Attachment {
   file: File;
@@ -75,6 +76,17 @@ export default function useMediaUpload() {
         description: "You can only upload up to 5 attachments per post.",
       });
       return;
+    }
+
+    for (const file of files) {
+      const errorMsg = validateMediaFile(file);
+      if (errorMsg) {
+        toast({
+          variant: "destructive",
+          description: `${file.name}: ${errorMsg}`,
+        });
+        return;
+      }
     }
 
     startUpload(files);

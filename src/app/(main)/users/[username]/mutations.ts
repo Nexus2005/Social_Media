@@ -29,7 +29,7 @@ export function useUpdateProfileMutation() {
       avatar?: File;
     }) => {
       return Promise.all([
-        updateUserProfile(values),
+        updateUserProfile(JSON.parse(JSON.stringify(values))),
         avatar && startAvatarUpload([avatar]),
       ]);
     },

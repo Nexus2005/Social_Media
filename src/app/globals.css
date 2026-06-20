@@ -117,3 +117,40 @@
 .str-chat__channel-search-bar-button--exit-search {
   display: none;
 }
+
+/* Reels Mode Layout overrides */
+body:has(#reels-page) .main-content-wrapper {
+  padding-left: 72px !important;
+}
+
+@media (max-width: 639px) {
+  body:has(#reels-page) .main-content-wrapper {
+    padding-left: 0 !important;
+  }
+}
+
+/* Hide scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom scrolling music track animation */
+@keyframes scrollText {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-scroll-text {
+  display: inline-block;
+  white-space: nowrap;
+  animation: scrollText 12s linear infinite;
+}
+
