@@ -7,22 +7,69 @@ import { toPlainObject } from "@/lib/utils";
 import { createPostSchema } from "@/lib/validation";
 
 export async function submitPost(input: {
-  content: string;
-  mediaIds: string[];
+  content?: string;
+  mediaIds?: string[];
+  location?: string | null;
+  disableComments?: boolean;
+  hideLikes?: boolean;
+  altText?: string | null;
+  tags?: any;
+  collaborators?: any;
+  audience?: string;
+  poll?: {
+    options: string[];
+    duration: {
+      days: number;
+      hours: number;
+      minutes: number;
+    };
+  } | null;
 }) {
   const { user } = await validateRequest();
 
   if (!user) throw new Error("Unauthorized");
 
-  const { content, mediaIds } = createPostSchema.parse(input);
+  const {
+    content,
+    mediaIds,
+    location,
+    disableComments,
+    hideLikes,
+    altText,
+    tags,
+    collaborators,
+    audience,
+    poll,
+  } = createPostSchema.parse(input);
+
+  const durationMs = poll
+    ? (poll.duration.days * 24 * 60 + poll.duration.hours * 60 + poll.duration.minutes) * 60 * 1000
+    : 0;
 
   const newPost = await prisma.post.create({
     data: {
-      content,
+      content: content || "",
       userId: user.id,
+      location,
+      disableComments,
+      hideLikes,
+      altText,
+      tags: tags || undefined,
+      collaborators: collaborators || undefined,
+      audience,
       attachments: {
         connect: mediaIds.map((id) => ({ id })),
       },
+      poll: poll
+        ? {
+            create: {
+              expiresAt: new Date(Date.now() + durationMs),
+              options: {
+                create: poll.options.map((option) => ({ text: option })),
+              },
+            },
+          }
+        : undefined,
     },
     include: getPostDataInclude(user.id),
   });

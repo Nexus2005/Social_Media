@@ -21,9 +21,30 @@ export const loginSchema = z.object({
 export type LoginValues = z.infer<typeof loginSchema>;
 
 export const createPostSchema = z.object({
-  content: requiredString,
-  mediaIds: z.array(z.string()).max(5, "Cannot have more than 5 attachments"),
-});
+  content: z.string().optional(),
+  mediaIds: z.array(z.string()).max(10, "Cannot have more than 10 attachments").default([]),
+  location: z.string().trim().optional().nullable(),
+  disableComments: z.boolean().optional().default(false),
+  hideLikes: z.boolean().optional().default(false),
+  altText: z.string().trim().optional().nullable(),
+  tags: z.any().optional(),
+  collaborators: z.any().optional(),
+  audience: z.string().optional().default("PUBLIC"),
+  poll: z.object({
+    options: z.array(z.string().trim().min(1, "Option text cannot be empty")).min(2, "At least 2 choices required").max(4, "Maximum 4 choices allowed"),
+    duration: z.object({
+      days: z.number().min(0).max(7),
+      hours: z.number().min(0).max(23),
+      minutes: z.number().min(0).max(59),
+    }),
+  }).optional().nullable(),
+}).refine(
+  (data) => (data.content && data.content.trim().length > 0) || data.mediaIds.length > 0 || !!data.poll,
+  {
+    message: "Post must contain text, media, or a poll",
+    path: ["content"],
+  }
+);
 
 export const updateUserProfileSchema = z.object({
   displayName: requiredString,

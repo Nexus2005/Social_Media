@@ -294,7 +294,7 @@ export default function CartlySidebar({
 
       {/* Create Post Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden bg-card rounded-2xl">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-[85vw] p-0 overflow-hidden bg-card rounded-2xl">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle className="text-center font-bold text-lg">Create new post</DialogTitle>
           </DialogHeader>

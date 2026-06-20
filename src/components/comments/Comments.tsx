@@ -31,6 +31,14 @@ export default function Comments({ post }: CommentsProps) {
 
   const comments = data?.pages.flatMap((page) => page.comments) || [];
 
+  if (post.disableComments) {
+    return (
+      <div className="text-center py-4 text-sm text-muted-foreground italic border-t border-border/10">
+        Comments are turned off for this post.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <CommentInput post={post} />

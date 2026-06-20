@@ -63,6 +63,15 @@ export function getPostDataInclude(loggedInUserId: string) {
         comments: true,
       },
     },
+    poll: {
+      include: {
+        options: {
+          include: {
+            votes: true,
+          },
+        },
+      },
+    },
   } satisfies Prisma.PostInclude;
 }
 

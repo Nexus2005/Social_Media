@@ -13,9 +13,10 @@ import { useToast } from "../ui/use-toast";
 interface LikeButtonProps {
   postId: string;
   initialState: LikeInfo;
+  hideLikes?: boolean;
 }
 
-export default function LikeButton({ postId, initialState }: LikeButtonProps) {
+export default function LikeButton({ postId, initialState, hideLikes }: LikeButtonProps) {
   const { toast } = useToast();
 
   const queryClient = useQueryClient();
@@ -66,9 +67,11 @@ export default function LikeButton({ postId, initialState }: LikeButtonProps) {
           data.isLikedByUser && "fill-red-500 text-red-500",
         )}
       />
-      <span className="text-sm font-medium tabular-nums">
-        {data.likes} <span className="hidden sm:inline">likes</span>
-      </span>
+      {!hideLikes && (
+        <span className="text-sm font-medium tabular-nums">
+          {data.likes} <span className="hidden sm:inline">likes</span>
+        </span>
+      )}
     </button>
   );
 }

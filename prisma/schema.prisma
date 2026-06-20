@@ -40,6 +40,7 @@ model User {
   birthDate            DateTime?
   professionalCategory String?
   headerBannerUrl      String?
+  pollVotes            PollVote[]
 
   createdAt DateTime @default(now())
 
@@ -78,6 +79,15 @@ model Post {
   detectedObjects     DetectedObject[]
   detectedProducts    DetectedProduct[]
   aiStatus            String         @default("PENDING")
+
+  location            String?
+  disableComments     Boolean        @default(false)
+  hideLikes           Boolean        @default(false)
+  altText             String?
+  tags                Json?
+  collaborators       Json?
+  audience            String         @default("PUBLIC")
+  poll                Poll?
 
   createdAt DateTime @default(now())
 
@@ -212,5 +222,39 @@ model ShoppingMatch {
   createdAt         DateTime        @default(now()) @map("created_at")
 
   @@map("shopping_matches")
+}
+
+model Poll {
+  id        String       @id @default(cuid())
+  postId    String       @unique
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  options   PollOption[]
+  votes     PollVote[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id      String     @id @default(cuid())
+  pollId  String
+  poll    Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text    String
+  votes   PollVote[]
+
+  @@map("poll_options")
+}
+
+model PollVote {
+  id       String     @id @default(cuid())
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pollId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pollId])
+  @@map("poll_votes")
 }
 
