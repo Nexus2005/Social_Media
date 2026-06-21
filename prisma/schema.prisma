@@ -43,6 +43,7 @@ model User {
   pollVotes            PollVote[]
 
   verified             Boolean        @default(false)
+  role                 String         @default("USER")
   reposts              Repost[]
   views                PostView[]
   mentions             PostMention[]

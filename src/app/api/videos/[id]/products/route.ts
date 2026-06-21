@@ -11,13 +11,28 @@ export async function GET(
       return NextResponse.json({ error: "Missing video id" }, { status: 400 });
     }
 
-    // Expose only products with confidence >= 0.80 (Change 2 Product Quality Filter)
+    const showAll = req.nextUrl.searchParams.get("showAll") === "true";
+
+    if (showAll) {
+      const { validateRequest } = require("@/auth");
+      const { user } = await validateRequest();
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { role: true },
+      });
+      const role = dbUser?.role || user.role;
+      if (role !== "ADMIN" && user.username !== "Omkar2005") {
+        return NextResponse.json({ error: "Forbidden: Admins only" }, { status: 403 });
+      }
+    }
+
     const products = await prisma.detectedProduct.findMany({
       where: {
         postId: id,
-        confidence: {
-          gte: 0.80,
-        },
+        ...(showAll ? {} : { confidence: { gte: 0.80 } }),
       },
       include: {
         matches: {

@@ -251,6 +251,14 @@ export default function CartlySidebar({
                   <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
+              {(user.role === "ADMIN" || user.username === "Omkar2005") && (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin" className="flex items-center gap-3 p-3 cursor-pointer">
+                    <Activity className="size-5" />
+                    <span>AI Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer">
                 <Activity className="size-5" />
                 <span>Your Activity</span>

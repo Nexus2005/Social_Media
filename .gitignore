@@ -26,3 +26,7 @@ out/
 
 # service account key specifically
 google-vision-key.json
+
+# temporary background worker files
+tmp/
+
