@@ -15,38 +15,35 @@ export async function GET(req: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 1. Fetch followed users for affinity score
-    const following = await prisma.follow.findMany({
-      where: { followerId: user.id },
-      select: { followingId: true },
-    });
-    const followedUserIds = following.map((f) => f.followingId);
-
-    // 2. Fetch recent 200 posts with minimal fields for ranking
-    const postsMinimal = await prisma.post.findMany({
-      select: {
-        id: true,
-        userId: true,
-        createdAt: true,
-        reposts: {
-          select: { id: true }
-        },
-        views: {
-          select: { watchDuration: true, completed: true }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
+    // 1 & 2. Run followers + minimal posts queries IN PARALLEL
+    const [following, postsMinimal] = await Promise.all([
+      prisma.follow.findMany({
+        where: { followerId: user.id },
+        select: { followingId: true },
+      }),
+      prisma.post.findMany({
+        select: {
+          id: true,
+          userId: true,
+          createdAt: true,
+          _count: {
+            select: {
+              likes: true,
+              comments: true,
+              reposts: true,
+              views: true,
+            }
+          },
+          videoJob: {
+            select: { status: true }
           }
         },
-        videoJob: {
-          select: { status: true }
-        }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+    ]);
+
+    const followedUserIds = following.map((f) => f.followingId);
 
     // 3. Rank posts
     const rankedPosts = FeedRankingService.rankPosts(postsMinimal, user.id, followedUserIds);
@@ -64,8 +61,9 @@ export async function GET(req: NextRequest) {
     const paginatedSlice = paginatedPosts.slice(0, pageSize);
     const paginatedIds = paginatedSlice.map((p) => p.id);
 
-    // 5. Fetch full data ONLY for the paginated posts
+    // 5. Fetch full data ONLY for the paginated posts (using lateral JOINs)
     const fullPosts = await prisma.post.findMany({
+      relationLoadStrategy: "join",
       where: {
         id: { in: paginatedIds },
       },

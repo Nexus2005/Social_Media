@@ -134,12 +134,14 @@ export default function ReelsFeed() {
         onScroll={handleScroll}
         className="w-full h-full overflow-y-scroll snap-y snap-mandatory scrollbar-none flex flex-col z-10"
       >
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <ReelCard
             key={post.id}
             post={post}
             isMuted={isMuted}
             onToggleMute={() => setIsMuted(!isMuted)}
+            isActive={index === activeReelIndex}
+            shouldPreload={index === activeReelIndex + 1}
           />
         ))}
         {isFetchingNextPage && (

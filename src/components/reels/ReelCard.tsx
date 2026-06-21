@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useSession } from "@/app/(main)/SessionProvider";
 import UserAvatar from "@/components/UserAvatar";
 import FollowButton from "@/components/FollowButton";
@@ -26,7 +26,6 @@ import {
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
 import ReelsCommentDialog from "./ReelsCommentDialog";
-import useReelsIntersectionObserver from "./useReelsIntersectionObserver";
 import { useToast } from "../ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -34,9 +33,17 @@ interface ReelCardProps {
   post: PostData;
   isMuted: boolean;
   onToggleMute: () => void;
+  isActive: boolean;
+  shouldPreload: boolean;
 }
 
-export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps) {
+export default function ReelCard({
+  post,
+  isMuted,
+  onToggleMute,
+  isActive,
+  shouldPreload
+}: ReelCardProps) {
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -84,8 +91,37 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
   const detectedProducts = statusData?.detectedProducts || post.detectedProducts || [];
   const isAdmin = loggedInUser?.username === "Omkar2005" || (loggedInUser as any)?.verified === true;
 
-  // Intersection Observer to autoplay/pause video
-  useReelsIntersectionObserver(videoRef, setIsPlaying, isMuted);
+
+
+  // Autoplay/pause based on active reel index
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isActive) {
+      video.muted = isMuted;
+      video
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn("Reel autoplay prevented:", err);
+          setIsPlaying(false);
+        });
+    } else {
+      video.pause();
+      video.currentTime = 0; // Rewind to start
+      setIsPlaying(false);
+    }
+  }, [isActive, isMuted, videoRef]);
+
+  // Sync mute changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted, videoRef]);
 
   const videoAttachment = post.attachments.find((att) => att.mediaType === "VIDEO");
   const videoUrl = videoAttachment?.url;
@@ -252,6 +288,7 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           loop
           playsInline
           muted={isMuted}
+          preload={isActive || shouldPreload ? "auto" : "metadata"}
           onClick={handleVideoClick}
           className="w-full h-full object-cover cursor-pointer"
         />

@@ -6,7 +6,7 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearch"]
+  previewFeatures = ["fullTextSearch", "relationJoins"]
 }
 
 datasource db {
@@ -112,6 +112,8 @@ model Post {
   createdAt DateTime @default(now())
 
   @@map("posts")
+  @@index([userId])
+  @@index([createdAt])
 }
 
 
@@ -128,6 +130,8 @@ model Media {
   createdAt DateTime @default(now())
 
   @@map("post_media")
+  @@index([postId])
+  @@index([mediaType])
 }
 
 enum MediaType {
@@ -150,6 +154,9 @@ model Comment {
   createdAt DateTime @default(now())
 
   @@map("comments")
+  @@index([postId])
+  @@index([userId])
+  @@index([parentCommentId])
 }
 
 model Like {
@@ -189,6 +196,9 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@map("notifications")
+  @@index([recipientId])
+  @@index([issuerId])
+  @@index([postId])
 }
 
 enum NotificationType {
@@ -210,6 +220,8 @@ model Story {
   createdAt DateTime  @default(now())
 
   @@map("stories")
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model DetectedObject {
@@ -253,6 +265,7 @@ model DetectedProduct {
   collectionItems         ProductCollectionItem[]
 
   @@map("detected_products")
+  @@index([postId])
 }
 
 model ShoppingMatch {
@@ -271,6 +284,7 @@ model ShoppingMatch {
   priceHistories    PriceHistory[]
 
   @@map("shopping_matches")
+  @@index([detectedProductId])
 }
 
 model VideoProcessingJob {

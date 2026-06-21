@@ -85,7 +85,6 @@ export function getPostDataInclude(loggedInUserId: string) {
         attachments: true,
       },
     },
-    views: true,
     _count: {
       select: {
         likes: true,

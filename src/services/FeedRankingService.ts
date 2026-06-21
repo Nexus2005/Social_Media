@@ -18,27 +18,14 @@ export class FeedRankingService {
     const scoredPosts = posts.map((post) => {
       const likesCount = post._count?.likes ?? 0;
       const commentsCount = post._count?.comments ?? 0;
-      const repostsCount = post.reposts?.length ?? post._count?.reposts ?? 0;
-      
-      const viewsList = post.views ?? [];
-      const viewsCount = viewsList.length;
-      
-      let watchTimeScore = 0;
-      viewsList.forEach((v: any) => {
-        if (v.watchDuration) {
-          watchTimeScore += v.watchDuration * this.watchTimeWeight;
-        }
-        if (v.completed) {
-          watchTimeScore += this.completionBonus;
-        }
-      });
+      const repostsCount = post._count?.reposts ?? 0;
+      const viewsCount = post._count?.views ?? 0;
 
       const engagementScore =
         likesCount * this.likesWeight +
         commentsCount * this.commentsWeight +
         repostsCount * this.repostsWeight +
-        viewsCount * this.viewsWeight +
-        watchTimeScore;
+        viewsCount * this.viewsWeight;
 
       // Author follow affinity check
       const isFollowed = followedUserIds.includes(post.userId);
