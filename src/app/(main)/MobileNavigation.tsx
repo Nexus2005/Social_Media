@@ -77,7 +77,7 @@ export default function MobileNavigation({
             <Link href="/notifications" className="relative flex items-center justify-center text-foreground">
               <Heart className="size-[22px]" />
               {!!notificationsData.unreadCount && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-[9px] font-bold text-white border border-black/15 shadow-sm">
                   {notificationsData.unreadCount}
                 </span>
               )}
@@ -87,7 +87,7 @@ export default function MobileNavigation({
             <Link href="/messages" className="relative flex items-center justify-center text-foreground">
               <Mail className="size-[22px]" />
               {!!messagesData.unreadCount && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-[9px] font-bold text-white border border-black/15 shadow-sm">
                   {messagesData.unreadCount}
                 </span>
               )}

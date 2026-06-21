@@ -35,7 +35,7 @@ export default function NotificationsButton({
         <div className="relative">
           <Bell />
           {!!data.unreadCount && (
-            <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1 text-xs font-medium tabular-nums text-primary-foreground">
+            <span className="absolute -right-1 -top-1 rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white border border-black/15 shadow-sm">
               {data.unreadCount}
             </span>
           )}

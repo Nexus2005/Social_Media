@@ -175,7 +175,7 @@ export default function Post({ post }: PostProps) {
 
       {/* MULTI-MEDIA CAROUSEL WITH INTERACTIVE TAGGING */}
       {!!post.attachments.length && (
-        <div className="mx-[-12px] sm:mx-0">
+        <div className="mt-3">
           <MediaCarousel
             attachments={post.attachments}
             tags={post.tags}
@@ -186,47 +186,8 @@ export default function Post({ post }: PostProps) {
         </div>
       )}
 
-      {/* Quote Post Card */}
-      {post.quotedPost && (
-        <Link
-          href={`/posts/${post.quotedPost.id}`}
-          className="block border border-border/80 hover:border-border/60 hover:bg-neutral-800/10 rounded-xl p-3 mt-2 text-xs transition-colors"
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <UserAvatar avatarUrl={post.quotedPost.user.avatarUrl} size={20} />
-            <span className="font-semibold text-neutral-200 flex items-center gap-0.5">
-              <span>{post.quotedPost.user.displayName}</span>
-              {post.quotedPost.user.verified && (
-                <span className="text-primary font-bold text-[10px]" title="Verified Creator">☑</span>
-              )}
-            </span>
-            <span className="text-neutral-500">@{post.quotedPost.user.username}</span>
-            <span className="text-neutral-500">•</span>
-            <span className="text-neutral-500">{formatRelativeDate(post.quotedPost.createdAt)}</span>
-          </div>
-          <div className="text-neutral-300 break-words whitespace-pre-wrap">{post.quotedPost.content}</div>
-          {post.quotedPost.attachments.length > 0 && (
-            <div className="mt-2 rounded-lg overflow-hidden border border-border/40 max-h-[200px] flex items-center justify-center bg-black">
-              {post.quotedPost.attachments[0].mediaType === "VIDEO" ? (
-                <video
-                  src={post.quotedPost.attachments[0].url}
-                  className="w-full max-h-[200px] object-contain"
-                  controls
-                />
-              ) : (
-                <img
-                  src={post.quotedPost.attachments[0].url}
-                  alt="Quoted attachment"
-                  className="w-full max-h-[200px] object-contain"
-                />
-              )}
-            </div>
-          )}
-        </Link>
-      )}
-
-      <hr className="text-muted-foreground/20" />
-      <div className="flex justify-between items-center gap-5">
+      {/* Action Center - Placed immediately beneath the media/content */}
+      <div className="flex justify-between items-center gap-5 pt-2">
         <div className="flex items-center gap-6">
           <LikeButton
             postId={post.id}
@@ -278,6 +239,46 @@ export default function Post({ post }: PostProps) {
           </button>
         </div>
       </div>
+
+      {/* Quote Post Card */}
+      {post.quotedPost && (
+        <Link
+          href={`/posts/${post.quotedPost.id}`}
+          className="block border border-border/80 hover:border-border/60 hover:bg-neutral-800/10 rounded-xl p-3 mt-2 text-xs transition-colors"
+        >
+          <div className="flex items-center gap-2 mb-1.5">
+            <UserAvatar avatarUrl={post.quotedPost.user.avatarUrl} size={20} />
+            <span className="font-semibold text-neutral-200 flex items-center gap-0.5">
+              <span>{post.quotedPost.user.displayName}</span>
+              {post.quotedPost.user.verified && (
+                <span className="text-primary font-bold text-[10px]" title="Verified Creator">☑</span>
+              )}
+            </span>
+            <span className="text-neutral-500">@{post.quotedPost.user.username}</span>
+            <span className="text-neutral-500">•</span>
+            <span className="text-neutral-500">{formatRelativeDate(post.quotedPost.createdAt)}</span>
+          </div>
+          <div className="text-neutral-300 break-words whitespace-pre-wrap">{post.quotedPost.content}</div>
+          {post.quotedPost.attachments.length > 0 && (
+            <div className="mt-2 rounded-lg overflow-hidden border border-border/40 max-h-[200px] flex items-center justify-center bg-black">
+              {post.quotedPost.attachments[0].mediaType === "VIDEO" ? (
+                <video
+                  src={post.quotedPost.attachments[0].url}
+                  className="w-full max-h-[200px] object-contain"
+                  controls
+                />
+              ) : (
+                <img
+                  src={post.quotedPost.attachments[0].url}
+                  alt="Quoted attachment"
+                  className="w-full max-h-[200px] object-contain"
+                />
+              )}
+            </div>
+          )}
+        </Link>
+      )}
+
       {showComments && <Comments post={post} />}
 
       {/* Media Fullscreen Viewer */}
@@ -323,7 +324,7 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
     : [];
 
   return (
-    <div className="relative w-full aspect-square bg-neutral-950 rounded-none sm:rounded-2xl overflow-hidden group select-none flex items-center justify-center">
+    <div className="relative w-full aspect-[4/5] bg-zinc-900 rounded-xl sm:rounded-2xl overflow-hidden group select-none flex items-center justify-center border border-border/5">
       {/* Media Element */}
       <div
         className="w-full h-full flex items-center justify-center relative cursor-pointer"
@@ -337,7 +338,7 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
       >
         {isVideo ? (
           <div className="relative w-full h-full">
-            <VideoPlayer src={currentMedia.url} postId={postId} className="pointer-events-none" />
+            <VideoPlayer src={currentMedia.url} postId={postId} className="pointer-events-none w-full h-full object-cover" />
             <div className="absolute inset-0 z-10" />
           </div>
         ) : (
@@ -346,7 +347,7 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
             alt={altText || "Attachment"}
             width={600}
             height={600}
-            className="w-full h-full object-contain max-h-[500px]"
+            className="w-full h-full object-cover"
             unoptimized
           />
         )}

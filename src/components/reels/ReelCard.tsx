@@ -356,8 +356,11 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
             );
           })}
 
+        {/* Smooth bottom gradient overlay */}
+        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none z-10" />
+
         {/* Left Bottom Video Details Overlay */}
-        <div className="absolute bottom-4 left-4 right-16 z-20 flex flex-col gap-2 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] md:bottom-0 md:left-0 md:right-0 md:p-4 md:bg-gradient-to-t md:from-black/80 md:via-black/40 md:to-transparent md:drop-shadow-none">
+        <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 z-20 flex flex-col gap-2.5 text-white bg-transparent">
           {/* Creator Profile & Follow */}
           <div className="flex items-center gap-2.5">
             <Link href={`/users/${post.user.username}`} className="flex-shrink-0">
@@ -403,7 +406,7 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                 }
                 setIsShoppingDrawerOpen(true);
               }}
-              className="flex items-center gap-1.5 bg-black/60 hover:bg-black/85 px-3 py-1.5 rounded-full border border-white/20 hover:border-white/45 text-xs font-semibold text-yellow-400 hover:text-yellow-300 w-fit cursor-pointer transition-all duration-200 mt-2 mb-1"
+              className="flex items-center gap-2 bg-gradient-to-r from-pink-500/25 to-purple-600/25 hover:from-pink-500/35 hover:to-purple-600/35 backdrop-blur-md border border-pink-500/40 hover:border-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold w-fit cursor-pointer transition-all duration-300 shadow-[0_4px_12px_rgba(236,72,153,0.15)] mt-2 mb-1 hover:shadow-[0_4px_16px_rgba(236,72,153,0.3)] hover:scale-105 active:scale-95"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-4 animate-bounce">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
@@ -432,12 +435,12 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                 e.stopPropagation();
                 toggleLike();
               }}
-              className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
               title="Like"
             >
-              <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} />
+              <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.8} />
             </button>
-            <span className="text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            <span className="text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
               {likeData.likes.toLocaleString()}
             </span>
           </div>
@@ -449,12 +452,12 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                 e.stopPropagation();
                 setIsCommentsOpen(true);
               }}
-              className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
               title="Comments"
             >
-              <MessageCircle className="size-7" />
+              <MessageCircle className="size-7" strokeWidth={1.8} />
             </button>
-            <span className="text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            <span className="text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
               {post._count.comments.toLocaleString()}
             </span>
           </div>
@@ -466,12 +469,12 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                 e.stopPropagation();
                 handleShareClick();
               }}
-              className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
               title="Copy Link"
             >
-              <Send className="size-7" />
+              <Send className="size-7" strokeWidth={1.8} />
             </button>
-            <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Share</span>
+            <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">Share</span>
           </div>
 
           {/* Save */}
@@ -481,12 +484,12 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                 e.stopPropagation();
                 toggleBookmark();
               }}
-              className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
               title="Save"
             >
-              <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-primary text-primary")} />
+              <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-primary text-primary")} strokeWidth={1.8} />
             </button>
-            <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Save</span>
+            <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">Save</span>
           </div>
 
           {/* Shop look */}
@@ -544,8 +547,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
               // COMPLETED
               if (productCount === 0) return null; // fallback
               buttonClass = cn(
-                "p-1 bg-transparent hover:scale-105 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] relative",
-                showHotspots ? "text-yellow-450" : "text-white"
+                "p-2 rounded-full hover:scale-110 active:scale-90 transition-all border relative backdrop-blur-md shadow-md",
+                showHotspots
+                  ? "bg-gradient-to-tr from-pink-500/40 to-purple-600/40 border-pink-500 text-yellow-400 shadow-[0_0_12px_rgba(236,72,153,0.3)]"
+                  : "bg-gradient-to-tr from-pink-500/25 via-purple-600/25 to-indigo-500/25 border-pink-500/40 text-pink-300 hover:text-white shadow-[0_4px_10px_rgba(236,72,153,0.2)]"
               );
               icon = (
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-7">
@@ -592,10 +597,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
               e.stopPropagation();
               setIsOptionsOpen(true);
             }}
-            className="p-1 bg-transparent hover:scale-105 active:scale-95 transition-all text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+            className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
             title="More Options"
           >
-            <MoreHorizontal className="size-7" />
+            <MoreHorizontal className="size-7" strokeWidth={1.8} />
           </button>
 
           {/* Rotating Disc */}
@@ -617,10 +622,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
         <div className="flex flex-col items-center gap-1">
           <button
             onClick={() => toggleLike()}
-            className="p-3 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-full hover:scale-105 active:scale-95 transition-all text-white border border-white/5"
+            className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
             title="Like"
           >
-            <Heart className={cn("size-6 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} />
+            <Heart className={cn("size-6.5 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.8} />
           </button>
           <span className="text-[11px] font-medium tracking-wide text-zinc-300">
             {likeData.likes.toLocaleString()}
@@ -631,10 +636,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
         <div className="flex flex-col items-center gap-1">
           <button
             onClick={() => setIsCommentsOpen(true)}
-            className="p-3 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-full hover:scale-105 active:scale-95 transition-all text-white border border-white/5"
+            className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
             title="Comments"
           >
-            <MessageCircle className="size-6" />
+            <MessageCircle className="size-6.5" strokeWidth={1.8} />
           </button>
           <span className="text-[11px] font-medium tracking-wide text-zinc-300">
             {post._count.comments.toLocaleString()}
@@ -645,10 +650,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
         <div className="flex flex-col items-center gap-1">
           <button
             onClick={handleShareClick}
-            className="p-3 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-full hover:scale-105 active:scale-95 transition-all text-white border border-white/5"
+            className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
             title="Copy Link"
           >
-            <Send className="size-6" />
+            <Send className="size-6.5" strokeWidth={1.8} />
           </button>
           <span className="text-[11px] font-medium tracking-wide text-zinc-300">Share</span>
         </div>
@@ -657,10 +662,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
         <div className="flex flex-col items-center gap-1">
           <button
             onClick={() => toggleBookmark()}
-            className="p-3 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-full hover:scale-105 active:scale-95 transition-all text-white border border-white/5"
+            className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
             title="Save"
           >
-            <Bookmark className={cn("size-6", bookmarkData.isBookmarkedByUser && "fill-primary text-primary")} />
+            <Bookmark className={cn("size-6.5", bookmarkData.isBookmarkedByUser && "fill-primary text-primary")} strokeWidth={1.8} />
           </button>
           <span className="text-[11px] font-medium tracking-wide text-zinc-300">Save</span>
         </div>
@@ -720,8 +725,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
             // COMPLETED
             if (productCount === 0) return null; // fallback
             buttonClass = cn(
-              "p-3 rounded-full hover:scale-105 active:scale-95 transition-all border border-white/5 relative",
-              showHotspots ? "bg-zinc-700/70 text-yellow-500" : "bg-zinc-800/40 text-white hover:bg-zinc-700/60"
+              "p-2.5 rounded-full hover:scale-110 active:scale-90 transition-all border relative backdrop-blur-md shadow-md",
+              showHotspots
+                ? "bg-gradient-to-tr from-pink-500/40 to-purple-600/40 border-pink-500 text-yellow-400 shadow-[0_0_12px_rgba(236,72,153,0.3)]"
+                : "bg-gradient-to-tr from-pink-500/25 via-purple-600/25 to-indigo-500/25 border-pink-500/40 text-pink-300 hover:text-white shadow-[0_4px_10px_rgba(236,72,153,0.2)]"
             );
             icon = (
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
@@ -752,7 +759,7 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
                   e.stopPropagation();
                   onClickHandler();
                 }}
-                className={status === "COMPLETED" ? buttonClass : cn("p-3 rounded-full hover:scale-105 active:scale-95 transition-all", buttonClass)}
+                className={status === "COMPLETED" ? buttonClass : cn("p-2.5 rounded-full hover:scale-110 active:scale-90 transition-all", buttonClass)}
               >
                 {icon}
                 {badge}
@@ -765,10 +772,10 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
         {/* More options action */}
         <button
           onClick={() => setIsOptionsOpen(true)}
-          className="p-3 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-full hover:scale-105 active:scale-95 transition-all text-white border border-white/5"
+          className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]"
           title="More Options"
         >
-          <MoreHorizontal className="size-6" />
+          <MoreHorizontal className="size-6.5" strokeWidth={1.8} />
         </button>
 
         {/* Rotating Music Disc */}
