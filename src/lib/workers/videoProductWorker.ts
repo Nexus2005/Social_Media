@@ -168,6 +168,13 @@ function generateAffiliateUrl(urlStr: string): string | null {
   return urlStr;
 }
 
+function parsePriceToFloat(priceStr: string): number | null {
+  if (!priceStr) return null;
+  const cleaned = priceStr.replace(/[^0-9.]/g, "");
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? null : val;
+}
+
 // SerpApi Google Shopping matches fetcher
 function getMockProducts(query: string) {
   const q = query.toLowerCase();
@@ -278,7 +285,11 @@ async function queryVisionLLM(
       "description": "Short specific shopping description of the product (e.g. 'white nike-style running sneakers')",
       "color": "dominant color name",
       "material": "material name (e.g. 'mesh', 'leather', 'cotton')",
-      "confidence": 0.91
+      "confidence": 0.91,
+      "gender": "Men | Women | Unisex",
+      "style": "Casual | Streetwear | Travel | Formal | Sporty | Biker | Minimalist",
+      "season": "Summer | Winter | Spring | Autumn | All-Season",
+      "keywords": ["tag1", "tag2"]
     }
   ]
 }
@@ -554,6 +565,10 @@ async function runVideoProcessor(videoId: string, jobId: string) {
               color,
               material,
               confidence,
+              gender: prod.gender?.trim() || "Unisex",
+              style: prod.style?.trim() || "Casual",
+              season: prod.season?.trim() || "All-Season",
+              keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
               frameTimestamp: frame.timestamp,
               framePath: frame.path,
             };
@@ -565,6 +580,10 @@ async function runVideoProcessor(videoId: string, jobId: string) {
             color,
             material,
             confidence,
+            gender: prod.gender?.trim() || "Unisex",
+            style: prod.style?.trim() || "Casual",
+            season: prod.season?.trim() || "All-Season",
+            keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
             frameTimestamp: frame.timestamp,
             framePath: frame.path,
           });
@@ -614,6 +633,19 @@ async function runVideoProcessor(videoId: string, jobId: string) {
     });
 
     for (const prod of detectedProductsToSave) {
+      // Calculate completenessScore
+      let score = 0;
+      if (prod.label) score += 0.2;
+      if (prod.category) score += 0.2;
+      if (prod.color && prod.color !== "unknown") score += 0.1;
+      if (prod.material && prod.material !== "unknown") score += 0.1;
+      if (prod.gender) score += 0.1;
+      if (prod.style) score += 0.1;
+      if (prod.season) score += 0.1;
+      if (prod.keywords && prod.keywords.length > 0) score += 0.1;
+
+      const isVerified = prod.confidence >= 0.85;
+
       await prisma.detectedProduct.create({
         data: {
           postId: videoId,
@@ -624,17 +656,37 @@ async function runVideoProcessor(videoId: string, jobId: string) {
           frameTimestamp: prod.frameTimestamp,
           sourceFrameUrl: prod.sourceFrameUrl,
           dominantColor: prod.color,
-          box: undefined, // Bounding boxes omitted as we are not doing hotspots
+          box: undefined,
           thumbnailUrl: prod.thumbnailUrl,
+          
+          // Phase 2 fields
+          visionConfidence: prod.confidence,
+          shoppingMatchConfidence: prod.confidence,
+          completenessScore: score,
+          isVerifiedMatch: isVerified,
+          gender: prod.gender,
+          style: prod.style,
+          season: prod.season,
+          material: prod.material,
+          keywords: prod.keywords,
+
           matches: {
-            create: prod.matches.map((m: any) => ({
-              title: m.title || "Product Match",
-              price: m.price || "Contact Store",
-              sourceStore: m.merchant || "Online Retailer",
-              productUrl: m.link || "https://www.google.com",
-              affiliateUrl: generateAffiliateUrl(m.link || "https://www.google.com"),
-              imageUrl: m.thumbnail || null,
-            })),
+            create: prod.matches.map((m: any) => {
+              const parsedPrice = parsePriceToFloat(m.price);
+              return {
+                title: m.title || "Product Match",
+                price: m.price || "Contact Store",
+                sourceStore: m.merchant || "Online Retailer",
+                productUrl: m.link || "https://www.google.com",
+                affiliateUrl: generateAffiliateUrl(m.link || "https://www.google.com"),
+                imageUrl: m.thumbnail || null,
+                priceHistories: parsedPrice !== null ? {
+                  create: {
+                    price: parsedPrice,
+                  },
+                } : undefined,
+              };
+            }),
           },
         },
       });

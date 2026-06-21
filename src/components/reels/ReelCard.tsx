@@ -395,24 +395,37 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
             )}
           </div>
 
-          {/* Floating Shop Look tag (appears when products are detected and processing is complete) */}
+          {/* Visual Reel Badges for completed scans */}
           {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (videoRef.current && !videoRef.current.paused) {
-                  videoRef.current.pause();
-                  setIsPlaying(false);
-                }
-                setIsShoppingDrawerOpen(true);
-              }}
-              className="flex items-center gap-2 bg-gradient-to-r from-pink-500/25 to-purple-600/25 hover:from-pink-500/35 hover:to-purple-600/35 backdrop-blur-md border border-pink-500/40 hover:border-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold w-fit cursor-pointer transition-all duration-300 shadow-[0_4px_12px_rgba(236,72,153,0.15)] mt-2 mb-1 hover:shadow-[0_4px_16px_rgba(236,72,153,0.3)] hover:scale-105 active:scale-95"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-4 animate-bounce">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-              </svg>
-              <span>Shop Look ({detectedProducts.length})</span>
-            </button>
+            <div className="flex flex-wrap gap-2 mt-2 mb-1 select-none pointer-events-auto">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (videoRef.current && !videoRef.current.paused) {
+                    videoRef.current.pause();
+                    setIsPlaying(false);
+                  }
+                  setIsShoppingDrawerOpen(true);
+                }}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-pink-500/30 to-purple-600/30 hover:from-pink-500/40 hover:to-purple-600/40 backdrop-blur-md border border-pink-500/50 hover:border-pink-500 text-white px-3.5 py-1.5 rounded-full text-[11px] font-black cursor-pointer transition-all duration-300 shadow-[0_4px_12px_rgba(236,72,153,0.2)] hover:scale-105 active:scale-95 flex-shrink-0"
+              >
+                <ShoppingBag className="size-3.5 text-pink-400" />
+                <span>Shop The Look ({detectedProducts.length})</span>
+              </button>
+
+              <div className="flex items-center gap-1.5 bg-zinc-950/65 backdrop-blur-md border border-zinc-800/80 text-zinc-200 px-3 py-1.5 rounded-full text-[11px] font-extrabold flex-shrink-0">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>{detectedProducts.length} Products Found</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-zinc-950/65 backdrop-blur-md border border-zinc-800/80 text-zinc-200 px-3 py-1.5 rounded-full text-[11px] font-extrabold flex-shrink-0">
+                <span className="text-[11px]">🏷️</span>
+                <span>Best Prices Available</span>
+              </div>
+            </div>
           )}
 
           {/* Music Track Marquee */}
@@ -897,7 +910,44 @@ function getBoundingBox(box: any) {
 }
 
 function ProductList({ detectedProducts }: { detectedProducts: any[] }) {
-  if (!detectedProducts || detectedProducts.length === 0) {
+  const { toast } = useToast();
+
+  // State hooks called unconditionally
+  const [selectedProductId, setSelectedProductId] = useState<string>(
+    detectedProducts && detectedProducts.length > 0 ? detectedProducts[0].id : ""
+  );
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false);
+  const [newColName, setNewColName] = useState("");
+
+  const selectedProduct = detectedProducts && detectedProducts.length > 0
+    ? (detectedProducts.find((p) => p.id === selectedProductId) || detectedProducts[0])
+    : null;
+
+  // Queries hooks called unconditionally
+  const { data: similarProducts, isLoading: loadingSimilar } = useQuery({
+    queryKey: ["similar-products", selectedProduct?.id],
+    queryFn: async () => {
+      if (!selectedProduct?.id) return [];
+      const res = await fetch(`/api/products/similar?productId=${selectedProduct.id}`);
+      if (!res.ok) throw new Error("Failed to fetch similar products");
+      return res.json();
+    },
+    enabled: !!selectedProduct?.id,
+  });
+
+  const { data: collections, refetch: refetchCollections } = useQuery({
+    queryKey: ["product-collections", selectedProduct?.id],
+    queryFn: async () => {
+      if (!selectedProduct?.id) return [];
+      const res = await fetch(`/api/products/collections?productId=${selectedProduct.id}`);
+      if (!res.ok) throw new Error("Failed to fetch collections");
+      return res.json();
+    },
+    enabled: !!selectedProduct?.id,
+  });
+
+  // Early return after hook calls
+  if (!detectedProducts || detectedProducts.length === 0 || !selectedProduct) {
     return (
       <div className="text-center py-8 text-xs text-zinc-400">
         No products found in this video.
@@ -905,74 +955,73 @@ function ProductList({ detectedProducts }: { detectedProducts: any[] }) {
     );
   }
 
-  // Group products by category
-  const categoriesMap: Record<string, any[]> = {};
-  detectedProducts.forEach((prod) => {
-    const category = prod.category || "👕 Clothing & Apparel";
-    if (!categoriesMap[category]) {
-      categoriesMap[category] = [];
+  // Toggle Save to Collection
+  const handleToggleSave = async (colId: string | null, colName?: string, action: "save" | "unsave" = "save") => {
+    try {
+      const res = await fetch("/api/products/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          collectionId: colId,
+          collectionName: colName,
+          action,
+        }),
+      });
+      if (res.ok) {
+        refetchCollections();
+        toast({
+          description: action === "save" ? `Saved to collection!` : `Removed from collection.`,
+        });
+        setNewColName("");
+      } else {
+        const err = await res.json();
+        toast({
+          variant: "destructive",
+          description: err.error || "Failed to update collection",
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({
+        variant: "destructive",
+        description: "Failed to connect to server",
+      });
     }
-    categoriesMap[category].push(prod);
-  });
+  };
 
-  return (
-    <div className="flex flex-col gap-6 pb-6 select-none animate-in fade-in duration-300">
-      {Object.entries(categoriesMap).map(([categoryName, items]) => (
-        <div key={categoryName} className="flex flex-col gap-3">
-          {/* Category Header */}
-          <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-800/80 pb-2 px-1">
-            {categoryName}
-          </div>
-          
-          {/* List of items in this category */}
-          <div className="flex flex-col gap-5 pl-1">
-            {items.map((item) => (
-              <SingleProductItem key={item.id} product={item} />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SingleProductItem({ product }: { product: any }) {
-  const label = product.label;
-  const matches = product.matches || [];
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  if (matches.length === 0) {
-    return (
-      <div className="flex flex-col gap-2 pl-3 border-l border-zinc-800 relative">
-        <span className="absolute -left-[4px] top-[12px] w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-900" />
-        <div className="text-xs font-bold text-zinc-150 capitalize flex items-center gap-1.5 leading-none mb-1 select-text">
-          <span>├─</span>
-          <span className="truncate max-w-[200px]" title={label}>{label}</span>
-        </div>
-        <div className="text-[11px] text-zinc-500 py-1 pl-3 italic">
-          No matches found for &quot;{label}&quot;.
-        </div>
-      </div>
-    );
-  }
-
-  // Parse price helper
+  // Price helper
   const parsePrice = (priceStr: string): number => {
     const num = parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
     return isNaN(num) ? Infinity : num;
   };
 
-  // Sort lowest to highest price
+  const matches = selectedProduct.matches || [];
   const sortedMatches = [...matches].sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+  const bestMatch = sortedMatches[0];
+  const otherMatches = sortedMatches.slice(1);
+
+  // Helper: category emoji
+  const getCategoryEmoji = (category: string, label: string): string => {
+    const cat = category.toLowerCase();
+    const lbl = label.toLowerCase();
+    if (cat.includes("sunglass") || lbl.includes("glass") || lbl.includes("spectacles")) return "🕶";
+    if (cat.includes("bag") || cat.includes("backpack") || lbl.includes("backpack") || lbl.includes("bag")) return "🎒";
+    if (cat.includes("watch") || lbl.includes("watch")) return "⌚";
+    if (cat.includes("shoe") || cat.includes("footwear") || lbl.includes("sneaker") || lbl.includes("shoes") || lbl.includes("boot") || lbl.includes("boots")) return "👟";
+    if (cat.includes("jewelry") || lbl.includes("ring") || lbl.includes("necklace") || lbl.includes("earring")) return "💍";
+    if (lbl.includes("pants") || lbl.includes("jeans") || lbl.includes("shorts") || lbl.includes("trouser")) return "👖";
+    if (cat.includes("clothing") || lbl.includes("shirt") || lbl.includes("tee") || lbl.includes("jacket") || lbl.includes("hoodie") || lbl.includes("coat") || lbl.includes("sweater") || lbl.includes("top") || lbl.includes("dress")) return "👕";
+    return "🛍";
+  };
 
   // Delivery tag generator
   const getDeliveryTag = (merchant: string): string => {
     const m = merchant.toLowerCase();
-    if (m.includes("amazon")) return "Delivery by tomorrow";
+    if (m.includes("amazon")) return "Delivery tomorrow";
     if (m.includes("flipkart")) return "Delivery in 2 days";
     if (m.includes("myntra")) return "Delivery in 3 days";
     if (m.includes("ajio")) return "Delivery in 4 days";
-    if (m.includes("zara")) return "Delivery in 2-3 days";
     return "Delivery in 3-5 days";
   };
 
@@ -998,132 +1047,327 @@ function SingleProductItem({ product }: { product: any }) {
     window.open(fallbackUrl, "_blank", "noopener,noreferrer");
   };
 
-  const bestMatch = sortedMatches[0];
-  const otherMatches = sortedMatches.slice(1);
-
   return (
-    <div className="flex flex-col gap-2 pl-3 border-l border-zinc-800 relative animate-in fade-in duration-200">
-      {/* Visual connection dot on the timeline-like border */}
-      <span className="absolute -left-[4px] top-[12px] w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-900" />
-      
-      {/* Product Name Header */}
-      <div className="text-xs font-bold text-zinc-100 capitalize flex items-center gap-1.5 leading-none mb-1 select-text">
-        <span>├─</span>
-        <span className="truncate max-w-[200px]" title={label}>{label}</span>
+    <div className="flex flex-col gap-6 select-none animate-in fade-in duration-300 pb-8">
+      {/* 1. FOUND IN THIS VIDEO CHIPS */}
+      <div className="flex flex-col gap-2">
+        <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+          Found In This Video
+        </span>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-zinc-800">
+          {detectedProducts.map((prod) => {
+            const isActive = prod.id === selectedProductId;
+            const emoji = getCategoryEmoji(prod.category, prod.label);
+            return (
+              <button
+                key={prod.id}
+                onClick={() => setSelectedProductId(prod.id)}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-2.5 rounded-full border text-xs font-bold transition-all whitespace-nowrap",
+                  isActive
+                    ? "bg-white text-black border-transparent shadow-md scale-[1.03]"
+                    : "bg-zinc-900/60 text-zinc-350 border-zinc-800/80 hover:bg-zinc-850 hover:text-white"
+                )}
+              >
+                <span className="text-sm leading-none">{emoji}</span>
+                <span className="capitalize truncate max-w-[120px]">
+                  {prod.label.split(" ").slice(0, 2).join(" ")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Best Price Offer */}
-      <div className="flex flex-col gap-2 mt-1">
-        <a
-          href={bestMatch.productUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
-          className="flex items-center justify-between gap-2.5 bg-zinc-900/40 hover:bg-zinc-850/60 border border-yellow-500/30 hover:border-yellow-500/50 p-2.5 rounded-lg transition-all group relative overflow-hidden"
-        >
-          {/* Subtle best price glow/shine */}
-          <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-500/5 blur-[20px] pointer-events-none" />
-          
-          <div className="flex items-center gap-2.5 min-w-0">
-            {bestMatch.imageUrl ? (
-              <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
-                <img src={bestMatch.imageUrl} alt={bestMatch.sourceStore} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500">
-                🛒
-              </div>
-            )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-zinc-200 truncate group-hover:text-white leading-tight">
-                  {bestMatch.sourceStore}
-                </span>
-                <span className="text-[8px] font-extrabold text-yellow-500 bg-yellow-500/10 px-1 py-0.5 rounded uppercase tracking-wider">
-                  Best Price
-                </span>
-              </div>
-              <span className="text-[8px] font-semibold text-emerald-500 bg-emerald-950/20 px-1 py-0.5 rounded mt-0.5 inline-block">
-                {getDeliveryTag(bestMatch.sourceStore)}
-              </span>
-            </div>
+      <div className="border-t border-zinc-800/60 my-1" />
+
+      {/* 2. PRODUCT HERO CARD */}
+      <div className="bg-zinc-900/40 border border-zinc-850 p-4 rounded-2xl flex flex-col gap-4 relative overflow-hidden backdrop-blur-md">
+        <div className="flex gap-4">
+          {/* Image */}
+          <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
+            <img
+              src={selectedProduct.thumbnailUrl || selectedProduct.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&auto=format&fit=crop&q=60"}
+              alt={selectedProduct.label}
+              className="w-full h-full object-cover"
+            />
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="text-right">
-              <span className="text-[12px] font-extrabold text-yellow-500 block">
-                {bestMatch.price}
-              </span>
+          {/* Details */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wide">
+                  Seen On Creator
+                </span>
+                
+                {/* Save to Collection Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+                    className="p-1.5 rounded-full bg-zinc-950/40 border border-zinc-800/60 hover:bg-zinc-800/80 text-rose-500 hover:text-rose-400 transition-colors"
+                    title="Save to Collection"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={collections?.some((c: any) => c.saved) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4.5">
+                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                    </svg>
+                  </button>
+
+                  {showSaveDropdown && (
+                    <div className="absolute right-0 top-7 z-30 w-52 p-2 bg-zinc-950 border border-zinc-850 rounded-xl shadow-2xl animate-in fade-in duration-200">
+                      <div className="text-[10px] font-black uppercase text-zinc-400 px-2 py-1 tracking-wider border-b border-zinc-900 pb-1.5 mb-1.5">
+                        Save Look to Board
+                      </div>
+                      
+                      <div className="max-h-36 overflow-y-auto flex flex-col gap-1 pr-1 scrollbar-thin scrollbar-thumb-zinc-900">
+                        {collections?.map((col: any) => (
+                          <button
+                            key={col.id}
+                            onClick={() => handleToggleSave(col.id, undefined, col.saved ? "unsave" : "save")}
+                            className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold text-zinc-300 hover:bg-zinc-900/60 hover:text-white"
+                          >
+                            <span className="truncate max-w-[120px]">{col.name}</span>
+                            <span className="text-xs">{col.saved ? "❤️" : "🤍"}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="border-t border-zinc-900 pt-1.5 mt-1.5 flex gap-1.5 px-1.5">
+                        <input
+                          type="text"
+                          placeholder="New Board..."
+                          value={newColName}
+                          onChange={(e) => setNewColName(e.target.value)}
+                          className="bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 text-[10px] text-white w-full focus:outline-none focus:border-zinc-700 font-medium"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newColName.trim()) {
+                              handleToggleSave(null, newColName.trim(), "save");
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (newColName.trim()) {
+                              handleToggleSave(null, newColName.trim(), "save");
+                            }
+                          }}
+                          className="px-2 py-1 bg-white hover:bg-zinc-200 text-black text-[9px] font-bold rounded-md"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <h4 className="text-[15px] font-black text-white capitalize leading-tight mt-1 truncate">
+                {selectedProduct.label}
+              </h4>
+              
+              <div className="text-[10px] text-zinc-500 font-semibold mt-1">
+                Found in this reel
+              </div>
             </div>
-            <span className="text-[9px] font-bold text-white bg-zinc-800 group-hover:bg-gradient-to-r group-hover:from-yellow-500 group-hover:to-red-500 px-2 py-1 border border-zinc-700/40 group-hover:border-transparent rounded transition-all">
-              BUY
+
+            {/* Verification Badge */}
+            <div className="mt-2 flex items-center gap-1.5">
+              {selectedProduct.isVerifiedMatch ? (
+                <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 uppercase tracking-wide">
+                  ✓ Verified Match
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-zinc-400 bg-zinc-800/60 px-2 py-0.5 rounded-full border border-zinc-700/30 uppercase tracking-wide">
+                  Possible Match
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tag Badges Row (Style, Material, Season, Gender) */}
+        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-zinc-850/40">
+          {selectedProduct.style && (
+            <span className="text-[9px] font-bold bg-zinc-950/60 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-md">
+              Style: {selectedProduct.style}
             </span>
-          </div>
-        </a>
-
-        {/* Collapsible section for other stores */}
-        {otherMatches.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {/* Accordion toggle button */}
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-left text-[10px] font-bold text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1 py-1 pl-1 cursor-pointer w-fit select-none"
-            >
-              <span>{isExpanded ? "▼ Hide other stores" : `▶ Show ${otherMatches.length} more store${otherMatches.length > 1 ? "s" : ""}`}</span>
-            </button>
-
-            {/* Accordion content */}
-            {isExpanded && (
-              <div className="flex flex-col gap-2 pl-2 border-l border-zinc-900/60 animate-in slide-in-from-top-1 duration-200">
-                {otherMatches.map((match: any, idx: number) => {
-                  const deliveryLabel = getDeliveryTag(match.sourceStore);
-                  return (
-                    <a
-                      key={match.id || idx}
-                      href={match.productUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => handleBuyClick(e, match.id, match.productUrl)}
-                      className="flex items-center justify-between gap-2.5 bg-zinc-900/20 hover:bg-zinc-850/40 border border-zinc-900 hover:border-zinc-850 p-2 rounded-lg transition-all group"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {match.imageUrl ? (
-                          <div className="w-7 h-7 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
-                            <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="w-7 h-7 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500">
-                            🛒
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <span className="text-[10px] font-bold text-zinc-300 block truncate group-hover:text-white leading-tight">
-                            {match.sourceStore}
-                          </span>
-                          <span className="text-[7px] font-semibold text-zinc-500 mt-0.5 inline-block">
-                            {deliveryLabel}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="text-right">
-                          <span className="text-[11px] font-bold text-zinc-400 block">
-                            {match.price}
-                          </span>
-                        </div>
-                        <span className="text-[8px] font-bold text-zinc-400 bg-zinc-900 group-hover:text-white group-hover:bg-zinc-800 px-2 py-0.5 border border-zinc-800 rounded transition-all">
-                          BUY
-                        </span>
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+          )}
+          {selectedProduct.material && (
+            <span className="text-[9px] font-bold bg-zinc-950/60 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-md">
+              Material: {selectedProduct.material}
+            </span>
+          )}
+          {selectedProduct.season && (
+            <span className="text-[9px] font-bold bg-zinc-950/60 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-md">
+              Season: {selectedProduct.season}
+            </span>
+          )}
+          {selectedProduct.gender && (
+            <span className="text-[9px] font-bold bg-zinc-950/60 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-md">
+              Fits: {selectedProduct.gender}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* 3. BEST PRICE OFFER */}
+      {bestMatch ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+            Best Price
+          </span>
+          <a
+            href={bestMatch.productUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
+            className="flex items-center justify-between gap-3 bg-gradient-to-r from-zinc-950 to-zinc-900 border border-zinc-800/80 hover:border-zinc-700/80 p-3.5 rounded-2xl transition-all group relative overflow-hidden shadow-lg"
+          >
+            {/* Best price glow */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/5 blur-[25px] pointer-events-none" />
+            
+            <div className="flex items-center gap-3 min-w-0">
+              {bestMatch.imageUrl ? (
+                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
+                  <img src={bestMatch.imageUrl} alt={bestMatch.sourceStore} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-zinc-850 flex items-center justify-center text-xs text-zinc-500">
+                  🛒
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black text-white truncate leading-tight">
+                    {bestMatch.sourceStore}
+                  </span>
+                  <span className="text-[7px] font-extrabold text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded uppercase tracking-wider">
+                    Best Deal
+                  </span>
+                </div>
+                <span className="text-[9px] font-bold text-emerald-500 bg-emerald-950/20 px-1.5 py-0.5 rounded mt-1 inline-block">
+                  {getDeliveryTag(bestMatch.sourceStore)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="text-right">
+                <span className="text-[14px] font-black text-amber-500 block">
+                  {bestMatch.price}
+                </span>
+              </div>
+              <span className="text-[10px] font-extrabold text-black bg-white hover:bg-zinc-200 px-3.5 py-2 rounded-xl transition-colors shadow">
+                BUY NOW
+              </span>
+            </div>
+          </a>
+        </div>
+      ) : (
+        <div className="text-[11px] text-zinc-500 py-1 pl-3 italic">
+          No matches found for &quot;{selectedProduct.label}&quot;.
+        </div>
+      )}
+
+      {/* 4. COMPARE PRICES (OTHER STORES) */}
+      {otherMatches.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+            Compare Prices
+          </span>
+          <div className="grid grid-cols-1 gap-2">
+            {otherMatches.map((match: any, idx: number) => (
+              <a
+                key={match.id || idx}
+                href={match.productUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => handleBuyClick(e, match.id, match.productUrl)}
+                className="flex items-center justify-between gap-3 bg-zinc-950/30 hover:bg-zinc-900/50 border border-zinc-900 hover:border-zinc-800 p-2.5 rounded-xl transition-all group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {match.imageUrl ? (
+                    <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
+                      <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500">
+                      🛒
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-bold text-zinc-300 block truncate group-hover:text-white leading-tight">
+                      {match.sourceStore}
+                    </span>
+                    <span className="text-[8px] font-semibold text-zinc-500 mt-0.5 inline-block">
+                      {getDeliveryTag(match.sourceStore)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-shrink-0">
+                  <span className="text-xs font-black text-zinc-300 block">
+                    {match.price}
+                  </span>
+                  <span className="text-[9px] font-extrabold text-zinc-450 bg-zinc-900 group-hover:text-white group-hover:bg-zinc-800 px-2.5 py-1.5 border border-zinc-800 rounded-lg transition-all">
+                    BUY
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5. SIMILAR PRODUCTS CAROUSEL */}
+      {selectedProduct && (
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+            Similar Products
+          </span>
+          {loadingSimilar ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="size-4 animate-spin text-zinc-500" />
+            </div>
+          ) : similarProducts && similarProducts.length > 0 ? (
+            <div className="flex gap-3 overflow-x-auto pb-2.5 scrollbar-thin scrollbar-thumb-zinc-800">
+              {similarProducts.map((item: any) => {
+                const itemBestPrice = item.matches?.[0];
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedProductId(item.id)}
+                    className="flex flex-col w-[130px] flex-shrink-0 bg-zinc-950/40 hover:bg-zinc-900/50 border border-zinc-850 hover:border-zinc-850 p-2 rounded-xl text-left transition-all"
+                  >
+                    <div className="w-full aspect-square rounded-lg overflow-hidden border border-zinc-900 bg-zinc-950 mb-2">
+                      <img
+                        src={item.thumbnailUrl || item.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=120&auto=format&fit=crop&q=60"}
+                        alt={item.label}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold text-zinc-200 capitalize truncate block w-full">
+                      {item.label}
+                    </span>
+                    <div className="flex items-center justify-between gap-1 mt-1 w-full">
+                      <span className="text-[10px] font-black text-amber-500 truncate">
+                        {itemBestPrice?.price || "N/A"}
+                      </span>
+                      <span className="text-[8px] text-zinc-500 font-extrabold truncate">
+                        {itemBestPrice?.sourceStore || "Shop"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-[10px] text-zinc-500 italic py-1 pl-1">
+              No similar products detected.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

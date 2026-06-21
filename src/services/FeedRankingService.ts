@@ -44,9 +44,22 @@ export class FeedRankingService {
       const isFollowed = followedUserIds.includes(post.userId);
       const affinityScore = isFollowed ? this.affinityWeight : 0;
 
+      // Shopping Boost Score
+      let shoppingBoost = 0;
+      const jobStatus = post.videoJob?.status;
+      if (jobStatus === "completed") {
+        shoppingBoost = 100;
+      } else if (jobStatus === "processing") {
+        shoppingBoost = 20;
+      } else if (jobStatus === "pending") {
+        shoppingBoost = 0;
+      } else if (jobStatus === "failed" || jobStatus === "no_products") {
+        shoppingBoost = -20;
+      }
+
       // Time decay calculation
       const ageInHours = (Date.now() - new Date(post.createdAt).getTime()) / 3600000;
-      const score = (engagementScore + affinityScore + 10) / Math.pow(ageInHours + 2, this.gravity);
+      const score = (engagementScore + affinityScore + shoppingBoost + 10) / Math.pow(ageInHours + 2, this.gravity);
 
       return {
         post,

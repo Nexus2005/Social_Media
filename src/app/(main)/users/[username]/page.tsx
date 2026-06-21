@@ -82,6 +82,75 @@ async function UserProfile({ user, loggedInUserId }: UserProfileProps) {
     ),
   };
 
+  // Fetch Creator Insights if viewing own profile
+  let creatorInsights = null;
+  if (user.id === loggedInUserId) {
+    const productsDetected = await prisma.detectedProduct.count({
+      where: {
+        post: {
+          userId: user.id,
+        },
+      },
+    });
+
+    const clickAggregate = await prisma.shoppingMatch.aggregate({
+      where: {
+        detectedProduct: {
+          post: {
+            userId: user.id,
+          },
+        },
+      },
+      _sum: {
+        clickCount: true,
+      },
+    });
+    const totalClicks = clickAggregate._sum.clickCount ?? 0;
+
+    const topMatch = await prisma.shoppingMatch.findFirst({
+      where: {
+        detectedProduct: {
+          post: {
+            userId: user.id,
+          },
+        },
+      },
+      orderBy: {
+        clickCount: "desc",
+      },
+      include: {
+        detectedProduct: true,
+      },
+    });
+    const topProduct = topMatch?.detectedProduct?.label || "None yet";
+
+    // Get total views on posts that have detected products
+    const shoppablePostsWithViews = await prisma.post.findMany({
+      where: {
+        userId: user.id,
+        detectedProducts: {
+          some: {},
+        },
+      },
+      select: {
+        _count: {
+          select: {
+            views: true,
+          },
+        },
+      },
+    });
+    const totalViews = shoppablePostsWithViews.reduce((acc, p) => acc + p._count.views, 0);
+    const ctr = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
+
+    creatorInsights = {
+      productsDetected,
+      totalClicks,
+      topProduct,
+      ctr: ctr.toFixed(1) + "%",
+    };
+  }
+
   return (
     <div className="w-full bg-background">
       {/* Twitter/X Style Header Banner */}
@@ -185,6 +254,34 @@ async function UserProfile({ user, loggedInUserId }: UserProfileProps) {
           initialFollowingCount={user._count.following}
           postsCount={user._count.posts}
         />
+
+        {creatorInsights && (
+          <div className="mt-4 p-4 border border-border/40 bg-card/60 backdrop-blur-md rounded-2xl shadow-sm">
+            <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+              <span>📊</span> Creator Insights
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-background/80 p-3.5 rounded-xl border border-border/30 text-center">
+                <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">Products</span>
+                <span className="text-lg font-black text-foreground">{creatorInsights.productsDetected}</span>
+              </div>
+              <div className="bg-background/80 p-3.5 rounded-xl border border-border/30 text-center">
+                <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">Clicks</span>
+                <span className="text-lg font-black text-foreground">{creatorInsights.totalClicks}</span>
+              </div>
+              <div className="bg-background/80 p-3.5 rounded-xl border border-border/30 text-center col-span-1">
+                <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">CTR</span>
+                <span className="text-lg font-black text-yellow-500">{creatorInsights.ctr}</span>
+              </div>
+              <div className="bg-background/80 p-3.5 rounded-xl border border-border/30 text-center col-span-1 min-w-0">
+                <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider truncate">Top Product</span>
+                <span className="text-xs font-black text-emerald-500 block truncate mt-2" title={creatorInsights.topProduct}>
+                  {creatorInsights.topProduct}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

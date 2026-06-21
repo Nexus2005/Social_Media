@@ -50,6 +50,7 @@ model User {
   drafts               DraftPost[]
   collections          SavedCollection[]
   commentLikes         CommentLike[]
+  productCollections   ProductCollection[]
 
   createdAt DateTime @default(now())
 
@@ -223,21 +224,33 @@ model DetectedObject {
 }
 
 model DetectedProduct {
-  id               String          @id @default(cuid())
-  postId           String          @map("post_id")
-  post             Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
-  label            String
-  category         String
-  color            String?
-  confidence       Float?
-  frameTimestamp   Float?          @map("frame_timestamp")
-  sourceFrameUrl   String?         @map("source_frame_url")
-  dominantColor    String?         @map("dominant_color")
-  productEmbedding Json?           @map("product_embedding")
-  box              Json?
-  thumbnailUrl     String?         @map("thumbnail_url")
-  createdAt        DateTime        @default(now()) @map("created_at")
-  matches          ShoppingMatch[]
+  id                      String                  @id @default(cuid())
+  postId                  String                  @map("post_id")
+  post                    Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  label                   String
+  category                String
+  color                   String?
+  confidence              Float?
+  frameTimestamp          Float?                  @map("frame_timestamp")
+  sourceFrameUrl          String?                 @map("source_frame_url")
+  dominantColor           String?                 @map("dominant_color")
+  productEmbedding        Json?                   @map("product_embedding")
+  box                     Json?
+  thumbnailUrl            String?                 @map("thumbnail_url")
+  createdAt               DateTime                @default(now()) @map("created_at")
+  matches                 ShoppingMatch[]
+  
+  // New fields for Phase 2
+  visionConfidence        Float?                  @map("vision_confidence")
+  shoppingMatchConfidence Float?                  @map("shopping_match_confidence")
+  completenessScore       Float?                  @map("completeness_score")
+  isVerifiedMatch         Boolean                 @default(false) @map("is_verified_match")
+  gender                  String?
+  style                   String?
+  season                  String?
+  material                String?
+  keywords                String[]                @default([])
+  collectionItems         ProductCollectionItem[]
 
   @@map("detected_products")
 }
@@ -255,6 +268,7 @@ model ShoppingMatch {
   affiliateUrl      String?         @map("affiliate_url")
   clickCount        Int             @default(0) @map("click_count")
   createdAt         DateTime        @default(now()) @map("created_at")
+  priceHistories    PriceHistory[]
 
   @@map("shopping_matches")
 }
@@ -412,5 +426,39 @@ model CommentLike {
 
   @@unique([userId, commentId])
   @@map("comment_likes")
+}
+
+model PriceHistory {
+  id              String        @id @default(cuid())
+  shoppingMatchId String        @map("shopping_match_id")
+  shoppingMatch   ShoppingMatch @relation(fields: [shoppingMatchId], references: [id], onDelete: Cascade)
+  price           Float
+  capturedAt      DateTime      @default(now()) @map("captured_at")
+
+  @@map("price_histories")
+}
+
+model ProductCollection {
+  id        String                  @id @default(cuid())
+  name      String
+  userId    String
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     ProductCollectionItem[]
+  createdAt DateTime                @default(now()) @map("created_at")
+
+  @@unique([userId, name])
+  @@map("product_collections")
+}
+
+model ProductCollectionItem {
+  id           String            @id @default(cuid())
+  collectionId String            @map("collection_id")
+  collection   ProductCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  productId    String            @map("product_id")
+  product      DetectedProduct   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  @@unique([collectionId, productId])
+  @@map("product_collection_items")
 }
 

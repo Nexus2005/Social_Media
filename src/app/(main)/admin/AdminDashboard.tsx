@@ -317,7 +317,7 @@ export default function AdminDashboard() {
             <span className="text-sm font-black tracking-wider text-muted-foreground uppercase">Queue Processing States</span>
             <span className="text-xs font-bold text-muted-foreground">Total Reels: {stats.totalReels}</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
             <div className="p-3 rounded-xl border border-border/30 bg-muted/10 text-center">
               <span className="block text-2xl font-black font-mono text-foreground">{stats.completed}</span>
               <span className="text-[10px] font-bold text-emerald-500 uppercase mt-1 flex items-center justify-center gap-1">
@@ -325,9 +325,15 @@ export default function AdminDashboard() {
               </span>
             </div>
             <div className="p-3 rounded-xl border border-border/30 bg-muted/10 text-center">
-              <span className="block text-2xl font-black font-mono text-foreground">{stats.pending + stats.processing}</span>
+              <span className="block text-2xl font-black font-mono text-foreground">{stats.processing}</span>
               <span className="text-[10px] font-bold text-amber-500 uppercase mt-1 flex items-center justify-center gap-1 animate-pulse">
-                <Loader2 className="size-3 animate-spin" /> Scanning
+                <Loader2 className="size-3 animate-spin" /> Processing
+              </span>
+            </div>
+            <div className="p-3 rounded-xl border border-border/30 bg-muted/10 text-center">
+              <span className="block text-2xl font-black font-mono text-foreground">{stats.pending}</span>
+              <span className="text-[10px] font-bold text-zinc-500 uppercase mt-1 flex items-center justify-center gap-1">
+                <Activity className="size-3" /> Pending
               </span>
             </div>
             <div className="p-3 rounded-xl border border-border/30 bg-muted/10 text-center">

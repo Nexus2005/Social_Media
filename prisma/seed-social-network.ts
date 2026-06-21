@@ -213,6 +213,14 @@ async function main() {
 
   // Clean existing seed entries to avoid primary key duplicates (but keep production users intact)
   console.log("🧹 Cleaning previous seed entries...");
+  await prisma.media.deleteMany({
+    where: {
+      OR: [
+        { id: { startsWith: "media_post_seed_" } },
+        { id: { startsWith: "media_reel_seed_" } }
+      ]
+    }
+  });
   await prisma.story.deleteMany({ where: { id: { startsWith: "story_seed_" } } });
   await prisma.comment.deleteMany({ where: { id: { startsWith: "comment_seed_" } } });
   await prisma.like.deleteMany({

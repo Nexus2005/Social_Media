@@ -22,15 +22,34 @@ export async function GET(req: NextRequest) {
     });
     const followedUserIds = following.map((f) => f.followingId);
 
-    // 2. Fetch recent 200 posts to rank
-    const posts = await prisma.post.findMany({
-      include: getPostDataInclude(user.id),
+    // 2. Fetch recent 200 posts with minimal fields for ranking
+    const postsMinimal = await prisma.post.findMany({
+      select: {
+        id: true,
+        userId: true,
+        createdAt: true,
+        reposts: {
+          select: { id: true }
+        },
+        views: {
+          select: { watchDuration: true, completed: true }
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          }
+        },
+        videoJob: {
+          select: { status: true }
+        }
+      },
       orderBy: { createdAt: "desc" },
       take: 200,
     });
 
     // 3. Rank posts
-    const rankedPosts = FeedRankingService.rankPosts(posts, user.id, followedUserIds);
+    const rankedPosts = FeedRankingService.rankPosts(postsMinimal, user.id, followedUserIds);
 
     // 4. Custom cursor pagination
     let paginatedPosts = rankedPosts;
@@ -42,9 +61,24 @@ export async function GET(req: NextRequest) {
     }
 
     const nextCursor = paginatedPosts.length > pageSize ? paginatedPosts[pageSize].id : null;
+    const paginatedSlice = paginatedPosts.slice(0, pageSize);
+    const paginatedIds = paginatedSlice.map((p) => p.id);
+
+    // 5. Fetch full data ONLY for the paginated posts
+    const fullPosts = await prisma.post.findMany({
+      where: {
+        id: { in: paginatedIds },
+      },
+      include: getPostDataInclude(user.id),
+    });
+
+    // Order fullPosts to match the ranked order
+    const orderedPosts = paginatedSlice
+      .map((p) => fullPosts.find((fp) => fp.id === p.id))
+      .filter(Boolean);
 
     const data: PostsPage = {
-      posts: paginatedPosts.slice(0, pageSize),
+      posts: orderedPosts as any[],
       nextCursor,
     };
 

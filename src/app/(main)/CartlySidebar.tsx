@@ -33,6 +33,7 @@ import {
   PlusSquare,
   Search,
   Settings,
+  ShoppingBag,
   Sun,
   User,
   Activity,
@@ -129,6 +130,12 @@ export default function CartlySidebar({
       label: "Spots",
       href: "/reels",
       active: pathname === "/reels",
+    },
+    {
+      icon: (props: any) => <ShoppingBag {...props} />,
+      label: "Shop",
+      href: "/shop",
+      active: pathname.startsWith("/shop"),
     },
     {
       icon: (props: any) => <Mail {...props} />,

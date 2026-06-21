@@ -17,6 +17,7 @@ import {
   Mail,
   PlusSquare,
   Search,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,6 +74,13 @@ export default function MobileNavigation({
           </Link>
 
           <div className="flex items-center gap-5">
+            {/* Shop Hub */}
+            <Link href="/shop" className={`relative flex items-center justify-center ${
+              pathname.startsWith("/shop") ? "text-foreground" : "text-muted-foreground"
+            }`} title="Shop Hub">
+              <ShoppingBag className="size-[22px]" />
+            </Link>
+
             {/* Notifications */}
             <Link href="/notifications" className="relative flex items-center justify-center text-foreground">
               <Heart className="size-[22px]" />

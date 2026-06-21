@@ -6,16 +6,15 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   try {
     const cursor = req.nextUrl.searchParams.get("cursor") || undefined;
-
     const pageSize = 10;
 
     const { user } = await validateRequest();
-
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const posts = await prisma.post.findMany({
+    // 1. Fetch recent 200 reels with minimal fields for status sorting
+    const reelsMinimal = await prisma.post.findMany({
       where: {
         attachments: {
           some: {
@@ -23,16 +22,73 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      include: getPostDataInclude(user.id),
+      select: {
+        id: true,
+        createdAt: true,
+        videoJob: {
+          select: {
+            status: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
-      take: pageSize + 1,
-      cursor: cursor ? { id: cursor } : undefined,
+      take: 200,
     });
 
-    const nextCursor = posts.length > pageSize ? posts[pageSize].id : null;
+    // Priority mapping for statuses
+    const statusOrder: Record<string, number> = {
+      completed: 4,
+      processing: 3,
+      pending: 2,
+      failed: 1,
+      no_products: 1,
+    };
+
+    const getJobPriority = (post: any) => {
+      const status = post.videoJob?.status || "pending";
+      return statusOrder[status] || 2;
+    };
+
+    // Sort by status priority first, then by createdAt DESC
+    const sortedReels = reelsMinimal.sort((a, b) => {
+      const priorityA = getJobPriority(a);
+      const priorityB = getJobPriority(b);
+      
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA;
+      }
+      
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    // 2. Custom cursor pagination
+    let paginatedReels = sortedReels;
+    if (cursor) {
+      const cursorIndex = sortedReels.findIndex((r) => r.id === cursor);
+      if (cursorIndex !== -1) {
+        paginatedReels = sortedReels.slice(cursorIndex + 1);
+      }
+    }
+
+    const nextCursor = paginatedReels.length > pageSize ? paginatedReels[pageSize].id : null;
+    const paginatedSlice = paginatedReels.slice(0, pageSize);
+    const paginatedIds = paginatedSlice.map((r) => r.id);
+
+    // 3. Fetch full data ONLY for the paginated reels
+    const fullReels = await prisma.post.findMany({
+      where: {
+        id: { in: paginatedIds },
+      },
+      include: getPostDataInclude(user.id),
+    });
+
+    // Order fullReels to match the sorted priority order
+    const orderedReels = paginatedSlice
+      .map((r) => fullReels.find((fr) => fr.id === r.id))
+      .filter(Boolean);
 
     const data: PostsPage = {
-      posts: posts.slice(0, pageSize),
+      posts: orderedReels as any[],
       nextCursor,
     };
 
