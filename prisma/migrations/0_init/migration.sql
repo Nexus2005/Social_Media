@@ -1,0 +1,1 @@
+-- Empty baseline migration representing the pre-existing database schema

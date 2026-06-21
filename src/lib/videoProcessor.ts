@@ -15,46 +15,45 @@ export function getVideoDuration(videoPath: string): Promise<number> {
   });
 }
 
-// Extract static JPG frames every 2 seconds
-export async function extractFramesFromVideo(videoPath: string): Promise<string[]> {
+export interface ExtractedFrame {
+  path: string;
+  timestamp: number;
+}
+
+// Extract exactly 6 static JPG frames matching target percentages (10%, 25%, 40%, 55%, 70%, 85%)
+export async function extractFramesFromVideo(videoPath: string): Promise<ExtractedFrame[]> {
   const tmpDir = path.join(process.cwd(), "tmp");
   if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
   }
 
   const duration = await getVideoDuration(videoPath);
-  console.log(`Video duration: ${duration}s. Extracting frames every 2s.`);
+  console.log(`Video duration: ${duration}s. Extracting 6 evenly spaced frames.`);
 
-  const timestamps: number[] = [];
-  for (let t = 0; t < duration; t += 2) {
-    timestamps.push(t);
-  }
-
-  // Ensure we get at least one frame
-  if (timestamps.length === 0) {
-    timestamps.push(0);
-  }
+  const percentages = [0.10, 0.25, 0.40, 0.55, 0.70, 0.85];
+  const frames: ExtractedFrame[] = percentages.map((p) => {
+    const timestamp = parseFloat((duration * p).toFixed(2));
+    const baseName = path.basename(videoPath, path.extname(videoPath));
+    const filename = `frame-${timestamp}-${baseName}.jpg`;
+    return {
+      path: path.join(tmpDir, filename),
+      timestamp,
+    };
+  });
 
   return new Promise((resolve, reject) => {
-    const fileNames: string[] = [];
     const baseName = path.basename(videoPath, path.extname(videoPath));
-
     ffmpeg(videoPath)
-      .on("filenames", (filenames) => {
-        filenames.forEach((file) => {
-          fileNames.push(path.join(tmpDir, file));
-        });
-      })
       .on("end", () => {
-        console.log(`Extracted ${fileNames.length} frames successfully.`);
-        resolve(fileNames);
+        console.log(`Extracted ${frames.length} frames successfully.`);
+        resolve(frames);
       })
       .on("error", (err) => {
         console.error("FFmpeg extraction error:", err);
         reject(err);
       })
       .screenshots({
-        timestamps,
+        timestamps: frames.map((f) => f.timestamp),
         filename: `frame-%s-${baseName}.jpg`,
         folder: tmpDir,
       });

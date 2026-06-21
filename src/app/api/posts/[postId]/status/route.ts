@@ -19,9 +19,14 @@ export async function GET(
     const post = await prisma.post.findUnique({
       where: { id: postId },
       select: {
-        aiStatus: true,
+        videoJob: true,
         detectedObjects: true,
         detectedProducts: {
+          where: {
+            confidence: {
+              gte: 0.80,
+            },
+          },
           include: {
             matches: true,
           },
@@ -33,10 +38,26 @@ export async function GET(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
+    const aiStatus = (post.videoJob?.status || "pending").toUpperCase();
+
+    const processingLog = await prisma.videoProcessingLog.findFirst({
+      where: { videoId: postId },
+      orderBy: { createdAt: "desc" },
+    });
+
     return NextResponse.json({
-      aiStatus: post.aiStatus,
+      aiStatus,
       detectedObjects: post.detectedObjects,
       detectedProducts: post.detectedProducts,
+      processingLog: processingLog ? {
+        visionCalls: processingLog.visionCalls,
+        openrouterCalls: processingLog.openrouterCalls,
+        nvidiaCalls: processingLog.nvidiaCalls,
+        serpapiCalls: processingLog.serpapiCalls,
+        processingCost: processingLog.processingCost,
+        processingTime: processingLog.processingTime,
+        shoppingResultsCount: processingLog.shoppingResultsCount,
+      } : null,
     });
   } catch (error: any) {
     console.error("Error fetching post AI status:", error);

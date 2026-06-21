@@ -24,16 +24,16 @@ import {
   ArrowRight,
   RotateCw,
   Users,
-  Eye,
-  MessageSquare,
   Globe,
-  Lock,
   Heart,
-  ChevronDown,
-  Info
+  MessageSquare,
+  Undo2,
+  Image as ImageIcon,
+  Sliders,
+  Sparkle
 } from "lucide-react";
 import Image from "next/image";
-import { ClipboardEvent, useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useSubmitPostMutation } from "./mutations";
 import "./styles.css";
 import useMediaUpload, { Attachment } from "./useMediaUpload";
@@ -41,39 +41,74 @@ import VideoPlayer from "@/components/VideoPlayer";
 import Cropper from "react-easy-crop";
 import EmojiPickerPanel from "@/components/stories/EmojiPickerPanel";
 import GifPicker from "@/components/stories/GifPicker";
+import LocationPickerSheet from "@/components/ui/LocationPickerSheet";
 import { getFilterString, getProcessedImg } from "./imageProcessing";
 import { submitPost } from "./actions";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
+import { UploadService } from "@/lib/services/uploadService";
+import { LocationData } from "@/lib/providers/locationProvider";
 
-// Common hashtags for autocomplete suggestions
-const commonHashtags = [
-  "startup", "travel", "technology", "photography", "food", 
-  "fashion", "gaming", "nature", "fitness", "AI", "vibes", 
-  "productivity", "design", "coding", "business", "marketing"
-];
-
-// Presets info
+// 15 Supported Filters matching standard and creative styles
 const filterPresets = [
-  { name: "Normal", filter: "none" },
-  { name: "Clarendon", filter: "contrast(1.2) saturate(1.35)" },
-  { name: "Aden", filter: "sepia(0.2) saturate(1.4) contrast(0.9) hue-rotate(-20deg)" },
-  { name: "Crema", filter: "sepia(0.5) contrast(1.1) saturate(0.9) brightness(1.1)" },
-  { name: "Gingham", filter: "brightness(1.05) contrast(0.9) saturate(0.9) hue-rotate(-10deg)" },
-  { name: "Juno", filter: "saturate(1.2) contrast(1.1) sepia(0.2) hue-rotate(-15deg)" },
-  { name: "Lark", filter: "brightness(1.08) contrast(0.95) saturate(1.15)" },
-  { name: "Ludwig", filter: "brightness(1.05) saturate(1.1) contrast(0.95)" },
-  { name: "Moon", filter: "grayscale(1) contrast(1.1) brightness(1.1)" },
-  { name: "Slumber", filter: "sepia(0.35) contrast(1.1) saturate(0.7) brightness(1.05)" }
+  { name: "Normal" },
+  { name: "Clarendon" },
+  { name: "Juno" },
+  { name: "Lark" },
+  { name: "Ludwig" },
+  { name: "Valencia" },
+  { name: "Gingham" },
+  { name: "Rise" },
+  { name: "Aden" },
+  { name: "Hudson" },
+  { name: "Warm" },
+  { name: "Cool" },
+  { name: "Vintage" },
+  { name: "Bright" },
+  { name: "Cinematic" }
 ];
 
-const mockAssets = [
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=200&auto=format&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=200&auto=format&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=200&auto=format&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=200&auto=format&fit=crop&q=60"
+// System Backgrounds gradients definitions
+const systemBackgrounds = [
+  { id: "sunset", label: "Sunset", style: "linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%)", text: "#ffffff" },
+  { id: "emerald", label: "Emerald", style: "linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)", text: "#ffffff" },
+  { id: "ocean", label: "Ocean", style: "linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #1d4ed8 100%)", text: "#ffffff" },
+  { id: "peach", label: "Peach", style: "linear-gradient(135deg, #ffedd5 0%, #fdba74 50%, #f97316 100%)", text: "#7c2d12" },
+  { id: "darkknight", label: "Dark Knight", style: "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%)", text: "#ffffff" },
+  { id: "candy", label: "Candy", style: "linear-gradient(135deg, #f472b6 0%, #db2777 50%, #9d174d 100%)", text: "#ffffff" }
 ];
+
+const commonHashtags = [
+  "nextjs",
+  "react",
+  "javascript",
+  "webdev",
+  "programming",
+  "tech",
+  "coding",
+  "design",
+  "nature",
+  "travel",
+  "photography",
+  "art",
+  "music",
+  "fitness",
+  "food"
+];
+
+const adjustments = {
+  exposure: "Exposure",
+  brightness: "Brightness",
+  contrast: "Contrast",
+  saturation: "Saturation",
+  warmth: "Warmth",
+  vignette: "Vignette",
+  sharpen: "Sharpen",
+  fade: "Fade",
+  highlights: "Highlights",
+  shadows: "Shadows",
+  structure: "Structure"
+};
 
 interface ImageAdjustmentState {
   crop: { x: number; y: number };
@@ -86,8 +121,13 @@ interface ImageAdjustmentState {
   contrast: number;
   fade: number;
   saturation: number;
-  temperature: number;
+  warmth: number;
+  exposure: number;
   vignette: number;
+  sharpen: number;
+  structure: number;
+  highlights: number;
+  shadows: number;
 }
 
 const defaultAdjustmentState = (): ImageAdjustmentState => ({
@@ -101,8 +141,13 @@ const defaultAdjustmentState = (): ImageAdjustmentState => ({
   contrast: 1,
   fade: 0,
   saturation: 1,
-  temperature: 0,
+  warmth: 0,
+  exposure: 0,
   vignette: 0,
+  sharpen: 0,
+  structure: 0,
+  highlights: 0,
+  shadows: 0,
 });
 
 interface ThreadNode {
@@ -121,6 +166,89 @@ interface ThreadNode {
 
 interface PostEditorProps {
   onClose?: () => void;
+}
+
+// Sub-component to generate real filter thumbnail previews
+interface FilterThumbnailProps {
+  imageSrc: string;
+  filterName: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+export function FilterThumbnail({ imageSrc, filterName, isActive, onClick }: FilterThumbnailProps) {
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+
+    const generateThumbnail = async () => {
+      try {
+        const img = new window.Image();
+        if (!imageSrc.startsWith("blob:") && !imageSrc.startsWith("data:")) {
+          img.crossOrigin = "anonymous";
+        }
+        img.src = imageSrc;
+
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+
+        if (!active) return;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 80;
+        canvas.height = 80;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No 2d context");
+
+        // Center crop image
+        const size = Math.min(img.width, img.height);
+        const x = (img.width - size) / 2;
+        const y = (img.height - size) / 2;
+
+        ctx.filter = getFilterString(filterName, {});
+        ctx.drawImage(img, x, y, size, size, 0, 0, 80, 80);
+
+        if (!active) return;
+        setThumbnailUrl(canvas.toDataURL("image/jpeg", 0.8));
+        setLoading(false);
+      } catch (e) {
+        console.error("Thumbnail error:", e);
+        if (active) setLoading(false);
+      }
+    };
+
+    generateThumbnail();
+    return () => {
+      active = false;
+    };
+  }, [imageSrc, filterName]);
+
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        "flex flex-col gap-1 items-center cursor-pointer rounded-xl p-1 shrink-0 border border-transparent hover:bg-neutral-900 transition-all select-none",
+        isActive ? "border-primary bg-neutral-900" : ""
+      )}
+    >
+      <div className="size-16 rounded-lg overflow-hidden relative bg-neutral-900 flex items-center justify-center border border-neutral-800">
+        {loading ? (
+          <div className="w-full h-full animate-pulse bg-neutral-800" />
+        ) : thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumbnailUrl} alt={filterName} className="w-full h-full object-cover pointer-events-none" />
+        ) : (
+          <span className="text-[9px] text-neutral-500">Error</span>
+        )}
+      </div>
+      <span className="text-[9px] font-bold text-neutral-400 truncate w-14 text-center">{filterName}</span>
+    </div>
+  );
 }
 
 export default function PostEditor({ onClose }: PostEditorProps) {
@@ -150,6 +278,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const [stage, setStage] = useState<1 | 2 | 3>(1);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
 
+  // Active Tool state panel selection (strictly mutual exclusive)
+  type activeToolPanel = "gif" | "emoji" | "poll" | "location" | "background" | "ai" | null;
+  const [activePanel, setActivePanel] = useState<activeToolPanel>(null);
+
   // Poll state (Desktop)
   const [hasPoll, setHasPoll] = useState(false);
   const [pollChoices, setPollChoices] = useState<string[]>(["", ""]);
@@ -157,27 +289,27 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const [pollHours, setPollHours] = useState(0);
   const [pollMinutes, setPollMinutes] = useState(0);
 
+  // Desktop side panel resizable width
+  const [sidebarWidth, setSidebarWidth] = useState(340);
+
+  // Mobile slider adjustments bottom drawer visible
+  const [mobileAdjustPanelOpen, setMobileAdjustPanelOpen] = useState(false);
+
+  // System Background Selection
+  const [selectedBackgroundId, setSelectedBackgroundId] = useState<string | null>(null);
+
   // Thread State (Mobile)
   const [threads, setThreads] = useState<ThreadNode[]>([
     { id: "1", text: "", assets: [], poll: null }
   ]);
   const [activeThreadIndex, setActiveThreadIndex] = useState(0);
 
-  // Image Gallery Picker (Mobile)
-  const [showImageGallery, setShowImageGallery] = useState(false);
-
-  // GIF Picker overlay
-  const [showGifPicker, setShowGifPicker] = useState(false);
-
-  // Emoji Picker popover
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
   // Image Edit States mapped by filename
   const [mediaAdjustments, setMediaAdjustments] = useState<Record<string, ImageAdjustmentState>>({});
   const [editTab, setEditTab] = useState<"filters" | "adjustments">("filters");
 
   // Metadata/Share parameters
-  const [location, setLocation] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [collabQuery, setCollabQuery] = useState("");
   const [collabUsers, setCollabUsers] = useState<any[]>([]);
@@ -195,7 +327,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   // AI Caption state
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCaptions, setAiCaptions] = useState<string[]>([]);
-  const [showAiCaptionPanel, setShowAiCaptionPanel] = useState(false);
 
   // Autocomplete suggestions popup
   const [autocomplete, setAutocomplete] = useState<{
@@ -206,10 +337,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     index: number;
   } | null>(null);
 
-  // Submit Processing State
   const [isProcessingAndSubmitting, setIsProcessingAndSubmitting] = useState(false);
-
-  // Draft banner state
   const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   const editor = useEditor({
@@ -224,7 +352,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       }),
     ],
     onUpdate: ({ editor }) => {
-      // Check for autocomplete triggers
       const textBeforeCursor = editor.state.doc.textBetween(
         Math.max(0, editor.state.selection.from - 25),
         editor.state.selection.from
@@ -247,7 +374,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             })
             .catch(console.error);
         } else {
-          // Hashtag local matches
           const matchedTags = commonHashtags.filter((t) =>
             t.toLowerCase().startsWith(query.toLowerCase())
           );
@@ -267,7 +393,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
   const input = editor?.getText({ blockSeparator: "\n" }) || "";
 
-  // 1. DRAFTS LOGIC: Auto-save, restore, and clear
+  // DRAFTS LOGIC
   useEffect(() => {
     const draft = localStorage.getItem("cartly_composer_draft");
     if (draft) {
@@ -277,7 +403,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
   // Auto-save draft on data edits
   useEffect(() => {
-    if (input.trim() || hasPoll || attachments.length > 0 || location || disableComments || hideLikes) {
+    if (input.trim() || hasPoll || attachments.length > 0 || selectedLocation || disableComments || hideLikes) {
       const draftObj = {
         input,
         hasPoll,
@@ -285,16 +411,18 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         pollDays,
         pollHours,
         pollMinutes,
-        location,
+        locationName: selectedLocation?.name || "",
+        locationDesc: selectedLocation?.description || "",
         altText,
         audience,
         disableComments,
         hideLikes,
         collaborators,
+        selectedBackgroundId,
       };
       localStorage.setItem("cartly_composer_draft", JSON.stringify(draftObj));
     }
-  }, [input, hasPoll, pollChoices, pollDays, pollHours, pollMinutes, location, altText, audience, disableComments, hideLikes, collaborators, attachments]);
+  }, [input, hasPoll, pollChoices, pollDays, pollHours, pollMinutes, selectedLocation, altText, audience, disableComments, hideLikes, collaborators, attachments, selectedBackgroundId]);
 
   const resumeDraft = () => {
     try {
@@ -309,12 +437,15 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         setPollDays(draft.pollDays || 1);
         setPollHours(draft.pollHours || 0);
         setPollMinutes(draft.pollMinutes || 0);
-        setLocation(draft.location || "");
+        if (draft.locationName) {
+          setSelectedLocation({ name: draft.locationName, description: draft.locationDesc || "" });
+        }
         setAltText(draft.altText || "");
         setAudience(draft.audience || "PUBLIC");
         setDisableComments(draft.disableComments || false);
         setHideLikes(draft.hideLikes || false);
         setCollaborators(draft.collaborators || []);
+        setSelectedBackgroundId(draft.selectedBackgroundId || null);
       }
     } catch (e) {
       console.error("Failed to parse draft", e);
@@ -343,7 +474,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     }
   }, [attachments]);
 
-  // Autocomplete insert handler
   const selectAutocomplete = (value: string) => {
     if (!editor || !autocomplete) return;
     const textBeforeCursor = editor.state.doc.textBetween(
@@ -363,28 +493,31 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     setAutocomplete(null);
   };
 
-  // Giphy download & upload helper
+  // Giphy download & upload helper using UploadService
   const addGiphyAttachment = async (giphyUrl: string) => {
     try {
-      setShowGifPicker(false);
+      setActivePanel(null);
       const res = await fetch(giphyUrl);
       const blob = await res.blob();
       const file = new File([blob], `giphy_${Date.now()}.gif`, { type: "image/gif" });
-      startUpload([file]);
+
+      const tempId = `temp_${Date.now()}`;
+      const newAtt: Attachment = {
+        file,
+        mediaId: undefined,
+        isUploading: true,
+        previewUrl: giphyUrl,
+      };
+
+      setAttachments((prev) => [...prev, newAtt]);
+
+      const uploaded = await UploadService.uploadPostAttachment(file);
+      setAttachments((prev) =>
+        prev.map((a) => (a.previewUrl === giphyUrl ? { ...a, mediaId: uploaded.mediaId, isUploading: false } : a))
+      );
     } catch (e) {
       console.error("Giphy attach failed", e);
-    }
-  };
-
-  const addMockAssetToActiveNode = async (url: string) => {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const filename = `mock_${Date.now()}_${url.split('/').pop()?.split('?')[0] || 'asset.jpg'}`;
-      const file = new File([blob], filename, { type: "image/jpeg" });
-      startUpload([file]);
-    } catch (e) {
-      console.error("Mock asset attach failed", e);
+      toast({ variant: "destructive", description: "Failed to upload GIF." });
     }
   };
 
@@ -399,7 +532,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     setAttachments(reordered);
   };
 
-  // Get adjustments state for target attachment
   const getAdjustment = (fileName: string): ImageAdjustmentState => {
     return mediaAdjustments[fileName] || defaultAdjustmentState();
   };
@@ -469,21 +601,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     setTagSearchUsers([]);
   };
 
-  // Search user profiles for tagging
-  useEffect(() => {
-    if (!tagQuery.trim()) {
-      setTagSearchUsers([]);
-      return;
-    }
-    const delay = setTimeout(() => {
-      fetch(`/api/search/autocomplete?q=${tagQuery}`)
-        .then((res) => res.json())
-        .then((data) => setTagSearchUsers(data.users || []))
-        .catch(console.error);
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [tagQuery]);
-
   const addTag = (username: string) => {
     if (!activeTagCoord) return;
     const activeFile = attachments[activeMediaIndex]?.file.name;
@@ -525,6 +642,21 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     }
   };
 
+  // Drag resizing sidepanel handler
+  const handleSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const onMove = (event: MouseEvent) => {
+      const newWidth = window.innerWidth - event.clientX;
+      setSidebarWidth(Math.max(280, Math.min(500, newWidth)));
+    };
+    const onEnd = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onEnd);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onEnd);
+  };
+
   // Collaborators autocomplete query
   useEffect(() => {
     if (!collabQuery.trim()) {
@@ -545,109 +677,49 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     try {
       setIsProcessingAndSubmitting(true);
 
-      const isMobile = window.innerWidth < 768;
+      let backgroundMediaId: string | null = null;
+      if (selectedBackgroundId) {
+        const bg = systemBackgrounds.find((b) => b.id === selectedBackgroundId);
+        if (bg) {
+          const registered = await UploadService.uploadSystemBackground(bg.style);
+          backgroundMediaId = registered.mediaId;
+        }
+      }
 
-      if (isMobile) {
-        // Multi-post thread publishing loop
-        let previousPostId: string | null = null;
+      let previousPostId: string | null = null;
 
-        for (let i = 0; i < threads.length; i++) {
-          const node = threads[i];
-          const nodeMediaIds: string[] = [];
+      for (let i = 0; i < threads.length; i++) {
+        const node = threads[i];
+        const nodeMediaIds: string[] = [];
 
-          // Process and upload edited image buffers
-          const uploadPromises = node.assets.map(async (a) => {
-            const fileAdj = mediaAdjustments[a.file.name];
-            if (a.file.type.startsWith("image") && fileAdj && fileAdj.croppedAreaPixels) {
-              const originalSrc = URL.createObjectURL(a.file);
-              const processedBlob = await getProcessedImg(
-                originalSrc,
-                fileAdj.croppedAreaPixels,
-                fileAdj.rotation,
-                fileAdj.filter,
-                {
-                  brightness: fileAdj.brightness,
-                  contrast: fileAdj.contrast,
-                  fade: fileAdj.fade,
-                  saturation: fileAdj.saturation,
-                  temperature: fileAdj.temperature,
-                  vignette: fileAdj.vignette,
-                }
-              );
-              URL.revokeObjectURL(originalSrc);
-
-              const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
-              const formData = new FormData();
-              formData.append("endpoint", "attachment");
-              formData.append("files", finalFile);
-              
-              const meta = [{ name: finalFile.name, width: fileAdj.croppedAreaPixels.width, height: fileAdj.croppedAreaPixels.height }];
-              formData.append("metadata", JSON.stringify(meta));
-
-              const res = await fetch("/api/upload", {
-                method: "POST",
-                body: formData,
-              });
-
-              if (!res.ok) {
-                throw new Error(`Failed to upload edited media ${finalFile.name}`);
-              }
-
-              const uploadResult = await res.json();
-              return uploadResult[0]?.serverData?.mediaId as string;
-            }
-            return a.mediaId || "";
-          });
-
-          const processedMediaIds = await Promise.all(uploadPromises);
-          processedMediaIds.forEach((id) => {
-            if (id) nodeMediaIds.push(id);
-          });
-
-          const result = await submitPost({
-            content: node.text,
-            mediaIds: nodeMediaIds,
-            location: location || null,
-            disableComments,
-            hideLikes,
-            altText: altText || null,
-            audience,
-            quotedPostId: previousPostId,
-            poll: node.poll
-              ? {
-                  options: node.poll.options.filter((c) => c.trim() !== ""),
-                  duration: {
-                    days: node.poll.duration.days,
-                    hours: node.poll.duration.hours,
-                    minutes: node.poll.duration.minutes,
-                  },
-                }
-              : null,
-          });
-
-          previousPostId = result.id;
+        if (i === 0 && backgroundMediaId) {
+          nodeMediaIds.push(backgroundMediaId);
         }
 
-        queryClient.invalidateQueries({ queryKey: ["post-feed"] });
-        toast({ description: "Thread published successfully!" });
-
-        // Reset
-        setThreads([{ id: "1", text: "", assets: [], poll: null }]);
-        setActiveThreadIndex(0);
-        resetMediaUploads();
-        discardDraft();
-        if (onClose) onClose();
-
-      } else {
-        // Desktop single post upload
-        const finalMediaIds: string[] = [];
-        const uploadPromises = attachments.map(async (a) => {
+        // Process and upload edited image buffers
+        const uploadPromises = node.assets.map(async (a) => {
           const fileAdj = mediaAdjustments[a.file.name];
-          if (a.file.type.startsWith("image") && fileAdj && fileAdj.croppedAreaPixels) {
-            const originalSrc = URL.createObjectURL(a.file);
+          const hasFilterOrAdj = fileAdj && (
+            fileAdj.filter !== "Normal" ||
+            fileAdj.brightness !== 1 ||
+            fileAdj.contrast !== 1 ||
+            fileAdj.saturation !== 1 ||
+            fileAdj.warmth !== 0 ||
+            fileAdj.exposure !== 0 ||
+            fileAdj.vignette !== 0 ||
+            fileAdj.sharpen !== 0 ||
+            fileAdj.fade !== 0 ||
+            fileAdj.structure !== 0 ||
+            fileAdj.highlights !== 0 ||
+            fileAdj.shadows !== 0 ||
+            fileAdj.rotation !== 0 ||
+            fileAdj.croppedAreaPixels !== null
+          );
+
+          if (a.file.type.startsWith("image") && hasFilterOrAdj) {
             const processedBlob = await getProcessedImg(
-              originalSrc,
-              fileAdj.croppedAreaPixels,
+              a.previewUrl!,
+              fileAdj.croppedAreaPixels || null,
               fileAdj.rotation,
               fileAdj.filter,
               {
@@ -655,46 +727,34 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                 contrast: fileAdj.contrast,
                 fade: fileAdj.fade,
                 saturation: fileAdj.saturation,
-                temperature: fileAdj.temperature,
+                temperature: fileAdj.warmth,
                 vignette: fileAdj.vignette,
+                exposure: fileAdj.exposure,
+                sharpen: fileAdj.sharpen,
+                structure: fileAdj.structure,
+                highlights: fileAdj.highlights,
+                shadows: fileAdj.shadows,
               }
             );
-            URL.revokeObjectURL(originalSrc);
 
             const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
-            const formData = new FormData();
-            formData.append("endpoint", "attachment");
-            formData.append("files", finalFile);
-            
-            const meta = [{ name: finalFile.name, width: fileAdj.croppedAreaPixels.width, height: fileAdj.croppedAreaPixels.height }];
-            formData.append("metadata", JSON.stringify(meta));
-
-            const res = await fetch("/api/upload", {
-              method: "POST",
-              body: formData,
-            });
-
-            if (!res.ok) {
-              throw new Error(`Failed to upload edited media ${finalFile.name}`);
-            }
-
-            const uploadResult = await res.json();
-            return uploadResult[0]?.serverData?.mediaId as string;
+            const uploaded = await UploadService.uploadPostAttachment(finalFile);
+            return uploaded.mediaId;
           }
           return a.mediaId || "";
         });
 
         const processedMediaIds = await Promise.all(uploadPromises);
         processedMediaIds.forEach((id) => {
-          if (id) finalMediaIds.push(id);
+          if (id) nodeMediaIds.push(id);
         });
 
         const tagPayload: any[] = [];
-        attachments.forEach((a, idx) => {
+        node.assets.forEach((a, aIdx) => {
           const fileTags = mediaTags[a.file.name] || [];
           fileTags.forEach((t) => {
             tagPayload.push({
-              mediaIndex: idx,
+              mediaIndex: aIdx,
               username: t.username,
               x: t.x,
               y: t.y,
@@ -702,41 +762,41 @@ export default function PostEditor({ onClose }: PostEditorProps) {
           });
         });
 
-        mutation.mutate(
-          {
-            content: input,
-            mediaIds: finalMediaIds,
-            location: location || null,
-            disableComments,
-            hideLikes,
-            altText: altText || null,
-            audience,
-            tags: tagPayload.length > 0 ? tagPayload : null,
-            collaborators: collaborators.length > 0 ? collaborators : null,
-            poll: hasPoll
-              ? {
-                  options: pollChoices.filter((c) => c.trim() !== ""),
-                  duration: {
-                    days: pollDays,
-                    hours: pollHours,
-                    minutes: pollMinutes,
-                  },
-                }
-              : null,
-          },
-          {
-            onSuccess: () => {
-              editor?.commands.clearContent();
-              resetMediaUploads();
-              discardDraft();
-              setHasPoll(false);
-              setPollChoices(["", ""]);
-              setStage(1);
-              if (onClose) onClose();
-            },
-          }
-        );
+        const result = await submitPost({
+          content: node.text,
+          mediaIds: nodeMediaIds,
+          location: selectedLocation?.name || null,
+          disableComments,
+          hideLikes,
+          altText: altText || null,
+          audience,
+          quotedPostId: previousPostId,
+          tags: tagPayload.length > 0 ? tagPayload : null,
+          collaborators: collaborators.length > 0 ? collaborators : null,
+          poll: node.poll
+            ? {
+                options: node.poll.options.filter((c) => c.trim() !== ""),
+                duration: {
+                  days: node.poll.duration.days,
+                  hours: node.poll.duration.hours,
+                  minutes: node.poll.duration.minutes,
+                },
+              }
+            : null,
+        });
+
+        previousPostId = result.id;
       }
+
+      queryClient.invalidateQueries({ queryKey: ["post-feed"] });
+      toast({ description: threads.length > 1 ? "Thread published successfully!" : "Post published successfully!" });
+
+      setThreads([{ id: "1", text: "", assets: [], poll: null }]);
+      setActiveThreadIndex(0);
+      resetMediaUploads();
+      discardDraft();
+      if (onClose) onClose();
+
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", description: "Failed to publish post." });
@@ -745,8 +805,8 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     }
   };
 
-  const charCount = input.length;
-  const characterLimit = 5000;
+  const charCount = threads[0]?.text.length || 0;
+  const characterLimit = selectedBackgroundId ? 280 : 5000;
   const percentage = Math.min((charCount / characterLimit) * 100, 100);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -754,541 +814,275 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const activeFile = attachments[activeMediaIndex]?.file.name;
   const activeAdj = activeFile ? getAdjustment(activeFile) : defaultAdjustmentState();
   const activeTags = activeFile ? mediaTags[activeFile] || [] : [];
-  const activeSrc = activeFile ? URL.createObjectURL(attachments[activeMediaIndex].file) : "";
-
-  useEffect(() => {
-    return () => {
-      if (activeSrc) URL.revokeObjectURL(activeSrc);
-    };
-  }, [activeSrc]);
+  const activeSrc = attachments[activeMediaIndex]?.previewUrl || "";
+  const isVideo = attachments[activeMediaIndex]?.file?.type?.startsWith("video") || false;
 
   const activeNodeText = threads[activeThreadIndex]?.text || "";
   const activeNodeCharCount = activeNodeText.length;
   const activeNodePercentage = Math.min((activeNodeCharCount / characterLimit) * 100, 100);
 
+  const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  const handleTextareaChange = (idx: number, text: string) => {
+    updateThreadText(idx, text);
+
+    const match = text.match(/([@#])([a-zA-Z0-9_-]*)$/);
+    if (match) {
+      const trigger = match[1] as "@" | "#";
+      const query = match[2];
+      if (trigger === "@") {
+        fetch(`/api/search/autocomplete?q=${query}`)
+          .then((res) => res.json())
+          .then((data) => {
+            setAutocomplete({
+              trigger,
+              query,
+              users: data.users || [],
+              tags: [],
+              index: 0,
+            });
+          })
+          .catch(console.error);
+      } else {
+        const matchedTags = commonHashtags.filter((t) =>
+          t.toLowerCase().startsWith(query.toLowerCase())
+        );
+        setAutocomplete({
+          trigger,
+          query,
+          users: [],
+          tags: matchedTags.slice(0, 5),
+          index: 0,
+        });
+      }
+    } else {
+      setAutocomplete(null);
+    }
+  };
+
   return (
     <>
-      {/* MOBILE COMPOSER VIEW (X-style thread builder) */}
+      {/* MOBILE COMPOSER VIEW */}
       <div className="flex md:hidden fixed inset-0 bg-black z-50 flex-col justify-between h-screen h-[100dvh] w-screen overflow-hidden text-white select-none">
-        {/* Top Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-900 bg-black">
-          <button type="button" onClick={onClose} className="text-white hover:opacity-80">
-            <X className="size-6" />
-          </button>
-          <LoadingButton
-            onClick={handlePublish}
-            loading={mutation.isPending || isProcessingAndSubmitting}
-            disabled={!threads[0].text.trim() || isUploading}
-            className="rounded-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-5 py-1.5 text-xs"
-          >
-            {threads.length > 1 ? "Post all" : "Post"}
-          </LoadingButton>
-        </div>
-
-        {/* Thread Stack Area */}
-        <div className="relative flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-6 scrollbar-none bg-black">
-          {threads.length > 1 && (
-            <div className="absolute top-10 bottom-16 left-[29px] w-0.5 bg-zinc-800 z-0 pointer-events-none" />
-          )}
-
-          {threads.map((node, idx) => {
-            const isActive = activeThreadIndex === idx;
-            return (
-              <div
-                key={node.id}
-                onClick={() => setActiveThreadIndex(idx)}
-                className={cn(
-                  "relative flex gap-4 items-start z-10 transition-opacity",
-                  !isActive && "opacity-60"
-                )}
+        {/* Stage 1: Mobile compose */}
+        {stage === 1 && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-900 bg-black flex-shrink-0">
+              <button type="button" onClick={onClose} className="text-white hover:opacity-80 p-2">
+                <X className="size-6" />
+              </button>
+              <LoadingButton
+                onClick={handlePublish}
+                loading={mutation.isPending || isProcessingAndSubmitting}
+                disabled={!threads[0].text.trim() || isUploading}
+                className="rounded-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-5 py-1.5 text-xs"
               >
-                <UserAvatar avatarUrl={user.avatarUrl} size={32} className="size-8 rounded-full z-10 bg-black shrink-0" />
-                <div className="flex-grow min-w-0 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-400">@{user.username}</span>
-                    {threads.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeThreadNode(idx);
-                        }}
-                        className="text-zinc-500 hover:text-white"
-                      >
-                        <X className="size-4" />
-                      </button>
+                {threads.length > 1 ? "Post all" : "Post"}
+              </LoadingButton>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 bg-black">
+              {threads.map((node, idx) => {
+                const isActive = activeThreadIndex === idx;
+                const bgGrad = selectedBackgroundId && idx === 0 ? systemBackgrounds.find((b) => b.id === selectedBackgroundId) : null;
+
+                return (
+                  <div
+                    key={node.id}
+                    onClick={() => setActiveThreadIndex(idx)}
+                    className={cn(
+                      "relative flex gap-3 items-start z-10 transition-opacity",
+                      !isActive && "opacity-50"
                     )}
-                  </div>
-                  <textarea
-                    value={node.text}
-                    onChange={(e) => updateThreadText(idx, e.target.value)}
-                    placeholder={idx === 0 ? "What's happening?" : "Add another post..."}
-                    className="w-full bg-transparent border-none outline-none resize-none text-sm text-white placeholder-zinc-650 p-0 focus:ring-0 focus-visible:ring-0 min-h-[60px]"
-                    rows={3}
-                  />
-
-                  {/* Poll option template inside active lane */}
-                  {node.poll && (
-                    <div className="bg-zinc-950 border border-zinc-850 rounded-xl p-3 flex flex-col gap-2 relative max-w-sm">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removePollFromNode(idx);
-                        }}
-                        className="absolute right-2 top-2 text-zinc-500 hover:text-white"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                      <div className="flex flex-col gap-2 mt-2">
-                        {node.poll.options.map((option, oIdx) => (
-                          <div key={oIdx} className="relative flex items-center">
-                            <input
-                              type="text"
-                              placeholder={`Choice ${oIdx + 1}`}
-                              maxLength={25}
-                              value={option}
-                              onChange={(e) => {
-                                const updated = [...threads];
-                                if (updated[idx].poll) {
-                                  updated[idx].poll.options[oIdx] = e.target.value;
-                                  setThreads(updated);
-                                }
-                              }}
-                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 px-3 pr-12 text-xs text-white focus:outline-none placeholder:text-zinc-600"
-                            />
-                            <span className="absolute right-2.5 text-[10px] text-zinc-500">
-                              {option.length}/25
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                  >
+                    <div className="flex flex-col items-center flex-shrink-0 relative self-stretch">
+                      <UserAvatar avatarUrl={user.avatarUrl} size={36} className="size-9 rounded-full z-10 bg-black" />
+                      {idx < threads.length - 1 && (
+                        <div className="w-0.5 bg-zinc-800 absolute top-9 bottom-[-16px] left-1/2 -translate-x-1/2 z-0" />
+                      )}
                     </div>
-                  )}
 
-                  {/* Assets thumbnails preview row inside active lane */}
-                  {node.assets.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto py-1">
-                      {node.assets.map((asset, aIdx) => (
-                        <div key={aIdx} className="relative size-16 rounded-lg overflow-hidden shrink-0 border border-zinc-800">
-                          <img src={URL.createObjectURL(asset.file)} className="w-full h-full object-cover" />
+                    <div className="flex-grow min-w-0 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-400">@{user.username}</span>
+                        {threads.length > 1 && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const updated = [...threads];
-                              updated[idx].assets = updated[idx].assets.filter((_, attIdx) => attIdx !== aIdx);
-                              setThreads(updated);
-                              if (isActive) {
-                                setAttachments(updated[idx].assets);
-                              }
+                              removeThreadNode(idx);
                             }}
-                            className="absolute right-1 top-1 bg-black/80 hover:bg-black text-white rounded-full p-0.5"
+                            className="text-zinc-500 hover:text-white p-1"
                           >
-                            <X className="size-3" />
+                            <X className="size-4" />
                           </button>
+                        )}
+                      </div>
+
+                      <div
+                        style={{ background: bgGrad?.style || "transparent", color: bgGrad?.text || "#ffffff" }}
+                        className={cn(
+                          "w-full rounded-2xl transition-all",
+                          bgGrad ? "p-6 text-center flex items-center justify-center min-h-[140px]" : "p-0"
+                        )}
+                      >
+                        <textarea
+                          value={node.text}
+                          onChange={(e) => updateThreadText(idx, e.target.value)}
+                          onInput={handleTextareaInput}
+                          placeholder={idx === 0 ? "What's happening?" : "Add another post..."}
+                          className={cn(
+                            "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 focus-visible:ring-0 p-0 font-medium",
+                            bgGrad ? "text-xl text-center font-bold placeholder:text-white/60" : "text-sm placeholder-zinc-650 min-h-[60px]"
+                          )}
+                          rows={2}
+                        />
+                      </div>
+
+                      {node.poll && (
+                        <div className="bg-zinc-950 border border-zinc-850 rounded-xl p-3 flex flex-col gap-2 relative max-w-sm">
+                          <button onClick={(e) => { e.stopPropagation(); removePollFromNode(idx); }} className="absolute right-2 top-2 text-zinc-500 hover:text-white p-1">
+                            <X className="size-3.5" />
+                          </button>
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            {node.poll.options.map((option, oIdx) => (
+                              <input
+                                key={oIdx}
+                                type="text"
+                                placeholder={`Choice ${oIdx + 1}`}
+                                maxLength={25}
+                                value={option}
+                                onChange={(e) => {
+                                  const updated = [...threads];
+                                  if (updated[idx].poll) {
+                                    updated[idx].poll.options[oIdx] = e.target.value;
+                                    setThreads(updated);
+                                  }
+                                }}
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 px-3 pr-12 text-xs text-white focus:outline-none placeholder:text-zinc-650"
+                              />
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
+
+                      {node.assets.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto py-1">
+                          {node.assets.map((asset, aIdx) => (
+                            <div key={aIdx} className="relative size-20 rounded-xl overflow-hidden shrink-0 border border-zinc-800 bg-neutral-900">
+                              {asset.file.type.startsWith("video") ? (
+                                <video src={asset.previewUrl} className="w-full h-full object-cover" muted />
+                              ) : (
+                                <img src={asset.previewUrl} className="w-full h-full object-cover" alt="preview" />
+                              )}
+                              <div className="absolute inset-x-0 bottom-0 bg-black/60 flex items-center justify-center gap-1.5 py-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveThreadIndex(idx);
+                                    setActiveMediaIndex(aIdx);
+                                    setStage(2);
+                                  }}
+                                  className="text-[9px] font-bold text-white bg-sky-500 px-2 py-0.5 rounded"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updated = [...threads];
+                                  updated[idx].assets = updated[idx].assets.filter((_, attIdx) => attIdx !== aIdx);
+                                  setThreads(updated);
+                                  if (isActive) {
+                                    setAttachments(updated[idx].assets);
+                                  }
+                                }}
+                                className="absolute right-1 top-1 bg-black/80 text-white rounded-full p-0.5"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                  </div>
+                );
+              })}
 
-          {/* Add another post text button */}
-          {activeThreadIndex === threads.length - 1 && (
-            <div
-              onClick={addNewThreadNode}
-              className="flex items-center gap-4 pl-12 py-1 text-purple-400 hover:text-purple-300 text-xs font-semibold cursor-pointer select-none"
-            >
-              <span>Add another post</span>
-            </div>
-          )}
-        </div>
-
-        {/* Image Picker Gallery Row */}
-        {showImageGallery && (
-          <div className="flex gap-2 overflow-x-auto py-2 border-t border-zinc-900 px-4 bg-black select-none">
-            {/* Camera Capture Utility Node */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center rounded-xl w-20 h-24 text-zinc-400 hover:bg-zinc-850 shrink-0"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-              </svg>
-              <span className="text-[10px] font-bold mt-1">Camera</span>
-            </button>
-
-            {/* Mock recent assets */}
-            {mockAssets.map((url, idx) => (
-              <button
-                key={idx}
-                onClick={() => addMockAssetToActiveNode(url)}
-                className="relative w-20 h-24 rounded-xl overflow-hidden shrink-0 border border-zinc-800 hover:border-purple-500 transition-colors"
-              >
-                <img src={url} alt="mock asset" className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Toolbar Footer Sticky */}
-        <div className="sticky bottom-0 bg-black border-t border-zinc-900 px-4 py-2 flex justify-between items-center z-30">
-          <div className="flex gap-5 items-center">
-            <LucideImage
-              onClick={() => setShowImageGallery(!showImageGallery)}
-              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
-            />
-            <div className="relative">
-              <LucideGif
-                onClick={() => setShowGifPicker(!showGifPicker)}
-                className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
-              />
-              {showGifPicker && (
-                <div className="absolute bottom-full left-0 mb-2 w-72 z-50">
-                  <GifPicker onSelect={addGiphyAttachment} onClose={() => setShowGifPicker(false)} />
+              {activeThreadIndex === threads.length - 1 && (
+                <div onClick={addNewThreadNode} className="flex items-center gap-4 pl-12 py-1 text-purple-400 hover:text-purple-300 text-xs font-semibold cursor-pointer select-none">
+                  <span>Add another post</span>
                 </div>
               )}
             </div>
-            <LucidePoll
-              onClick={() => togglePollForNode(activeThreadIndex)}
-              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
-            />
-            <LucideLocation
-              onClick={() => {
-                const loc = prompt("Enter location:");
-                if (loc !== null) setLocation(loc);
-              }}
-              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
-            />
-            <LucideFlag
-              onClick={() => {
-                setDisableComments(!disableComments);
-                toast({ description: disableComments ? "Comments enabled." : "Comments disabled." });
-              }}
-              className="w-[22px] h-[22px] text-purple-500 cursor-pointer hover:opacity-80"
-            />
-          </div>
 
-          <div className="flex items-center gap-4">
-            {/* SVG status ring tracker indicator goes here */}
-            {activeNodeCharCount > 0 && (
-              <div className="flex items-center gap-1.5">
-                {activeNodeCharCount > characterLimit - 200 && (
-                  <span className={cn("text-[10px] font-semibold", activeNodeCharCount > characterLimit ? "text-destructive" : "text-zinc-500")}>
-                    {characterLimit - activeNodeCharCount}
-                  </span>
-                )}
-                <svg className="size-5 transform -rotate-90">
-                  <circle cx="10" cy="10" r="7" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
-                  <circle
-                    cx="10"
-                    cy="10"
-                    r="7"
-                    className={cn(
-                      "fill-none transition-all duration-300",
-                      activeNodeCharCount > characterLimit ? "stroke-destructive" : activeNodeCharCount > characterLimit - 200 ? "stroke-yellow-500" : "stroke-purple-500"
-                    )}
-                    strokeWidth="1.5"
-                    strokeDasharray={2 * Math.PI * 7}
-                    strokeDashoffset={2 * Math.PI * 7 * (1 - activeNodePercentage / 100)}
-                  />
-                </svg>
+            {activePanel === "gif" && (
+              <div className="p-2 border-t border-zinc-900 bg-black flex-shrink-0 animate-slide-up">
+                <GifPicker onSelect={addGiphyAttachment} onClose={() => setActivePanel(null)} />
               </div>
             )}
-            <button
-              onClick={addNewThreadNode}
-              className="p-1 rounded-full border border-purple-500 text-purple-500 hover:bg-purple-550/10 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* DESKTOP COMPOSER VIEW (Original Wizard and Stages) */}
-      <div {...rootProps} className="hidden md:flex flex-col bg-card rounded-2xl w-full overflow-hidden text-card-foreground">
-        <input {...getInputProps()} />
-
-        {/* DRAFT NOTIFICATION BANNER */}
-        {showDraftBanner && (
-          <div className="flex items-center justify-between bg-primary/10 border-b border-primary/20 px-6 py-2.5 text-sm">
-            <div className="flex items-center gap-2 text-primary font-medium">
-              <Info className="size-4" />
-              <span>You have an unsaved draft. Resume working on it?</span>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" className="h-8 text-xs font-semibold" onClick={discardDraft}>
-                Discard
-              </Button>
-              <Button size="sm" className="h-8 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/95" onClick={resumeDraft}>
-                Resume Draft
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* LOADING OVERLAY */}
-        {(isProcessingAndSubmitting || mutation.isPending) && (
-          <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
-            <Loader2 className="size-12 animate-spin text-primary" />
-            <span className="text-lg font-bold tracking-wide">Processing and uploading media assets...</span>
-          </div>
-        )}
-
-        {/* STAGE 1: COMPOSE VIEW */}
-        {stage === 1 && (
-          <div className="flex flex-col p-5 gap-5 min-h-[450px]">
-            {/* User Row + Textarea */}
-            <div className="flex gap-4 items-start flex-grow">
-              <UserAvatar avatarUrl={user.avatarUrl} className="hidden sm:inline-block size-10" />
-              <div className="flex-grow relative">
-                <EditorContent
-                  editor={editor}
-                  className="w-full min-h-[140px] max-h-[250px] overflow-y-auto outline-none border-0 text-lg bg-transparent border-transparent focus:ring-0 focus:border-transparent placeholder:text-muted-foreground"
+            {activePanel === "emoji" && (
+              <div className="p-2 border-t border-zinc-900 bg-black flex flex-col items-center flex-shrink-0 animate-slide-up">
+                <EmojiPickerPanel
+                  onEmojiSelect={(emoji) => {
+                    const text = threads[activeThreadIndex].text;
+                    updateThreadText(activeThreadIndex, text + emoji);
+                    setActivePanel(null);
+                  }}
                 />
-
-                {/* AUTOCOMPLETE FLOATING OVERLAY */}
-                {autocomplete && (autocomplete.users.length > 0 || autocomplete.tags.length > 0) && (
-                  <div className="absolute left-0 top-full mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
-                    {autocomplete.trigger === "@" &&
-                      autocomplete.users.map((u) => (
-                        <button
-                          key={u.id}
-                          onClick={() => selectAutocomplete(u.username)}
-                          className="flex items-center gap-3 w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white"
-                        >
-                          <UserAvatar avatarUrl={u.avatarUrl} size={24} />
-                          <div className="flex flex-col">
-                            <span className="font-bold">{u.username}</span>
-                            <span className="text-xs text-neutral-400">{u.displayName}</span>
-                          </div>
-                        </button>
-                      ))}
-                    {autocomplete.trigger === "#" &&
-                      autocomplete.tags.map((tag) => (
-                        <button
-                          key={tag}
-                          onClick={() => selectAutocomplete(tag)}
-                          className="w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white font-semibold"
-                        >
-                          #{tag}
-                        </button>
-                      ))}
-                  </div>
-                )}
               </div>
-            </div>
+            )}
 
-            {/* DOCK CAROUSEL PREVIEW ROW */}
-            {attachments.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto py-2 border-t border-border/20">
-                {attachments.map((att, idx) => {
-                  const src = URL.createObjectURL(att.file);
-                  const isVideo = att.file.type.startsWith("video");
-                  const adj = getAdjustment(att.file.name);
-                  const filterStr = getFilterString(adj.filter, adj);
+            {activePanel === "location" && (
+              <LocationPickerSheet
+                onClose={() => setActivePanel(null)}
+                onSelectLocation={(loc) => setSelectedLocation(loc)}
+                selectedLocationName={selectedLocation?.name}
+                onClearLocation={() => setSelectedLocation(null)}
+              />
+            )}
 
-                  return (
-                    <div key={idx} className="relative size-20 rounded-xl overflow-hidden flex-shrink-0 group bg-neutral-950 border border-neutral-800">
-                      {isVideo ? (
-                        <video src={src} className="w-full h-full object-cover" muted />
-                      ) : (
-                        <img
-                          src={src}
-                          alt="attachment"
-                          style={{ filter: filterStr }}
-                          className="w-full h-full object-cover"
-                        />
+            {activePanel === "background" && (
+              <div className="p-4 border-t border-zinc-900 bg-black flex-shrink-0 flex flex-col gap-2 animate-slide-up">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-1">Choose Background</span>
+                <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none">
+                  <button
+                    onClick={() => setSelectedBackgroundId(null)}
+                    className={cn(
+                      "size-8 rounded-full border-2 bg-neutral-900 flex-shrink-0",
+                      !selectedBackgroundId ? "border-sky-500" : "border-transparent"
+                    )}
+                  />
+                  {systemBackgrounds.map((bg) => (
+                    <button
+                      key={bg.id}
+                      onClick={() => setSelectedBackgroundId(bg.id)}
+                      style={{ background: bg.style }}
+                      className={cn(
+                        "size-8 rounded-full border-2 flex-shrink-0",
+                        selectedBackgroundId === bg.id ? "border-sky-500" : "border-transparent"
                       )}
-
-                      {/* Left/Right Reordering Controls */}
-                      <div className="absolute inset-x-0 bottom-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-between p-0.5 transition-opacity">
-                        <button
-                          onClick={() => moveAttachment(idx, "left")}
-                          disabled={idx === 0}
-                          className="disabled:opacity-30 text-white"
-                        >
-                          <ArrowLeft className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveMediaIndex(idx);
-                            setStage(2);
-                          }}
-                          className="text-white text-[10px] font-bold px-1 hover:text-primary transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => moveAttachment(idx, "right")}
-                          disabled={idx === attachments.length - 1}
-                          className="disabled:opacity-30 text-white"
-                        >
-                          <ArrowRight className="size-4" />
-                        </button>
-                      </div>
-
-                      {/* Delete item */}
-                      <button
-                        onClick={() => removeAttachment(att.file.name)}
-                        className="absolute right-1 top-1 bg-black/80 hover:bg-black text-white rounded-full p-0.5"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* POLL BUILDER MATRIX */}
-            {hasPoll && (
-              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3 relative">
-                <button onClick={() => setHasPoll(false)} className="absolute right-3 top-3 text-neutral-500 hover:text-white">
-                  <X className="size-4" />
-                </button>
-                <span className="text-xs font-bold text-neutral-400 tracking-wide uppercase">Poll Builder</span>
-                
-                <div className="flex flex-col gap-2">
-                  {pollChoices.map((choice, index) => (
-                    <div key={index} className="relative flex items-center">
-                      <input
-                        type="text"
-                        placeholder={`Choice ${index + 1}`}
-                        maxLength={25}
-                        value={choice}
-                        onChange={(e) => {
-                          const newChoices = [...pollChoices];
-                          newChoices[index] = e.target.value;
-                          setPollChoices(newChoices);
-                        }}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-2 px-3 pr-16 text-sm text-white focus:outline-none placeholder:text-neutral-600"
-                      />
-                      <span className="absolute right-3 text-xs text-neutral-500">
-                        {choice.length}/25
-                      </span>
-                    </div>
-                  ))}
-
-                  {pollChoices.length < 4 && (
-                    <button
-                      onClick={() => setPollChoices([...pollChoices, ""])}
-                      className="flex items-center gap-2 text-xs font-bold text-primary self-start hover:underline mt-1"
-                    >
-                      <Plus className="size-3.5" />
-                      Add Option
-                    </button>
-                  )}
-                </div>
-
-                {/* Poll Duration Dropdowns */}
-                <div className="border-t border-neutral-800 pt-3 mt-1 flex flex-col gap-2">
-                  <span className="text-xs text-neutral-500 font-semibold">Poll Length</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-neutral-600 uppercase font-bold">Days</label>
-                      <select
-                        value={pollDays}
-                        onChange={(e) => setPollDays(parseInt(e.target.value))}
-                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
-                      >
-                        {Array.from({ length: 8 }, (_, i) => (
-                          <option key={i} value={i}>{i} d</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-neutral-600 uppercase font-bold">Hours</label>
-                      <select
-                        value={pollHours}
-                        onChange={(e) => setPollHours(parseInt(e.target.value))}
-                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
-                      >
-                        {Array.from({ length: 24 }, (_, i) => (
-                          <option key={i} value={i}>{i} h</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-neutral-600 uppercase font-bold">Minutes</label>
-                      <select
-                        value={pollMinutes}
-                        onChange={(e) => setPollMinutes(parseInt(e.target.value))}
-                        className="bg-neutral-900 border border-neutral-800 rounded-lg p-1.5 text-xs text-white"
-                      >
-                        {Array.from({ length: 60 }, (_, i) => (
-                          <option key={i} value={i}>{i} m</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* AI CAPTION FLOATING PREVIEWS */}
-            {showAiCaptionPanel && (
-              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">AI Caption Assistant</span>
-                  <button onClick={() => setShowAiCaptionPanel(false)} className="text-neutral-500 hover:text-white">
-                    <X className="size-4" />
-                  </button>
-                </div>
-
-                {/* Tone Buttons */}
-                <div className="flex flex-wrap gap-2">
-                  {["Professional", "Funny", "Viral", "Startup", "Travel"].map((tone) => (
-                    <button
-                      key={tone}
-                      onClick={() => generateAICaptions(tone)}
-                      className="px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-full text-xs hover:border-primary transition-colors text-white"
-                    >
-                      ✨ {tone}
-                    </button>
+                    />
                   ))}
                 </div>
-
-                {aiLoading && (
-                  <div className="flex items-center gap-2 text-xs text-neutral-500 mt-2">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    Generating creative copies...
-                  </div>
-                )}
-
-                {aiCaptions.length > 0 && (
-                  <div className="flex flex-col gap-2 mt-2">
-                    {aiCaptions.map((caption, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          editor?.commands.setContent(caption);
-                          setShowAiCaptionPanel(false);
-                        }}
-                        className="p-3 bg-neutral-900/60 border border-neutral-850 hover:border-primary hover:bg-neutral-900 rounded-xl text-xs text-neutral-200 cursor-pointer transition-all"
-                      >
-                        {caption}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* DOCK BAR CONTROLS */}
-            <div className="flex justify-between items-center border-t border-border/20 pt-4 mt-auto">
-              <div className="flex items-center gap-3">
-                {/* Add Media */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary hover:bg-accent"
-                  disabled={isUploading || attachments.length >= 10}
+            <div className="sticky bottom-0 bg-black border-t border-zinc-900 px-4 py-2 flex justify-between items-center flex-shrink-0 z-30">
+              <div className="flex gap-3 items-center">
+                <button
                   onClick={() => fileInputRef.current?.click()}
+                  className="p-3 text-purple-500 hover:text-purple-400 hover:bg-neutral-900 rounded-full transition-colors flex items-center justify-center"
+                  style={{ minWidth: "48px", minHeight: "48px" }}
                 >
-                  <LucideImage size={20} />
-                </Button>
+                  <LucideImage size={26} />
+                </button>
                 <input
                   type="file"
                   accept="image/*, video/*"
@@ -1303,126 +1097,89 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     }
                   }}
                 />
-
-                {/* GIF Search trigger */}
-                <div className="relative">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-primary hover:text-primary hover:bg-accent"
-                    onClick={() => setShowGifPicker(!showGifPicker)}
-                  >
-                    <span className="text-[10px] font-bold border-2 border-primary rounded-md px-0.5 leading-none">GIF</span>
-                  </Button>
-                  {showGifPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 w-80 z-50">
-                      <GifPicker onSelect={addGiphyAttachment} onClose={() => setShowGifPicker(false)} />
-                    </div>
+                <button
+                  onClick={() => setActivePanel(activePanel === "gif" ? null : "gif")}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    activePanel === "gif" ? "text-sky-400 bg-neutral-900" : "text-purple-500 hover:text-purple-400"
                   )}
-                </div>
-
-                {/* Poll trigger */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary hover:bg-accent"
-                  onClick={() => setHasPoll(!hasPoll)}
+                  style={{ minWidth: "48px", minHeight: "48px" }}
                 >
-                  <span className="text-xs font-bold leading-none">📊</span>
-                </Button>
-
-                {/* AI Assistant trigger */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary hover:bg-accent"
-                  onClick={() => setShowAiCaptionPanel(!showAiCaptionPanel)}
+                  <LucideGif size={26} />
+                </button>
+                <button
+                  onClick={() => togglePollForNode(activeThreadIndex)}
+                  className="p-3 text-purple-500 hover:text-purple-400 hover:bg-neutral-900 rounded-full transition-colors flex items-center justify-center"
+                  style={{ minWidth: "48px", minHeight: "48px" }}
                 >
-                  <Sparkles size={18} />
-                </Button>
-
-                {/* Emoji Picker trigger */}
-                <div className="relative">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-primary hover:text-primary hover:bg-accent"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  >
-                    <Smile size={20} />
-                  </Button>
-                  {showEmojiPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 z-50">
-                      <EmojiPickerPanel
-                        onEmojiSelect={(emoji) => {
-                          editor?.commands.insertContent(emoji);
-                          setShowEmojiPicker(false);
-                        }}
-                      />
-                    </div>
+                  <LucidePoll size={26} />
+                </button>
+                <button
+                  onClick={() => setActivePanel(activePanel === "location" ? null : "location")}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    activePanel === "location" ? "text-sky-400 bg-neutral-900" : "text-purple-500 hover:text-purple-400"
                   )}
-                </div>
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <LucideLocation size={26} />
+                </button>
+                <button
+                  onClick={() => setActivePanel(activePanel === "background" ? null : "background")}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    activePanel === "background" ? "text-sky-400 bg-neutral-900" : "text-purple-500 hover:text-purple-400"
+                  )}
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <ImageIcon size={26} />
+                </button>
               </div>
 
-              {/* character count SVGs & navigation */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  {charCount > characterLimit - 200 && (
-                    <span className={cn("text-xs font-semibold", charCount > characterLimit ? "text-destructive" : "text-neutral-500")}>
-                      {characterLimit - charCount}
-                    </span>
-                  )}
-                  {/* SVG Character Ring */}
-                  <svg className="size-6 transform -rotate-90">
-                    <circle cx="12" cy="12" r="8" className="stroke-neutral-800 fill-none" strokeWidth="1.5" />
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="8"
-                      className={cn(
-                        "fill-none transition-all duration-300",
-                        charCount > characterLimit ? "stroke-destructive" : charCount > characterLimit - 200 ? "stroke-yellow-500" : "stroke-primary"
-                      )}
-                      strokeWidth="1.5"
-                      strokeDasharray={2 * Math.PI * 8}
-                      strokeDashoffset={2 * Math.PI * 8 * (1 - percentage / 100)}
-                    />
-                  </svg>
-                </div>
-
-                {/* NEXT / SHARE NAVIGATION */}
-                {attachments.length > 0 ? (
-                  <Button
-                    onClick={() => {
-                      setActiveMediaIndex(0);
-                      setStage(2);
-                    }}
-                    disabled={isUploading}
-                    className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
-                  >
-                    Next
-                  </Button>
-                ) : (
-                  <LoadingButton
-                    onClick={handlePublish}
-                    loading={mutation.isPending}
-                    disabled={!input.trim() || isUploading}
-                    className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
-                  >
-                    Post
-                  </LoadingButton>
+              <div className="flex items-center gap-3">
+                {activeNodeCharCount > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <svg className="size-5 transform -rotate-90">
+                      <circle cx="10" cy="10" r="7" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
+                      <circle
+                        cx="10"
+                        cy="10"
+                        r="7"
+                        className={cn(
+                          "fill-none transition-all duration-300",
+                          activeNodeCharCount > characterLimit ? "stroke-destructive" : "stroke-purple-500"
+                        )}
+                        strokeWidth="1.5"
+                        strokeDasharray={2 * Math.PI * 7}
+                        strokeDashoffset={2 * Math.PI * 7 * (1 - activeNodePercentage / 100)}
+                      />
+                    </svg>
+                  </div>
                 )}
+                <button onClick={addNewThreadNode} className="p-1 rounded-full border border-purple-500 text-purple-500 hover:bg-purple-550/10 transition-colors">
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          </div>
+          </>
         )}
 
-        {/* STAGE 2: FILTER & ADJUSTMENTS EDITOR VIEW */}
+        {/* Stage 2: Mobile edit/filters fullscreen with swipeable strip & bottom adjustments */}
         {stage === 2 && (
-          <div className="flex flex-col md:flex-row h-[550px] w-full bg-black">
-            {/* LEFT IMAGE / CROP CONTAINER */}
-            <div className="flex-1 relative h-[300px] md:h-full bg-neutral-950 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
-              {/* EASY-CROP ELEMENT */}
+          <div className="fixed inset-0 bg-black flex flex-col justify-between z-50">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-900 bg-black">
+              <button onClick={() => setStage(1)} className="p-2 hover:bg-neutral-900 rounded-full">
+                <ArrowLeft className="size-6 text-white" />
+              </button>
+              <span className="font-bold text-sm">Filter & Adjust</span>
+              <button onClick={() => setStage(3)} className="bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-full px-4 py-1 text-xs">
+                Next
+              </button>
+            </div>
+
+            {/* Media preview stage */}
+            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
               {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") ? (
                 <div className="absolute inset-0">
                   <Cropper
@@ -1431,20 +1188,18 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     zoom={activeAdj.zoom}
                     rotation={activeAdj.rotation}
                     aspect={activeAdj.aspect}
-                    onCropChange={(crop) => updateAdjustment(activeFile, { crop })}
-                    onZoomChange={(zoom) => updateAdjustment(activeFile, { zoom })}
-                    onCropComplete={(_, croppedAreaPixels) => updateAdjustment(activeFile, { croppedAreaPixels })}
+                    onCropChange={(c) => updateAdjustment(activeFile, { crop: c })}
+                    onZoomChange={(z) => updateAdjustment(activeFile, { zoom: z })}
+                    onCropComplete={(_, px) => updateAdjustment(activeFile, { croppedAreaPixels: px })}
                     style={{
                       containerStyle: { background: "#000" },
                       mediaStyle: { filter: getFilterString(activeAdj.filter, activeAdj) }
                     }}
                   />
-
-                  {/* VIGNETTE OVERLAY PREVIEW */}
                   {activeAdj.vignette > 0 && (
                     <div
                       style={{
-                        background: `radial-gradient(circle, transparent 45%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
+                        background: `radial-gradient(circle, transparent 40%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
                       }}
                       className="absolute inset-0 pointer-events-none z-10"
                     />
@@ -1453,236 +1208,824 @@ export default function PostEditor({ onClose }: PostEditorProps) {
               ) : (
                 <VideoPlayer src={activeSrc} />
               )}
-
-              {/* ASPECT RATIO PANELS QUICK BUTTON */}
-              {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
-                <div className="absolute bottom-3 left-3 bg-neutral-900/90 text-white rounded-lg p-1.5 z-20 flex gap-2 border border-neutral-850">
-                  {[
-                    { label: "1:1", ratio: 1 },
-                    { label: "4:5", ratio: 4 / 5 },
-                    { label: "16:9", ratio: 16 / 9 },
-                    { label: "9:16", ratio: 9 / 16 }
-                  ].map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => updateAdjustment(activeFile, { aspect: item.ratio })}
-                      className={cn(
-                        "px-2 py-0.5 text-[10px] font-bold rounded hover:bg-neutral-800 transition-colors",
-                        activeAdj.aspect === item.ratio ? "bg-primary text-primary-foreground" : "text-neutral-300"
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* ROTATION BUTTON */}
-              {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
-                <button
-                  onClick={() => updateAdjustment(activeFile, { rotation: (activeAdj.rotation + 90) % 360 })}
-                  className="absolute bottom-3 right-3 bg-neutral-900/90 hover:bg-neutral-800 text-white p-2 rounded-lg z-20 border border-neutral-850 transition-colors"
-                >
-                  <RotateCw className="size-4" />
-                </button>
-              )}
-
-              {/* Back arrow */}
-              <button onClick={() => setStage(1)} className="absolute top-4 left-4 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-20 transition-all">
-                <ArrowLeft className="size-5" />
-              </button>
             </div>
 
-            {/* RIGHT EDIT TAB CONTROLS PANEL */}
-            <div className="w-full md:w-[350px] h-[250px] md:h-full bg-neutral-950 flex flex-col text-white">
-              {/* EDITING COMPONENT TABS SELECTOR */}
-              <div className="flex border-b border-neutral-900 bg-neutral-950 p-2 gap-2">
+            {/* Adjustments bottom panel drawer on mobile */}
+            {mobileAdjustPanelOpen && (
+              <div className="bg-neutral-950 border-t border-neutral-900 p-4 space-y-4 max-h-[350px] overflow-y-auto z-45 animate-slide-up">
+                <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-2">
+                  <span className="text-xs font-bold text-neutral-400 tracking-wider">ADJUSTMENTS</span>
+                  <button onClick={() => setMobileAdjustPanelOpen(false)} className="text-xs text-sky-500 font-bold">
+                    Done
+                  </button>
+                </div>
+                {/* Sliders list */}
+                {Object.keys(adjustments).map((key) => {
+                  const val = (activeAdj as any)[key] ?? 0;
+                  const isMultiplier = key === "brightness" || key === "contrast" || key === "saturation";
+                  const minVal = isMultiplier ? 0.5 : key === "warmth" || key === "highlights" || key === "shadows" ? -50 : key === "exposure" ? -1 : 0;
+                  const maxVal = isMultiplier ? 1.5 : key === "warmth" || key === "highlights" || key === "shadows" ? 50 : 1;
+                  const stepVal = isMultiplier || key === "exposure" ? 0.05 : 1;
+
+                  return (
+                    <div key={key} className="flex flex-col gap-1">
+                      <div className="flex justify-between text-xs text-neutral-400 font-bold capitalize">
+                        <span>{key}</span>
+                        <span>{isMultiplier ? `${Math.round(val * 100)}%` : val}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={minVal}
+                        max={maxVal}
+                        step={stepVal}
+                        value={val}
+                        onChange={(e) => updateAdjustment(activeFile, { [key]: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Bottom Swipeable Filters Strip & Adjust controls trigger */}
+            <div className="bg-neutral-950 border-t border-zinc-900 p-3 flex flex-col gap-3 flex-shrink-0 z-30">
+              <div className="flex gap-2 items-center overflow-x-auto py-1 scrollbar-none">
+                {filterPresets.map((preset) => (
+                  <FilterThumbnail
+                    key={preset.name}
+                    imageSrc={isVideo ? "/cartly-logo.webp" : activeSrc}
+                    filterName={preset.name}
+                    isActive={activeAdj.filter === preset.name}
+                    onClick={() => updateAdjustment(activeFile, { filter: preset.name })}
+                  />
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center border-t border-neutral-900 pt-2 px-1">
+                <span className="text-xs font-bold text-neutral-400">Filters</span>
                 <button
-                  onClick={() => setEditTab("filters")}
-                  className={cn(
-                    "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
-                    editTab === "filters" ? "bg-neutral-900 text-white font-bold" : "text-neutral-400 hover:text-white"
-                  )}
+                  onClick={() => setMobileAdjustPanelOpen(true)}
+                  className="flex items-center gap-1 bg-neutral-900 text-white rounded-full px-3 py-1 text-xs font-bold border border-neutral-800"
                 >
-                  Filters
+                  <Sliders className="size-3.5" /> Adjust
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stage 3: Mobile metadata share */}
+        {stage === 3 && (
+          <div className="fixed inset-0 bg-neutral-950 flex flex-col justify-between z-50">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-900 bg-neutral-950">
+              <button onClick={() => setStage(2)} className="p-2 hover:bg-neutral-900 rounded-full">
+                <ArrowLeft className="size-6 text-white" />
+              </button>
+              <span className="font-bold text-sm">Share parameters</span>
+              <LoadingButton
+                onClick={handlePublish}
+                loading={mutation.isPending || isProcessingAndSubmitting}
+                className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold rounded-full px-5 py-1 text-xs"
+              >
+                Share
+              </LoadingButton>
+            </div>
+
+            {/* Parameters list scroll */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-none text-white">
+              {/* Location Picker trigger */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-neutral-450 uppercase flex items-center gap-1.5">
+                  <LucideLocation className="size-4 text-sky-500" /> Location
+                </label>
                 <button
-                  onClick={() => setEditTab("adjustments")}
-                  className={cn(
-                    "flex-1 py-2 text-sm font-semibold rounded-lg transition-all",
-                    editTab === "adjustments" ? "bg-neutral-900 text-white font-bold" : "text-neutral-400 hover:text-white"
-                  )}
+                  onClick={() => setActivePanel("location")}
+                  className="w-full bg-neutral-900 border border-neutral-850 hover:border-neutral-700 text-left rounded-xl p-3 text-xs text-white truncate"
                 >
-                  Adjustments
+                  {selectedLocation ? selectedLocation.name : "Add location..."}
                 </button>
               </div>
 
-              {/* TAB CONTENT */}
-              <div className="flex-grow overflow-y-auto p-4 scrollbar-none">
-                {editTab === "filters" && activeFile && (
-                  <div className="grid grid-cols-3 gap-3">
-                    {filterPresets.map((preset) => {
-                      const presetFilter = preset.filter;
-                      return (
+              {/* Collaborators selection */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-neutral-450 uppercase flex items-center gap-1.5">
+                  <Users className="size-4 text-sky-500" /> Collaborators
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search username to collaborate..."
+                  value={collabQuery}
+                  onChange={(e) => setCollabQuery(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-850 rounded-xl p-3 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
+                />
+                {collabUsers.length > 0 && (
+                  <div className="bg-neutral-900 border border-neutral-850 rounded-xl shadow-2xl z-40 max-h-32 overflow-y-auto">
+                    {collabUsers
+                      .filter((u) => !collaborators.includes(u.username))
+                      .map((u) => (
                         <div
-                          key={preset.name}
-                          onClick={() => updateAdjustment(activeFile, { filter: preset.name })}
-                          className={cn(
-                            "flex flex-col gap-1 items-center cursor-pointer rounded-xl overflow-hidden p-1.5 border border-transparent hover:bg-neutral-900 transition-all",
-                            activeAdj.filter === preset.name ? "border-primary bg-neutral-900" : ""
-                          )}
+                          key={u.id}
+                          onClick={() => {
+                            setCollaborators([...collaborators, u.username]);
+                            setCollabQuery("");
+                            setCollabUsers([]);
+                          }}
+                          className="flex items-center gap-2.5 p-2 hover:bg-neutral-850 cursor-pointer text-xs"
                         >
-                          <div className="w-full aspect-square rounded-lg overflow-hidden relative bg-neutral-900">
-                            <img
-                              src={activeSrc}
-                              alt={preset.name}
-                              style={{ filter: presetFilter }}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <span className="text-[10px] font-bold text-neutral-300">{preset.name}</span>
+                          <UserAvatar avatarUrl={u.avatarUrl} size={18} />
+                          <span className="font-bold">{u.username}</span>
                         </div>
-                      );
-                    })}
+                      ))}
                   </div>
                 )}
-
-                {editTab === "adjustments" && activeFile && (
-                  <div className="flex flex-col gap-4">
-                    {/* Brightness */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                        <span>Brightness</span>
-                        <span>{Math.round(activeAdj.brightness * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="1.5"
-                        step="0.05"
-                        value={activeAdj.brightness}
-                        onChange={(e) => updateAdjustment(activeFile, { brightness: parseFloat(e.target.value) })}
-                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
-
-                    {/* Contrast */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                        <span>Contrast</span>
-                        <span>{Math.round(activeAdj.contrast * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="1.5"
-                        step="0.05"
-                        value={activeAdj.contrast}
-                        onChange={(e) => updateAdjustment(activeFile, { contrast: parseFloat(e.target.value) })}
-                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
-
-                    {/* Saturation */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                        <span>Saturation</span>
-                        <span>{Math.round(activeAdj.saturation * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="2"
-                        step="0.05"
-                        value={activeAdj.saturation}
-                        onChange={(e) => updateAdjustment(activeFile, { saturation: parseFloat(e.target.value) })}
-                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
-
-                    {/* Temperature */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                        <span>Temperature</span>
-                        <span>{activeAdj.temperature > 0 ? `+${activeAdj.temperature}` : activeAdj.temperature}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="-50"
-                        max="50"
-                        step="1"
-                        value={activeAdj.temperature}
-                        onChange={(e) => updateAdjustment(activeFile, { temperature: parseInt(e.target.value) })}
-                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
-
-                    {/* Fade */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                        <span>Fade</span>
-                        <span>{activeAdj.fade}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={activeAdj.fade}
-                        onChange={(e) => updateAdjustment(activeFile, { fade: parseInt(e.target.value) })}
-                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
-
-                    {/* Vignette */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex justify-between text-xs font-semibold text-neutral-400">
-                        <span>Vignette</span>
-                        <span>{Math.round(activeAdj.vignette * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={activeAdj.vignette}
-                        onChange={(e) => updateAdjustment(activeFile, { vignette: parseFloat(e.target.value) })}
-                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
+                {collaborators.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {collaborators.map((name) => (
+                      <span
+                        key={name}
+                        onClick={() => setCollaborators(collaborators.filter((c) => c !== name))}
+                        className="bg-neutral-800 hover:bg-destructive text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5 cursor-pointer animate-fade-in"
+                      >
+                        @{name}
+                        <X className="size-3" />
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* Stage 2 Footer: active Carousel selections and Next button */}
-              <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between">
-                <div className="flex gap-1.5 overflow-x-auto max-w-[150px]">
+              {/* Tagging section */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-neutral-450 uppercase flex items-center gap-1.5">
+                  👤 Tag People
+                </span>
+                <span className="text-[10px] text-neutral-500 px-1 leading-relaxed">
+                  Click on the image stage on the left to add username tag points.
+                </span>
+              </div>
+
+              {/* Alt Text */}
+              <div className="border-t border-neutral-900 pt-3 flex flex-col gap-2">
+                <span className="text-xs font-bold text-neutral-450 uppercase">Accessibility alt text</span>
+                <textarea
+                  placeholder="Write description description for accessibility..."
+                  value={altText}
+                  onChange={(e) => setAltText(e.target.value)}
+                  className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none placeholder:text-neutral-600 h-16 resize-none"
+                />
+              </div>
+
+              {/* Comments & Likes settings */}
+              <div className="border-t border-neutral-900 pt-3 flex flex-col gap-3">
+                <span className="text-xs font-bold text-neutral-450 uppercase">Advanced Configuration</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
+                    <MessageSquare className="size-3.5" /> Comments
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={disableComments}
+                    onChange={(e) => setDisableComments(e.target.checked)}
+                    className="accent-primary rounded size-4 bg-neutral-900 border-neutral-800"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
+                    <Heart className="size-3.5" /> Hide Likes
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={hideLikes}
+                    onChange={(e) => setHideLikes(e.target.checked)}
+                    className="accent-primary rounded size-4 bg-neutral-900 border-neutral-800"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {activePanel === "location" && (
+              <LocationPickerSheet
+                onClose={() => setActivePanel(null)}
+                onSelectLocation={(loc) => setSelectedLocation(loc)}
+                selectedLocationName={selectedLocation?.name}
+                onClearLocation={() => setSelectedLocation(null)}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* DESKTOP COMPOSER VIEW */}
+      <div {...rootProps} className="hidden md:flex flex-col bg-card rounded-3xl w-full max-w-[720px] mx-auto overflow-hidden text-card-foreground shadow-2xl border border-border/40 select-none">
+        <input {...getInputProps()} />
+
+        {showDraftBanner && (
+          <div className="flex items-center justify-between bg-primary/10 border-b border-primary/20 px-6 py-2.5 text-sm">
+            <div className="flex items-center gap-2 text-primary font-medium">
+              <Sparkles className="size-4" />
+              <span>You have an unsaved draft. Resume working on it?</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" className="h-8 text-xs font-semibold" onClick={discardDraft}>
+                Discard
+              </Button>
+              <Button size="sm" className="h-8 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/95" onClick={resumeDraft}>
+                Resume Draft
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {(isProcessingAndSubmitting || mutation.isPending) && (
+          <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
+            <Loader2 className="size-12 animate-spin text-primary" />
+            <span className="text-lg font-bold tracking-wide">Processing and uploading media assets...</span>
+          </div>
+        )}
+        {/* STAGE 1: COMPOSE VIEW (Dynamic Height Layout) */}
+        {stage === 1 && (
+          <div className="flex flex-col w-full">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-border/40 bg-card">
+              <h3 className="font-bold text-lg">Create Post</h3>
+              {onClose && (
+                <button onClick={onClose} className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
+                  <X className="size-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="p-6 flex flex-col gap-4 max-h-[380px] overflow-y-auto min-h-[140px] bg-card">
+              {threads.map((node, idx) => {
+                const isActive = activeThreadIndex === idx;
+                const bgGrad = selectedBackgroundId && idx === 0 ? systemBackgrounds.find((b) => b.id === selectedBackgroundId) : null;
+                return (
+                  <div
+                    key={node.id}
+                    onClick={() => setActiveThreadIndex(idx)}
+                    className={cn(
+                      "relative flex gap-4 items-start transition-opacity",
+                      !isActive && "opacity-60"
+                    )}
+                  >
+                    <div className="flex flex-col items-center flex-shrink-0 relative self-stretch">
+                      <UserAvatar avatarUrl={user.avatarUrl} className="size-10 z-10 bg-card border border-border/40" />
+                      {idx < threads.length - 1 && (
+                        <div className="w-0.5 bg-border absolute top-10 bottom-[-16px] left-1/2 -translate-x-1/2 z-0" />
+                      )}
+                    </div>
+
+                    <div className="flex-grow min-w-0 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-foreground">{user.displayName}</span>
+                          <span className="text-xs text-muted-foreground">@{user.username}</span>
+                        </div>
+                        {threads.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeThreadNode(idx);
+                            }}
+                            className="text-muted-foreground hover:text-foreground p-1 transition-colors"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div
+                        style={{ background: bgGrad?.style || "transparent", color: bgGrad?.text || "inherit" }}
+                        className={cn(
+                          "w-full rounded-2xl transition-all relative",
+                          bgGrad ? "p-6 text-center flex items-center justify-center min-h-[140px]" : "p-0"
+                        )}
+                      >
+                        <textarea
+                          value={node.text}
+                          onChange={(e) => handleTextareaChange(idx, e.target.value)}
+                          onInput={handleTextareaInput}
+                          placeholder={idx === 0 ? "What's happening?" : "Add another post..."}
+                          className={cn(
+                            "w-full bg-transparent border-none outline-none resize-none text-foreground focus:ring-0 focus-visible:ring-0 p-0 font-medium placeholder:text-muted-foreground",
+                            bgGrad ? "text-xl text-center font-bold placeholder:text-white/60 text-white" : "text-base min-h-[60px]"
+                          )}
+                          rows={2}
+                        />
+
+                        {isActive && autocomplete && (autocomplete.users.length > 0 || autocomplete.tags.length > 0) && (
+                          <div className="absolute left-0 top-full mt-2 w-64 bg-neutral-900 border border-neutral-850 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
+                            {autocomplete.trigger === "@" &&
+                              autocomplete.users.map((u) => (
+                                <button
+                                  key={u.id}
+                                  onClick={() => selectAutocomplete(u.username)}
+                                  className="flex items-center gap-3 w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white"
+                                >
+                                  <UserAvatar avatarUrl={u.avatarUrl} size={24} />
+                                  <div className="flex flex-col">
+                                    <span className="font-bold">{u.username}</span>
+                                    <span className="text-xs text-neutral-450">{u.displayName}</span>
+                                  </div>
+                                </button>
+                              ))}
+                            {autocomplete.trigger === "#" &&
+                              autocomplete.tags.map((tag) => (
+                                <button
+                                  key={tag}
+                                  onClick={() => selectAutocomplete(tag)}
+                                  className="w-full px-4 py-2 hover:bg-neutral-800 text-left text-sm text-white font-semibold"
+                                >
+                                  #{tag}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {node.poll && (
+                        <div className="bg-muted/30 border border-border/40 rounded-xl p-3 flex flex-col gap-2 relative max-w-sm">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removePollFromNode(idx); }}
+                            className="absolute right-2 top-2 text-muted-foreground hover:text-foreground p-1"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            {node.poll.options.map((option, oIdx) => (
+                              <input
+                                key={oIdx}
+                                type="text"
+                                placeholder={`Choice ${oIdx + 1}`}
+                                maxLength={25}
+                                value={option}
+                                onChange={(e) => {
+                                  const updated = [...threads];
+                                  if (updated[idx].poll) {
+                                    updated[idx].poll.options[oIdx] = e.target.value;
+                                    setThreads(updated);
+                                  }
+                                }}
+                                className="w-full bg-background border border-border rounded-lg py-1.5 px-3 pr-12 text-xs text-foreground focus:outline-none placeholder:text-muted-foreground/60"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {node.assets.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto py-1">
+                          {node.assets.map((asset, aIdx) => (
+                            <div key={aIdx} className="relative size-20 rounded-xl overflow-hidden shrink-0 border border-border bg-muted group">
+                              {asset.file.type.startsWith("video") ? (
+                                <video src={asset.previewUrl} className="w-full h-full object-cover" muted />
+                              ) : (
+                                <img src={asset.previewUrl} className="w-full h-full object-cover" alt="preview" />
+                              )}
+                              <div className="absolute inset-x-0 bottom-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center p-1 transition-opacity z-10">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveThreadIndex(idx);
+                                    setActiveMediaIndex(aIdx);
+                                    setStage(2);
+                                  }}
+                                  className="text-[9px] font-bold text-white bg-sky-500 px-2 py-0.5 rounded mx-auto"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updated = [...threads];
+                                  updated[idx].assets = updated[idx].assets.filter((_, attIdx) => attIdx !== aIdx);
+                                  setThreads(updated);
+                                  if (isActive) {
+                                    setAttachments(updated[idx].assets);
+                                  }
+                                }}
+                                className="absolute right-1 top-1 bg-black/80 text-white rounded-full p-0.5 z-20"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {activeThreadIndex === threads.length - 1 && (
+                <div
+                  onClick={addNewThreadNode}
+                  className="flex items-center gap-4 pl-14 py-1 text-primary hover:text-primary/80 text-sm font-semibold cursor-pointer select-none transition-colors"
+                >
+                  <span>Add another post</span>
+                </div>
+              )}
+            </div>
+
+            {activePanel === "gif" && (
+              <div className="px-6 pb-4">
+                <GifPicker onSelect={addGiphyAttachment} onClose={() => setActivePanel(null)} />
+              </div>
+            )}
+
+            {activePanel === "emoji" && (
+              <div className="px-6 pb-4 flex justify-start">
+                <EmojiPickerPanel
+                  onEmojiSelect={(em) => {
+                    const text = threads[activeThreadIndex]?.text || "";
+                    updateThreadText(activeThreadIndex, text + em);
+                    setActivePanel(null);
+                  }}
+                />
+              </div>
+            )}
+
+            {activePanel === "location" && (
+              <LocationPickerSheet
+                onClose={() => setActivePanel(null)}
+                onSelectLocation={(loc) => setSelectedLocation(loc)}
+                selectedLocationName={selectedLocation?.name}
+                onClearLocation={() => setSelectedLocation(null)}
+              />
+            )}
+
+            {activePanel === "background" && (
+              <div className="px-6 pb-4 flex flex-col gap-2">
+                <span className="text-[10px] font-bold text-neutral-455 uppercase tracking-widest">Post Background</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedBackgroundId(null)}
+                    className={cn("size-7 rounded-full border-2 bg-neutral-900", !selectedBackgroundId ? "border-sky-500" : "border-transparent")}
+                  />
+                  {systemBackgrounds.map((bg) => (
+                    <button
+                      key={bg.id}
+                      onClick={() => setSelectedBackgroundId(bg.id)}
+                      style={{ background: bg.style }}
+                      className={cn("size-7 rounded-full border-2", selectedBackgroundId === bg.id ? "border-sky-500" : "border-transparent")}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-border/40 p-4 bg-card flex justify-between items-center">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 text-primary hover:bg-accent rounded-full transition-colors flex items-center justify-center"
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <LucideImage size={24} />
+                </button>
+                <input
+                  type="file"
+                  accept="image/*, video/*"
+                  multiple
+                  ref={fileInputRef}
+                  className="sr-only hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length) {
+                      startUpload(files);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => setActivePanel(activePanel === "gif" ? null : "gif")}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    activePanel === "gif" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
+                  )}
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <LucideGif size={24} />
+                </button>
+                <button
+                  onClick={() => togglePollForNode(activeThreadIndex)}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    threads[activeThreadIndex]?.poll ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
+                  )}
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <LucidePoll size={24} />
+                </button>
+                <button
+                  onClick={() => setActivePanel(activePanel === "location" ? null : "location")}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    activePanel === "location" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
+                  )}
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <LucideLocation size={24} />
+                </button>
+                <button
+                  onClick={() => setActivePanel(activePanel === "background" ? null : "background")}
+                  className={cn(
+                    "p-3 rounded-full flex items-center justify-center transition-colors",
+                    activePanel === "background" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
+                  )}
+                  style={{ minWidth: "48px", minHeight: "48px" }}
+                >
+                  <ImageIcon size={24} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <svg className="size-6 transform -rotate-90">
+                    <circle cx="12" cy="12" r="8" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8"
+                      className={cn(
+                        "fill-none transition-all duration-300",
+                        charCount > characterLimit ? "stroke-destructive" : "stroke-primary"
+                      )}
+                      strokeWidth="1.5"
+                      strokeDasharray={2 * Math.PI * 8}
+                      strokeDashoffset={2 * Math.PI * 8 * (1 - percentage / 100)}
+                    />
+                  </svg>
+                </div>
+                <LoadingButton
+                  onClick={handlePublish}
+                  loading={mutation.isPending || isProcessingAndSubmitting}
+                  disabled={!threads[0]?.text.trim() || isUploading}
+                  className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2"
+                >
+                  {threads.length > 1 ? "Post all" : "Post"}
+                </LoadingButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STAGE 2: FILTER & ADJUSTMENTS EDITOR VIEW (Instagram split-layout resizable web design) */}
+        {stage === 2 && (
+          <div className="flex flex-col w-full h-[600px] bg-black">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-900 bg-neutral-950 flex-shrink-0 text-white">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setStage(1)} className="p-1 rounded-full hover:bg-neutral-900">
+                  <ArrowLeft className="size-5" />
+                </button>
+                <h3 className="font-bold text-base">Edit Media</h3>
+              </div>
+              <Button onClick={() => setStage(3)} className="bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-full px-5 py-1 text-xs">
+                Next
+              </Button>
+            </div>
+
+            <div className="flex flex-1 min-h-0 relative">
+              <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+                {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") ? (
+                  <div className="absolute inset-0">
+                    <Cropper
+                      image={activeSrc}
+                      crop={activeAdj.crop}
+                      zoom={activeAdj.zoom}
+                      rotation={activeAdj.rotation}
+                      aspect={activeAdj.aspect}
+                      onCropChange={(c) => updateAdjustment(activeFile, { crop: c })}
+                      onZoomChange={(z) => updateAdjustment(activeFile, { zoom: z })}
+                      onCropComplete={(_, px) => updateAdjustment(activeFile, { croppedAreaPixels: px })}
+                      style={{
+                        containerStyle: { background: "#000" },
+                        mediaStyle: { filter: getFilterString(activeAdj.filter, activeAdj) }
+                      }}
+                    />
+                    {activeAdj.vignette > 0 && (
+                      <div
+                        style={{
+                          background: `radial-gradient(circle, transparent 40%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
+                        }}
+                        className="absolute inset-0 pointer-events-none z-10"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <VideoPlayer src={activeSrc} />
+                )}
+
+                {activeFile && !attachments[activeMediaIndex].file.type.startsWith("video") && (
+                  <div className="absolute bottom-4 left-4 bg-neutral-900/90 rounded-xl p-1.5 z-20 flex gap-1 border border-neutral-800">
+                    {[
+                      { label: "1:1", ratio: 1 },
+                      { label: "4:5", ratio: 4 / 5 },
+                      { label: "16:9", ratio: 16 / 9 },
+                      { label: "9:16", ratio: 9 / 16 }
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => updateAdjustment(activeFile, { aspect: item.ratio })}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-lg transition-colors",
+                          activeAdj.aspect === item.ratio ? "bg-primary text-primary-foreground" : "text-neutral-300 hover:bg-neutral-800"
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Drag Resizer Line Handle */}
+              <div
+                onMouseDown={handleSidebarResize}
+                className="w-1.5 hover:w-2 active:w-2 cursor-col-resize bg-neutral-900 hover:bg-sky-500 active:bg-sky-500 transition-all self-stretch z-30 flex-shrink-0"
+              />
+
+              {/* Dynamic sidebar width adjustment */}
+              <div
+                style={{ width: `${sidebarWidth}px` }}
+                className="border-l border-neutral-900 bg-neutral-950 flex flex-col text-white flex-shrink-0"
+              >
+                <div className="flex border-b border-neutral-900 p-2 gap-2">
+                  <button
+                    onClick={() => setEditTab("filters")}
+                    className={cn(
+                      "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all",
+                      editTab === "filters" ? "bg-neutral-900 text-white shadow" : "text-neutral-450 hover:text-white"
+                    )}
+                  >
+                    Filters
+                  </button>
+                  <button
+                    onClick={() => setEditTab("adjustments")}
+                    className={cn(
+                      "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all",
+                      editTab === "adjustments" ? "bg-neutral-900 text-white shadow" : "text-neutral-450 hover:text-white"
+                    )}
+                  >
+                    Adjustments
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-none">
+                  {editTab === "filters" && activeFile && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {filterPresets.map((preset) => (
+                        <FilterThumbnail
+                          key={preset.name}
+                          imageSrc={isVideo ? "/cartly-logo.webp" : activeSrc}
+                          filterName={preset.name}
+                          isActive={activeAdj.filter === preset.name}
+                          onClick={() => updateAdjustment(activeFile, { filter: preset.name })}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {editTab === "adjustments" && activeFile && (
+                    <div className="space-y-4">
+                      {/* Exposure */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Exposure</span>
+                          <span>{activeAdj.exposure > 0 ? `+${activeAdj.exposure}` : activeAdj.exposure}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="-1"
+                          max="1"
+                          step="0.05"
+                          value={activeAdj.exposure}
+                          onChange={(e) => updateAdjustment(activeFile, { exposure: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      {/* Brightness */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Brightness</span>
+                          <span>{Math.round(activeAdj.brightness * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="1.5"
+                          step="0.05"
+                          value={activeAdj.brightness}
+                          onChange={(e) => updateAdjustment(activeFile, { brightness: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      {/* Contrast */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Contrast</span>
+                          <span>{Math.round(activeAdj.contrast * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="1.5"
+                          step="0.05"
+                          value={activeAdj.contrast}
+                          onChange={(e) => updateAdjustment(activeFile, { contrast: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      {/* Saturation */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Saturation</span>
+                          <span>{Math.round(activeAdj.saturation * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.05"
+                          value={activeAdj.saturation}
+                          onChange={(e) => updateAdjustment(activeFile, { saturation: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      {/* Warmth */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Warmth</span>
+                          <span>{activeAdj.warmth > 0 ? `+${activeAdj.warmth}` : activeAdj.warmth}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="-50"
+                          max="50"
+                          step="1"
+                          value={activeAdj.warmth}
+                          onChange={(e) => updateAdjustment(activeFile, { warmth: parseInt(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      {/* Vignette */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Vignette</span>
+                          <span>{Math.round(activeAdj.vignette * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={activeAdj.vignette}
+                          onChange={(e) => updateAdjustment(activeFile, { vignette: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      {/* Sharpen */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-xs font-semibold text-neutral-400">
+                          <span>Sharpen</span>
+                          <span>{Math.round(activeAdj.sharpen * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={activeAdj.sharpen}
+                          onChange={(e) => updateAdjustment(activeFile, { sharpen: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-neutral-900 p-3 bg-neutral-950 flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
                   {attachments.map((a, idx) => (
                     <div
                       key={idx}
                       onClick={() => setActiveMediaIndex(idx)}
                       className={cn(
-                        "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-950",
-                        activeMediaIndex === idx ? "border-primary" : "border-transparent"
+                        "size-10 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-900",
+                        activeMediaIndex === idx ? "border-sky-500" : "border-transparent"
                       )}
                     >
-                      <Image
-                        src={URL.createObjectURL(a.file)}
-                        alt="attachment preview"
-                        width={32}
-                        height={32}
-                        className="object-cover h-full w-full"
-                      />
+                      <Image src={a.previewUrl!} alt="mini-preview" width={40} height={40} className="object-cover h-full w-full" />
                     </div>
                   ))}
                 </div>
-
-                <Button
-                  onClick={() => setStage(3)}
-                  className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-5 py-2 rounded-lg"
-                >
-                  Next
-                </Button>
               </div>
             </div>
           </div>
@@ -1691,7 +2034,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         {/* STAGE 3: TAGGING, METADATA & CONFIGURATION VIEW */}
         {stage === 3 && (
           <div className="flex flex-col md:flex-row h-[550px] w-full bg-neutral-950 text-white">
-            {/* LEFT BLOCK: PREVIEW & INTERACTIVE TAGGING */}
             <div className="flex-1 relative h-[300px] md:h-full bg-neutral-950 flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
               {activeFile && (
                 <div onClick={handleTagClick} className="relative max-h-full max-w-full aspect-square md:aspect-auto h-full w-full flex items-center justify-center cursor-crosshair">
@@ -1706,17 +2048,15 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     <video src={activeSrc} className="max-h-full max-w-full object-contain pointer-events-none" muted />
                   )}
 
-                  {/* Vignette Preview overlay */}
                   {activeAdj.vignette > 0 && (
                     <div
                       style={{
-                        background: `radial-gradient(circle, transparent 45%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
+                        background: `radial-gradient(circle, transparent 40%, rgba(0,0,0,${activeAdj.vignette * 0.95}) 100%)`,
                       }}
                       className="absolute inset-0 pointer-events-none z-10"
                     />
                   )}
 
-                  {/* Tag markers rendering */}
                   {activeTags.map((tag, idx) => (
                     <div
                       key={idx}
@@ -1725,78 +2065,68 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                         removeTag(activeFile, idx);
                       }}
                       style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 bg-black/85 hover:bg-destructive hover:scale-102 border border-neutral-700 text-white px-2 py-0.5 rounded-full text-[10px] font-bold z-30 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
+                      className="absolute -translate-x-1/2 -translate-y-1/2 bg-black/85 border border-neutral-800 text-white px-2 py-0.5 rounded-full text-[10px] font-bold z-30 flex items-center gap-1.5 cursor-pointer shadow-lg"
                     >
                       <span>@{tag.username}</span>
-                      <X className="size-3 flex-shrink-0 opacity-60" />
+                      <X className="size-3" />
                     </div>
                   ))}
 
-                  {/* Tag Search Popover Form */}
                   {activeTagCoord && (
                     <div
                       onClick={(e) => e.stopPropagation()}
                       style={{ left: `${activeTagCoord.x}%`, top: `${activeTagCoord.y}%` }}
-                      className="absolute -translate-x-1/2 mt-3 bg-neutral-900 border border-neutral-850 p-2.5 rounded-xl shadow-2xl z-40 w-48 flex flex-col gap-1.5"
+                      className="absolute -translate-x-1/2 mt-3 bg-neutral-900 border border-neutral-850 p-2 rounded-xl shadow-2xl z-40 w-44 flex flex-col gap-1.5"
                     >
                       <input
                         type="text"
-                        placeholder="Search username..."
+                        placeholder="Tag username..."
                         value={tagQuery}
                         onChange={(e) => setTagQuery(e.target.value)}
-                        className="bg-neutral-950 border border-neutral-850 rounded-lg p-1.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 w-full"
+                        className="bg-neutral-950 border border-neutral-800 rounded-lg p-1.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 w-full"
                       />
                       <div className="max-h-24 overflow-y-auto flex flex-col gap-1">
                         {tagSearchUsers.map((u) => (
                           <div
                             key={u.id}
                             onClick={() => addTag(u.username)}
-                            className="flex items-center gap-2 p-1.5 hover:bg-neutral-800 rounded-lg cursor-pointer text-xs"
+                            className="flex items-center gap-2 p-1.5 hover:bg-neutral-850 rounded-lg cursor-pointer text-xs"
                           >
                             <UserAvatar avatarUrl={u.avatarUrl} size={18} />
                             <span className="font-bold truncate">{u.username}</span>
                           </div>
                         ))}
                       </div>
-                      <button
-                        onClick={() => setActiveTagCoord(null)}
-                        className="text-[10px] text-neutral-500 hover:text-white font-bold self-end mt-1"
-                      >
+                      <button onClick={() => setActiveTagCoord(null)} className="text-[9px] text-neutral-500 hover:text-white font-bold self-end">
                         Cancel
                       </button>
                     </div>
                   )}
                 </div>
               )}
-
-              {/* Back Arrow */}
               <button onClick={() => setStage(2)} className="absolute top-4 left-4 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-25 transition-all">
                 <ArrowLeft className="size-5" />
               </button>
             </div>
 
-            {/* RIGHT BLOCK: METADATA & CONFIGURATIONS SHARING FORM */}
-            <div className="w-full md:w-[350px] h-[250px] md:h-full bg-neutral-950 flex flex-col border-t md:border-t-0 border-neutral-900 text-white">
-              <div className="flex-grow overflow-y-auto p-4 scrollbar-none flex flex-col gap-4">
-                {/* Location Input */}
-                <div className="flex flex-col gap-1.5">
+            <div className="w-full md:w-[320px] h-[250px] md:h-full bg-neutral-950 flex flex-col border-t md:border-t-0 border-neutral-900 text-white flex-shrink-0">
+              <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-none">
+                <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
-                    <LucideLocation className="size-4 text-primary" />
+                    <LucideLocation className="size-4 text-sky-500" />
                     <span>Location</span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Add location (e.g. San Francisco, CA)"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
-                  />
+                  <button
+                    onClick={() => setActivePanel("location")}
+                    className="w-full bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-left rounded-xl p-2.5 text-xs text-white truncate"
+                  >
+                    {selectedLocation ? selectedLocation.name : "Add location..."}
+                  </button>
                 </div>
 
-                {/* Collaborators Input */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
-                    <Users className="size-4 text-primary" />
+                    <Users className="size-4 text-sky-500" />
                     <span>Collaborators</span>
                   </label>
                   <div className="relative">
@@ -1805,7 +2135,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                       placeholder="Search users to collaborate..."
                       value={collabQuery}
                       onChange={(e) => setCollabQuery(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 focus:border-neutral-700"
                     />
                     {collabUsers.length > 0 && (
                       <div className="absolute left-0 top-full mt-1.5 w-full bg-neutral-900 border border-neutral-850 rounded-xl shadow-2xl z-40 max-h-32 overflow-y-auto">
@@ -1829,12 +2159,12 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     )}
                   </div>
                   {collaborators.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    <div className="flex flex-wrap gap-1 mt-1">
                       {collaborators.map((name) => (
                         <span
                           key={name}
                           onClick={() => setCollaborators(collaborators.filter((c) => c !== name))}
-                          className="bg-neutral-800 hover:bg-destructive text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1.5 cursor-pointer"
+                          className="bg-neutral-800 hover:bg-destructive text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5 cursor-pointer animate-fade-in"
                         >
                           @{name}
                           <X className="size-3" />
@@ -1844,97 +2174,81 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                   )}
                 </div>
 
-                {/* Audience Selection */}
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5">
-                    <Globe className="size-4 text-primary" />
+                    <Globe className="size-4 text-sky-500" />
                     <span>Audience</span>
                   </label>
                   <select
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
-                    className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none"
+                    className="bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-xs text-white focus:outline-none"
                   >
                     <option value="PUBLIC">🌎 Public (Anyone)</option>
                     <option value="FOLLOWERS">👥 Followers only</option>
                     <option value="CLOSE_FRIENDS">⭐ Close Friends</option>
-                    <option value="PRIVATE">🔒 Private (Only Me)</option>
+                    <option value="PRIVATE">🔒 Private</option>
                   </select>
                 </div>
 
-                {/* Alt Text / Accessibility Accordion */}
                 <div className="border-t border-neutral-900 pt-3 flex flex-col gap-2">
-                  <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Accessibility</span>
+                  <span className="text-[10px] font-bold text-neutral-455 uppercase tracking-widest">Accessibility alt text</span>
                   <textarea
-                    placeholder="Write image alt text / accessibility description..."
+                    placeholder="Write alt text..."
                     value={altText}
                     onChange={(e) => setAltText(e.target.value)}
-                    className="bg-neutral-900 border border-neutral-850 rounded-xl p-2.5 text-xs text-white focus:outline-none placeholder:text-neutral-600 h-16 resize-none focus:border-neutral-700"
+                    className="bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-xs text-white focus:outline-none placeholder:text-neutral-600 h-14 resize-none"
                   />
                 </div>
 
-                {/* Advanced Settings Toggles */}
-                <div className="border-t border-neutral-900 pt-3 flex flex-col gap-3">
-                  <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Advanced Settings</span>
-                  
-                  {/* Comments Toggle */}
+                <div className="border-t border-neutral-900 pt-3 flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-neutral-455 uppercase tracking-widest">Advanced Settings</span>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
-                      <MessageSquare className="size-3.5 text-neutral-450" />
-                      Turn off commenting
+                      <MessageSquare className="size-3.5" /> Comments
                     </span>
                     <input
                       type="checkbox"
                       checked={disableComments}
                       onChange={(e) => setDisableComments(e.target.checked)}
-                      className="accent-primary rounded size-4 bg-neutral-900 border-neutral-850"
+                      className="accent-primary rounded size-4 bg-neutral-900 border-neutral-800"
                     />
                   </div>
-
-                  {/* Likes Toggle */}
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-neutral-300 font-semibold flex items-center gap-2">
-                      <Heart className="size-3.5 text-neutral-450" />
-                      Hide like and view counts
+                      <Heart className="size-3.5" /> Hide Likes
                     </span>
                     <input
                       type="checkbox"
                       checked={hideLikes}
                       onChange={(e) => setHideLikes(e.target.checked)}
-                      className="accent-primary rounded size-4 bg-neutral-900 border-neutral-850"
+                      className="accent-primary rounded size-4 bg-neutral-900 border-neutral-800"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Stage 3 Footer: active Carousel preview and SHARE button */}
-              <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between">
-                <div className="flex gap-1.5 overflow-x-auto max-w-[150px]">
+              <div className="border-t border-neutral-900 p-4 bg-neutral-950 flex items-center justify-between flex-shrink-0">
+                <div className="flex gap-1.5 overflow-x-auto max-w-[120px] scrollbar-none">
                   {attachments.map((a, idx) => (
                     <div
                       key={idx}
                       onClick={() => setActiveMediaIndex(idx)}
                       className={cn(
-                        "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-950",
-                        activeMediaIndex === idx ? "border-primary" : "border-transparent"
+                        "size-8 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border-2 bg-neutral-900",
+                        activeMediaIndex === idx ? "border-sky-500" : "border-transparent"
                       )}
                     >
-                      <Image
-                        src={URL.createObjectURL(a.file)}
-                        alt="attachment preview"
-                        width={32}
-                        height={32}
-                        className="object-cover h-full w-full"
-                      />
+                      <Image src={a.previewUrl!} alt="mini-preview" width={32} height={32} className="object-cover h-full w-full" />
                     </div>
                   ))}
                 </div>
 
                 <LoadingButton
                   onClick={handlePublish}
-                  loading={mutation.isPending}
+                  loading={mutation.isPending || isProcessingAndSubmitting}
                   disabled={isUploading}
-                  className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-6 py-2 rounded-lg"
+                  className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-6 py-2 rounded-full"
                 >
                   Share
                 </LoadingButton>
@@ -1943,6 +2257,15 @@ export default function PostEditor({ onClose }: PostEditorProps) {
           </div>
         )}
       </div>
+
+      {activePanel === "location" && (
+        <LocationPickerSheet
+          onClose={() => setActivePanel(null)}
+          onSelectLocation={(loc) => setSelectedLocation(loc)}
+          selectedLocationName={selectedLocation?.name}
+          onClearLocation={() => setSelectedLocation(null)}
+        />
+      )}
     </>
   );
 }

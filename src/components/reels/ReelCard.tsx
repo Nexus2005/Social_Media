@@ -19,7 +19,9 @@ import {
   Play,
   Pause,
   ExternalLink,
-  Loader2
+  Loader2,
+  ShoppingBag,
+  AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
@@ -62,22 +64,25 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
         aiStatus: string;
         detectedObjects: any[];
         detectedProducts: any[];
+        processingLog?: any;
       }>(),
     initialData: {
-      aiStatus: post.aiStatus || "PENDING",
+      aiStatus: (post.videoJob?.status || "pending").toUpperCase(),
       detectedObjects: (post as any).detectedObjects || [],
-      detectedProducts: (post as any).detectedProducts || [],
+      detectedProducts: post.detectedProducts || [],
+      processingLog: null,
     },
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.aiStatus || "PENDING";
       return currentStatus === "PENDING" || currentStatus === "PROCESSING" ? 3000 : false;
     },
-    enabled: post.aiStatus === "PENDING" || post.aiStatus === "PROCESSING",
+    enabled: !post.videoJob || post.videoJob.status === "pending" || post.videoJob.status === "processing",
   });
 
-  const currentStatus = statusData?.aiStatus || post.aiStatus || "PENDING";
+  const currentStatus = statusData?.aiStatus || (post.videoJob?.status || "pending").toUpperCase();
   const detectedObjects = statusData?.detectedObjects || (post as any).detectedObjects || [];
-  const detectedProducts = statusData?.detectedProducts || (post as any).detectedProducts || [];
+  const detectedProducts = statusData?.detectedProducts || post.detectedProducts || [];
+  const isAdmin = loggedInUser?.username === "Omkar2005" || (loggedInUser as any)?.verified === true;
 
   // Intersection Observer to autoplay/pause video
   useReelsIntersectionObserver(videoRef, setIsPlaying, isMuted);
@@ -250,6 +255,24 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           onClick={handleVideoClick}
           className="w-full h-full object-cover cursor-pointer"
         />
+
+        {/* Admin Debug Overlay (Development only, in Top Left Corner) */}
+        {process.env.NODE_ENV === "development" && isAdmin && (
+          <div className="absolute top-4 left-4 z-30 bg-black/80 backdrop-blur-md border border-zinc-800 p-2.5 rounded-lg text-[10px] font-mono text-zinc-300 pointer-events-none select-none flex flex-col gap-0.5">
+            <div className="font-bold text-yellow-500 mb-1 border-b border-zinc-800 pb-0.5">AI DEBUG OVERLAY</div>
+            <div>AI Status: <span className={cn(
+              "font-bold",
+              currentStatus === "COMPLETED" && "text-emerald-500",
+              currentStatus === "PROCESSING" && "text-yellow-500 animate-pulse",
+              currentStatus === "FAILED" && "text-red-500",
+              currentStatus === "PENDING" && "text-zinc-500"
+            )}>{currentStatus.toLowerCase()}</span></div>
+            <div>Products Found: <span className="text-white font-bold">{detectedProducts.length}</span></div>
+            <div>Frames Scanned: <span className="text-white font-bold">{currentStatus === "COMPLETED" || currentStatus === "FAILED" ? 6 : (currentStatus === "PROCESSING" ? "Scanning..." : 0)}</span></div>
+            <div>Vision Calls: <span className="text-white font-bold">{statusData?.processingLog?.visionCalls ?? 0}</span></div>
+            <div>Shopping Matches: <span className="text-white font-bold">{statusData?.processingLog?.shoppingResultsCount ?? 0}</span></div>
+          </div>
+        )}
 
         {/* Mute Indicator overlay in top-right corner of player */}
         <button
@@ -467,29 +490,101 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           </div>
 
           {/* Shop look */}
-          {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
-            <div className="flex flex-col items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowHotspots(!showHotspots);
-                  toast({
-                    description: showHotspots ? "Shopping tags hidden" : "Shopping tags visible (click a tag to shop)",
-                  });
-                }}
-                className={cn(
-                  "p-1 bg-transparent hover:scale-105 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
-                  showHotspots ? "text-yellow-450" : "text-white"
-                )}
-                title="Shop Look"
-              >
+          {(() => {
+            const status = currentStatus.toUpperCase();
+            const productCount = detectedProducts.length;
+
+            if (status === "NO_PRODUCTS") return null;
+            if (status === "FAILED" && !isAdmin) return null;
+
+            let icon = null;
+            let labelText = "Shop";
+            let labelColor = "text-white";
+            let buttonClass = "";
+            let onClickHandler = () => {};
+            let tooltip = "";
+            let badge = null;
+
+            if (status === "PENDING") {
+              buttonClass = "bg-black/40 text-zinc-500 border border-zinc-800/40 cursor-not-allowed";
+              icon = (
+                <div className="relative">
+                  <ShoppingBag className="size-7 opacity-40" />
+                  <Loader2 className="size-3.5 animate-spin absolute -bottom-1 -right-1 text-zinc-400" />
+                </div>
+              );
+              labelText = "Queued";
+              labelColor = "text-zinc-500";
+              tooltip = "Waiting to process video...";
+            } else if (status === "PROCESSING") {
+              buttonClass = "bg-black/40 text-yellow-500 border border-yellow-500/20 animate-pulse cursor-wait";
+              icon = (
+                <div className="relative">
+                  <ShoppingBag className="size-7 text-yellow-500" />
+                  <Loader2 className="size-3.5 animate-spin absolute -bottom-1 -right-1 text-yellow-500" />
+                </div>
+              );
+              labelText = "Scanning";
+              labelColor = "text-yellow-500 font-bold animate-pulse";
+              tooltip = "AI is currently scanning the video for products...";
+            } else if (status === "FAILED") {
+              buttonClass = "bg-red-950/40 text-red-500 border border-red-500/30 hover:bg-red-950/60";
+              icon = <AlertTriangle className="size-7 text-red-500" />;
+              labelText = "Failed";
+              labelColor = "text-red-500 font-bold";
+              tooltip = "AI scanning failed. Click to view details.";
+              onClickHandler = () => {
+                toast({
+                  variant: "destructive",
+                  title: "AI Scan Failed",
+                  description: post.videoJob?.error || "An unknown error occurred during video processing.",
+                });
+              };
+            } else {
+              // COMPLETED
+              if (productCount === 0) return null; // fallback
+              buttonClass = cn(
+                "p-1 bg-transparent hover:scale-105 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] relative",
+                showHotspots ? "text-yellow-450" : "text-white"
+              );
+              icon = (
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-7">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
                 </svg>
-              </button>
-              <span className="text-[10px] font-bold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Shop</span>
-            </div>
-          )}
+              );
+              labelText = "Shop";
+              tooltip = `Shop the look - ${productCount} products found.`;
+              badge = (
+                <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[9px] font-extrabold size-4.5 rounded-full flex items-center justify-center border border-zinc-950 shadow-md">
+                  {productCount}
+                </span>
+              );
+              onClickHandler = () => {
+                setShowHotspots(!showHotspots);
+                toast({
+                  description: showHotspots
+                    ? "Shopping tags hidden"
+                    : "Shopping tags visible (click a tag to shop)",
+                });
+              };
+            }
+
+            return (
+              <div className="flex flex-col items-center gap-1 relative" title={tooltip}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClickHandler();
+                  }}
+                  className={status === "COMPLETED" ? buttonClass : cn("p-2 rounded-full hover:scale-105 active:scale-95 transition-all", buttonClass)}
+                >
+                  {icon}
+                  {badge}
+                </button>
+                <span className={cn("text-[10px] font-bold tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]", labelColor)}>{labelText}</span>
+              </div>
+            );
+          })()}
 
           {/* More Options */}
           <button
@@ -570,33 +665,102 @@ export default function ReelCard({ post, isMuted, onToggleMute }: ReelCardProps)
           <span className="text-[11px] font-medium tracking-wide text-zinc-300">Save</span>
         </div>
 
-        {/* Shop action button (only if products are detected and completed) */}
-        {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
-          <div className="flex flex-col items-center gap-1 relative">
-            <button
-              onClick={() => {
-                setShowHotspots(!showHotspots);
-                toast({
-                  description: showHotspots ? "Shopping tags hidden" : "Shopping tags visible (click a tag to shop)",
-                });
-              }}
-              className={cn(
-                "p-3 rounded-full hover:scale-105 active:scale-95 transition-all border border-white/5 relative",
-                showHotspots ? "bg-zinc-700/70 text-yellow-500" : "bg-zinc-800/40 text-white hover:bg-zinc-700/60"
-              )}
-              title="Shop Look"
-            >
+        {/* Shop action button */}
+        {(() => {
+          const status = currentStatus.toUpperCase();
+          const productCount = detectedProducts.length;
+
+          if (status === "NO_PRODUCTS") return null;
+          if (status === "FAILED" && !isAdmin) return null;
+
+          let icon = null;
+          let labelText = "Shop";
+          let labelColor = "text-zinc-300";
+          let buttonClass = "";
+          let onClickHandler = () => {};
+          let tooltip = "";
+          let badge = null;
+
+          if (status === "PENDING") {
+            buttonClass = "bg-zinc-800/20 text-zinc-500 border border-zinc-800/40 cursor-not-allowed";
+            icon = (
+              <div className="relative">
+                <ShoppingBag className="size-6 opacity-40" />
+                <Loader2 className="size-3.5 animate-spin absolute -bottom-1 -right-1 text-zinc-400" />
+              </div>
+            );
+            labelText = "Queued";
+            labelColor = "text-zinc-500";
+            tooltip = "Waiting to process video...";
+          } else if (status === "PROCESSING") {
+            buttonClass = "bg-zinc-800/30 text-yellow-500 border border-yellow-500/20 animate-pulse cursor-wait";
+            icon = (
+              <div className="relative">
+                <ShoppingBag className="size-6 text-yellow-500" />
+                <Loader2 className="size-3.5 animate-spin absolute -bottom-1 -right-1 text-yellow-500" />
+              </div>
+            );
+            labelText = "Scanning";
+            labelColor = "text-yellow-500 font-bold animate-pulse";
+            tooltip = "AI is currently scanning the video for products...";
+          } else if (status === "FAILED") {
+            buttonClass = "bg-red-950/20 text-red-500 border border-red-500/30 hover:bg-red-950/40 animate-bounce";
+            icon = <AlertTriangle className="size-6 text-red-500" />;
+            labelText = "Failed";
+            labelColor = "text-red-500 font-bold";
+            tooltip = "AI scanning failed. Click to view details.";
+            onClickHandler = () => {
+              toast({
+                variant: "destructive",
+                title: "AI Scan Failed",
+                description: post.videoJob?.error || "An unknown error occurred during video processing.",
+              });
+            };
+          } else {
+            // COMPLETED
+            if (productCount === 0) return null; // fallback
+            buttonClass = cn(
+              "p-3 rounded-full hover:scale-105 active:scale-95 transition-all border border-white/5 relative",
+              showHotspots ? "bg-zinc-700/70 text-yellow-500" : "bg-zinc-800/40 text-white hover:bg-zinc-700/60"
+            );
+            icon = (
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
               </svg>
-              <span className="absolute top-0.5 right-0.5 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500"></span>
+            );
+            labelText = "Shop";
+            tooltip = `Shop the look - ${productCount} products found.`;
+            badge = (
+              <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[9px] font-extrabold size-4.5 rounded-full flex items-center justify-center border border-zinc-950 shadow-md">
+                {productCount}
               </span>
-            </button>
-            <span className="text-[11px] font-medium tracking-wide text-zinc-300">Shop</span>
-          </div>
-        )}
+            );
+            onClickHandler = () => {
+              setShowHotspots(!showHotspots);
+              toast({
+                description: showHotspots
+                  ? "Shopping tags hidden"
+                  : "Shopping tags visible (click a tag to shop)",
+              });
+            };
+          }
+
+          return (
+            <div className="flex flex-col items-center gap-1 relative" title={tooltip}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClickHandler();
+                }}
+                className={status === "COMPLETED" ? buttonClass : cn("p-3 rounded-full hover:scale-105 active:scale-95 transition-all", buttonClass)}
+              >
+                {icon}
+                {badge}
+              </button>
+              <span className={cn("text-[11px] font-medium tracking-wide", labelColor)}>{labelText}</span>
+            </div>
+          );
+        })()}
 
         {/* More options action */}
         <button
@@ -768,6 +932,7 @@ function ProductList({ detectedProducts }: { detectedProducts: any[] }) {
 function SingleProductItem({ product }: { product: any }) {
   const label = product.label;
   const matches = product.matches || [];
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (matches.length === 0) {
     return (
@@ -804,6 +969,31 @@ function SingleProductItem({ product }: { product: any }) {
     return "Delivery in 3-5 days";
   };
 
+  const handleBuyClick = async (e: React.MouseEvent, matchId: string, fallbackUrl: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const response = await fetch("/api/products/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.redirectUrl) {
+          window.open(data.redirectUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Click tracking failed:", err);
+    }
+    window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const bestMatch = sortedMatches[0];
+  const otherMatches = sortedMatches.slice(1);
+
   return (
     <div className="flex flex-col gap-2 pl-3 border-l border-zinc-800 relative animate-in fade-in duration-200">
       {/* Visual connection dot on the timeline-like border */}
@@ -815,52 +1005,117 @@ function SingleProductItem({ product }: { product: any }) {
         <span className="truncate max-w-[200px]" title={label}>{label}</span>
       </div>
 
-      {/* Offers List */}
+      {/* Best Price Offer */}
       <div className="flex flex-col gap-2 mt-1">
-        {sortedMatches.slice(0, 3).map((match: any, idx: number) => {
-          const deliveryLabel = getDeliveryTag(match.sourceStore);
-          return (
-            <a
-              key={match.id || idx}
-              href={match.productUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center justify-between gap-2.5 bg-zinc-900/40 hover:bg-zinc-850/60 border border-zinc-900 hover:border-zinc-800 p-2.5 rounded-lg transition-all group"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                {match.imageUrl ? (
-                  <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
-                    <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500">
-                    🛒
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <span className="text-[11px] font-bold text-zinc-200 block truncate group-hover:text-white leading-tight">
-                    {match.sourceStore}
-                  </span>
-                  <span className="text-[8px] font-semibold text-emerald-555 bg-emerald-950/20 px-1 py-0.5 rounded mt-0.5 inline-block">
-                    {deliveryLabel}
-                  </span>
-                </div>
+        <a
+          href={bestMatch.productUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
+          className="flex items-center justify-between gap-2.5 bg-zinc-900/40 hover:bg-zinc-850/60 border border-yellow-500/30 hover:border-yellow-500/50 p-2.5 rounded-lg transition-all group relative overflow-hidden"
+        >
+          {/* Subtle best price glow/shine */}
+          <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-500/5 blur-[20px] pointer-events-none" />
+          
+          <div className="flex items-center gap-2.5 min-w-0">
+            {bestMatch.imageUrl ? (
+              <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
+                <img src={bestMatch.imageUrl} alt={bestMatch.sourceStore} className="w-full h-full object-cover" />
               </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="text-right">
-                  <span className="text-[12px] font-extrabold text-yellow-500 block">
-                    {match.price}
-                  </span>
-                </div>
-                <span className="text-[9px] font-bold text-white bg-zinc-800 group-hover:bg-gradient-to-r group-hover:from-yellow-500 group-hover:to-red-500 px-2 py-1 border border-zinc-700/40 group-hover:border-transparent rounded transition-all">
-                  BUY
+            ) : (
+              <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500">
+                🛒
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-zinc-200 truncate group-hover:text-white leading-tight">
+                  {bestMatch.sourceStore}
+                </span>
+                <span className="text-[8px] font-extrabold text-yellow-500 bg-yellow-500/10 px-1 py-0.5 rounded uppercase tracking-wider">
+                  Best Price
                 </span>
               </div>
-            </a>
-          );
-        })}
+              <span className="text-[8px] font-semibold text-emerald-500 bg-emerald-950/20 px-1 py-0.5 rounded mt-0.5 inline-block">
+                {getDeliveryTag(bestMatch.sourceStore)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="text-right">
+              <span className="text-[12px] font-extrabold text-yellow-500 block">
+                {bestMatch.price}
+              </span>
+            </div>
+            <span className="text-[9px] font-bold text-white bg-zinc-800 group-hover:bg-gradient-to-r group-hover:from-yellow-500 group-hover:to-red-500 px-2 py-1 border border-zinc-700/40 group-hover:border-transparent rounded transition-all">
+              BUY
+            </span>
+          </div>
+        </a>
+
+        {/* Collapsible section for other stores */}
+        {otherMatches.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {/* Accordion toggle button */}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-left text-[10px] font-bold text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1 py-1 pl-1 cursor-pointer w-fit select-none"
+            >
+              <span>{isExpanded ? "▼ Hide other stores" : `▶ Show ${otherMatches.length} more store${otherMatches.length > 1 ? "s" : ""}`}</span>
+            </button>
+
+            {/* Accordion content */}
+            {isExpanded && (
+              <div className="flex flex-col gap-2 pl-2 border-l border-zinc-900/60 animate-in slide-in-from-top-1 duration-200">
+                {otherMatches.map((match: any, idx: number) => {
+                  const deliveryLabel = getDeliveryTag(match.sourceStore);
+                  return (
+                    <a
+                      key={match.id || idx}
+                      href={match.productUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => handleBuyClick(e, match.id, match.productUrl)}
+                      className="flex items-center justify-between gap-2.5 bg-zinc-900/20 hover:bg-zinc-850/40 border border-zinc-900 hover:border-zinc-850 p-2 rounded-lg transition-all group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {match.imageUrl ? (
+                          <div className="w-7 h-7 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-zinc-950">
+                            <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-7 h-7 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500">
+                            🛒
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold text-zinc-300 block truncate group-hover:text-white leading-tight">
+                            {match.sourceStore}
+                          </span>
+                          <span className="text-[7px] font-semibold text-zinc-500 mt-0.5 inline-block">
+                            {deliveryLabel}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-right">
+                          <span className="text-[11px] font-bold text-zinc-400 block">
+                            {match.price}
+                          </span>
+                        </div>
+                        <span className="text-[8px] font-bold text-zinc-400 bg-zinc-900 group-hover:text-white group-hover:bg-zinc-800 px-2 py-0.5 border border-zinc-800 rounded transition-all">
+                          BUY
+                        </span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -13,16 +13,44 @@ export async function POST(req: Request) {
     }
 
     const formData = await req.formData();
-    const endpoint = formData.get("endpoint") as "avatar" | "banner" | "attachment" | "story";
+    const endpoint = formData.get("endpoint") as "avatar" | "banner" | "attachment" | "story" | "system-bg";
     const files = formData.getAll("files") as File[];
     const metadataStr = formData.get("metadata") as string | null;
     const metadata = metadataStr ? JSON.parse(metadataStr) : null;
 
-    if (!endpoint || !files.length) {
+    if (!endpoint || (endpoint !== "system-bg" && !files.length)) {
       return Response.json({ error: "Missing parameters" }, { status: 400 });
     }
 
     const uploadResults = [];
+
+    if (endpoint === "system-bg") {
+      const bgUrl = formData.get("bgUrl") as string;
+      if (!bgUrl) {
+        return Response.json({ error: "Missing bgUrl" }, { status: 400 });
+      }
+      let media = await prisma.media.findFirst({
+        where: { url: bgUrl }
+      });
+      if (!media) {
+        media = await prisma.media.create({
+          data: {
+            url: bgUrl,
+            mediaType: "IMAGE",
+            width: 1080,
+            height: 1080,
+          }
+        });
+      }
+      uploadResults.push({
+        name: "system_bg.png",
+        url: bgUrl,
+        serverData: {
+          mediaId: media.id,
+        }
+      });
+      return Response.json(uploadResults);
+    }
 
     for (const file of files) {
       if (endpoint === "attachment" || endpoint === "story") {

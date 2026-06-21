@@ -103,6 +103,17 @@ export function getPostDataInclude(loggedInUserId: string) {
         },
       },
     },
+    videoJob: true,
+    detectedProducts: {
+      where: {
+        confidence: {
+          gte: 0.80,
+        },
+      },
+      include: {
+        matches: true,
+      },
+    },
   } satisfies Prisma.PostInclude;
 }
 

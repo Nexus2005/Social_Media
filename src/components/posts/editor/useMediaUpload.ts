@@ -7,6 +7,7 @@ export interface Attachment {
   file: File;
   mediaId?: string;
   isUploading: boolean;
+  previewUrl?: string;
 }
 
 export default function useMediaUpload() {
@@ -31,7 +32,11 @@ export default function useMediaUpload() {
 
       setAttachments((prev) => [
         ...prev,
-        ...renamedFiles.map((file) => ({ file, isUploading: true })),
+        ...renamedFiles.map((file) => ({
+          file,
+          isUploading: true,
+          previewUrl: URL.createObjectURL(file),
+        })),
       ]);
 
       return renamedFiles;
@@ -53,7 +58,14 @@ export default function useMediaUpload() {
       );
     },
     onUploadError(e) {
-      setAttachments((prev) => prev.filter((a) => !a.isUploading));
+      setAttachments((prev) => {
+        prev.forEach((a) => {
+          if (a.isUploading && a.previewUrl) {
+            URL.revokeObjectURL(a.previewUrl);
+          }
+        });
+        return prev.filter((a) => !a.isUploading);
+      });
       toast({
         variant: "destructive",
         description: e.message,
@@ -133,10 +145,21 @@ function getMediaDimensions(file: File): Promise<{ width: number; height: number
   }
 
   function removeAttachment(fileName: string) {
-    setAttachments((prev) => prev.filter((a) => a.file.name !== fileName));
+    setAttachments((prev) => {
+      const target = prev.find((a) => a.file.name === fileName);
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((a) => a.file.name !== fileName);
+    });
   }
 
   function reset() {
+    attachments.forEach((a) => {
+      if (a.previewUrl) {
+        URL.revokeObjectURL(a.previewUrl);
+      }
+    });
     setAttachments([]);
     setUploadProgress(undefined);
   }

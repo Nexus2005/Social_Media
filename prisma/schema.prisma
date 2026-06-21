@@ -86,7 +86,7 @@ model Post {
   linkedNotifications Notification[]
   detectedObjects     DetectedObject[]
   detectedProducts    DetectedProduct[]
-  aiStatus            String         @default("PENDING")
+  videoJob            VideoProcessingJob?
 
   location            String?
   disableComments     Boolean        @default(false)
@@ -222,15 +222,21 @@ model DetectedObject {
 }
 
 model DetectedProduct {
-  id           String          @id @default(cuid())
-  postId       String          @map("post_id")
-  post         Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
-  label        String
-  category     String
-  box          Json?
-  thumbnailUrl String?         @map("thumbnail_url")
-  createdAt    DateTime        @default(now()) @map("created_at")
-  matches      ShoppingMatch[]
+  id               String          @id @default(cuid())
+  postId           String          @map("post_id")
+  post             Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  label            String
+  category         String
+  color            String?
+  confidence       Float?
+  frameTimestamp   Float?          @map("frame_timestamp")
+  sourceFrameUrl   String?         @map("source_frame_url")
+  dominantColor    String?         @map("dominant_color")
+  productEmbedding Json?           @map("product_embedding")
+  box              Json?
+  thumbnailUrl     String?         @map("thumbnail_url")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  matches          ShoppingMatch[]
 
   @@map("detected_products")
 }
@@ -245,9 +251,46 @@ model ShoppingMatch {
   sourceStore       String          @map("source_store")
   productUrl        String          @map("product_url")
   imageUrl          String?         @map("image_url")
+  affiliateUrl      String?         @map("affiliate_url")
+  clickCount        Int             @default(0) @map("click_count")
   createdAt         DateTime        @default(now()) @map("created_at")
 
   @@map("shopping_matches")
+}
+
+model VideoProcessingJob {
+  id          String    @id @default(cuid())
+  postId      String    @unique @map("post_id")
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  status      String    @default("pending") // pending, processing, completed, failed, no_products
+  retryCount  Int       @default(0) @map("retry_count")
+  lastRetryAt DateTime? @map("last_retry_at")
+  error       String?
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("video_processing_jobs")
+}
+
+model VideoProcessingLog {
+  id                   String   @id @default(cuid())
+  videoId              String   @map("video_id")
+  processingTime       Float?   @map("processing_time")
+  visionCalls          Int      @default(0) @map("vision_calls")
+  openrouterCalls      Int      @default(0) @map("openrouter_calls")
+  nvidiaCalls          Int      @default(0) @map("nvidia_calls")
+  serpapiCalls         Int      @default(0) @map("serpapi_calls")
+  processingCost       Float    @default(0.0) @map("processing_cost")
+  visionResults        Json?    @map("vision_results")
+  openrouterResults    Json?    @map("openrouter_results")
+  nvidiaFallbackUsage  Boolean  @default(false) @map("nvidia_fallback_usage")
+  shoppingResultsCount Int      @default(0) @map("shopping_results_count")
+  errorMessages        String?  @map("error_messages")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@map("video_processing_logs")
 }
 
 model Poll {
