@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { UserData } from "@/lib/types";
 import { useState } from "react";
 import EditProfileDialog from "./EditProfileDialog";
-import { Store, BarChart3 } from "lucide-react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
+import { Share2 } from "lucide-react";
 
 interface ProfileHeaderActionsProps {
   user: UserData;
@@ -13,48 +13,33 @@ interface ProfileHeaderActionsProps {
 
 export default function ProfileHeaderActions({ user }: ProfileHeaderActionsProps) {
   const [showDialog, setShowDialog] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
+  const { toast } = useToast();
 
-  const activeTab = searchParams.get("tab") || "posts";
-
-  const handleTabChange = (tabName: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (activeTab === tabName) {
-      params.delete("tab"); // toggle off back to posts if clicked again
-    } else {
-      params.set("tab", tabName);
-    }
-    router.push(`${pathname}?${params.toString()}`);
+  const handleShare = () => {
+    const profileUrl = `${window.location.origin}/users/${user.username}`;
+    navigator.clipboard.writeText(profileUrl);
+    toast({
+      description: "Profile link copied to clipboard",
+    });
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-2">
       <Button 
         variant="outline" 
         onClick={() => setShowDialog(true)}
-        className="rounded-xl border-border/40 hover:bg-muted/40 font-bold text-xs"
+        className="h-9 px-4 rounded-lg border-border bg-[#0A0A0A] hover:bg-[#111111] text-[#FFFFFF] text-sm font-semibold transition-colors"
       >
         Edit profile
       </Button>
 
       <Button
-        variant={activeTab === "creator-studio" ? "default" : "outline"}
-        onClick={() => handleTabChange("creator-studio")}
-        className="rounded-xl border-border/40 font-bold text-xs gap-1.5"
+        variant="outline"
+        onClick={handleShare}
+        className="h-9 px-4 rounded-lg border-border bg-[#0A0A0A] hover:bg-[#111111] text-[#FFFFFF] text-sm font-semibold transition-colors flex items-center gap-2"
       >
-        <Store className="size-3.5" />
-        <span>Creator Studio</span>
-      </Button>
-
-      <Button
-        variant={activeTab === "insights" ? "default" : "outline"}
-        onClick={() => handleTabChange("insights")}
-        className="rounded-xl border-border/40 font-bold text-xs gap-1.5"
-      >
-        <BarChart3 className="size-3.5" />
-        <span>Insights</span>
+        <Share2 className="size-5 text-[#A1A1AA]" strokeWidth={1.75} />
+        <span>Share profile</span>
       </Button>
 
       <EditProfileDialog

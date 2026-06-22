@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     // --- ACTION: CREATE (MANUAL PRODUCT ASSIGNMENT) ---
     if (action === "create") {
-      const { label, category, brand, description, price, imageUrl, retailerUrl, retailerName } = body;
+      const { label, category, brand, description, price, imageUrl, retailerUrl, retailerName, productType, productSource } = body;
 
       if (!postId || !label || !category) {
         return NextResponse.json({ error: "Missing required fields (postId, label, category)" }, { status: 400 });
@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
           sourceType: "CREATOR_MANUAL",
           manuallyAssigned: true,
           assignedById: user.id,
+          productType: productType || "FEATURED",
+          productSource: productSource || "MANUAL",
         },
         include: {
           product: {
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
 
     // --- ACTION: UPDATE ---
     if (action === "update") {
-      const { assignmentId, productId, label, category, brand, description, images, displayOrder, featured, status } = body;
+      const { assignmentId, productId, label, category, brand, description, images, displayOrder, featured, status, productType, productSource } = body;
 
       if (!productId && !assignmentId) {
         return NextResponse.json({ error: "Missing productId or assignmentId" }, { status: 400 });
@@ -158,6 +160,8 @@ export async function POST(req: NextRequest) {
             displayOrder: displayOrder !== undefined ? Number(displayOrder) : undefined,
             featured: featured !== undefined ? Boolean(featured) : undefined,
             status: status !== undefined ? status : undefined,
+            productType: productType !== undefined ? productType : undefined,
+            productSource: productSource !== undefined ? productSource : undefined,
             ...(status === "PUBLISHED" ? { verificationSource: "CREATOR_APPROVED" } : {}),
           },
         });

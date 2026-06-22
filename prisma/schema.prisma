@@ -500,6 +500,8 @@ model ProductAssignment {
   aiConfidence        Float?             @map("ai_confidence")
   createdAt           DateTime           @default(now()) @map("created_at")
   updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at")
+  productType         ProductType        @default(FEATURED) @map("product_type")
+  productSource       ProductSource      @default(AI) @map("product_source")
 
   post                Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
   product             DetectedProduct    @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -627,4 +629,15 @@ enum CampaignStatus {
   PAUSED
   COMPLETED
   CANCELLED
+}
+
+enum ProductType {
+  FEATURED
+  SIMILAR
+}
+
+enum ProductSource {
+  AI
+  MANUAL
+  IMPORTED
 }

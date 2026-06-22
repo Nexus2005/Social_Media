@@ -18,7 +18,7 @@ interface UserPostsProps {
   userId: string;
 }
 
-type ProfileTab = "posts" | "reposts" | "replies" | "media" | "reels" | "likes" | "collections" | "saved-products" | "storefront" | "creator-studio" | "insights";
+type ProfileTab = "posts" | "reposts" | "replies" | "media" | "reels" | "likes" | "collections" | "saved-products" | "storefront";
 
 export default function UserPosts({ userId }: UserPostsProps) {
   const { user: loggedInUser } = useSession();
@@ -39,7 +39,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
   };
 
   const isOwner = userId === loggedInUser.id;
-  const isPostTab = activeTab !== "storefront" && activeTab !== "saved-products" && activeTab !== "creator-studio" && activeTab !== "insights";
+  const isPostTab = activeTab !== "storefront" && activeTab !== "saved-products";
 
   const {
     data,
@@ -60,7 +60,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
             },
           }
         )
-        .json<PostsPage>(),
+         .json<PostsPage>(),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: isPostTab,
@@ -90,18 +90,9 @@ export default function UserPosts({ userId }: UserPostsProps) {
 
   return (
     <div className="space-y-0">
-      {activeTab !== "creator-studio" && activeTab !== "insights" && (
-        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
-      )}
+      <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
 
-      {activeTab === "creator-studio" ? (
-        <CreatorCommerceStudio userId={userId} />
-      ) : activeTab === "insights" ? (
-        <div className="px-4 py-8 text-zinc-400 select-none text-center bg-card/10 border border-border/30 rounded-2xl m-4 animate-in fade-in duration-300">
-          <p className="font-bold text-sm text-white">Insights Dashboard</p>
-          <p className="text-xs text-zinc-500 mt-1">Visit your Creator Studio to track live Reels conversion analytics, view views/clicks CTR, and manage active brand partnership campaigns.</p>
-        </div>
-      ) : activeTab === "storefront" ? (
+      {activeTab === "storefront" ? (
         <StorefrontGrid userId={userId} isOwner={isOwner} />
       ) : activeTab === "saved-products" ? (
         <SavedProductsGrid userId={userId} />
