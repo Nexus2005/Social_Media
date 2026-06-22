@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearch", "relationJoins"]
@@ -11,48 +5,45 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
-  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 model User {
-  id                    String         @id
-  username              String         @unique
+  id                    String              @id
+  username              String              @unique
   displayName           String
-  email                 String?        @unique
+  email                 String?             @unique
   passwordHash          String?
-  googleId              String?        @unique
+  googleId              String?             @unique
   avatarUrl             String?
   bio                   String?
-  sessions              Session[]
-  posts                 Post[]
-  stories               Story[]
-  following             Follow[]       @relation("Following")
-  followers             Follow[]       @relation("Followers")
-  likes                 Like[]
+  createdAt             DateTime            @default(now())
+  birthDate             DateTime?
+  headerBannerUrl       String?
+  location              String?
+  professionalCategory  String?
+  websiteUrl            String?
+  verified              Boolean             @default(false)
+  role                  String              @default("USER")
   bookmarks             Bookmark[]
+  commentLikes          CommentLike[]
   comments              Comment[]
-  receivedNotifications Notification[] @relation("Recipient")
-  issuedNotifications   Notification[] @relation("Issuer")
-
-  location             String?
-  websiteUrl           String?
-  birthDate            DateTime?
-  professionalCategory String?
-  headerBannerUrl      String?
-  pollVotes            PollVote[]
-
-  verified             Boolean        @default(false)
-  role                 String         @default("USER")
-  reposts              Repost[]
-  views                PostView[]
-  mentions             PostMention[]
-  drafts               DraftPost[]
-  collections          SavedCollection[]
-  commentLikes         CommentLike[]
-  productCollections   ProductCollection[]
-
-  createdAt DateTime @default(now())
+  drafts                DraftPost[]
+  following             Follow[]            @relation("Following")
+  followers             Follow[]            @relation("Followers")
+  likes                 Like[]
+  issuedNotifications   Notification[]      @relation("Issuer")
+  receivedNotifications Notification[]      @relation("Recipient")
+  pollVotes             PollVote[]
+  mentions              PostMention[]
+  views                 PostView[]
+  posts                 Post[]
+  productCollections    ProductCollection[]
+  reposts               Repost[]
+  collections           SavedCollection[]
+  sessions              Session[]
+  stories               Story[]
 
   @@map("users")
 }
@@ -68,8 +59,8 @@ model Session {
 
 model Follow {
   followerId  String
-  follower    User   @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
   followingId String
+  follower    User   @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
   following   User   @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
@@ -77,106 +68,92 @@ model Follow {
 }
 
 model Post {
-  id                  String         @id @default(cuid())
+  id                  String                @id @default(cuid())
   content             String
   userId              String
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attachments         Media[]
-  likes               Like[]
+  createdAt           DateTime              @default(now())
+  altText             String?
+  audience            String                @default("PUBLIC")
+  collaborators       Json?
+  disableComments     Boolean               @default(false)
+  hideLikes           Boolean               @default(false)
+  location            String?
+  tags                Json?
+  isPinned            Boolean               @default(false)
+  quotedPostId        String?
   bookmarks           Bookmark[]
   comments            Comment[]
-  linkedNotifications Notification[]
   detectedObjects     DetectedObject[]
   detectedProducts    DetectedProduct[]
+  likes               Like[]
+  linkedNotifications Notification[]
+  poll                Poll?
+  attachments         Media[]
+  mentions            PostMention[]
+  views               PostView[]
+  quotedPost          Post?                 @relation("QuotePost", fields: [quotedPostId], references: [id])
+  quotedIn            Post[]                @relation("QuotePost")
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reposts             Repost[]
+  collectionItems     SavedCollectionItem[]
   videoJob            VideoProcessingJob?
 
-  location            String?
-  disableComments     Boolean        @default(false)
-  hideLikes           Boolean        @default(false)
-  altText             String?
-  tags                Json?
-  collaborators       Json?
-  audience            String         @default("PUBLIC")
-  poll                Poll?
-
-  quotedPostId        String?
-  quotedPost          Post?          @relation("QuotePost", fields: [quotedPostId], references: [id], onDelete: SetNull)
-  quotedIn            Post[]         @relation("QuotePost")
-  isPinned            Boolean        @default(false)
-
-  reposts             Repost[]
-  views               PostView[]
-  mentions            PostMention[]
-  collectionItems     SavedCollectionItem[]
-
-  createdAt DateTime @default(now())
-
-  @@map("posts")
   @@index([userId])
   @@index([createdAt])
+  @@map("posts")
 }
-
 
 model Media {
   id        String    @id @default(cuid())
   postId    String?
-  post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
   mediaType MediaType @map("type")
   url       String
-
-  width     Int?
+  createdAt DateTime  @default(now())
   height    Int?
+  width     Int?
+  post      Post?     @relation(fields: [postId], references: [id])
 
-  createdAt DateTime @default(now())
-
-  @@map("post_media")
   @@index([postId])
   @@index([mediaType])
-}
-
-enum MediaType {
-  IMAGE
-  VIDEO
+  @@map("post_media")
 }
 
 model Comment {
   id              String        @id @default(cuid())
   content         String
   userId          String
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   postId          String
-  post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
   parentCommentId String?
+  likes           CommentLike[]
   parentComment   Comment?      @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
   replies         Comment[]     @relation("CommentReplies")
-  likes           CommentLike[]
+  post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-
-  @@map("comments")
   @@index([postId])
   @@index([userId])
   @@index([parentCommentId])
+  @@map("comments")
 }
 
 model Like {
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   postId String
   post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@map("likes")
 }
 
 model Bookmark {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  postId String
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@map("bookmarks")
@@ -185,52 +162,41 @@ model Bookmark {
 model Notification {
   id          String           @id @default(cuid())
   recipientId String
-  recipient   User             @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
   issuerId    String
-  issuer      User             @relation("Issuer", fields: [issuerId], references: [id], onDelete: Cascade)
   postId      String?
-  post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
   type        NotificationType
   read        Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  issuer      User             @relation("Issuer", fields: [issuerId], references: [id], onDelete: Cascade)
+  post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  recipient   User             @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-
-  @@map("notifications")
   @@index([recipientId])
   @@index([issuerId])
   @@index([postId])
-}
-
-enum NotificationType {
-  LIKE
-  FOLLOW
-  COMMENT
-  REPOST
-  QUOTE
-  REPLY
-  MENTION
+  @@map("notifications")
 }
 
 model Story {
   id        String    @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   mediaUrl  String
   mediaType MediaType
   createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("stories")
   @@index([userId])
   @@index([createdAt])
+  @@map("stories")
 }
 
 model DetectedObject {
   id        String   @id @default(cuid())
   postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   name      String
-  box       Json     // Bounding box coordinates
+  box       Json
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("detected_objects")
 }
@@ -238,60 +204,57 @@ model DetectedObject {
 model DetectedProduct {
   id                      String                  @id @default(cuid())
   postId                  String                  @map("post_id")
-  post                    Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
   label                   String
   category                String
-  color                   String?
-  confidence              Float?
-  frameTimestamp          Float?                  @map("frame_timestamp")
-  sourceFrameUrl          String?                 @map("source_frame_url")
-  dominantColor           String?                 @map("dominant_color")
-  productEmbedding        Json?                   @map("product_embedding")
   box                     Json?
   thumbnailUrl            String?                 @map("thumbnail_url")
   createdAt               DateTime                @default(now()) @map("created_at")
-  matches                 ShoppingMatch[]
-  
-  // New fields for Phase 2
-  visionConfidence        Float?                  @map("vision_confidence")
-  shoppingMatchConfidence Float?                  @map("shopping_match_confidence")
+  color                   String?
+  confidence              Float?
+  dominantColor           String?                 @map("dominant_color")
+  frameTimestamp          Float?                  @map("frame_timestamp")
+  productEmbedding        Json?                   @map("product_embedding")
+  sourceFrameUrl          String?                 @map("source_frame_url")
   completenessScore       Float?                  @map("completeness_score")
-  isVerifiedMatch         Boolean                 @default(false) @map("is_verified_match")
   gender                  String?
-  style                   String?
-  season                  String?
-  material                String?
+  isVerifiedMatch         Boolean                 @default(false) @map("is_verified_match")
   keywords                String[]                @default([])
+  material                String?
+  season                  String?
+  shoppingMatchConfidence Float?                  @map("shopping_match_confidence")
+  style                   String?
+  visionConfidence        Float?                  @map("vision_confidence")
+  post                    Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
   collectionItems         ProductCollectionItem[]
+  matches                 ShoppingMatch[]
 
-  @@map("detected_products")
   @@index([postId])
+  @@map("detected_products")
 }
 
 model ShoppingMatch {
   id                String          @id @default(cuid())
   detectedProductId String          @map("detected_product_id")
-  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
   title             String
   price             String
   currency          String          @default("INR")
   sourceStore       String          @map("source_store")
   productUrl        String          @map("product_url")
   imageUrl          String?         @map("image_url")
+  createdAt         DateTime        @default(now()) @map("created_at")
   affiliateUrl      String?         @map("affiliate_url")
   clickCount        Int             @default(0) @map("click_count")
-  createdAt         DateTime        @default(now()) @map("created_at")
   priceHistories    PriceHistory[]
+  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
 
-  @@map("shopping_matches")
   @@index([detectedProductId])
+  @@map("shopping_matches")
 }
 
 model VideoProcessingJob {
   id          String    @id @default(cuid())
   postId      String    @unique @map("post_id")
-  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  status      String    @default("pending") // pending, processing, completed, failed, no_products
+  status      String    @default("pending")
   retryCount  Int       @default(0) @map("retry_count")
   lastRetryAt DateTime? @map("last_retry_at")
   error       String?
@@ -299,6 +262,7 @@ model VideoProcessingJob {
   completedAt DateTime? @map("completed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("video_processing_jobs")
 }
@@ -325,20 +289,20 @@ model VideoProcessingLog {
 model Poll {
   id        String       @id @default(cuid())
   postId    String       @unique
-  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   options   PollOption[]
   votes     PollVote[]
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("polls")
 }
 
 model PollOption {
-  id      String     @id @default(cuid())
-  pollId  String
-  poll    Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  text    String
-  votes   PollVote[]
+  id     String     @id @default(cuid())
+  pollId String
+  text   String
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes  PollVote[]
 
   @@map("poll_options")
 }
@@ -346,11 +310,11 @@ model PollOption {
 model PollVote {
   id       String     @id @default(cuid())
   optionId String
-  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   userId   String
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   pollId   String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, pollId])
   @@map("poll_votes")
@@ -359,13 +323,13 @@ model PollVote {
 model PostView {
   id            String   @id @default(cuid())
   postId        String
-  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId        String?
-  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   ip            String?
-  watchDuration Int?     // in seconds
+  watchDuration Int?
   completed     Boolean  @default(false)
   createdAt     DateTime @default(now())
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
   @@map("post_views")
@@ -374,10 +338,10 @@ model PostView {
 model Repost {
   id        String   @id @default(cuid())
   postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@map("reposts")
@@ -386,10 +350,10 @@ model Repost {
 model PostMention {
   id        String   @id @default(cuid())
   postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
   @@map("post_mentions")
@@ -398,10 +362,10 @@ model PostMention {
 model DraftPost {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content     String?
   attachments Json?
   updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("draft_posts")
 }
@@ -410,9 +374,9 @@ model SavedCollection {
   id        String                @id @default(cuid())
   name      String
   userId    String
-  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     SavedCollectionItem[]
   createdAt DateTime              @default(now())
+  items     SavedCollectionItem[]
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
   @@map("saved_collections")
@@ -421,10 +385,10 @@ model SavedCollection {
 model SavedCollectionItem {
   id           String          @id @default(cuid())
   collectionId String
-  collection   SavedCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   postId       String
-  post         Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt    DateTime        @default(now())
+  collection   SavedCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  post         Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([collectionId, postId])
   @@map("saved_collection_items")
@@ -433,10 +397,10 @@ model SavedCollectionItem {
 model CommentLike {
   id        String   @id @default(cuid())
   commentId String
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, commentId])
   @@map("comment_likes")
@@ -445,9 +409,9 @@ model CommentLike {
 model PriceHistory {
   id              String        @id @default(cuid())
   shoppingMatchId String        @map("shopping_match_id")
-  shoppingMatch   ShoppingMatch @relation(fields: [shoppingMatchId], references: [id], onDelete: Cascade)
   price           Float
   capturedAt      DateTime      @default(now()) @map("captured_at")
+  shoppingMatch   ShoppingMatch @relation(fields: [shoppingMatchId], references: [id], onDelete: Cascade)
 
   @@map("price_histories")
 }
@@ -456,9 +420,9 @@ model ProductCollection {
   id        String                  @id @default(cuid())
   name      String
   userId    String
-  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     ProductCollectionItem[]
   createdAt DateTime                @default(now()) @map("created_at")
+  items     ProductCollectionItem[]
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
   @@map("product_collections")
@@ -467,12 +431,26 @@ model ProductCollection {
 model ProductCollectionItem {
   id           String            @id @default(cuid())
   collectionId String            @map("collection_id")
-  collection   ProductCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   productId    String            @map("product_id")
-  product      DetectedProduct   @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt    DateTime          @default(now()) @map("created_at")
+  collection   ProductCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      DetectedProduct   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([collectionId, productId])
   @@map("product_collection_items")
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum NotificationType {
+  LIKE
+  FOLLOW
+  COMMENT
+  REPOST
+  QUOTE
+  REPLY
+  MENTION
+}
