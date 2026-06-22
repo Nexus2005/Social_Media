@@ -190,7 +190,7 @@ export default function MobileNavigation({
 
       {/* Create Post Dialog (Mobile) */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-none w-full h-full md:h-auto md:w-[85vw] md:max-w-4xl p-0 overflow-hidden bg-card rounded-none md:rounded-2xl border-none md:border left-0 top-0 translate-x-0 translate-y-0 md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] [&>button]:hidden md:[&>button]:inline-flex">
+        <DialogContent className="max-w-none w-full h-full md:h-auto md:w-[85vw] md:max-w-4xl p-0 overflow-hidden bg-transparent md:bg-card rounded-none md:rounded-2xl border-none md:border left-0 top-0 translate-x-0 translate-y-0 md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] [&>button]:hidden md:[&>button]:inline-flex">
           <DialogHeader className="hidden md:flex px-6 py-4 border-b">
             <DialogTitle className="text-center font-bold text-lg">Create new post</DialogTitle>
           </DialogHeader>

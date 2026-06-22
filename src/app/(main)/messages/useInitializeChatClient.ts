@@ -18,11 +18,17 @@ export default function useInitializeChatClient() {
           name: user.displayName,
           image: user.avatarUrl || undefined,
         },
-        async () =>
-          kyInstance
-            .get("/api/get-token")
-            .json<{ token: string }>()
-            .then((data) => data.token),
+        async () => {
+          try {
+            const data = await kyInstance
+              .get("/api/get-token", { timeout: 25000 })
+              .json<{ token: string }>();
+            return data.token;
+          } catch (e) {
+            console.error("Stream token provider failed:", e);
+            return "";
+          }
+        }
       )
       .catch((error) => console.error("Failed to connect user", error))
       .then(() => setChatClient(client));
