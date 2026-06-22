@@ -21,6 +21,25 @@ export async function GET(
       select: {
         videoJob: true,
         detectedObjects: true,
+        assignments: {
+          where: {
+            status: "PUBLISHED",
+          },
+          include: {
+            product: {
+              include: {
+                matches: {
+                  include: {
+                    merchant: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            displayOrder: "asc",
+          },
+        },
         detectedProducts: {
           where: {
             confidence: {
@@ -28,7 +47,11 @@ export async function GET(
             },
           },
           include: {
-            matches: true,
+            matches: {
+              include: {
+                merchant: true,
+              },
+            },
           },
         },
       },
@@ -48,6 +71,7 @@ export async function GET(
     return NextResponse.json({
       aiStatus,
       detectedObjects: post.detectedObjects,
+      assignments: (post as any).assignments || [],
       detectedProducts: post.detectedProducts,
       processingLog: processingLog ? {
         visionCalls: processingLog.visionCalls,

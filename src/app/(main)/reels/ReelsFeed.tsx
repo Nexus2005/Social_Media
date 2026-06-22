@@ -7,11 +7,13 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import ReelCard from "@/components/reels/ReelCard";
 import { useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export default function ReelsFeed() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeReelIndex, setActiveReelIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
+  const [isScrollLocked, setIsScrollLocked] = useState(false);
 
   const searchParams = useSearchParams();
   const focusedPostId = searchParams.get("focusedPostId");
@@ -68,6 +70,7 @@ export default function ReelsFeed() {
   // Keyboard navigation support (Up/Down arrows)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isScrollLocked) return;
       const container = scrollContainerRef.current;
       if (!container) return;
 
@@ -82,7 +85,7 @@ export default function ReelsFeed() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+  }, [isScrollLocked]);
 
   const scrollUp = () => {
     const container = scrollContainerRef.current;
@@ -132,7 +135,10 @@ export default function ReelsFeed() {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="w-full h-full overflow-y-scroll snap-y snap-mandatory scrollbar-none flex flex-col z-10"
+        className={cn(
+          "w-full h-full snap-y snap-mandatory scrollbar-none flex flex-col z-10 transition-all duration-300",
+          isScrollLocked ? "overflow-hidden" : "overflow-y-scroll"
+        )}
       >
         {posts.map((post, index) => (
           <ReelCard
@@ -142,6 +148,11 @@ export default function ReelsFeed() {
             onToggleMute={() => setIsMuted(!isMuted)}
             isActive={index === activeReelIndex}
             shouldPreload={index === activeReelIndex + 1}
+            onLockScroll={(locked) => {
+              if (index === activeReelIndex) {
+                setIsScrollLocked(locked);
+              }
+            }}
           />
         ))}
         {isFetchingNextPage && (

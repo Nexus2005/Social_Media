@@ -103,6 +103,25 @@ export function getPostDataInclude(loggedInUserId: string) {
       },
     },
     videoJob: true,
+    assignments: {
+      where: {
+        status: "PUBLISHED",
+      },
+      include: {
+        product: {
+          include: {
+            matches: {
+              include: {
+                merchant: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        displayOrder: "asc",
+      },
+    },
     detectedProducts: {
       where: {
         confidence: {
@@ -110,7 +129,11 @@ export function getPostDataInclude(loggedInUserId: string) {
         },
       },
       include: {
-        matches: true,
+        matches: {
+          include: {
+            merchant: true,
+          },
+        },
       },
     },
   } satisfies Prisma.PostInclude;

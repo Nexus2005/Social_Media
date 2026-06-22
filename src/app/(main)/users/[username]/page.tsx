@@ -10,7 +10,7 @@ import { formatDate } from "date-fns";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import EditProfileButton from "./EditProfileButton";
+import ProfileHeaderActions from "./ProfileHeaderActions";
 import UserPosts from "./UserPosts";
 import ProfileFollowsInfo from "./ProfileFollowsInfo";
 
@@ -177,7 +177,7 @@ async function UserProfile({ user, loggedInUserId }: UserProfileProps) {
         </div>
         <div className="pt-3">
           {user.id === loggedInUserId ? (
-            <EditProfileButton user={user} />
+            <ProfileHeaderActions user={user} />
           ) : (
             <FollowButton userId={user.id} initialState={followerInfo} />
           )}

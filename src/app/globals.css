@@ -173,3 +173,8 @@ body:has(#reels-page) .main-content-wrapper {
   animation: playPauseIcon 0.6s ease-out forwards;
 }
 
+/* Hide fixed bottom navigation when commerce mode is in immersive (100% height) state */
+body[data-commerce-immersive="true"] nav.fixed {
+  display: none !important;
+}
+

@@ -45,6 +45,12 @@ model User {
   sessions              Session[]
   stories               Story[]
 
+  // Spots V3 Creator Commerce System
+  creatorProducts       DetectedProduct[]   @relation("CreatorProducts")
+  productEvents         ProductEvent[]
+  campaigns             Campaign[]
+  assignedAssignments   ProductAssignment[] @relation("AssignedProducts")
+
   @@map("users")
 }
 
@@ -97,6 +103,9 @@ model Post {
   reposts             Repost[]
   collectionItems     SavedCollectionItem[]
   videoJob            VideoProcessingJob?
+
+  // Spots V3 Creator Commerce System
+  assignments         ProductAssignment[]
 
   @@index([userId])
   @@index([createdAt])
@@ -228,6 +237,22 @@ model DetectedProduct {
   collectionItems         ProductCollectionItem[]
   matches                 ShoppingMatch[]
 
+  // Spots V3 Creator Commerce System
+  creatorId               String?                 @map("creator_id")
+  images                  String[]                @default([]) @map("images")
+  brand                   String?                 @map("brand")
+  description             String?                 @map("description")
+  viewsCount              Int                     @default(0) @map("views_count")
+  drawerOpensCount        Int                     @default(0) @map("drawer_opens_count")
+  productClicksCount      Int                     @default(0) @map("product_clicks_count")
+  retailerClicksCount     Int                     @default(0) @map("retailer_clicks_count")
+  wishlistSavesCount      Int                     @default(0) @map("wishlist_saves_count")
+
+  creator                 User?                   @relation("CreatorProducts", fields: [creatorId], references: [id], onDelete: SetNull)
+  events                  ProductEvent[]
+  collections             ProductCollection[]
+  assignments             ProductAssignment[]
+
   @@index([postId])
   @@map("detected_products")
 }
@@ -246,6 +271,16 @@ model ShoppingMatch {
   clickCount        Int             @default(0) @map("click_count")
   priceHistories    PriceHistory[]
   detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
+
+  // Spots V3 Creator Commerce System
+  merchantId        String?             @map("merchant_id")
+  deliveryText      String?             @map("delivery_text")
+  availability      ProductAvailability @default(IN_STOCK) @map("availability")
+  retailerSource    RetailerSource      @default(AI_MATCH) @map("retailer_source")
+  trackingCode      String?             @map("tracking_code")
+  directUrl         String?             @map("direct_url")
+
+  merchant          Merchant?           @relation(fields: [merchantId], references: [id], onDelete: SetNull)
 
   @@index([detectedProductId])
   @@map("shopping_matches")
@@ -424,6 +459,14 @@ model ProductCollection {
   items     ProductCollectionItem[]
   user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Spots V3 Creator Commerce System
+  description String?                 @map("description")
+  coverImage  String?                 @map("cover_image")
+  isPublic    Boolean                 @default(true) @map("is_public")
+  featured    Boolean                 @default(false) @map("featured")
+  updatedAt   DateTime                @default(now()) @updatedAt @map("updated_at")
+  products    DetectedProduct[]
+
   @@unique([userId, name])
   @@map("product_collections")
 }
@@ -440,6 +483,89 @@ model ProductCollectionItem {
   @@map("product_collection_items")
 }
 
+// Spots V3 Creator Commerce System Models
+
+model ProductAssignment {
+  id                  String             @id @default(cuid())
+  postId              String             @map("post_id")
+  productId           String             @map("product_id")
+  assignedById        String?            @map("assigned_by_id")
+  displayOrder        Int                @default(0) @map("display_order")
+  featured            Boolean            @default(false) @map("featured")
+  status              ProductStatus      @default(PENDING_REVIEW) @map("status")
+  verificationSource  VerificationSource @default(AI_DETECTED) @map("verification_source")
+  sourceType          SourceType         @default(AI_DETECTED) @map("source_type")
+  manuallyAssigned    Boolean            @default(false) @map("manually_assigned")
+  reviewReason        String?            @map("review_reason")
+  aiConfidence        Float?             @map("ai_confidence")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at")
+
+  post                Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  product             DetectedProduct    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assignedBy          User?              @relation("AssignedProducts", fields: [assignedById], references: [id], onDelete: SetNull)
+  events              ProductEvent[]
+
+  @@unique([postId, productId])
+  @@map("product_assignments")
+}
+
+model ProductEvent {
+  id            String            @id @default(cuid())
+  productId     String            @map("product_id")
+  assignmentId  String?           @map("assignment_id")
+  userId        String?           @map("user_id")
+  eventType     ProductEventType  @map("event_type")
+  metadata      Json?             @map("metadata")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  product       DetectedProduct   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assignment    ProductAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("product_events")
+}
+
+model Merchant {
+  id              String          @id @default(cuid())
+  name            String          @unique
+  logoUrl         String?         @map("logo_url")
+  rating          Float?
+  reviews         Int?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  shoppingMatches ShoppingMatch[]
+
+  @@map("merchants")
+}
+
+model Brand {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  logoUrl     String?     @map("logo_url")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  campaigns   Campaign[]
+
+  @@map("brands")
+}
+
+model Campaign {
+  id               String         @id @default(cuid())
+  brandId          String         @map("brand_id")
+  creatorId        String         @map("creator_id")
+  name             String
+  status           CampaignStatus @default(DRAFT)
+  commissionRate   Float?         @default(0) @map("commission_rate")
+  commissionEarned Float?         @default(0) @map("commission_earned")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  brand            Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  creator          User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@map("campaigns")
+}
+
+// Spots V3 Commerce System Enums
+
 enum MediaType {
   IMAGE
   VIDEO
@@ -453,4 +579,52 @@ enum NotificationType {
   QUOTE
   REPLY
   MENTION
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+  ARCHIVED
+  PENDING_REVIEW
+}
+
+enum VerificationSource {
+  AI_DETECTED
+  CREATOR_APPROVED
+  CREATOR_ADDED
+  ADMIN_VERIFIED
+}
+
+enum ProductAvailability {
+  IN_STOCK
+  OUT_OF_STOCK
+}
+
+enum RetailerSource {
+  AI_MATCH
+  CREATOR_MATCH
+  MANUAL
+}
+
+enum ProductEventType {
+  VIEW
+  DRAWER_OPEN
+  PRODUCT_CLICK
+  RETAILER_CLICK
+  SAVE
+}
+
+enum SourceType {
+  AI_DETECTED
+  CREATOR_MANUAL
+  BRAND_PARTNERSHIP
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
 }

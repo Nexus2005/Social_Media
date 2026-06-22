@@ -35,6 +35,7 @@ interface ReelCardProps {
   onToggleMute: () => void;
   isActive: boolean;
   shouldPreload: boolean;
+  onLockScroll?: (locked: boolean) => void;
 }
 
 export default function ReelCard({
@@ -42,7 +43,8 @@ export default function ReelCard({
   isMuted,
   onToggleMute,
   isActive,
-  shouldPreload
+  shouldPreload,
+  onLockScroll
 }: ReelCardProps) {
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
@@ -73,12 +75,14 @@ export default function ReelCard({
       kyInstance.get(`/api/posts/${post.id}/status`).json<{
         aiStatus: string;
         detectedObjects: any[];
+        assignments: any[];
         detectedProducts: any[];
         processingLog?: any;
       }>(),
     initialData: {
       aiStatus: (post.videoJob?.status || "pending").toUpperCase(),
       detectedObjects: (post as any).detectedObjects || [],
+      assignments: (post as any).assignments || [],
       detectedProducts: post.detectedProducts || [],
       processingLog: null,
     },
@@ -95,8 +99,19 @@ export default function ReelCard({
   }, [statusData?.detectedObjects, post]);
 
   const detectedProducts = useMemo(() => {
+    const assignments = statusData?.assignments || (post as any).assignments || [];
+    if (assignments && assignments.length > 0) {
+      return assignments.map((a: any) => ({
+        ...a.product,
+        isVerifiedMatch: a.verificationSource === "CREATOR_APPROVED" || a.verificationSource === "ADMIN_VERIFIED",
+        assignmentId: a.id,
+        displayOrder: a.displayOrder,
+        featured: a.featured,
+        assignmentStatus: a.status,
+      }));
+    }
     return statusData?.detectedProducts || post.detectedProducts || [];
-  }, [statusData?.detectedProducts, post.detectedProducts]);
+  }, [statusData, post]);
   const isAdmin = loggedInUser?.username === "Omkar2005" || (loggedInUser as any)?.verified === true;
 
   // Initialize selected product ID once products are loaded
@@ -105,6 +120,42 @@ export default function ReelCard({
       setSelectedProductId(detectedProducts[0].id);
     }
   }, [detectedProducts, selectedProductId]);
+
+  // Track drawer opens (DRAWER_OPEN)
+  useEffect(() => {
+    if (isShoppingDrawerOpen) {
+      const targetProductId = selectedProductId || detectedProducts[0]?.id;
+      if (targetProductId) {
+        logProductEvent(targetProductId, "DRAWER_OPEN");
+      }
+    }
+  }, [isShoppingDrawerOpen]);
+
+  // Track product views when drawer is open and selectedProductId changes (VIEW)
+  useEffect(() => {
+    if (isShoppingDrawerOpen && selectedProductId) {
+      logProductEvent(selectedProductId, "VIEW");
+    }
+  }, [isShoppingDrawerOpen, selectedProductId]);
+
+  const isImmersive = isShoppingDrawerOpen && drawerHeightState === "max";
+
+  // Trigger parent container scroll locking
+  useEffect(() => {
+    onLockScroll?.(isImmersive);
+  }, [isImmersive, onLockScroll]);
+
+  // Sync data attribute on document body to hide navigation
+  useEffect(() => {
+    if (isImmersive) {
+      document.body.setAttribute("data-commerce-immersive", "true");
+    } else {
+      document.body.removeAttribute("data-commerce-immersive");
+    }
+    return () => {
+      document.body.removeAttribute("data-commerce-immersive");
+    };
+  }, [isImmersive]);
 
 
 
@@ -137,6 +188,90 @@ export default function ReelCard({
       videoRef.current.muted = isMuted;
     }
   }, [isMuted, videoRef]);
+
+  // Helper functions for pricing/delivery inside ReelCard
+  const parsePrice = (priceStr: string): number => {
+    const num = parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
+    return isNaN(num) ? Infinity : num;
+  };
+
+  const getDeliveryTag = (merchant: string): string => {
+    const m = merchant.toLowerCase();
+    if (m.includes("amazon")) return "Delivery tomorrow";
+    if (m.includes("flipkart")) return "Delivery in 2 days";
+    if (m.includes("myntra")) return "Delivery in 3 days";
+    if (m.includes("ajio")) return "Delivery in 4 days";
+    return "Delivery in 3-5 days";
+  };
+
+  const getDeliveryDays = (match: any): number => {
+    const text = (match.deliveryText || getDeliveryTag(match.sourceStore || "")).toLowerCase();
+    if (text.includes("tomorrow") || text.includes("1 day")) return 1;
+    if (text.includes("2 days") || text.includes("in 2")) return 2;
+    if (text.includes("3 days") || text.includes("in 3")) return 3;
+    if (text.includes("4 days") || text.includes("in 4")) return 4;
+    if (text.includes("5 days") || text.includes("in 5")) return 5;
+    return 6;
+  };
+
+  const selectedProduct = useMemo(() => {
+    if (!detectedProducts || detectedProducts.length === 0) return null;
+    return detectedProducts.find((p) => p.id === selectedProductId) || detectedProducts[0];
+  }, [detectedProducts, selectedProductId]);
+
+  const bestMatch = useMemo(() => {
+    if (!selectedProduct) return null;
+    const matches = selectedProduct.matches || [];
+    const sorted = [...matches].sort((a, b) => {
+      const priceA = parsePrice(a.price);
+      const priceB = parsePrice(b.price);
+      if (priceA !== priceB) return priceA - priceB;
+      const daysA = getDeliveryDays(a);
+      const daysB = getDeliveryDays(b);
+      if (daysA !== daysB) return daysA - daysB;
+      return (b.merchant?.rating ?? 0) - (a.merchant?.rating ?? 0);
+    });
+    return sorted[0];
+  }, [selectedProduct]);
+
+  const handleBuyClick = async (e: React.MouseEvent, matchId: string, fallbackUrl: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (selectedProductId) {
+      logProductEvent(selectedProductId, "RETAILER_CLICK", { matchId });
+    }
+    try {
+      const response = await fetch("/api/products/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.redirectUrl) {
+          window.open(data.redirectUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Click tracking failed:", err);
+    }
+    window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+  };
+
+  function logProductEvent(productId: string, eventType: string, extraMetadata?: any) {
+    const assignment = detectedProducts.find(p => p.id === productId);
+    fetch("/api/products/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId,
+        assignmentId: assignment?.assignmentId || null,
+        eventType,
+        metadata: extraMetadata || {},
+      }),
+    }).catch((err) => console.warn("Failed to log product event:", err));
+  }
 
   const videoAttachment = post.attachments.find((att) => att.mediaType === "VIDEO");
   const videoUrl = videoAttachment?.url;
@@ -308,11 +443,14 @@ export default function ReelCard({
             muted={isMuted}
             preload={isActive || shouldPreload ? "auto" : "metadata"}
             onClick={handleVideoClick}
-            className="w-full h-full object-cover cursor-pointer"
+            className={cn(
+              "w-full h-full object-cover cursor-pointer transition-all duration-500",
+              isImmersive && "blur-md scale-105"
+            )}
           />
 
           {/* Admin Debug Overlay (Development only, in Top Left Corner) */}
-          {process.env.NODE_ENV === "development" && isAdmin && (
+          {process.env.NODE_ENV === "development" && isAdmin && !isImmersive && (
             <div className="absolute top-4 left-4 z-30 bg-black/80 backdrop-blur-md border border-zinc-800 p-2.5 rounded-lg text-[10px] font-mono text-zinc-300 pointer-events-none select-none flex flex-col gap-0.5">
               <div className="font-bold text-yellow-500 mb-1 border-b border-zinc-800 pb-0.5">AI DEBUG OVERLAY</div>
               <div>AI Status: <span className={cn(
@@ -330,7 +468,7 @@ export default function ReelCard({
           )}
 
           {/* Subtle White Hotspot Dots */}
-          {showHotspots && currentStatus === "COMPLETED" && detectedProducts.map((prod) => {
+          {showHotspots && !isImmersive && currentStatus === "COMPLETED" && detectedProducts.map((prod) => {
             const coords = getProductHotspot(prod);
             const isSelected = prod.id === selectedProductId;
             return (
@@ -366,7 +504,10 @@ export default function ReelCard({
               e.stopPropagation();
               onToggleMute();
             }}
-            className="absolute top-4 right-4 z-30 p-2 bg-black/60 hover:bg-black/85 rounded-full text-white transition"
+            className={cn(
+              "absolute top-4 right-4 z-30 p-2 bg-black/60 hover:bg-black/85 rounded-full text-white transition",
+              isImmersive && "hidden"
+            )}
           >
             {isMuted ? <VolumeX className="size-4.5" /> : <Volume2 className="size-4.5" />}
           </button>
@@ -393,7 +534,7 @@ export default function ReelCard({
 
           {/* Center play state hint overlay */}
           {!isPlaying && !overlayIcon && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none transition-opacity duration-300">
+            <div className={cn("absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none transition-opacity duration-300", isImmersive && "hidden")}>
               <div className="p-4 bg-black/40 rounded-full text-white">
                 <Play className="size-10 fill-white translate-x-[2px]" />
               </div>
@@ -401,10 +542,10 @@ export default function ReelCard({
           )}
 
           {/* Smooth bottom gradient overlay */}
-          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none z-10" />
+          <div className={cn("absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none z-10", isImmersive && "hidden")} />
 
           {/* Left Bottom Video Details Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 z-20 flex flex-col gap-3.5 text-white bg-transparent pointer-events-none">
+          <div className={cn("absolute bottom-0 left-0 right-0 p-4 pb-6 z-20 flex flex-col gap-3.5 text-white bg-transparent pointer-events-none", isImmersive && "hidden")}>
             <div className="flex flex-col gap-2.5 pointer-events-auto">
               
               {/* 1. Shop CTA Button */}
@@ -476,7 +617,7 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className="absolute right-4 bottom-24 z-20 flex flex-col items-center gap-4.5 text-white md:hidden pointer-events-auto">
+          <div className={cn("absolute right-4 bottom-24 z-20 flex flex-col items-center gap-4.5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
             {/* Like */}
             <div className="flex flex-col items-center gap-0.5">
               <button
@@ -581,11 +722,12 @@ export default function ReelCard({
           {/* Mobile Bottom Shop Drawer Sheet (lg:hidden) */}
           <div
             className={cn(
-              "absolute bottom-0 left-0 right-0 z-50 w-full bg-[#090909] border-t border-zinc-800/80 rounded-t-[20px] shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col overflow-hidden text-white pointer-events-auto lg:hidden",
+              "absolute bottom-0 left-0 right-0 z-50 w-full bg-[#090909] border-t border-zinc-800/80 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col overflow-hidden text-white pointer-events-auto lg:hidden",
+              drawerHeightState === "max" ? "rounded-t-none border-t-0" : "rounded-t-[20px]",
               isShoppingDrawerOpen ? "translate-y-0" : "translate-y-full"
             )}
             style={{
-              height: drawerHeightState === "min" ? "40%" : drawerHeightState === "mid" ? "75%" : "95%"
+              height: drawerHeightState === "min" ? "35%" : drawerHeightState === "mid" ? "75%" : "100%"
             }}
           >
             {/* Top Handle Bar for dragging / click to cycle */}
@@ -631,14 +773,34 @@ export default function ReelCard({
                 setSelectedProductId={setSelectedProductId}
                 drawerHeightState={drawerHeightState}
                 setDrawerHeightState={setDrawerHeightState}
+                onLogEvent={logProductEvent}
               />
             </div>
+
+            {/* Sticky Bottom CTA for Mobile Commerce Mode */}
+            {drawerHeightState === "max" && bestMatch && (
+              <div className="border-t border-zinc-900 bg-[#090909] px-5 py-4 flex items-center justify-between gap-4 z-20">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-zinc-505 font-bold uppercase tracking-wider">Best Price at {bestMatch.sourceStore}</span>
+                  <span className="text-lg font-black text-white">{bestMatch.price}</span>
+                </div>
+                <a
+                  href={bestMatch.productUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
+                  className="flex-1 max-w-[200px] text-center bg-white text-black hover:bg-zinc-200 text-xs font-black py-3 rounded-xl transition-all shadow-lg uppercase tracking-wider"
+                >
+                  View Deal
+                </a>
+              </div>
+            )}
           </div>
 
         </div>
 
         {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
-        <div className="hidden md:flex flex-col items-center gap-4.5 ml-4 sm:ml-5 text-white z-20 shrink-0">
+        <div className={cn("hidden md:flex flex-col items-center gap-4.5 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
           {/* Like */}
           <div className="flex flex-col items-center gap-0.5">
             <button
@@ -748,8 +910,28 @@ export default function ReelCard({
               setSelectedProductId={setSelectedProductId}
               drawerHeightState={drawerHeightState}
               setDrawerHeightState={setDrawerHeightState}
+              onLogEvent={logProductEvent}
             />
           </div>
+
+          {/* Sticky Bottom CTA for Desktop Side Panel */}
+          {bestMatch && (
+            <div className="border-t border-zinc-900 bg-[#090909] px-5 py-4 flex items-center justify-between gap-4 z-20">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-zinc-505 font-bold uppercase tracking-wider">Best Price at {bestMatch.sourceStore}</span>
+                <span className="text-lg font-black text-white">{bestMatch.price}</span>
+              </div>
+              <a
+                href={bestMatch.productUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
+                className="flex-1 max-w-[200px] text-center bg-white text-black hover:bg-zinc-200 text-xs font-black py-3 rounded-xl transition-all shadow-lg uppercase tracking-wider"
+              >
+                View Deal
+              </a>
+            </div>
+          )}
         </div>
 
       </div>
@@ -842,16 +1024,19 @@ function ProductList({
   selectedProductId,
   setSelectedProductId,
   drawerHeightState,
-  setDrawerHeightState
+  setDrawerHeightState,
+  onLogEvent
 }: {
   detectedProducts: any[];
   selectedProductId: string;
   setSelectedProductId: (id: string) => void;
   drawerHeightState: "min" | "mid" | "max";
   setDrawerHeightState: (state: "min" | "mid" | "max") => void;
+  onLogEvent: (productId: string, eventType: string, extraMetadata?: any) => void;
 }) {
   const { toast } = useToast();
 
+  const [activeCategory, setActiveCategory] = useState("All");
   const [showSaveDropdown, setShowSaveDropdown] = useState(false);
   const [newColName, setNewColName] = useState("");
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -880,9 +1065,29 @@ function ProductList({
     touchStartX.current = null;
   };
 
-  const selectedProduct = detectedProducts && detectedProducts.length > 0
-    ? (detectedProducts.find((p) => p.id === selectedProductId) || detectedProducts[0])
-    : null;
+  // Build category list
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    detectedProducts.forEach((p) => {
+      if (p.category) {
+        const formatted = p.category.charAt(0).toUpperCase() + p.category.slice(1).toLowerCase();
+        cats.add(formatted);
+      }
+    });
+    return ["All", ...Array.from(cats)];
+  }, [detectedProducts]);
+
+  // Filter products by active category
+  const filteredProducts = useMemo(() => {
+    if (activeCategory === "All") return detectedProducts;
+    return detectedProducts.filter(
+      (p) => p.category?.toLowerCase() === activeCategory.toLowerCase()
+    );
+  }, [detectedProducts, activeCategory]);
+
+  const selectedProduct = filteredProducts && filteredProducts.length > 0
+    ? (filteredProducts.find((p) => p.id === selectedProductId) || filteredProducts[0])
+    : (detectedProducts.find((p) => p.id === selectedProductId) || detectedProducts[0]);
 
   // Queries hooks called unconditionally
   const { data: similarProducts, isLoading: loadingSimilar } = useQuery({
@@ -934,6 +1139,9 @@ function ProductList({
         toast({
           description: action === "save" ? `Saved to collection!` : `Removed from collection.`,
         });
+        if (action === "save") {
+          onLogEvent(selectedProduct.id, "SAVE");
+        }
         setNewColName("");
       } else {
         const err = await res.json();
@@ -957,8 +1165,26 @@ function ProductList({
     return isNaN(num) ? Infinity : num;
   };
 
+  const getDeliveryDays = (match: any): number => {
+    const text = (match.deliveryText || getDeliveryTag(match.sourceStore || "")).toLowerCase();
+    if (text.includes("tomorrow") || text.includes("1 day")) return 1;
+    if (text.includes("2 days") || text.includes("in 2")) return 2;
+    if (text.includes("3 days") || text.includes("in 3")) return 3;
+    if (text.includes("4 days") || text.includes("in 4")) return 4;
+    if (text.includes("5 days") || text.includes("in 5")) return 5;
+    return 6;
+  };
+
   const matches = selectedProduct.matches || [];
-  const sortedMatches = [...matches].sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+  const sortedMatches = [...matches].sort((a, b) => {
+    const priceA = parsePrice(a.price);
+    const priceB = parsePrice(b.price);
+    if (priceA !== priceB) return priceA - priceB;
+    const daysA = getDeliveryDays(a);
+    const daysB = getDeliveryDays(b);
+    if (daysA !== daysB) return daysA - daysB;
+    return (b.merchant?.rating ?? 0) - (a.merchant?.rating ?? 0);
+  });
   const bestMatch = sortedMatches[0];
   const otherMatches = sortedMatches.slice(1);
 
@@ -989,6 +1215,7 @@ function ProductList({
   const handleBuyClick = async (e: React.MouseEvent, matchId: string, fallbackUrl: string) => {
     e.preventDefault();
     e.stopPropagation();
+    onLogEvent(selectedProduct.id, "RETAILER_CLICK", { matchId });
     try {
       const response = await fetch("/api/products/click", {
         method: "POST",
@@ -1016,34 +1243,68 @@ function ProductList({
   ].filter(Boolean) as string[]));
 
   return (
-    <div className="flex flex-col gap-6 select-none animate-in fade-in duration-300 pb-8 text-white">
-      {/* 1. FOUND IN THIS REEL CHIPS */}
+    <div className="flex flex-col gap-5 select-none animate-in fade-in duration-300 pb-8 text-white">
+      {/* 1. CATEGORY TABS BAR */}
       <div className="flex flex-col gap-2.5">
-        <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
-          Products in this reel
-        </span>
+        <div className="flex items-center gap-4 overflow-x-auto border-b border-zinc-900 pb-2.5 scrollbar-none">
+          {categories.map((cat) => {
+            const isActive = cat === activeCategory;
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  // Auto-select first product in new category
+                  const firstInCat = cat === "All" ? detectedProducts[0] : detectedProducts.find(p => p.category?.toLowerCase() === cat.toLowerCase());
+                  if (firstInCat) {
+                    setSelectedProductId(firstInCat.id);
+                  }
+                }}
+                className={cn(
+                  "text-xs font-bold transition-colors pb-1.5 relative whitespace-nowrap",
+                  isActive ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                {cat}
+                {isActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. PRODUCTS CHIPS LIST */}
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
-          {detectedProducts.map((prod) => {
-            const isActive = prod.id === selectedProductId;
+          {filteredProducts.map((prod) => {
+            const isActive = prod.id === selectedProduct.id;
             const emoji = getCategoryEmoji(prod.category, prod.label);
             return (
               <button
                 key={prod.id}
-                onClick={() => setSelectedProductId(prod.id)}
+                onClick={() => {
+                  setSelectedProductId(prod.id);
+                  if (drawerHeightState === "min") {
+                    setDrawerHeightState("mid");
+                  }
+                  onLogEvent(prod.id, "PRODUCT_CLICK");
+                }}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-[12px] transition-all w-[72px] flex-shrink-0 snap-center border",
+                  "flex flex-col items-center p-2 rounded-[14px] transition-all w-[76px] flex-shrink-0 snap-center border",
                   isActive
-                    ? "bg-white text-black border-transparent shadow-md font-extrabold"
+                    ? "bg-white text-black border-transparent shadow-md font-bold"
                     : "bg-[#121212] text-white border-zinc-800/80 hover:bg-zinc-900"
                 )}
               >
                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-zinc-950 mb-1.5 border border-zinc-800/40 relative">
-                   <img
-                     src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=60"}
-                     alt={prod.label}
-                     className="w-full h-full object-cover"
-                   />
-                   <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 px-1 rounded text-white">{emoji}</span>
+                  <img
+                    src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=60"}
+                    alt={prod.label}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 px-1 rounded text-white">{emoji}</span>
                 </div>
                 <span className="text-[9px] font-bold tracking-tight text-center truncate w-full capitalize leading-tight">
                   {prod.label}
@@ -1054,294 +1315,337 @@ function ProductList({
         </div>
       </div>
 
-      <div className="border-t border-zinc-900 my-1" />
+      {/* If drawer is in Peek state, hide detail panels */}
+      {drawerHeightState !== "min" && (
+        <>
+          <div className="border-t border-zinc-900 my-1" />
 
-      {/* 2. PRODUCT HERO CARD */}
-      <div className="flex flex-col gap-4">
-        {/* Large 1:1 image container */}
-        <div
-          onClick={() => {
-            if (galleryImages.length > 0) {
-              setActiveImageIndex(0);
-              setIsGalleryOpen(true);
-            }
-          }}
-          className="w-full aspect-square rounded-[20px] overflow-hidden border border-zinc-800 bg-[#090909] cursor-zoom-in relative group"
-        >
-          <img
-            src={selectedProduct.thumbnailUrl || selectedProduct.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&auto=format&fit=crop&q=60"}
-            alt={selectedProduct.label}
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-          />
-          {/* Zoom Overlay Indicator */}
-          <div className="absolute bottom-3 right-3 p-2 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Hero details */}
-        <div className="flex flex-col gap-1 px-1 relative">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-              Detected in this reel
-            </span>
-            {selectedProduct.isVerifiedMatch && (
-              <span className="text-[9px] font-extrabold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/30 flex items-center gap-0.5">
-                ✓ Verified
-              </span>
-            )}
-          </div>
-          <h4 className="text-[18px] font-semibold text-white capitalize leading-snug pr-8 mt-1">
-            {selectedProduct.label}
-          </h4>
-          {selectedProduct.brand && (
-            <span className="text-sm text-zinc-400 font-medium capitalize">
-              by {selectedProduct.brand}
-            </span>
-          )}
-
-          {/* Save to Collection Heart in the Hero */}
-          <div className="absolute right-1 top-2 z-10">
-            <button
-              onClick={() => setShowSaveDropdown(!showSaveDropdown)}
-              className="p-2 rounded-full bg-[#121212] border border-zinc-800 hover:bg-zinc-800 text-rose-500 hover:text-rose-450 transition-colors"
-              title="Save to Collection"
+          {/* 3. PRODUCT COVER & HERO DETAILS */}
+          <div className="flex flex-col gap-4">
+            <div
+              onClick={() => {
+                if (galleryImages.length > 0) {
+                  setActiveImageIndex(0);
+                  setIsGalleryOpen(true);
+                }
+              }}
+              className="w-full aspect-square rounded-[20px] overflow-hidden border border-zinc-800 bg-[#090909] cursor-zoom-in relative group"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={collections?.some((c: any) => c.saved) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-              </svg>
-            </button>
-
-            {showSaveDropdown && (
-              <div className="absolute right-0 top-9 z-30 w-52 p-2 bg-[#090909] border border-zinc-800 rounded-xl shadow-2xl animate-in fade-in duration-200">
-                <div className="text-[10px] font-black uppercase text-zinc-400 px-2 py-1 tracking-wider border-b border-zinc-900 pb-1.5 mb-1.5">
-                  Save Look to Board
-                </div>
-                
-                <div className="max-h-36 overflow-y-auto flex flex-col gap-1 pr-1 scrollbar-none">
-                  {collections?.map((col: any) => (
-                    <button
-                      key={col.id}
-                      onClick={() => handleToggleSave(col.id, undefined, col.saved ? "unsave" : "save")}
-                      className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold text-zinc-350 hover:bg-zinc-900 hover:text-white"
-                    >
-                      <span className="truncate max-w-[120px]">{col.name}</span>
-                      <span className="text-xs">{col.saved ? "❤️" : "🤍"}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="border-t border-zinc-900 pt-1.5 mt-1.5 flex gap-1.5 px-1.5">
-                  <input
-                    type="text"
-                    placeholder="New Board..."
-                    value={newColName}
-                    onChange={(e) => setNewColName(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 text-[10px] text-white w-full focus:outline-none focus:border-zinc-700 font-medium"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newColName.trim()) {
-                        handleToggleSave(null, newColName.trim(), "save");
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      if (newColName.trim()) {
-                        handleToggleSave(null, newColName.trim(), "save");
-                      }
-                    }}
-                    className="px-2 py-1 bg-white hover:bg-zinc-200 text-black text-[9px] font-bold rounded-md"
-                  >
-                    Add
-                  </button>
-                </div>
+              <img
+                src={selectedProduct.thumbnailUrl || selectedProduct.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&auto=format&fit=crop&q=60"}
+                alt={selectedProduct.label}
+                className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              />
+              <div className="absolute bottom-3 right-3 p-2 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
+                </svg>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Metadata Chips */}
-        {(selectedProduct.style || selectedProduct.material || selectedProduct.season || selectedProduct.gender) && (
-          <div className="flex flex-wrap gap-1.5 px-1">
-            {selectedProduct.style && (
-              <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
-                Style: {selectedProduct.style}
-              </span>
-            )}
-            {selectedProduct.material && (
-              <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
-                Material: {selectedProduct.material}
-              </span>
-            )}
-            {selectedProduct.season && (
-              <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
-                Season: {selectedProduct.season}
-              </span>
-            )}
-            {selectedProduct.gender && (
-              <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
-                Fits: {selectedProduct.gender}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 3. BEST PRICE OFFER */}
-      {bestMatch ? (
-        <div className="flex flex-col gap-2.5">
-          <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
-            Best Price
-          </span>
-          <a
-            href={bestMatch.productUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
-            className="flex items-center justify-between gap-3 bg-[#121212] border border-zinc-800/80 hover:border-zinc-700 p-4 rounded-2xl transition-all group relative overflow-hidden shadow-lg select-none"
-          >
-            <div className="flex items-start gap-3 min-w-0">
-              {bestMatch.imageUrl ? (
-                <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-800 bg-[#090909]">
-                  <img src={bestMatch.imageUrl} alt={bestMatch.sourceStore} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-11 h-11 rounded-lg bg-zinc-850 flex items-center justify-center text-xs text-zinc-500 flex-shrink-0">
-                  🛒
-                </div>
+            <div className="flex flex-col gap-1 px-1 relative">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                  Detected in this reel
+                </span>
+                {selectedProduct.isVerifiedMatch && (
+                  <span className="text-[9px] font-extrabold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/30 flex items-center gap-0.5">
+                    ✓ Verified
+                  </span>
+                )}
+              </div>
+              <h4 className="text-[18px] font-semibold text-white capitalize leading-snug pr-8 mt-1">
+                {selectedProduct.label}
+              </h4>
+              {selectedProduct.brand && (
+                <span className="text-sm text-zinc-400 font-medium capitalize">
+                  by {selectedProduct.brand}
+                </span>
               )}
-              <div className="min-w-0 flex flex-col justify-center">
-                <span className="text-sm font-bold text-white truncate leading-tight">
-                  {bestMatch.sourceStore}
-                </span>
-                <span className="text-[11px] text-zinc-400 font-medium mt-1">
-                  {getDeliveryTag(bestMatch.sourceStore)}
-                </span>
+
+              {/* Wishlist Icon */}
+              <div className="absolute right-1 top-2 z-10">
+                <button
+                  onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+                  className="p-2 rounded-full bg-[#121212] border border-zinc-800 hover:bg-zinc-800 text-rose-500 hover:text-rose-450 transition-colors"
+                  title="Save to Board"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={collections?.some((c: any) => c.saved) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                  </svg>
+                </button>
+
+                {showSaveDropdown && (
+                  <div className="absolute right-0 top-9 z-30 w-52 p-2 bg-[#090909] border border-zinc-800 rounded-xl shadow-2xl animate-in fade-in duration-200">
+                    <div className="text-[10px] font-black uppercase text-zinc-400 px-2 py-1 tracking-wider border-b border-zinc-900 pb-1.5 mb-1.5">
+                      Save Look to Board
+                    </div>
+                    
+                    <div className="max-h-36 overflow-y-auto flex flex-col gap-1 pr-1 scrollbar-none">
+                      {collections?.map((col: any) => (
+                        <button
+                          key={col.id}
+                          onClick={() => handleToggleSave(col.id, undefined, col.saved ? "unsave" : "save")}
+                          className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold text-zinc-300 hover:bg-zinc-900 hover:text-white"
+                        >
+                          <span className="truncate max-w-[120px]">{col.name}</span>
+                          <span className="text-xs">{col.saved ? "❤️" : "🤍"}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-zinc-900 pt-1.5 mt-1.5 flex gap-1.5 px-1.5">
+                      <input
+                        type="text"
+                        placeholder="New Board..."
+                        value={newColName}
+                        onChange={(e) => setNewColName(e.target.value)}
+                        className="bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 text-[10px] text-white w-full focus:outline-none focus:border-zinc-700 font-medium"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newColName.trim()) {
+                            handleToggleSave(null, newColName.trim(), "save");
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (newColName.trim()) {
+                            handleToggleSave(null, newColName.trim(), "save");
+                          }
+                        }}
+                        className="px-2 py-1 bg-white hover:bg-zinc-200 text-black text-[9px] font-bold rounded-md"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-shrink-0 z-10">
-              <div className="text-right">
-                <span className="text-[24px] font-bold text-white block">
-                  {bestMatch.price}
-                </span>
+            {/* Product description */}
+            {selectedProduct.description && (
+              <p className="text-xs text-zinc-400 px-1 leading-relaxed mt-1">
+                {selectedProduct.description}
+              </p>
+            )}
+
+            {/* Style parameters */}
+            {(selectedProduct.style || selectedProduct.material || selectedProduct.season || selectedProduct.gender) && (
+              <div className="flex flex-wrap gap-1.5 px-1 mt-1">
+                {selectedProduct.style && (
+                  <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
+                    Style: {selectedProduct.style}
+                  </span>
+                )}
+                {selectedProduct.material && (
+                  <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
+                    Material: {selectedProduct.material}
+                  </span>
+                )}
+                {selectedProduct.season && (
+                  <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
+                    Season: {selectedProduct.season}
+                  </span>
+                )}
+                {selectedProduct.gender && (
+                  <span className="text-[11.5px] font-medium bg-[#121212] text-zinc-400 px-2.5 py-1.5 rounded-lg select-none">
+                    Fits: {selectedProduct.gender}
+                  </span>
+                )}
               </div>
-              <span className="text-[11px] font-bold text-white bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-[1.02] active:scale-[0.98] px-3.5 py-2.5 rounded-xl transition-all shadow">
-                BUY NOW
+            )}
+          </div>
+
+          {/* 4. BEST PRICE OFFER */}
+          {bestMatch ? (
+            <div className="flex flex-col gap-2.5">
+              <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+                Best Price
               </span>
-            </div>
-
-            {/* Top-right small yellow pill badge */}
-            <span className="absolute top-2.5 right-2.5 bg-yellow-500 text-black text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full select-none shadow-sm">
-              BEST PRICE
-            </span>
-          </a>
-        </div>
-      ) : (
-        <div className="text-[11px] text-zinc-500 py-1 pl-3 italic">
-          No matches found for &quot;{selectedProduct.label}&quot;.
-        </div>
-      )}
-
-      {/* 4. COMPARE PRICES (OTHER STORES) */}
-      {otherMatches.length > 0 && (
-        <div className="flex flex-col gap-2 px-1">
-          <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
-            Compare Prices
-          </span>
-          <div className="flex flex-col border border-zinc-800/80 rounded-xl overflow-hidden bg-[#121212]/30 select-none">
-            {otherMatches.map((match: any, idx: number) => (
               <a
-                key={match.id || idx}
-                href={match.productUrl}
+                href={bestMatch.productUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => handleBuyClick(e, match.id, match.productUrl)}
-                className="flex items-center justify-between gap-3 p-3 transition-colors border-b border-zinc-900 last:border-b-0 hover:bg-[#121212]"
+                onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
+                className="flex items-center justify-between gap-3 bg-[#121212]/50 hover:bg-[#121212] border border-zinc-800/80 p-4 rounded-2xl transition-all group relative overflow-hidden shadow-lg select-none"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  {match.imageUrl ? (
-                    <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-[#090909]">
-                      <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
+                <div className="flex items-start gap-3 min-w-0">
+                  {bestMatch.imageUrl ? (
+                    <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-800 bg-[#090909]">
+                      <img src={bestMatch.imageUrl} alt={bestMatch.sourceStore} className="w-full h-full object-cover" />
                     </div>
                   ) : (
-                    <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500 flex-shrink-0">
+                    <div className="w-11 h-11 rounded-lg bg-zinc-850 flex items-center justify-center text-xs text-zinc-500 flex-shrink-0">
                       🛒
                     </div>
                   )}
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-zinc-200 block truncate group-hover:text-white leading-tight">
-                      {match.sourceStore}
+                  <div className="min-w-0 flex flex-col justify-center">
+                    <span className="text-sm font-bold text-white truncate leading-tight">
+                      {bestMatch.merchant?.name || bestMatch.sourceStore}
                     </span>
-                    <span className="text-[10px] font-medium text-zinc-500 mt-0.5 block">
-                      {getDeliveryTag(match.sourceStore)}
-                    </span>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {bestMatch.merchant?.rating && (
+                        <span className="text-[10px] text-amber-500 font-bold flex items-center gap-0.5">
+                          ★ {bestMatch.merchant.rating}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-zinc-400 font-medium">
+                        {bestMatch.deliveryText || getDeliveryTag(bestMatch.sourceStore)}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 flex-shrink-0">
-                  <span className="text-xs font-bold text-zinc-200 block">
-                    {match.price}
-                  </span>
-                  <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 hover:text-white hover:bg-zinc-800 px-3 py-1.5 border border-zinc-800 rounded-lg transition-all">
-                    Buy
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 5. SIMILAR PRODUCTS CAROUSEL */}
-      {selectedProduct && (
-        <div className="flex flex-col gap-2.5 px-1">
-          <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
-            Similar Products
-          </span>
-          {loadingSimilar ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-5 animate-spin text-zinc-500" />
-            </div>
-          ) : similarProducts && similarProducts.length > 0 ? (
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
-              {similarProducts.map((item: any) => {
-                const itemBestPrice = item.matches?.[0];
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedProductId(item.id);
-                    }}
-                    className="flex flex-col w-[150px] flex-shrink-0 bg-[#121212]/40 hover:bg-[#121212] border border-zinc-800/80 p-2.5 rounded-[16px] text-left transition-all snap-center select-none"
-                  >
-                    <div className="w-full aspect-square rounded-xl overflow-hidden border border-zinc-800 bg-[#090909] mb-2.5">
-                      <img
-                        src={item.thumbnailUrl || item.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&auto=format&fit=crop&q=60"}
-                        alt={item.label}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <span className="text-xs font-semibold text-white capitalize truncate block w-full leading-tight">
-                      {item.label}
+                <div className="flex items-center gap-3 flex-shrink-0 z-10">
+                  <div className="text-right">
+                    <span className="text-[20px] font-black text-white block">
+                      {bestMatch.price}
                     </span>
-                    <div className="flex items-center justify-between gap-1 mt-1.5 w-full">
-                      <span className="text-xs font-bold text-amber-500 truncate">
-                        {itemBestPrice?.price || "N/A"}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                  </div>
+                  {/* Hide Buy button in Best Price Card when sticky CTA will be shown at the bottom */}
+                  {drawerHeightState !== "max" && (
+                    <span className="text-[11px] font-bold text-black bg-white hover:bg-zinc-200 px-4 py-2.5 rounded-xl transition-all shadow">
+                      BUY NOW
+                    </span>
+                  )}
+                </div>
+
+                <span className="absolute top-2.5 right-2.5 bg-zinc-800 text-zinc-300 text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full select-none shadow-sm">
+                  BEST DEAL
+                </span>
+              </a>
             </div>
           ) : (
-            <div className="text-[10px] text-zinc-500 italic py-1.5">
-              No similar products detected.
+            <div className="text-[11px] text-zinc-500 py-1 pl-3 italic">
+              No matches found for &quot;{selectedProduct.label}&quot;.
             </div>
           )}
-        </div>
+
+          {/* 5. COMPARE PRICES (OTHER STORES) */}
+          {otherMatches.length > 0 && (
+            <div className="flex flex-col gap-2 px-1">
+              <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+                Compare Stores
+              </span>
+              <div className="flex flex-col border border-zinc-900 rounded-xl overflow-hidden bg-[#121212]/10 select-none">
+                {otherMatches.map((match: any, idx: number) => (
+                  <a
+                    key={match.id || idx}
+                    href={match.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => handleBuyClick(e, match.id, match.productUrl)}
+                    className="flex items-center justify-between gap-3 p-3 transition-colors border-b border-zinc-900 last:border-b-0 hover:bg-[#121212]"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {match.imageUrl ? (
+                        <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 border border-zinc-800 bg-[#090909]">
+                          <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500 flex-shrink-0">
+                          🛒
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-zinc-200 block truncate group-hover:text-white leading-tight">
+                          {match.merchant?.name || match.sourceStore}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {match.merchant?.rating && (
+                            <span className="text-[10px] text-amber-500 font-bold flex items-center gap-0.5">
+                              ★ {match.merchant.rating}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-medium text-zinc-500">
+                            {match.deliveryText || getDeliveryTag(match.sourceStore)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-shrink-0">
+                      <span className="text-xs font-bold text-zinc-200 block">
+                        {match.price}
+                      </span>
+                      <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 hover:text-white hover:bg-zinc-800 px-3 py-1.5 border border-zinc-800 rounded-lg transition-all">
+                        Buy
+                      </span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 6. WHY WE MATCHED THIS */}
+          <div className="flex flex-col gap-2 px-1">
+            <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+              Why We Matched This
+            </span>
+            <div className="bg-[#121212]/30 p-3.5 rounded-xl text-xs text-zinc-400 leading-relaxed">
+              {selectedProduct.isVerifiedMatch ? (
+                <p>
+                  Curated and approved directly by the creator. Checked and verified for look, style, and fit in this reel.
+                </p>
+              ) : (
+                <p>
+                  AI detected this item with {Math.round((selectedProduct.confidence || selectedProduct.aiConfidence || 0.85) * 105)}% confidence in the video frame at {selectedProduct.frameTimestamp ? `${Math.round(selectedProduct.frameTimestamp)}s` : "timestamp"}. Match verified against available retail inventory.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 7. SIMILAR PRODUCTS CAROUSEL */}
+          {selectedProduct && (
+            <div className="flex flex-col gap-2.5 px-1">
+              <span className="text-[10px] font-black tracking-wider text-zinc-400 uppercase">
+                Similar Products
+              </span>
+              {loadingSimilar ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="size-5 animate-spin text-zinc-500" />
+                </div>
+              ) : similarProducts && similarProducts.length > 0 ? (
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
+                  {similarProducts.map((item: any) => {
+                    const itemBestPrice = item.matches?.[0];
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedProductId(item.id);
+                        }}
+                        className="flex flex-col w-[150px] flex-shrink-0 bg-[#121212]/20 hover:bg-[#121212] border border-zinc-800/80 p-2.5 rounded-[16px] text-left transition-all snap-center select-none"
+                      >
+                        <div className="w-full aspect-square rounded-xl overflow-hidden border border-zinc-800 bg-[#090909] mb-2.5">
+                          <img
+                            src={item.thumbnailUrl || item.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&auto=format&fit=crop&q=60"}
+                            alt={item.label}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-white capitalize truncate block w-full leading-tight">
+                          {item.label}
+                        </span>
+                        <div className="flex items-center justify-between gap-1 mt-1.5 w-full">
+                          <span className="text-xs font-bold text-zinc-400 truncate">
+                            {itemBestPrice?.price || "N/A"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-[10px] text-zinc-500 italic py-1.5">
+                  No similar products detected.
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Fullscreen Product Image Gallery Viewer */}

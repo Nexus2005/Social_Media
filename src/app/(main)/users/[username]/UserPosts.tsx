@@ -9,18 +9,37 @@ import Post from "@/components/posts/Post";
 import PostsLoadingSkeleton from "@/components/posts/PostsLoadingSkeleton";
 import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
 import { Loader2 } from "lucide-react";
+import SavedProductsGrid from "@/components/profile/SavedProductsGrid";
+import StorefrontGrid from "@/components/profile/StorefrontGrid";
+import CreatorCommerceStudio from "@/components/creator/CreatorCommerceStudio";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface UserPostsProps {
   userId: string;
 }
 
-type ProfileTab = "posts" | "reposts" | "replies" | "media" | "reels" | "likes" | "collections";
+type ProfileTab = "posts" | "reposts" | "replies" | "media" | "reels" | "likes" | "collections" | "saved-products" | "storefront" | "creator-studio" | "insights";
 
 export default function UserPosts({ userId }: UserPostsProps) {
   const { user: loggedInUser } = useSession();
-  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = (searchParams.get("tab") as ProfileTab) || "posts";
+
+  const handleTabChange = (tabName: ProfileTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tabName === "posts") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tabName);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const isOwner = userId === loggedInUser.id;
+  const isPostTab = activeTab !== "storefront" && activeTab !== "saved-products" && activeTab !== "creator-studio" && activeTab !== "insights";
 
   const {
     data,
@@ -44,23 +63,24 @@ export default function UserPosts({ userId }: UserPostsProps) {
         .json<PostsPage>(),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: isPostTab,
   });
 
   const posts = data?.pages.flatMap((page) => page.posts) || [];
 
-  if (status === "pending") {
+  if (isPostTab && status === "pending") {
     return (
       <div className="space-y-5">
-        <TabsSelector activeTab={activeTab} onTabChange={setActiveTab} showCollections={isOwner} />
+        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
         <PostsLoadingSkeleton />
       </div>
     );
   }
 
-  if (status === "error") {
+  if (isPostTab && status === "error") {
     return (
       <div className="space-y-5">
-        <TabsSelector activeTab={activeTab} onTabChange={setActiveTab} showCollections={isOwner} />
+        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
         <p className="text-center text-destructive py-8">
           An error occurred while loading posts.
         </p>
@@ -70,9 +90,22 @@ export default function UserPosts({ userId }: UserPostsProps) {
 
   return (
     <div className="space-y-0">
-      <TabsSelector activeTab={activeTab} onTabChange={setActiveTab} showCollections={isOwner} />
+      {activeTab !== "creator-studio" && activeTab !== "insights" && (
+        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
+      )}
 
-      {!posts.length && !hasNextPage ? (
+      {activeTab === "creator-studio" ? (
+        <CreatorCommerceStudio userId={userId} />
+      ) : activeTab === "insights" ? (
+        <div className="px-4 py-8 text-zinc-400 select-none text-center bg-card/10 border border-border/30 rounded-2xl m-4 animate-in fade-in duration-300">
+          <p className="font-bold text-sm text-white">Insights Dashboard</p>
+          <p className="text-xs text-zinc-500 mt-1">Visit your Creator Studio to track live Reels conversion analytics, view views/clicks CTR, and manage active brand partnership campaigns.</p>
+        </div>
+      ) : activeTab === "storefront" ? (
+        <StorefrontGrid userId={userId} isOwner={isOwner} />
+      ) : activeTab === "saved-products" ? (
+        <SavedProductsGrid userId={userId} />
+      ) : !posts.length && !hasNextPage ? (
         <p className="text-center text-muted-foreground py-12 text-sm">
           No posts found in this category.
         </p>
@@ -104,6 +137,8 @@ function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorP
     { value: "replies", label: "Replies" },
     { value: "media", label: "Media" },
     { value: "reels", label: "Reels" },
+    { value: "storefront", label: "Shop" },
+    { value: "saved-products", label: "Saved" },
     { value: "likes", label: "Likes" },
   ];
 
