@@ -43,7 +43,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useTheme } from "next-themes";
-import PostEditor from "@/components/posts/editor/PostEditor";
 import { cn } from "@/lib/utils";
 
 // Custom fast-loading SpotsIcon SVG component matching the user's logo design
@@ -91,7 +90,6 @@ export default function CartlySidebar({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Queries for real-time counts
   const { data: notificationsData } = useQuery({
@@ -112,7 +110,16 @@ export default function CartlySidebar({
     refetchInterval: 60 * 1000,
   });
 
-  const menuItems = [
+  interface SidebarItem {
+    icon: (props: any) => React.ReactNode;
+    label: string;
+    href: string;
+    onClick?: () => void;
+    active: boolean;
+    badge?: number;
+  }
+
+  const menuItems: SidebarItem[] = [
     {
       icon: (props: any) => <Home {...props} />,
       label: "Home",
@@ -154,8 +161,8 @@ export default function CartlySidebar({
     {
       icon: (props: any) => <PlusSquare {...props} />,
       label: "Create",
-      onClick: () => setIsCreateOpen(true),
-      active: false,
+      href: "/create",
+      active: pathname === "/create",
     },
     {
       icon: (props: any) => <UserAvatar avatarUrl={user.avatarUrl} size={24} {...props} />,
@@ -164,6 +171,8 @@ export default function CartlySidebar({
       active: pathname === `/users/${user.username}`,
     },
   ];
+
+  if (pathname === "/create") return null;
 
   const isReels = pathname === "/reels";
 
@@ -307,17 +316,6 @@ export default function CartlySidebar({
         </div>
       </aside>
 
-      {/* Create Post Modal */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-none w-full h-full md:h-auto md:w-[85vw] md:max-w-4xl p-0 overflow-hidden bg-transparent md:bg-card rounded-none md:rounded-2xl border-none md:border left-0 top-0 translate-x-0 translate-y-0 md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] [&>button]:hidden md:[&>button]:inline-flex">
-          <DialogHeader className="hidden md:flex px-6 py-4 border-b">
-            <DialogTitle className="text-center font-bold text-lg">Create new post</DialogTitle>
-          </DialogHeader>
-          <div className="p-0 md:p-6 h-full md:h-auto">
-            <PostEditor onClose={() => setIsCreateOpen(false)} />
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

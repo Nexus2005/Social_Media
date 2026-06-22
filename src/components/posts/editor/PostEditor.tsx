@@ -2,52 +2,51 @@
 
 import { useSession } from "@/app/(main)/SessionProvider";
 import LoadingButton from "@/components/LoadingButton";
-import { Button } from "@/components/ui/button";
 import UserAvatar from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { UploadService } from "@/lib/services/uploadService";
-import { LocationData } from "@/lib/providers/locationProvider";
+import { LocationData, GooglePlacesLocationProvider } from "@/lib/providers/locationProvider";
 import { useSubmitPostMutation } from "./mutations";
 import useMediaUpload, { Attachment } from "./useMediaUpload";
 import { getFilterString, getProcessedImg } from "./imageProcessing";
 import { submitPost } from "./actions";
 import VideoPlayer from "@/components/VideoPlayer";
 import GifPicker from "@/components/stories/GifPicker";
+import {
+  IconGallery,
+  IconCamera,
+  IconGif,
+  IconPoll,
+  IconLocation,
+  IconProduct,
+  IconMore,
+  IconClose,
+  IconBack,
+  IconEveryone,
+  IconCollaborators,
+  IconSchedule,
+  IconSettings,
+  IosSwitch,
+} from "./ComposerIcons";
 
 import {
-  Image as LucideImage,
-  FileText as LucideGif,
-  BarChart3 as LucidePoll,
-  MapPin as LucideLocation,
   Loader2,
-  X,
   Sparkles,
   Users,
   Globe,
   Heart,
-  MessageSquare,
-  Sliders,
-  MoreHorizontal,
-  Plus,
-  ArrowLeft,
   Calendar,
   Lock,
-  Trash2,
   Check,
   Video,
-  Mic,
   Camera,
-  RotateCw,
-  Clock,
   Settings,
   HelpCircle,
-  Play,
-  Pause,
-  AlertTriangle,
-  Smile,
-  Accessibility
+  Accessibility,
+  ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
@@ -109,6 +108,22 @@ interface PostEditorProps {
   onClose?: () => void;
 }
 
+type PanelType = 
+  | "none" 
+  | "gif" 
+  | "location" 
+  | "audience" 
+  | "schedule" 
+  | "camera" 
+  | "ai" 
+  | "poll" 
+  | "more" 
+  | "media-edit" 
+  | "collab" 
+  | "settings" 
+  | "alt-text"
+  | "draft-recovery";
+
 export default function PostEditor({ onClose }: PostEditorProps) {
   const { user } = useSession();
   const { toast } = useToast();
@@ -126,32 +141,14 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   } = useMediaUpload();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const desktopFileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<any>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
   // Unified State Panel Route
-  type PanelType = 
-    | "none" 
-    | "gif" 
-    | "location" 
-    | "audience" 
-    | "schedule" 
-    | "camera" 
-    | "ai" 
-    | "poll" 
-    | "more" 
-    | "media-edit" 
-    | "collab" 
-    | "settings" 
-    | "alt-text"
-    | "draft-recovery";
-
   const [activePanel, setActivePanel] = useState<PanelType>("none");
   const [postType, setPostType] = useState<"normal" | "thread" | "poll" | "article">("normal");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
-  const [isExpanded, setIsExpanded] = useState(false);
 
   // Draft recovery states
   const [showDraftBanner, setShowDraftBanner] = useState(false);
@@ -171,6 +168,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
   // Location Selector
   const [locationSearch, setLocationSearch] = useState("");
+  const [locationResults, setLocationResults] = useState<LocationData[]>([]);
+  const [searchingLocations, setSearchingLocations] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [recentLocations, setRecentLocations] = useState<LocationData[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
 
   // Media Tweaks
@@ -275,6 +276,37 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       setShowDraftBanner(true);
     }
   }, []);
+
+  // Location list loader
+  useEffect(() => {
+    if (activePanel === "location") {
+      const provider = new GooglePlacesLocationProvider();
+      setRecentLocations(provider.getRecentLocations());
+    }
+  }, [activePanel]);
+
+  // Location Places API search autocomplete
+  useEffect(() => {
+    if (!locationSearch.trim()) {
+      setLocationResults([]);
+      return;
+    }
+
+    setSearchingLocations(true);
+    const delay = setTimeout(async () => {
+      try {
+        const provider = new GooglePlacesLocationProvider();
+        const matches = await provider.searchLocations(locationSearch);
+        setLocationResults(matches);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchingLocations(false);
+      }
+    }, 450);
+
+    return () => clearTimeout(delay);
+  }, [locationSearch]);
 
   const handleResumeDraft = () => {
     try {
@@ -496,6 +528,26 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     }
   };
 
+  const handleGetCurrentLocation = async () => {
+    setLocating(true);
+    try {
+      const provider = new GooglePlacesLocationProvider();
+      const loc = await provider.getCurrentLocation();
+      setSelectedLocation(loc);
+      provider.saveRecentLocation(loc);
+      setActivePanel("none");
+      toast({ description: `Location added: ${loc.name}` });
+    } catch (e) {
+      console.error(e);
+      toast({
+        variant: "destructive",
+        description: "Failed to access geolocation. Please check browser permissions.",
+      });
+    } finally {
+      setLocating(false);
+    }
+  };
+
   const shiftMedia = (index: number, dir: "left" | "right") => {
     const nextIdx = dir === "left" ? index - 1 : index + 1;
     if (nextIdx < 0 || nextIdx >= attachments.length) return;
@@ -603,7 +655,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   };
 
   // Text utilities & counters
-  const charLimit = postType === "article" ? 100000 : 280;
+  const charLimit = postType === "article" ? 100005 : 280;
   const activeNodeText = threads[activeThreadIndex]?.text || "";
   const charCount = activeNodeText.length;
   const isOverLimit = charCount > charLimit;
@@ -620,7 +672,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     const id = Math.random().toString();
     setThreads([...threads, { id, text: "" }]);
     setActiveThreadIndex(threads.length);
-    setIsExpanded(true);
   };
 
   const handleRemoveThreadNode = (idx: number) => {
@@ -683,32 +734,20 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const activeFile = attachments[activeMediaIndex]?.file?.name;
   const activeAdj = activeFile ? getAdjustment(activeFile) : defaultAdjustmentState();
 
-  // Simulated location results
-  const dummyLocations = [
-    { name: "Mumbai, Maharashtra", description: "City in India" },
-    { name: "Bandra West, Mumbai", description: "Neighborhood in Mumbai" },
-    { name: "Nariman Point, Mumbai", description: "Business district in Mumbai" },
-    { name: "Gateway of India", description: "Historic Monument, Mumbai" },
-    { name: "Juhu Beach, Mumbai", description: "Scenic beachfront in Mumbai" },
-  ];
-  const filteredLocations = dummyLocations.filter(loc =>
-    loc.name.toLowerCase().includes(locationSearch.toLowerCase())
-  );
-
-  // Unified Rendering of Sub-Panel content (shared by mobile overlay & desktop side column)
-  const renderPanelContent = (isMobileView: boolean) => {
+  // Sub-Panel content renders in-place pushing previous view
+  const renderPanelContent = () => {
     switch (activePanel) {
       case "gif":
         return (
-          <div className="flex flex-col h-full bg-neutral-950 text-white select-none">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-900 bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-black text-white">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
               <button 
                 onClick={() => setActivePanel("none")} 
-                className="p-2 hover:bg-zinc-900 rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="p-2 hover:bg-[#121212] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center"
               >
-                <ArrowLeft className="size-5 text-white" />
+                <IconBack />
               </button>
-              <span className="font-bold text-sm">Select GIF</span>
+              <span className="font-bold text-[18px]">Select GIF</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               <GifPicker 
@@ -723,54 +762,122 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         );
       case "location":
         return (
-          <div className="flex flex-col h-full bg-neutral-950 text-white select-none">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-900 bg-neutral-950 flex-shrink-0">
-              <button 
-                onClick={() => setActivePanel("none")} 
-                className="p-2 hover:bg-zinc-900 rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center"
-              >
-                <ArrowLeft className="size-5 text-white" />
-              </button>
-              <span className="font-bold text-sm">Select Location</span>
+          <div className="flex flex-col h-full bg-black text-white">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setActivePanel("none")} 
+                  className="p-2 hover:bg-[#121212] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center"
+                >
+                  <IconBack />
+                </button>
+                <span className="font-bold text-[18px]">Add Location</span>
+              </div>
+              {selectedLocation && (
+                <button 
+                  onClick={() => { setSelectedLocation(null); setActivePanel("none"); }} 
+                  className="text-[14px] text-red-500 font-semibold hover:opacity-80"
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            <div className="p-4 space-y-4 flex-1 flex flex-col">
-              <div className="relative">
+            <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
+              <div className="relative flex items-center border-b border-[#27272A]">
                 <input
                   type="text"
-                  placeholder="Search locations..."
+                  placeholder="Search for a city or place..."
                   value={locationSearch}
                   onChange={(e) => setLocationSearch(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-sm text-white focus:outline-none placeholder:text-zinc-650 min-h-[44px]"
+                  className="w-full bg-transparent border-none outline-none py-2.5 text-[16px] text-white placeholder-zinc-650 focus:ring-0"
                 />
-              </div>
-              <div className="space-y-1 flex-1 overflow-y-auto scrollbar-none">
-                {filteredLocations.map((loc) => (
-                  <button
-                    key={loc.name}
-                    onClick={() => {
-                      setSelectedLocation(loc);
-                      setActivePanel("none");
-                    }}
-                    className="w-full text-left p-3 hover:bg-zinc-900 rounded-xl flex flex-col gap-0.5 border-b border-zinc-900/60 min-h-[44px]"
-                  >
-                    <span className="text-sm font-semibold text-white">{loc.name}</span>
-                    <span className="text-[11px] text-zinc-500">{loc.description}</span>
+                {locationSearch && (
+                  <button onClick={() => setLocationSearch("")} className="text-[#A1A1AA] p-1">
+                    <IconClose size={16} />
                   </button>
-                ))}
+                )}
+              </div>
+
+              <button
+                onClick={handleGetCurrentLocation}
+                disabled={locating}
+                className="flex items-center justify-center gap-2 py-3 bg-[#121212] hover:bg-[#1c1c1e] text-white rounded-xl text-[15px] font-semibold transition-colors disabled:opacity-50 min-h-[44px]"
+              >
+                {locating ? (
+                  <Loader2 className="size-4 animate-spin text-white" />
+                ) : (
+                  <IconLocation size={20} />
+                )}
+                <span>Use Current Location</span>
+              </button>
+
+              <div className="flex-1 overflow-y-auto space-y-1 scrollbar-none">
+                {searchingLocations ? (
+                  <div className="flex items-center justify-center py-8 text-[#A1A1AA]">
+                    <Loader2 className="size-5 animate-spin mr-2" />
+                    <span className="text-[14px]">Searching Google Places...</span>
+                  </div>
+                ) : locationSearch.trim() !== "" ? (
+                  locationResults.length === 0 ? (
+                    <div className="text-center py-8 text-[14px] text-[#A1A1AA]">No places found</div>
+                  ) : (
+                    locationResults.map((loc, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSelectedLocation(loc);
+                          setActivePanel("none");
+                        }}
+                        className="w-full text-left p-3 hover:bg-[#121212] rounded-xl flex flex-col gap-0.5 border-b border-[#27272A]/40 transition-colors"
+                      >
+                        <span className="text-[15px] font-bold text-white">{loc.name}</span>
+                        {loc.description && (
+                          <span className="text-[13px] text-[#A1A1AA] truncate">{loc.description}</span>
+                        )}
+                      </button>
+                    ))
+                  )
+                ) : (
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider block px-1 py-1">Recent Searches</span>
+                    {recentLocations.length === 0 ? (
+                      <div className="py-4 px-1 text-xs text-zinc-650 italic">Searched locations appear here.</div>
+                    ) : (
+                      recentLocations.map((loc, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setSelectedLocation(loc);
+                            setActivePanel("none");
+                          }}
+                          className="w-full text-left p-3 hover:bg-[#121212] rounded-xl flex items-center gap-3 border-b border-[#27272A]/40 transition-colors"
+                        >
+                          <IconLocation size={16} className="text-[#A1A1AA]" />
+                          <span className="text-[15px] font-semibold text-white">{loc.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         );
       case "audience":
         return (
-          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
-            <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
-              <h4 className="font-bold text-sm">Who can see this?</h4>
-              <button onClick={() => setActivePanel("none")} className="text-xs font-bold text-[#ff6bcb]">Done</button>
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#27272A] pb-3">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                  <IconBack />
+                </button>
+                <h4 className="font-bold text-[18px]">Who can see this?</h4>
+              </div>
+              <button onClick={() => setActivePanel("none")} className="text-[15px] font-bold text-white hover:opacity-80">Done</button>
             </div>
-            <div className="space-y-2 flex-grow overflow-y-auto scrollbar-none">
+            <div className="space-y-3 flex-grow overflow-y-auto scrollbar-none">
               {[
-                { id: "PUBLIC", title: "Everyone", desc: "Anyone on or off Cartly can view", icon: Globe },
+                { id: "PUBLIC", title: "Everyone", desc: "Anyone on or off Cartly can view", icon: IconEveryone },
                 { id: "FOLLOWERS", title: "Followers", desc: "Only followers can see this", icon: Users },
                 { id: "CLOSE_FRIENDS", title: "Close Friends", desc: "Share only with VIP list", icon: Heart },
                 { id: "PRIVATE", title: "Only Me", desc: "Private post viewable only by you", icon: Lock }
@@ -779,110 +886,62 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                   key={opt.id}
                   onClick={() => setAudience(opt.id)}
                   className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                    audience === opt.id ? "bg-zinc-900 border-[#ff6bcb]" : "bg-zinc-950 border-zinc-900 hover:border-zinc-800"
+                    "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all",
+                    audience === opt.id ? "bg-[#121212] border-white" : "bg-black border-[#27272A] hover:border-zinc-800"
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <opt.icon className="size-4.5 text-sky-400 shrink-0" />
+                  <div className="flex items-center gap-3.5">
+                    <opt.icon className="size-5 text-[#A1A1AA] shrink-0" />
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold">{opt.title}</span>
-                      <span className="text-[10px] text-zinc-500">{opt.desc}</span>
+                      <span className="text-[15px] font-bold text-white">{opt.title}</span>
+                      <span className="text-[13px] text-[#A1A1AA]">{opt.desc}</span>
                     </div>
                   </div>
                   <div className={cn(
-                    "size-3.5 rounded-full border flex items-center justify-center",
-                    audience === opt.id ? "border-[#ff6bcb] bg-[#ff6bcb]" : "border-zinc-700"
+                    "size-5 rounded-full border-2 flex items-center justify-center",
+                    audience === opt.id ? "border-white bg-white" : "border-[#27272A]"
                   )}>
-                    {audience === opt.id && <Check className="size-2 text-white" />}
+                    {audience === opt.id && <Check className="size-3 text-black stroke-[3px]" />}
                   </div>
                 </div>
               ))}
             </div>
           </div>
         );
-      case "ai":
-        return (
-          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="size-4 text-[#ff6bcb]" />
-                <span className="font-bold text-sm">AI Assist Actions</span>
-              </div>
-              <button onClick={() => setActivePanel("none")} className="text-xs text-[#ff6bcb] font-bold">Close</button>
-            </div>
-            <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none">
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block px-1">Quick Actions</span>
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    { label: "Improve Writing", key: "Improve" },
-                    { label: "Fix Grammar", key: "Grammar" },
-                    { label: "Make Shorter", key: "Shorter" },
-                    { label: "Make Professional", key: "Professional" }
-                  ].map((act) => (
-                    <button
-                      key={act.key}
-                      onClick={() => handleAIImprove(act.key)}
-                      className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-left font-semibold text-zinc-200 hover:border-zinc-750 transition-all min-h-[44px]"
-                    >
-                      {act.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="border-t border-zinc-900 pt-3 space-y-2">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block px-1">Advanced Writing Tools</span>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => handleAIImprove("Caption")}
-                    className="w-full bg-zinc-950 border border-zinc-900 rounded-xl p-3 text-xs text-left font-semibold text-zinc-300 hover:border-zinc-800 transition-all flex items-center justify-between min-h-[44px]"
-                  >
-                    <span>Generate Caption</span>
-                  </button>
-                  <button
-                    onClick={() => handleAIImprove("CTA")}
-                    className="w-full bg-zinc-950 border border-zinc-900 rounded-xl p-3 text-xs text-left font-semibold text-zinc-300 hover:border-zinc-800 transition-all flex items-center justify-between min-h-[44px]"
-                  >
-                    <span>Add Call To Action</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
       case "schedule":
         return (
-          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <h4 className="font-bold text-sm">Schedule Post</h4>
-              <button onClick={() => setActivePanel("none")} className="text-xs font-bold text-[#ff6bcb]">Done</button>
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
+              </button>
+              <h4 className="font-bold text-[18px]">Schedule Post</h4>
             </div>
             <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Date</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[13px] text-[#A1A1AA] font-bold uppercase tracking-wider">Date</label>
                 <input
                   type="date"
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-800 text-white p-2.5 rounded-xl text-sm focus:outline-none min-h-[44px] w-full"
+                  className="bg-[#121212] border border-[#27272A] text-white p-3 rounded-xl text-[15px] focus:outline-none min-h-[44px] w-full"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Time</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[13px] text-[#A1A1AA] font-bold uppercase tracking-wider">Time</label>
                 <input
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-800 text-white p-2.5 rounded-xl text-sm focus:outline-none min-h-[44px] w-full"
+                  className="bg-[#121212] border border-[#27272A] text-white p-3 rounded-xl text-[15px] focus:outline-none min-h-[44px] w-full"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Timezone</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[13px] text-[#A1A1AA] font-bold uppercase tracking-wider">Timezone</label>
                 <select
                   value={scheduleTimezone}
                   onChange={(e) => setScheduleTimezone(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-800 text-white p-2.5 rounded-xl text-xs focus:outline-none w-full"
+                  className="bg-[#121212] border border-[#27272A] text-white p-3 rounded-xl text-[14px] focus:outline-none w-full"
                 >
                   <option value="UTC">UTC / Greenwich</option>
                   <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
@@ -890,30 +949,40 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                 </select>
               </div>
               {scheduleDate && scheduleTime && (
-                <div className="bg-zinc-950 p-2.5 rounded-xl text-xs text-zinc-400 border border-zinc-900">
-                  Scheduled for: <span className="text-white font-bold">{scheduleDate} at {scheduleTime} ({scheduleTimezone})</span>
+                <div className="bg-[#121212] p-3 rounded-xl text-[13px] text-[#A1A1AA] border border-[#27272A]">
+                  Post will go live automatically on: <span className="text-white font-bold">{scheduleDate} at {scheduleTime} ({scheduleTimezone})</span>
                 </div>
               )}
+              <button
+                onClick={() => setActivePanel("none")}
+                className="w-full mt-4 bg-white text-black font-bold py-3.5 rounded-full text-[15px] transition-colors hover:bg-neutral-200 min-h-[44px]"
+              >
+                Confirm Schedule
+              </button>
             </div>
           </div>
         );
       case "collab":
         return (
-          <div className="flex flex-col h-full bg-neutral-950 text-white p-4 space-y-4 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <h4 className="font-bold text-sm">Collaborators</h4>
-              <button onClick={() => setActivePanel("none")} className="text-xs font-bold text-[#ff6bcb]">Done</button>
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
+              </button>
+              <h4 className="font-bold text-[18px]">Collaborators</h4>
             </div>
             <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none">
-              <input
-                type="text"
-                placeholder="Search guest creators..."
-                value={collaboratorSearch}
-                onChange={(e) => setCollaboratorSearch(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none min-h-[44px]"
-              />
+              <div className="relative flex items-center border-b border-[#27272A]">
+                <input
+                  type="text"
+                  placeholder="Search creators..."
+                  value={collaboratorSearch}
+                  onChange={(e) => setCollaboratorSearch(e.target.value)}
+                  className="w-full bg-transparent border-none outline-none py-2 px-1 text-[16px] text-white placeholder-zinc-650 focus:ring-0"
+                />
+              </div>
               {collaboratorSearch.trim() && (
-                <div className="bg-zinc-900 rounded-xl p-2 border border-zinc-800 space-y-1">
+                <div className="bg-[#121212] rounded-xl p-2 border border-[#27272A] space-y-1">
                   {["jane_dev", "alex_influencer", "mark_marketing"].filter(u => u.includes(collaboratorSearch.toLowerCase())).map(u => (
                     <button
                       key={u}
@@ -921,7 +990,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                         setInvitedCollaborators([...invitedCollaborators, { username: u, status: "pending" }]);
                         setCollaboratorSearch("");
                       }}
-                      className="w-full text-left p-2 hover:bg-zinc-800 text-xs font-bold text-white rounded-lg min-h-[44px]"
+                      className="w-full text-left p-3 hover:bg-[#1c1c1e] text-[14px] font-bold text-white rounded-lg min-h-[44px]"
                     >
                       Invite @{u}
                     </button>
@@ -930,27 +999,27 @@ export default function PostEditor({ onClose }: PostEditorProps) {
               )}
               <div className="space-y-2">
                 {invitedCollaborators.map((c, index) => (
-                  <div key={c.username} className="bg-zinc-900 border border-zinc-850 p-2.5 rounded-xl flex items-center justify-between">
+                  <div key={c.username} className="bg-[#121212] border border-[#27272A] p-3 rounded-2xl flex items-center justify-between">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold text-white">@{c.username}</span>
-                      <span className="text-[10px] text-zinc-500 capitalize">{c.status}</span>
+                      <span className="text-[14px] font-bold text-white">@{c.username}</span>
+                      <span className="text-[12px] text-[#A1A1AA] capitalize">{c.status}</span>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2">
                       <button
                         onClick={() => {
                           const list = [...invitedCollaborators];
                           list[index].status = "accepted";
                           setInvitedCollaborators(list);
                         }}
-                        className="bg-emerald-600 text-white font-bold text-[8px] px-1.5 py-0.5 rounded"
+                        className="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-full"
                       >
                         Accept
                       </button>
                       <button
                         onClick={() => setInvitedCollaborators(invitedCollaborators.filter(item => item.username !== c.username))}
-                        className="text-zinc-500 hover:text-white p-0.5"
+                        className="text-[#A1A1AA] hover:text-white p-1"
                       >
-                        <X className="size-3.5" />
+                        <IconClose size={16} />
                       </button>
                     </div>
                   </div>
@@ -961,13 +1030,15 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         );
       case "settings":
         return (
-          <div className="flex flex-col h-full bg-neutral-950 text-white p-4 space-y-4 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <h4 className="font-bold text-sm">Post Settings</h4>
-              <button onClick={() => setActivePanel("none")} className="text-xs font-bold text-[#ff6bcb]">Done</button>
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
+              </button>
+              <h4 className="font-bold text-[18px]">Post Settings</h4>
             </div>
-            <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none text-xs">
-              <div className="space-y-3">
+            <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none text-[16px]">
+              <div className="space-y-4">
                 {[
                   { label: "Allow Comments", val: allowComments, set: setAllowComments },
                   { label: "Allow Reposts", val: allowReposts, set: setAllowReposts },
@@ -977,32 +1048,27 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                   { label: "Hide Likes", val: hideLikeCount, set: setHideLikeCount },
                   { label: "Sensitive Warning", val: sensitiveWarning, set: setSensitiveWarning }
                 ].map((s) => (
-                  <div key={s.label} className="flex justify-between items-center">
-                    <span className="text-zinc-300 font-semibold">{s.label}</span>
-                    <input
-                      type="checkbox"
-                      checked={s.val}
-                      onChange={(e) => s.set(e.target.checked)}
-                      className="accent-[#ff6bcb] rounded size-4 bg-zinc-900 border-zinc-800"
-                    />
+                  <div key={s.label} className="flex justify-between items-center py-1">
+                    <span className="text-white font-medium">{s.label}</span>
+                    <IosSwitch checked={s.val} onChange={s.set} />
                   </div>
                 ))}
               </div>
 
               {allowAITranslation && (
-                <div className="border-t border-zinc-900 pt-3 space-y-2">
-                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Video Translation</span>
-                  <div className="flex flex-col gap-1">
+                <div className="border-t border-[#27272A] pt-4 space-y-3">
+                  <span className="text-[12px] font-bold text-[#A1A1AA] uppercase tracking-wider block">Video Translation Target</span>
+                  <div className="flex flex-col gap-1.5">
                     <select
                       value={videoTranslateTarget}
                       onChange={(e) => setVideoTranslateTarget(e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800 text-white p-2 rounded-xl text-[11px] focus:outline-none w-full"
+                      className="bg-[#121212] border border-[#27272A] text-white p-3 rounded-xl text-[14px] focus:outline-none w-full"
                     >
                       {["English", "Hindi", "Spanish", "French", "German", "Japanese"].map(lang => (
                         <option key={lang} value={lang}>{lang}</option>
                       ))}
                     </select>
-                    <span className="text-[9px] text-sky-400 font-bold block">Status: Coming Soon</span>
+                    <span className="text-[11px] text-sky-400 font-bold block pl-1">Status: Coming Soon</span>
                   </div>
                 </div>
               )}
@@ -1011,17 +1077,19 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         );
       case "alt-text":
         return (
-          <div className="flex flex-col h-full bg-neutral-950 text-white p-4 space-y-4 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <h4 className="font-bold text-sm">Write Alt Text</h4>
-              <button onClick={() => setActivePanel("none")} className="text-xs font-bold text-[#ff6bcb]">Close</button>
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
+              </button>
+              <h4 className="font-bold text-[18px]">Image Alt Text</h4>
             </div>
             <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none">
               <textarea
                 placeholder="Describe this image for users with visual impairments..."
                 value={currentAltInput}
                 onChange={(e) => setCurrentAltInput(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none min-h-[80px] resize-none"
+                className="w-full bg-[#121212] border border-[#27272A] rounded-2xl p-4 text-[15px] text-white focus:outline-none min-h-[120px] resize-none"
               />
               <button
                 onClick={() => {
@@ -1034,9 +1102,9 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                   setActivePanel("none");
                   toast({ description: "Alt text saved." });
                 }}
-                className="w-full bg-[#ff6bcb] hover:opacity-90 text-white font-bold py-2.5 rounded-full text-xs min-h-[44px]"
+                className="w-full bg-white text-black font-bold py-3.5 rounded-full text-[15px] transition-colors hover:bg-neutral-200 min-h-[44px]"
               >
-                Save
+                Save Alt Text
               </button>
             </div>
           </div>
@@ -1044,25 +1112,24 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       case "media-edit":
         if (!activeFile) return null;
         return (
-          <div className="flex flex-col h-full bg-[#000] text-white select-none">
-            <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-900 bg-neutral-950 flex-shrink-0">
-              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-zinc-900 rounded-full">
-                <ArrowLeft className="size-5 text-white" />
+          <div className="flex flex-col h-full bg-black text-white">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
               </button>
-              <span className="font-bold text-xs">Media Editor</span>
-              <button onClick={() => setActivePanel("none")} className="bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-full px-3 py-1 text-xs">Done</button>
+              <span className="font-bold text-[16px]">Edit Media</span>
+              <button onClick={() => setActivePanel("none")} className="bg-white text-black font-bold rounded-full px-4 py-1 text-xs">Done</button>
             </div>
 
-            {/* Adjustments control tabs */}
-            <div className="bg-neutral-950 p-3 space-y-3 flex-1 flex flex-col justify-between">
-              <div className="flex bg-zinc-900 p-1 rounded-xl text-[10px] font-semibold gap-1 flex-shrink-0">
+            <div className="bg-black p-4 space-y-4 flex-1 flex flex-col justify-between overflow-y-auto">
+              <div className="flex bg-[#121212] p-1 rounded-xl text-xs font-semibold gap-1 flex-shrink-0">
                 {(["filters", "adjustments", "cover"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveEditSubTab(tab)}
                     className={cn(
-                      "flex-1 py-1.5 rounded-lg capitalize transition-all",
-                      activeEditSubTab === tab ? "bg-zinc-800 text-white" : "text-zinc-400"
+                      "flex-1 py-2 rounded-lg capitalize transition-all",
+                      activeEditSubTab === tab ? "bg-[#27272A] text-white" : "text-[#A1A1AA]"
                     )}
                   >
                     {tab}
@@ -1070,7 +1137,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                 ))}
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 pt-2">
+              <div className="flex-1 space-y-4 pt-2">
                 {activeEditSubTab === "filters" && (
                   <div className="grid grid-cols-2 gap-2">
                     {filterPresets.map((preset) => (
@@ -1078,18 +1145,18 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                         key={preset.name}
                         onClick={() => updateAdjustment(activeFile, { filter: preset.name })}
                         className={cn(
-                          "flex flex-col gap-1 items-center cursor-pointer rounded-xl p-1 border border-transparent hover:bg-neutral-900 transition-all select-none",
-                          activeAdj.filter === preset.name ? "border-primary bg-neutral-900" : ""
+                          "flex flex-col gap-1 items-center cursor-pointer rounded-xl p-3 border hover:bg-[#121212] transition-all select-none",
+                          activeAdj.filter === preset.name ? "border-white bg-[#121212]" : "border-transparent"
                         )}
                       >
-                        <span className="text-[9px] font-bold text-neutral-450 truncate w-14 text-center">{preset.name}</span>
+                        <span className="text-[13px] font-bold text-white">{preset.name}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {activeEditSubTab === "adjustments" && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {[
                       { label: "Brightness", key: "brightness", min: 0.5, max: 1.5, step: 0.05 },
                       { label: "Contrast", key: "contrast", min: 0.5, max: 1.5, step: 0.05 },
@@ -1098,8 +1165,8 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     ].map((adjItem) => {
                       const val = (activeAdj as any)[adjItem.key] ?? 0;
                       return (
-                        <div key={adjItem.key} className="flex flex-col gap-1">
-                          <div className="flex justify-between text-[11px] font-semibold text-neutral-400">
+                        <div key={adjItem.key} className="flex flex-col gap-2">
+                          <div className="flex justify-between text-[13px] font-semibold text-[#A1A1AA]">
                             <span>{adjItem.label}</span>
                             <span>{Math.round(val * 100)}%</span>
                           </div>
@@ -1110,7 +1177,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                             step={adjItem.step}
                             value={val}
                             onChange={(e) => updateAdjustment(activeFile, { [adjItem.key]: parseFloat(e.target.value) })}
-                            className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                            className="w-full h-1 bg-[#27272A] rounded-lg appearance-none cursor-pointer"
                           />
                         </div>
                       );
@@ -1119,8 +1186,8 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                 )}
 
                 {activeEditSubTab === "cover" && (
-                  <div className="p-3 bg-zinc-900 rounded-xl space-y-2">
-                    <span className="text-[10px] text-zinc-400 block font-semibold">Select video cover frame duration</span>
+                  <div className="p-4 bg-[#121212] border border-[#27272A] rounded-2xl space-y-3">
+                    <span className="text-[13px] text-[#A1A1AA] block font-semibold">Select Cover Frame (Video Only)</span>
                     <input
                       type="range"
                       min="0"
@@ -1130,7 +1197,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                       onChange={(e) => setSelectedVideoCoverTime(parseInt(e.target.value))}
                       className="w-full"
                     />
-                    <span className="text-[11px] font-bold text-white text-center block">Time: {selectedVideoCoverTime}s</span>
+                    <span className="text-[14px] font-bold text-white text-center block">Time: {selectedVideoCoverTime}s</span>
                   </div>
                 )}
               </div>
@@ -1139,51 +1206,165 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         );
       case "more":
         return (
-          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-3">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <h4 className="font-bold text-sm">More Options</h4>
-              <button onClick={() => setActivePanel("none")} className="text-xs text-[#ff6bcb] font-bold">Done</button>
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
+              </button>
+              <h4 className="font-bold text-[18px]">Post Options</h4>
             </div>
-            <div className="space-y-2 flex-grow overflow-y-auto scrollbar-none">
+            <div className="space-y-3 flex-grow overflow-y-auto scrollbar-none">
               <button
                 onClick={() => { setPostType("thread"); setActivePanel("none"); }}
-                className="w-full text-left p-3 bg-zinc-900/60 rounded-xl hover:bg-zinc-900 flex items-center gap-2 border border-zinc-900 min-h-[44px]"
+                className="w-full text-left p-4 bg-[#121212] border border-[#27272A] rounded-2xl hover:bg-[#1c1c1e] flex items-center gap-3 transition-colors min-h-[44px]"
               >
-                <Plus className="size-4 text-[#ff6bcb]" />
-                <span className="text-xs font-semibold">Create Thread</span>
-              </button>
-
-              <button
-                onClick={() => { setActivePanel("camera"); }}
-                className="w-full text-left p-3 bg-zinc-900/60 rounded-xl hover:bg-zinc-900 flex items-center gap-2 border border-zinc-900 min-h-[44px]"
-              >
-                <Camera className="size-4 text-[#ff6bcb]" />
-                <span className="text-xs font-semibold">Open Camera</span>
+                <IconCollaborators className="text-[#A1A1AA] size-5" />
+                <span className="text-[15px] font-semibold text-white">Create Thread</span>
               </button>
 
               <button
                 onClick={() => setActivePanel("schedule")}
-                className="w-full text-left p-3 bg-zinc-900/60 rounded-xl hover:bg-zinc-900 flex items-center gap-2 border border-zinc-900 min-h-[44px]"
+                className="w-full text-left p-4 bg-[#121212] border border-[#27272A] rounded-2xl hover:bg-[#1c1c1e] flex items-center gap-3 transition-colors min-h-[44px]"
               >
-                <Calendar className="size-4 text-[#ff6bcb]" />
-                <span className="text-xs font-semibold">Schedule Post</span>
+                <IconSchedule className="text-[#A1A1AA] size-5" />
+                <span className="text-[15px] font-semibold text-white">Schedule Post</span>
               </button>
 
               <button
                 onClick={() => setActivePanel("collab")}
-                className="w-full text-left p-3 bg-zinc-900/60 rounded-xl hover:bg-zinc-900 flex items-center gap-2 border border-zinc-900 min-h-[44px]"
+                className="w-full text-left p-4 bg-[#121212] border border-[#27272A] rounded-2xl hover:bg-[#1c1c1e] flex items-center gap-3 transition-colors min-h-[44px]"
               >
-                <Users className="size-4 text-[#ff6bcb]" />
-                <span className="text-xs font-semibold">Collaborators</span>
+                <Users className="text-[#A1A1AA] size-5" />
+                <span className="text-[15px] font-semibold text-white">Collaborators</span>
+              </button>
+
+              <button
+                onClick={() => setActivePanel("audience")}
+                className="w-full text-left p-4 bg-[#121212] border border-[#27272A] rounded-2xl hover:bg-[#1c1c1e] flex items-center gap-3 transition-colors min-h-[44px]"
+              >
+                <Globe className="text-[#A1A1AA] size-5" />
+                <span className="text-[15px] font-semibold text-white">Audience Settings</span>
               </button>
 
               <button
                 onClick={() => setActivePanel("settings")}
-                className="w-full text-left p-3 bg-zinc-900/60 rounded-xl hover:bg-zinc-900 flex items-center gap-2 border border-zinc-900 min-h-[44px]"
+                className="w-full text-left p-4 bg-[#121212] border border-[#27272A] rounded-2xl hover:bg-[#1c1c1e] flex items-center gap-3 transition-colors min-h-[44px]"
               >
-                <Settings className="size-4 text-[#ff6bcb]" />
-                <span className="text-xs font-semibold">Configuration Settings</span>
+                <IconSettings className="text-[#A1A1AA] size-5" />
+                <span className="text-[15px] font-semibold text-white">Advanced Configuration</span>
               </button>
+            </div>
+          </div>
+        );
+      case "camera":
+        return (
+          <div className="flex flex-col h-full bg-black text-white relative">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0 z-10">
+              <button 
+                onClick={() => setActivePanel("none")} 
+                className="p-2 hover:bg-[#121212] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center"
+              >
+                <IconBack />
+              </button>
+              <span className="font-bold text-[16px]">Camera Capture</span>
+              <button 
+                onClick={triggerDemoCapture}
+                className="bg-[#121212] hover:bg-[#1c1c1e] text-[#A1A1AA] border border-[#27272A] font-bold rounded-full px-3.5 py-1 text-xs"
+              >
+                Demo Capture
+              </button>
+            </div>
+
+            <div className="flex-1 bg-black flex flex-col justify-center items-center p-4 relative min-h-[300px]">
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="w-full max-w-[400px] aspect-[9/16] rounded-2xl object-cover bg-neutral-900 border border-[#27272A]"
+              />
+              
+              {isCameraRecording && (
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-600/90 text-white font-bold text-xs px-3 py-1.5 rounded-full flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-white rounded-full animate-ping" />
+                  <span>Recording: {recordingSeconds}s</span>
+                </div>
+              )}
+            </div>
+
+            {/* Camera settings and captures */}
+            <div className="p-6 bg-black border-t border-[#27272A] space-y-4 flex flex-col items-center">
+              <div className="flex bg-[#121212] p-1 rounded-full text-xs font-semibold gap-1 mb-2">
+                {(["Photo", "Video"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setCameraMode(mode)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-full transition-all capitalize",
+                      cameraMode === mode ? "bg-white text-black font-bold" : "text-[#A1A1AA]"
+                    )}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-6">
+                <button
+                  onClick={() => setCameraFacingMode(cameraFacingMode === "user" ? "environment" : "user")}
+                  className="p-3 bg-[#121212] hover:bg-[#1c1c1e] rounded-full border border-[#27272A] text-white"
+                >
+                  <IconSettings size={20} />
+                </button>
+                
+                <button
+                  onClick={handleCapture}
+                  className={cn(
+                    "size-20 rounded-full border-4 border-white flex items-center justify-center transition-all p-1 active:scale-95",
+                    cameraMode === "Video" ? (isCameraRecording ? "bg-red-600 animate-pulse border-red-500" : "bg-red-500") : "bg-white"
+                  )}
+                />
+
+                <div className="w-11 h-11" /> {/* Spacer spacer */}
+              </div>
+            </div>
+          </div>
+        );
+      case "ai":
+        return (
+          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
+              <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
+                <IconBack />
+              </button>
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-white" />
+                <span className="font-bold text-[18px]">AI Assist Actions</span>
+              </div>
+            </div>
+            <div className="space-y-4 flex-grow overflow-y-auto scrollbar-none text-[15px]">
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider block px-1">Quick Actions</span>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { label: "Improve Writing", key: "Improve" },
+                    { label: "Fix Grammar", key: "Grammar" },
+                    { label: "Make Shorter", key: "Shorter" },
+                    { label: "Make Professional", key: "Professional" },
+                    { label: "Friendly Vibe", key: "Friendly" },
+                    { label: "Add Call To Action", key: "CTA" },
+                    { label: "Generate Caption", key: "Caption" }
+                  ].map((act) => (
+                    <button
+                      key={act.key}
+                      onClick={() => handleAIImprove(act.key)}
+                      className="bg-[#121212] border border-[#27272A] rounded-xl p-3.5 text-left font-semibold text-white hover:bg-[#1c1c1e] transition-colors min-h-[44px]"
+                    >
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -1192,938 +1373,566 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     }
   };
 
-  return (
-    <>
-      {/* MOBILE COMPOSER SHEET CONTAINER */}
-      <div className="flex md:hidden fixed inset-0 z-50 flex-col justify-end text-white select-none pointer-events-none font-sans">
-        {/* Upper transparent spacer backdrop */}
-        <div 
-          onClick={handleCloseAttempt}
-          className={cn(
-            "w-full bg-black/60 transition-opacity duration-300 pointer-events-auto",
-            isExpanded ? "h-0 opacity-0 pointer-events-none" : "h-[25dvh] opacity-100"
-          )}
-        />
-
-        {/* 75% -> 100% sliding viewport container */}
-        <div
-          className={cn(
-            "w-full bg-[#000000] flex flex-col overflow-hidden transition-all duration-200 ease-out border-t border-zinc-900 pointer-events-auto relative",
-            isExpanded ? "h-[100dvh] rounded-none" : "h-[75dvh] rounded-t-3xl"
-          )}
-        >
-          {/* Subtle drag/expand handle */}
-          {!isExpanded && (
-            <div 
-              onClick={() => setIsExpanded(true)}
-              className="w-full flex items-center justify-center py-2 cursor-pointer flex-shrink-0"
-            >
-              <div className="w-10 h-1 bg-zinc-800 rounded-full" />
-            </div>
-          )}
-
-          {/* Header Row */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-900 bg-black flex-shrink-0">
-            <button 
-              type="button" 
-              onClick={handleCloseAttempt} 
-              className="text-white hover:opacity-80 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
-            >
-              <X className="size-6" />
-            </button>
-
-            {/* Post tab indicator selector */}
-            <div className="flex bg-zinc-900/80 p-1 rounded-full text-xs font-semibold gap-1">
-              {(["normal", "thread", "poll", "article"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    setPostType(type);
-                    if (type === "thread" || type === "poll") {
-                      setIsExpanded(true);
-                    }
-                  }}
-                  className={cn(
-                    "px-3 py-1 rounded-full capitalize transition-all",
-                    postType === type ? "bg-white text-black font-bold" : "text-zinc-400"
-                  )}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-
-            <LoadingButton
-              onClick={handlePublish}
-              loading={mutation.isPending || isProcessingAndSubmitting}
-              disabled={(!threads[0].text.trim() && attachments.length === 0) || isUploading || isOverLimit}
-              className="rounded-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] hover:opacity-95 text-white font-bold px-6 py-2.5 text-xs tracking-wider min-h-[44px] disabled:opacity-40 disabled:pointer-events-none"
-            >
-              {postType === "thread" ? "Post all" : "Post"}
-            </LoadingButton>
-          </div>
-
-          {/* Draft recovery notice if stored */}
-          {showDraftBanner && (
-            <div className="flex items-center justify-between bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex-shrink-0 animate-fade-in">
-              <span className="text-xs text-zinc-300 font-medium">Unsaved draft available</span>
-              <div className="flex gap-2">
-                <button onClick={handleDiscardDraft} className="text-xs text-zinc-500 hover:text-white px-2 py-1 font-bold">Discard</button>
-                <button onClick={handleResumeDraft} className="text-xs text-[#ff6bcb] hover:opacity-80 px-3 py-1 bg-zinc-800 rounded-full font-bold">Resume</button>
-              </div>
-            </div>
-          )}
-
-          {/* Scrolling post content area */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-black">
-            {postType === "thread" ? (
-              <div className="space-y-4">
-                {threads.map((node, idx) => {
-                  const isActive = activeThreadIndex === idx;
-                  return (
-                    <div
-                      key={node.id}
-                      onClick={() => setActiveThreadIndex(idx)}
-                      className={cn(
-                        "relative flex gap-3 items-start z-10 transition-opacity",
-                        !isActive && "opacity-50"
-                      )}
-                    >
-                      <div className="flex flex-col items-center flex-shrink-0 relative self-stretch">
-                        <UserAvatar avatarUrl={user.avatarUrl} size={36} className="size-9 rounded-full z-10 bg-black" />
-                        {idx < threads.length - 1 && (
-                          <div className="w-0.5 bg-zinc-800 absolute top-9 bottom-[-16px] left-1/2 -translate-x-1/2 z-0" />
-                        )}
-                      </div>
-
-                      <div className="flex-grow min-w-0 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-zinc-400">@{user.username}</span>
-                          {threads.length > 1 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveThreadNode(idx);
-                              }}
-                              className="text-zinc-500 hover:text-white p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            >
-                              <X className="size-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <textarea
-                          value={node.text}
-                          onChange={(e) => {
-                            const updated = [...threads];
-                            updated[idx].text = e.target.value;
-                            setThreads(updated);
-                          }}
-                          onInput={handleTextareaInput}
-                          placeholder="Add another post..."
-                          className="w-full bg-transparent border-none outline-none resize-none text-white text-lg placeholder-zinc-600 focus:ring-0 p-0 font-light min-h-[60px]"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div 
-                  onClick={handleAddThreadNode} 
-                  className="flex items-center gap-4 pl-12 py-1.5 text-[#ff6bcb] hover:opacity-85 text-xs font-semibold cursor-pointer select-none"
-                >
-                  <Plus className="size-4" />
-                  <span>Add another post</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-3 items-start relative z-10">
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <UserAvatar avatarUrl={user.avatarUrl} size={36} className="size-9 rounded-full z-10 bg-black" />
-                  <div className="mt-2 text-center flex flex-col items-center">
-                    {saveStatus === "saving" && <span className="text-[10px] text-zinc-500 animate-pulse font-medium">Saving...</span>}
-                    {saveStatus === "saved" && <span className="text-[10px] text-[#ff6bcb] font-bold">Saved</span>}
-                  </div>
-                </div>
-
-                <div className="flex-grow min-w-0 space-y-3">
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1">
-                      <span className="font-bold text-sm text-white">{user.displayName}</span>
-                      <span className="text-xs text-zinc-400">@{user.username}</span>
-                    </div>
-                  </div>
-
-                  <textarea
-                    value={threads[0].text}
-                    onChange={(e) => {
-                      const updated = [...threads];
-                      updated[0].text = e.target.value;
-                      setThreads(updated);
-                    }}
-                    onInput={handleTextareaInput}
-                    placeholder={
-                      postType === "article" 
-                        ? "Title of your article...\n\nStart writing here..." 
-                        : "What's happening?"
-                    }
-                    className={cn(
-                      "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 p-0 font-light min-h-[80px]",
-                      postType === "article" ? "text-base placeholder-zinc-700 font-serif leading-relaxed" : "text-xl placeholder-zinc-650"
-                    )}
-                    rows={3}
-                  />
-
-                  {postType !== "article" && charCount > 0 && (
-                    <div className="flex justify-end items-center gap-1.5 text-xs text-zinc-500 font-mono">
-                      <span>{charCount}/{charLimit}</span>
-                      <svg className="size-5 transform -rotate-90">
-                        <circle cx="10" cy="10" r="7" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
-                        <circle
-                          cx="10"
-                          cy="10"
-                          r="7"
-                          className={cn(
-                            "fill-none transition-all duration-200",
-                            isOverLimit ? "stroke-red-500" : "stroke-zinc-400"
-                          )}
-                          strokeWidth="1.5"
-                          strokeDasharray={2 * Math.PI * 7}
-                          strokeDashoffset={2 * Math.PI * 7 * (1 - percentage / 100)}
-                        />
-                      </svg>
-                    </div>
-                  )}
-
-                  {charCount >= 15 && activePanel === "none" && (
-                    <div className="flex justify-start">
-                      <button
-                        onClick={() => setActivePanel("ai")}
-                        className="flex items-center gap-1 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-300 font-medium hover:border-zinc-700 transition-all cursor-pointer min-h-[44px]"
-                      >
-                        <Sparkles className="size-3 text-[#ff6bcb]" />
-                        <span>✨ Improve Writing</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {selectedLocation && (
-                    <div className="flex justify-start">
-                      <span className="flex items-center gap-1.5 text-xs bg-zinc-900 border border-zinc-800 text-white rounded-full py-1 px-3">
-                        <span>📍 {selectedLocation.name}</span>
-                        <button 
-                          onClick={() => setSelectedLocation(null)}
-                          className="text-zinc-500 hover:text-white p-0.5"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Horizontal Instagram Media Tray */}
-                  {attachments.length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Selected Media</span>
-                      <div className="flex gap-2.5 overflow-x-auto py-1 scrollbar-none items-center">
-                        {attachments.map((item, idx) => {
-                          const isVideoFile = item.file.type.startsWith("video");
-                          const hasAltText = !!mediaAltTexts[item.file.name];
-                          
-                          return (
-                            <div 
-                              key={idx} 
-                              className="relative size-24 rounded-2xl overflow-hidden shrink-0 border border-zinc-850 bg-zinc-950 flex items-center justify-center group"
-                            >
-                              {isVideoFile ? (
-                                <video src={item.previewUrl} className="w-full h-full object-cover" muted />
-                              ) : (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.previewUrl || ""} className="w-full h-full object-cover" alt="preview" />
-                              )}
-
-                              {isVideoFile && (
-                                <span className="absolute bottom-1 right-1.5 bg-black/70 text-[9px] text-white px-1 py-0.5 rounded font-mono flex items-center gap-0.5">
-                                  <Video className="size-2" /> 0:15
-                                </span>
-                              )}
-
-                              {hasAltText && (
-                                <span className="absolute bottom-1 left-1.5 bg-sky-500 text-[8px] text-white px-1 py-0.5 rounded-full font-bold">
-                                  ALT
-                                </span>
-                              )}
-
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 py-1 transition-opacity">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveMediaIndex(idx);
-                                    setActivePanel("media-edit");
-                                  }}
-                                  className="text-[9px] font-bold text-white bg-sky-500 px-2 py-1 rounded hover:bg-sky-600"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveMediaIndex(idx);
-                                    setCurrentAltInput(mediaAltTexts[item.file.name] || "");
-                                    setActivePanel("alt-text");
-                                  }}
-                                  className="text-[9px] font-bold text-white bg-zinc-800 p-1 rounded hover:bg-zinc-700"
-                                >
-                                  <Accessibility className="size-3" />
-                                </button>
-                              </div>
-
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeAttachment(item.file.name);
-                                }}
-                                className="absolute right-1 top-1 bg-black/70 text-white rounded-full p-1 min-w-[30px] min-h-[30px] flex items-center justify-center hover:bg-black"
-                              >
-                                <X className="size-3" />
-                              </button>
-
-                              {attachments.length > 1 && (
-                                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex bg-black/85 rounded-full border border-zinc-800 p-0.5 gap-1.5">
-                                  {idx > 0 && (
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); shiftMedia(idx, "left"); }}
-                                      className="text-white hover:text-sky-400 text-[8px] font-bold px-0.5"
-                                    >
-                                      ←
-                                    </button>
-                                  )}
-                                  {idx < attachments.length - 1 && (
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); shiftMedia(idx, "right"); }}
-                                      className="text-white hover:text-sky-400 text-[8px] font-bold px-0.5"
-                                    >
-                                      →
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="size-24 rounded-2xl border border-dashed border-zinc-800 bg-zinc-950 flex flex-col items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-600 transition-all shrink-0 cursor-pointer min-h-[44px]"
-                        >
-                          <Plus className="size-5 mb-1" />
-                          <span className="text-[10px] font-bold">Add</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Poll Creator Section */}
-                  {postType === "poll" && (
-                    <div className="bg-zinc-950 border border-zinc-850 rounded-2xl p-4 space-y-3 relative max-w-md animate-slide-up">
-                      <div className="flex justify-between items-center pb-1">
-                        <span className="text-xs font-bold text-zinc-400 tracking-wider">POLL CHOICES</span>
-                        <button
-                          onClick={() => {
-                            if (pollOptions.length < 4) {
-                              setPollOptions([...pollOptions, ""]);
-                            }
-                          }}
-                          disabled={pollOptions.length >= 4}
-                          className="text-xs text-[#ff6bcb] hover:opacity-80 font-bold disabled:opacity-40"
-                        >
-                          + Add Option
-                        </button>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {pollOptions.map((option, oIdx) => (
-                          <div key={oIdx} className="relative flex items-center">
-                            <input
-                              type="text"
-                              placeholder={`Choice ${oIdx + 1}`}
-                              maxLength={25}
-                              value={option}
-                              onChange={(e) => {
-                                const list = [...pollOptions];
-                                list[oIdx] = e.target.value;
-                                setPollOptions(list);
-                              }}
-                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 px-3 pr-12 text-sm text-white focus:outline-none placeholder:text-zinc-650 min-h-[44px]"
-                            />
-                            {pollOptions.length > 2 && (
-                              <button
-                                onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== oIdx))}
-                                className="absolute right-2 text-zinc-500 hover:text-white p-1"
-                              >
-                                <X className="size-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="border-t border-zinc-900 pt-3 space-y-2">
-                        <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Poll Duration</span>
-                        <div className="grid grid-cols-4 gap-2">
-                          {[
-                            { label: "1 Day", d: 1 },
-                            { label: "3 Days", d: 3 },
-                            { label: "7 Days", d: 7 },
-                            { label: "Custom", d: 0 }
-                          ].map((item) => (
-                            <button
-                              key={item.label}
-                              type="button"
-                              onClick={() => {
-                                if (item.d > 0) {
-                                  setPollDays(item.d);
-                                  setPollHours(0);
-                                  setPollMinutes(0);
-                                } else {
-                                  setActivePanel("schedule");
-                                }
-                              }}
-                              className={cn(
-                                "py-2 text-[10px] font-bold rounded-lg border text-center transition-all min-h-[44px] flex items-center justify-center",
-                                pollDays === item.d ? "bg-white border-white text-black" : "bg-zinc-900 border-zinc-800 text-zinc-400"
-                              )}
-                            >
-                              {item.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Audience Selector pill directly below textarea */}
-                  <div className="flex justify-start">
-                    <button
-                      onClick={() => setActivePanel("audience")}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-300 font-semibold hover:border-zinc-700 min-h-[44px]"
-                    >
-                      <Globe className="size-3 text-sky-400" />
-                      <span className="capitalize">{audience.toLowerCase().replace("_", " ")}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* BOTTOM FOOTER TOOLBAR: exactly 5 icons */}
-          <div className="sticky bottom-0 bg-black border-t border-zinc-900 px-4 py-2.5 flex justify-between items-center flex-shrink-0 z-30 pointer-events-auto">
-            <div className="flex gap-4 items-center w-full justify-between">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
-              >
-                <LucideImage size={24} />
-              </button>
-              <input
-                type="file"
-                accept="image/*, video/*"
-                multiple
-                ref={fileInputRef}
-                className="sr-only hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length) {
-                    startUpload(files);
-                    e.target.value = "";
-                  }
-                }}
-              />
-
-              <button
-                onClick={() => setActivePanel("gif")}
-                className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
-              >
-                <LucideGif size={24} />
-              </button>
-
-              <button
-                onClick={() => {
-                  setPostType("poll");
-                  setIsExpanded(true);
-                }}
-                className={cn(
-                  "p-3 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]",
-                  postType === "poll" ? "text-[#ff6bcb] opacity-100" : "text-white opacity-70 hover:opacity-100"
-                )}
-              >
-                <LucidePoll size={24} />
-              </button>
-
-              <button
-                onClick={() => setActivePanel("location")}
-                className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
-              >
-                <LucideLocation size={24} />
-              </button>
-
-              <button
-                onClick={() => setActivePanel("more")}
-                className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
-              >
-                <MoreHorizontal size={24} />
-              </button>
-            </div>
-          </div>
-
-          {/* Render Mobile Panels as Overlays */}
-          {activePanel !== "none" && activePanel !== "draft-recovery" && (
-            <div className="absolute inset-0 bg-[#000] z-50 flex flex-col text-white animate-slide-up pointer-events-auto">
-              {renderPanelContent(true)}
-            </div>
-          )}
-
-          {/* Draft Recovery close confirmation sheet */}
-          {activePanel === "draft-recovery" && (
-            <div className="absolute inset-0 bg-black/85 z-[100] flex flex-col justify-end pointer-events-auto">
-              <div className="bg-[#121212] rounded-t-3xl p-6 space-y-4 text-center border-t border-zinc-800 animate-slide-up">
-                <h4 className="font-bold text-lg text-white">Save draft?</h4>
-                <p className="text-sm text-zinc-400">You can save this post as a draft and finish it later, or discard it now.</p>
-                <div className="flex flex-col gap-2 pt-2">
-                  <button
-                    onClick={handleSaveDraftAndClose}
-                    className="w-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] hover:opacity-90 text-white font-bold py-3.5 rounded-full text-sm min-h-[44px]"
-                  >
-                    Save Draft
-                  </button>
-                  <button
-                    onClick={handleDiscardAndClose}
-                    className="w-full bg-zinc-900 hover:bg-zinc-850 text-red-500 font-bold py-3.5 rounded-full text-sm min-h-[44px]"
-                  >
-                    Discard Draft
-                  </button>
-                  <button
-                    onClick={() => setActivePanel("none")}
-                    className="w-full bg-transparent hover:bg-zinc-900/40 text-white font-semibold py-3.5 rounded-full text-sm min-h-[44px]"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-
-      {/* DESKTOP COMPOSER VIEW */}
-      <div className="hidden md:flex bg-card rounded-3xl w-full max-w-[850px] mx-auto overflow-hidden text-card-foreground shadow-2xl border border-border/40 select-none relative transition-all duration-300">
-        <input 
-          type="file"
-          accept="image/*, video/*"
-          multiple
-          ref={desktopFileInputRef}
-          className="sr-only hidden"
-          onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            if (files.length) {
-              startUpload(files);
-              e.target.value = "";
-            }
-          }}
-        />
-
+  // If sub-view is active, render it directly full screen
+  if (activePanel !== "none" && activePanel !== "draft-recovery") {
+    return (
+      <div className="w-full h-full sm:h-auto min-h-screen sm:min-h-0 sm:max-h-[90vh] flex flex-col bg-black text-white border-none sm:border border-[#27272A] sm:rounded-3xl overflow-hidden select-none font-sans relative">
         {(isProcessingAndSubmitting || mutation.isPending) && (
           <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
-            <Loader2 className="size-12 animate-spin text-primary" />
-            <span className="text-lg font-bold tracking-wide">Processing and uploading media assets...</span>
+            <Loader2 className="size-12 animate-spin text-white" />
+            <span className="text-[16px] font-bold tracking-wide">Processing and uploading media assets...</span>
           </div>
         )}
+        {renderPanelContent()}
+      </div>
+    );
+  }
 
-        <div className="flex w-full">
-          {/* Main Compose Card Column */}
-          <div className="flex-1 flex flex-col min-w-0 bg-card">
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-border/40 bg-card">
-              <h3 className="font-bold text-lg">Create Post</h3>
+  return (
+    <div className="w-full h-full sm:h-auto min-h-screen sm:min-h-0 sm:max-h-[92vh] flex flex-col bg-black text-white border-none sm:border border-[#27272A] sm:rounded-3xl overflow-hidden select-none font-sans relative">
+      <input 
+        type="file"
+        accept="image/*, video/*"
+        multiple
+        ref={fileInputRef}
+        className="sr-only hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          if (files.length) {
+            startUpload(files);
+            e.target.value = "";
+          }
+        }}
+      />
 
-              {/* Post type selector tabs */}
-              <div className="flex bg-[#121212] p-1 rounded-full text-xs font-semibold gap-1">
-                {(["normal", "thread", "poll", "article"] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setPostType(type)}
-                    className={cn(
-                      "px-3 py-1 rounded-full capitalize text-white transition-all",
-                      postType === type ? "bg-white text-black font-bold" : "text-zinc-400"
-                    )}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
+      {(isProcessingAndSubmitting || mutation.isPending) && (
+        <div className="absolute inset-0 bg-neutral-950/85 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4 text-white">
+          <Loader2 className="size-12 animate-spin text-white" />
+          <span className="text-[16px] font-bold tracking-wide">Processing and uploading media assets...</span>
+        </div>
+      )}
 
-              {onClose && (
-                <button onClick={onClose} className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
-                  <X className="size-5" />
-                </button>
+      {/* Main Composer View */}
+      {/* Header Row */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
+        <button 
+          type="button" 
+          onClick={handleCloseAttempt} 
+          className="text-white hover:opacity-80 py-2 text-[16px] font-medium"
+        >
+          Cancel
+        </button>
+
+        {/* Post type selector tabs */}
+        <div className="flex bg-[#121212] p-0.5 rounded-full text-xs font-semibold gap-1">
+          {(["normal", "thread", "poll", "article"] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => {
+                setPostType(type);
+                if (type === "thread" && threads.length === 1) {
+                  // Prepopulate secondary input if starting thread
+                  setThreads([{ id: "1", text: "" }, { id: "2", text: "" }]);
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-full capitalize transition-all duration-150",
+                postType === type ? "bg-white text-black font-bold" : "text-[#A1A1AA]"
               )}
-            </div>
+            >
+              {type}
+            </button>
+          ))}
+        </div>
 
-            {/* Compose Text Box Area */}
-            <div className="p-6 flex flex-col gap-4 max-h-[380px] overflow-y-auto min-h-[160px] bg-card">
-              {postType === "thread" ? (
-                // Threads Node List
-                <div className="space-y-4">
-                  {threads.map((node, idx) => {
-                    const isActive = activeThreadIndex === idx;
-                    return (
-                      <div
-                        key={node.id}
-                        onClick={() => setActiveThreadIndex(idx)}
-                        className={cn(
-                          "relative flex gap-4 items-start transition-opacity",
-                          !isActive && "opacity-60"
-                        )}
-                      >
-                        <div className="flex flex-col items-center flex-shrink-0 relative self-stretch">
-                          <UserAvatar avatarUrl={user.avatarUrl} className="size-10 z-10 bg-card border border-border/40" />
-                          {idx < threads.length - 1 && (
-                            <div className="w-0.5 bg-border absolute top-10 bottom-[-16px] left-1/2 -translate-x-1/2 z-0" />
-                          )}
-                        </div>
+        <LoadingButton
+          onClick={handlePublish}
+          loading={mutation.isPending || isProcessingAndSubmitting}
+          disabled={(!threads[0].text.trim() && attachments.length === 0) || isUploading || isOverLimit}
+          className="rounded-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] hover:opacity-95 text-white font-bold px-6 py-2.5 text-xs min-h-[36px] disabled:opacity-40 disabled:pointer-events-none"
+        >
+          {postType === "thread" ? "Post Thread" : "Post"}
+        </LoadingButton>
+      </div>
 
-                        <div className="flex-grow min-w-0 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-sm text-foreground">{user.displayName}</span>
-                              <span className="text-xs text-muted-foreground">@{user.username}</span>
-                            </div>
-                            {threads.length > 1 && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveThreadNode(idx);
-                                }}
-                                className="text-muted-foreground hover:text-foreground p-1 transition-colors"
-                              >
-                                <X className="size-4" />
-                              </button>
-                            )}
-                          </div>
+      {/* Draft recovery banner if stored */}
+      {showDraftBanner && (
+        <div className="flex items-center justify-between bg-[#121212] px-4 py-2 border-b border-[#27272A] flex-shrink-0 animate-fade-in">
+          <span className="text-[13px] text-[#A1A1AA] font-medium">Unsaved draft available</span>
+          <div className="flex gap-2">
+            <button onClick={handleDiscardDraft} className="text-xs text-zinc-500 hover:text-white px-2 py-1 font-bold">Discard</button>
+            <button onClick={handleResumeDraft} className="text-xs text-white hover:opacity-85 px-3 py-1 bg-[#27272A] rounded-full font-bold">Resume</button>
+          </div>
+        </div>
+      )}
 
-                          <textarea
-                            value={node.text}
-                            onChange={(e) => {
-                              const updated = [...threads];
-                              updated[idx].text = e.target.value;
-                              setThreads(updated);
-                            }}
-                            onInput={handleTextareaInput}
-                            placeholder="Add another post..."
-                            className="w-full bg-transparent border-none outline-none resize-none text-foreground focus:ring-0 p-0 font-medium text-base min-h-[60px]"
-                            rows={2}
-                          />
-                        </div>
+      {/* Scrolling Content Area */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-black scrollbar-none select-text">
+        {postType === "thread" ? (
+          /* Threads node layout */
+          <div className="space-y-4">
+            {threads.map((node, idx) => {
+              const isActive = activeThreadIndex === idx;
+              return (
+                <div
+                  key={node.id}
+                  onClick={() => setActiveThreadIndex(idx)}
+                  className={cn(
+                    "relative flex gap-3.5 items-start z-10 transition-opacity duration-150",
+                    !isActive && "opacity-45"
+                  )}
+                >
+                  <div className="flex flex-col items-center flex-shrink-0 relative self-stretch">
+                    <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full z-10 bg-black border border-[#27272A]" />
+                    {idx < threads.length - 1 && (
+                      <div className="w-0.5 bg-[#27272A] absolute top-10 bottom-[-24px] left-1/2 -translate-x-1/2 z-0" />
+                    )}
+                  </div>
+
+                  <div className="flex-grow min-w-0 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[16px] font-bold text-white">{user.displayName}</span>
+                        <span className="text-[15px] text-[#A1A1AA]">@{user.username}</span>
                       </div>
-                    );
-                  })}
-                  <div 
-                    onClick={handleAddThreadNode} 
-                    className="flex items-center gap-2 pl-14 text-[#ff6bcb] hover:opacity-80 text-sm font-semibold cursor-pointer select-none"
-                  >
-                    <Plus className="size-4" />
-                    <span>Add another post</span>
-                  </div>
-                </div>
-              ) : (
-                // Normal / Poll / Article compose
-                <div className="relative flex gap-4 items-start">
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <UserAvatar avatarUrl={user.avatarUrl} className="size-10 z-10 bg-card border border-border/40" />
-                    <div className="mt-2 text-center">
-                      {saveStatus === "saving" && <span className="text-[10px] text-zinc-500 animate-pulse font-medium">Saving...</span>}
-                      {saveStatus === "saved" && <span className="text-[10px] text-[#ff6bcb] font-bold">Saved</span>}
-                    </div>
-                  </div>
-
-                  <div className="flex-grow min-w-0 space-y-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-sm text-foreground">{user.displayName}</span>
-                      <span className="text-xs text-muted-foreground">@{user.username}</span>
+                      {threads.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveThreadNode(idx);
+                          }}
+                          className="text-[#A1A1AA] hover:text-white p-1"
+                        >
+                          <IconClose size={16} />
+                        </button>
+                      )}
                     </div>
 
                     <textarea
-                      value={threads[0].text}
+                      value={node.text}
                       onChange={(e) => {
-                        const list = [...threads];
-                        list[0].text = e.target.value;
-                        setThreads(list);
+                        const updated = [...threads];
+                        updated[idx].text = e.target.value;
+                        setThreads(updated);
                       }}
                       onInput={handleTextareaInput}
-                      placeholder={
-                        postType === "article"
-                          ? "Title of your article...\n\nStart writing here..."
-                          : "What's happening?"
-                      }
-                      className={cn(
-                        "w-full bg-transparent border-none outline-none resize-none text-foreground focus:ring-0 p-0 font-medium placeholder:text-muted-foreground min-h-[60px]",
-                        postType === "article" ? "text-lg font-serif" : "text-base"
-                      )}
+                      placeholder={idx === 0 ? "What's happening?" : "Add another post..."}
+                      className="w-full bg-transparent border-none outline-none resize-none text-white text-[18px] sm:text-[20px] placeholder-zinc-650 focus:ring-0 p-0 font-normal leading-relaxed min-h-[60px]"
                       rows={2}
                     />
+                  </div>
+                </div>
+              );
+            })}
 
-                    {postType !== "article" && charCount > 0 && (
-                      <div className="flex justify-end items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                        <span>{charCount}/{charLimit}</span>
-                        <svg className="size-5 transform -rotate-90">
-                          <circle cx="10" cy="10" r="7" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
-                          <circle
-                            cx="10"
-                            cy="10"
-                            r="7"
-                            className={cn(
-                              "fill-none transition-all duration-200",
-                              isOverLimit ? "stroke-red-500" : "stroke-primary"
-                            )}
-                            strokeWidth="1.5"
-                            strokeDasharray={2 * Math.PI * 7}
-                            strokeDashoffset={2 * Math.PI * 7 * (1 - percentage / 100)}
-                          />
-                        </svg>
-                      </div>
-                    )}
+            <div 
+              onClick={handleAddThreadNode} 
+              className="flex items-center gap-3 pl-[54px] py-2 text-white hover:opacity-85 text-sm font-semibold cursor-pointer select-none"
+            >
+              <span className="size-5 rounded-full border-2 border-white flex items-center justify-center font-bold text-xs">+</span>
+              <span>Add to thread</span>
+            </div>
+          </div>
+        ) : (
+          /* Normal Post / Poll / Article Layout */
+          <div className="flex gap-3.5 items-start relative z-10">
+            <div className="flex flex-col items-center flex-shrink-0">
+              <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full z-10 bg-black border border-[#27272A]" />
+              <div className="mt-3 text-center flex flex-col items-center select-none">
+                {saveStatus === "saving" && <span className="text-[10px] text-zinc-500 animate-pulse font-medium">Saving...</span>}
+                {saveStatus === "saved" && <span className="text-[10px] text-[#A1A1AA] font-bold">Saved</span>}
+              </div>
+            </div>
 
-                    {/* Notion AI assist inline chip */}
-                    {charCount >= 15 && activePanel === "none" && (
-                      <div className="flex justify-start">
-                        <button
-                          onClick={() => setActivePanel("ai")}
-                          className="flex items-center gap-1 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-300 font-medium hover:border-zinc-700 transition-all cursor-pointer min-h-[44px]"
-                        >
-                          <Sparkles className="size-3 text-[#ff6bcb]" />
-                          <span>✨ Improve Writing</span>
-                        </button>
-                      </div>
-                    )}
+            <div className="flex-grow min-w-0 space-y-3">
+              <div className="flex items-center gap-1.5 select-none">
+                <span className="font-bold text-[16px] text-white">{user.displayName}</span>
+                <span className="text-[15px] text-[#A1A1AA]">@{user.username}</span>
+              </div>
 
-                    {selectedLocation && (
-                      <div className="flex justify-start">
-                        <span className="flex items-center gap-1.5 text-xs bg-zinc-900 border border-zinc-800 text-white rounded-full py-1 px-3">
-                          <span>📍 {selectedLocation.name}</span>
-                          <button 
-                            onClick={() => setSelectedLocation(null)}
-                            className="text-zinc-500 hover:text-white p-0.5"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </span>
-                      </div>
-                    )}
+              <textarea
+                value={threads[0].text}
+                onChange={(e) => {
+                  const updated = [...threads];
+                  updated[0].text = e.target.value;
+                  setThreads(updated);
+                }}
+                onInput={handleTextareaInput}
+                placeholder={
+                  postType === "article" 
+                    ? "Title of your article...\n\nStart writing here..." 
+                    : "What's happening?"
+                }
+                className={cn(
+                  "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 p-0 font-normal leading-relaxed min-h-[100px]",
+                  postType === "article" ? "text-[18px] font-serif" : "text-[18px] sm:text-[20px] placeholder-zinc-650"
+                )}
+                rows={3}
+              />
 
-                    {/* Horizontal Media Tray on Desktop */}
-                    {attachments.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Selected Media</span>
-                        <div className="flex gap-2.5 overflow-x-auto py-1 scrollbar-none items-center">
-                          {attachments.map((item, idx) => {
-                            const isVideoFile = item.file.type.startsWith("video");
-                            const hasAltText = !!mediaAltTexts[item.file.name];
-                            
-                            return (
-                              <div 
-                                key={idx} 
-                                className="relative size-20 rounded-2xl overflow-hidden shrink-0 border border-zinc-800 bg-neutral-900 flex items-center justify-center group"
-                              >
-                                {isVideoFile ? (
-                                  <video src={item.previewUrl} className="w-full h-full object-cover" muted />
-                                ) : (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={item.previewUrl || ""} className="w-full h-full object-cover" alt="preview" />
-                                )}
+              {postType !== "article" && charCount > 0 && (
+                <div className="flex justify-end items-center gap-1.5 text-xs text-[#A1A1AA] font-mono select-none">
+                  <span>{charCount}/{charLimit}</span>
+                  <svg className="size-5 transform -rotate-90">
+                    <circle cx="10" cy="10" r="7" className="stroke-zinc-800 fill-none" strokeWidth="1.5" />
+                    <circle
+                      cx="10"
+                      cy="10"
+                      r="7"
+                      className={cn(
+                        "fill-none transition-all duration-200",
+                        isOverLimit ? "stroke-red-500" : "stroke-white"
+                      )}
+                      strokeWidth="1.5"
+                      strokeDasharray={2 * Math.PI * 7}
+                      strokeDashoffset={2 * Math.PI * 7 * (1 - percentage / 100)}
+                    />
+                  </svg>
+                </div>
+              )}
 
-                                {isVideoFile && (
-                                  <span className="absolute bottom-1 right-1 bg-black/70 text-[9px] text-white px-1 py-0.5 rounded font-mono">
-                                    0:15
-                                  </span>
-                                )}
+              {charCount >= 15 && activePanel === "none" && (
+                <div className="flex justify-start select-none">
+                  <button
+                    onClick={() => setActivePanel("ai")}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#121212] border border-[#27272A] rounded-full text-xs text-white font-medium hover:border-zinc-700 transition-all cursor-pointer min-h-[36px]"
+                  >
+                    <Sparkles className="size-3.5 text-white" />
+                    <span>Improve Writing</span>
+                  </button>
+                </div>
+              )}
 
-                                {hasAltText && (
-                                  <span className="absolute bottom-1 left-1 bg-sky-500 text-[8px] text-white px-1 py-0.5 rounded-full font-bold">
-                                    ALT
-                                  </span>
-                                )}
+              {selectedLocation && (
+                <div className="flex justify-start select-none">
+                  <span className="flex items-center gap-2 text-xs bg-[#121212] border border-[#27272A] text-white rounded-full py-1.5 px-3">
+                    <span>📍 {selectedLocation.name}</span>
+                    <button 
+                      onClick={() => setSelectedLocation(null)}
+                      className="text-[#A1A1AA] hover:text-white p-0.5"
+                    >
+                      <IconClose size={12} />
+                    </button>
+                  </span>
+                </div>
+              )}
 
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 py-1 transition-opacity">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMediaIndex(idx);
-                                      setActivePanel("media-edit");
-                                    }}
-                                    className="text-[9px] font-bold text-white bg-sky-500 px-1.5 py-0.5 rounded hover:bg-sky-600"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMediaIndex(idx);
-                                      setCurrentAltInput(mediaAltTexts[item.file.name] || "");
-                                      setActivePanel("alt-text");
-                                    }}
-                                    className="text-[9px] font-bold text-white bg-zinc-800 p-0.5 rounded hover:bg-zinc-700"
-                                  >
-                                    <Accessibility className="size-3" />
-                                  </button>
-                                </div>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeAttachment(item.file.name);
-                                  }}
-                                  className="absolute right-1 top-1 bg-black/70 text-white rounded-full p-0.5 hover:bg-black"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              </div>
-                            );
-                          })}
-
+              {/* Poll inputs inside scrolling content */}
+              {postType === "poll" && (
+                <div className="space-y-4 pt-2 max-w-[460px] animate-slide-up select-none">
+                  <div className="flex flex-col gap-3">
+                    {pollOptions.map((option, oIdx) => (
+                      <div key={oIdx} className="relative flex items-center border-b border-[#27272A] py-1">
+                        <input
+                          type="text"
+                          placeholder={`Choice ${oIdx + 1}`}
+                          maxLength={25}
+                          value={option}
+                          onChange={(e) => {
+                            const list = [...pollOptions];
+                            list[oIdx] = e.target.value;
+                            setPollOptions(list);
+                          }}
+                          className="w-full bg-transparent border-none outline-none py-2 text-[16px] text-white placeholder-zinc-600 focus:ring-0"
+                        />
+                        {pollOptions.length > 2 && (
                           <button
-                            onClick={() => desktopFileInputRef.current?.click()}
-                            className="size-20 rounded-2xl border border-dashed border-zinc-800 bg-zinc-950 flex flex-col items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-600 transition-all shrink-0 cursor-pointer"
+                            onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== oIdx))}
+                            className="absolute right-1 text-[#A1A1AA] hover:text-white p-1"
                           >
-                            <Plus className="size-4 mb-0.5" />
-                            <span className="text-[9px] font-bold">Add</span>
+                            <IconClose size={16} />
                           </button>
-                        </div>
+                        )}
                       </div>
-                    )}
+                    ))}
+                  </div>
 
-                    {/* Poll Creator Section */}
-                    {postType === "poll" && (
-                      <div className="bg-zinc-950 border border-zinc-850 rounded-2xl p-4 space-y-3 relative max-w-sm">
-                        <div className="flex justify-between items-center pb-1">
-                          <span className="text-xs font-bold text-zinc-400">POLL OPTIONS</span>
-                          <button
-                            onClick={() => {
-                              if (pollOptions.length < 4) {
-                                setPollOptions([...pollOptions, ""]);
-                              }
-                            }}
-                            disabled={pollOptions.length >= 4}
-                            className="text-xs text-[#ff6bcb] hover:opacity-85 disabled:opacity-40"
-                          >
-                            + Add Option
-                          </button>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {pollOptions.map((option, oIdx) => (
-                            <div key={oIdx} className="relative flex items-center">
-                              <input
-                                type="text"
-                                placeholder={`Choice ${oIdx + 1}`}
-                                maxLength={25}
-                                value={option}
-                                onChange={(e) => {
-                                  const list = [...pollOptions];
-                                  list[oIdx] = e.target.value;
-                                  setPollOptions(list);
-                                }}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 pr-10 text-xs text-white focus:outline-none placeholder:text-zinc-600"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Audience selector pill */}
-                    <div className="flex justify-start">
+                  <div className="flex items-center justify-between text-sm pt-1">
+                    {pollOptions.length < 4 ? (
                       <button
-                        onClick={() => setActivePanel("audience")}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-300 font-semibold hover:border-zinc-700"
+                        onClick={() => setPollOptions([...pollOptions, ""])}
+                        className="text-[15px] text-white font-semibold hover:opacity-85"
                       >
-                        <Globe className="size-3.5 text-sky-400" />
-                        <span className="capitalize">{audience.toLowerCase().replace("_", " ")}</span>
+                        + Add Choice
                       </button>
+                    ) : (
+                      <div />
+                    )}
+                    
+                    <div className="flex items-center gap-1.5 text-[#A1A1AA]">
+                      <span className="text-[13px]">Duration:</span>
+                      <select
+                        value={`${pollDays}d`}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "1d") { setPollDays(1); setPollHours(0); }
+                          else if (val === "3d") { setPollDays(3); setPollHours(0); }
+                          else if (val === "7d") { setPollDays(7); setPollHours(0); }
+                        }}
+                        className="bg-transparent border-none text-white text-[13px] font-bold focus:ring-0 outline-none cursor-pointer"
+                      >
+                        <option value="1d" className="bg-black">1 Day</option>
+                        <option value="3d" className="bg-black">3 Days</option>
+                        <option value="7d" className="bg-black">7 Days</option>
+                      </select>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Desktop toolbar & Publish */}
-            <div className="border-t border-border/40 p-4 bg-card flex justify-between items-center">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => desktopFileInputRef.current?.click()}
-                  className="p-3 text-primary hover:bg-accent rounded-full transition-colors flex items-center justify-center min-w-[48px] min-h-[48px]"
-                >
-                  <LucideImage size={24} />
-                </button>
-                <button
-                  onClick={() => setActivePanel(activePanel === "gif" ? "none" : "gif")}
-                  className={cn(
-                    "p-3 rounded-full flex items-center justify-center transition-colors min-w-[48px] min-h-[48px]",
-                    activePanel === "gif" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
-                  )}
-                >
-                  <LucideGif size={24} />
-                </button>
-                <button
-                  onClick={() => setPostType("poll")}
-                  className={cn(
-                    "p-3 rounded-full flex items-center justify-center transition-colors min-w-[48px] min-h-[48px]",
-                    postType === "poll" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
-                  )}
-                >
-                  <LucidePoll size={24} />
-                </button>
-                <button
-                  onClick={() => setActivePanel(activePanel === "location" ? "none" : "location")}
-                  className={cn(
-                    "p-3 rounded-full flex items-center justify-center transition-colors min-w-[48px] min-h-[48px]",
-                    activePanel === "location" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
-                  )}
-                >
-                  <LucideLocation size={24} />
-                </button>
-                <button
-                  onClick={() => setActivePanel(activePanel === "more" ? "none" : "more")}
-                  className={cn(
-                    "p-3 rounded-full flex items-center justify-center transition-colors min-w-[48px] min-h-[48px]",
-                    activePanel === "more" ? "text-sky-400 bg-accent" : "text-primary hover:bg-accent"
-                  )}
-                >
-                  <MoreHorizontal size={24} />
-                </button>
-              </div>
+              {/* Selected Media Previews */}
+              {attachments.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider block px-1 select-none">Selected Media</span>
+                  <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none items-center">
+                    {attachments.map((item, idx) => {
+                      const isVideoFile = item.file.type.startsWith("video");
+                      const hasAltText = !!mediaAltTexts[item.file.name];
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className="relative size-24 rounded-2xl overflow-hidden shrink-0 border border-[#27272A] bg-[#121212] flex items-center justify-center group"
+                        >
+                          {isVideoFile ? (
+                            <video src={item.previewUrl} className="w-full h-full object-cover" muted />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={item.previewUrl || ""} className="w-full h-full object-cover" alt="preview" />
+                          )}
 
-              <div className="flex items-center gap-4">
-                <LoadingButton
-                  onClick={handlePublish}
-                  loading={mutation.isPending || isProcessingAndSubmitting}
-                  disabled={(!threads[0]?.text.trim() && attachments.length === 0) || isUploading || isOverLimit}
-                  className="rounded-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] hover:opacity-95 text-white font-bold px-6 py-2.5 text-xs min-h-[44px]"
-                >
-                  Post
-                </LoadingButton>
-              </div>
+                          {isVideoFile && (
+                            <span className="absolute bottom-1.5 right-2 bg-black/70 text-[9px] text-white px-1.5 py-0.5 rounded font-mono flex items-center gap-0.5">
+                              <Video className="size-2.5" /> 0:15
+                            </span>
+                          )}
+
+                          {hasAltText && (
+                            <span className="absolute bottom-1.5 left-2 bg-white text-[8px] text-black px-1.5 py-0.5 rounded-full font-bold">
+                              ALT
+                            </span>
+                          )}
+
+                          <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMediaIndex(idx);
+                                setActivePanel("media-edit");
+                              }}
+                              className="text-[9px] font-bold text-black bg-white px-2 py-1 rounded-full hover:bg-neutral-200"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMediaIndex(idx);
+                                setCurrentAltInput(mediaAltTexts[item.file.name] || "");
+                                setActivePanel("alt-text");
+                              }}
+                              className="text-[9px] font-bold text-white bg-[#27272A] p-1.5 rounded-full hover:bg-zinc-700"
+                            >
+                              <Accessibility className="size-3" />
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAttachment(item.file.name);
+                            }}
+                            className="absolute right-1.5 top-1.5 bg-black/80 text-white rounded-full p-1 min-w-[28px] min-h-[28px] flex items-center justify-center hover:bg-black"
+                          >
+                            <IconClose size={12} />
+                          </button>
+
+                          {attachments.length > 1 && (
+                            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex bg-black/90 rounded-full border border-[#27272A] p-0.5 gap-1.5">
+                              {idx > 0 && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); shiftMedia(idx, "left"); }}
+                                  className="text-white hover:text-sky-400 text-[9px] font-bold px-1"
+                                >
+                                  ←
+                                </button>
+                              )}
+                              {idx < attachments.length - 1 && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); shiftMedia(idx, "right"); }}
+                                  className="text-white hover:text-sky-400 text-[9px] font-bold px-1"
+                                >
+                                  →
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="size-24 rounded-2xl border border-dashed border-[#27272A] bg-[#121212] flex flex-col items-center justify-center text-[#A1A1AA] hover:text-white hover:border-zinc-650 transition-all shrink-0 cursor-pointer min-h-[44px]"
+                    >
+                      <span className="text-[20px] font-bold mb-0.5">+</span>
+                      <span className="text-[10px] font-bold">Add</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+        )}
 
-          {/* Integrated Side panel drawer on Desktop */}
-          {activePanel !== "none" && activePanel !== "draft-recovery" && (
-            <div className="w-[340px] border-l border-zinc-850 bg-black flex flex-col h-auto animate-fade-in relative z-20">
-              {renderPanelContent(false)}
+        {/* Divider / Settings Switches & Configuration */}
+        <div className="border-t border-[#27272A] pt-4 mt-6 space-y-4 select-none">
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setActivePanel("audience")}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#121212] border border-[#27272A] rounded-full text-xs text-white font-medium hover:border-zinc-700"
+            >
+              <IconEveryone size={14} className="text-sky-400" />
+              <span className="capitalize">{audience.toLowerCase().replace("_", " ")}</span>
+              <span className="text-[10px] text-[#A1A1AA] ml-1">▼</span>
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between items-center py-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-medium text-white">Allow Comments</span>
+                <span className="text-[13px] text-[#A1A1AA]">Others can comment on your post</span>
+              </div>
+              <IosSwitch checked={allowComments} onChange={setAllowComments} />
             </div>
-          )}
+
+            <div className="flex justify-between items-center py-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-medium text-white">Allow Remixes</span>
+                <span className="text-[13px] text-[#A1A1AA]">Others can remix/stitch media assets</span>
+              </div>
+              <IosSwitch checked={allowRemixes} onChange={setAllowRemixes} />
+            </div>
+
+            <div className="flex justify-between items-center py-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-medium text-white">Allow Product Detection</span>
+                <span className="text-[13px] text-[#A1A1AA]">AI tagging matches to commerce shops</span>
+              </div>
+              <IosSwitch checked={allowProductDetection} onChange={setAllowProductDetection} />
+            </div>
+
+            <div className="flex justify-between items-center py-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-medium text-white">Hide Likes</span>
+                <span className="text-[13px] text-[#A1A1AA]">Likes counts hidden from feed view</span>
+              </div>
+              <IosSwitch checked={hideLikeCount} onChange={setHideLikeCount} />
+            </div>
+          </div>
         </div>
       </div>
-    </>
+
+      {/* KEYBOARD-STICKY ACTION TOOLBAR: Pinned at bottom of card container */}
+      <div className="sticky bottom-0 bg-black border-t border-[#27272A] px-4 py-2 flex justify-between items-center flex-shrink-0 z-30 pointer-events-auto">
+        <div className="flex items-center gap-1.5 w-full justify-between select-none">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              title="Gallery"
+            >
+              <IconGallery />
+            </button>
+
+            <button
+              onClick={() => setActivePanel("camera")}
+              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              title="Camera"
+            >
+              <IconCamera />
+            </button>
+
+            <button
+              onClick={() => setActivePanel("gif")}
+              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              title="GIF"
+            >
+              <IconGif />
+            </button>
+
+            <button
+              onClick={() => {
+                setPostType("poll");
+                if (pollOptions.length === 0) setPollOptions(["", ""]);
+              }}
+              className={cn(
+                "p-3 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]",
+                postType === "poll" ? "text-white opacity-100" : "text-white opacity-70 hover:opacity-100"
+              )}
+              title="Poll"
+            >
+              <IconPoll />
+            </button>
+
+            <button
+              onClick={() => setActivePanel("location")}
+              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              title="Location"
+            >
+              <IconLocation />
+            </button>
+
+            {/* Product tagging option */}
+            <button
+              className="p-3 text-white/30 cursor-not-allowed flex items-center justify-center min-w-[44px] min-h-[44px]"
+              title="Commerce Product Links (Autodetected)"
+              disabled
+            >
+              <IconProduct />
+            </button>
+
+            <button
+              onClick={() => setActivePanel("more")}
+              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              title="More"
+            >
+              <IconMore />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Draft Recovery close confirmation sheet */}
+      {activePanel === "draft-recovery" && (
+        <div className="absolute inset-0 bg-black/85 z-[120] flex flex-col justify-end pointer-events-auto select-none">
+          <div className="bg-[#121212] rounded-t-3xl p-6 space-y-4 text-center border-t border-[#27272A] animate-slide-up w-full max-w-[680px] mx-auto">
+            <h4 className="font-bold text-lg text-white">Save draft?</h4>
+            <p className="text-sm text-[#A1A1AA]">You can save this post as a draft and finish it later, or discard it now.</p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={handleSaveDraftAndClose}
+                className="w-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] hover:opacity-90 text-white font-bold py-3.5 rounded-full text-sm min-h-[44px]"
+              >
+                Save Draft
+              </button>
+              <button
+                onClick={handleDiscardAndClose}
+                className="w-full bg-[#121212] border border-red-950 hover:bg-red-950/20 text-red-500 font-bold py-3.5 rounded-full text-sm min-h-[44px]"
+              >
+                Discard Draft
+              </button>
+              <button
+                onClick={() => setActivePanel("none")}
+                className="w-full bg-transparent hover:bg-zinc-900/40 text-white font-semibold py-3.5 rounded-full text-sm min-h-[44px]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

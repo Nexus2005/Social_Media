@@ -22,7 +22,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import PostEditor from "@/components/posts/editor/PostEditor";
 import { SpotsIcon } from "./CartlySidebar";
 
 interface MobileNavigationProps {
@@ -36,7 +35,6 @@ export default function MobileNavigation({
 }: MobileNavigationProps) {
   const { user } = useSession();
   const pathname = usePathname();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Queries for real-time counts
   const { data: notificationsData } = useQuery({
@@ -56,6 +54,8 @@ export default function MobileNavigation({
     initialData: { unreadCount: initialMessagesCount },
     refetchInterval: 60 * 1000,
   });
+
+  if (pathname === "/create") return null;
 
   return (
     <>
@@ -138,17 +138,17 @@ export default function MobileNavigation({
             strokeWidth={pathname.startsWith("/search") ? 2.5 : 1.8}
           />
         </Link>
-        <button
-          onClick={() => setIsCreateOpen(true)}
+        <Link
+          href="/create"
           className="flex items-center justify-center p-2 transition-colors"
         >
           <PlusSquare
             className="size-6"
-            stroke={isCreateOpen ? "url(#brand-gradient)" : "white"}
-            opacity={isCreateOpen ? 1 : 0.85}
-            strokeWidth={isCreateOpen ? 2.5 : 1.8}
+            stroke={pathname === "/create" ? "url(#brand-gradient)" : "white"}
+            opacity={pathname === "/create" ? 1 : 0.85}
+            strokeWidth={pathname === "/create" ? 2.5 : 1.8}
           />
-        </button>
+        </Link>
         <Link
           href="/reels"
           className="flex items-center justify-center p-2 transition-colors"
@@ -188,17 +188,6 @@ export default function MobileNavigation({
         </defs>
       </svg>
 
-      {/* Create Post Dialog (Mobile) */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-none w-full h-full md:h-auto md:w-[85vw] md:max-w-4xl p-0 overflow-hidden bg-transparent md:bg-card rounded-none md:rounded-2xl border-none md:border left-0 top-0 translate-x-0 translate-y-0 md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] [&>button]:hidden md:[&>button]:inline-flex">
-          <DialogHeader className="hidden md:flex px-6 py-4 border-b">
-            <DialogTitle className="text-center font-bold text-lg">Create new post</DialogTitle>
-          </DialogHeader>
-          <div className="p-0 md:p-6 h-full md:h-auto">
-            <PostEditor onClose={() => setIsCreateOpen(false)} />
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
