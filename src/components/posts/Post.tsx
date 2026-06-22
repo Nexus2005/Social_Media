@@ -35,6 +35,8 @@ import MediaViewer from "./MediaViewer";
 import RepostButton from "./RepostButton";
 import CollectionSelector from "./CollectionSelector";
 import PostViewTracker from "./PostViewTracker";
+import { useQuery } from "@tanstack/react-query";
+import kyInstance from "@/lib/ky";
 
 interface PostProps {
   post: PostData;
@@ -58,18 +60,28 @@ export default function Post({ post }: PostProps) {
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
 
+  const { data: groupedStories = [] } = useQuery<any[]>({
+    queryKey: ["stories"],
+    queryFn: () => kyInstance.get("/api/stories").json<any[]>(),
+    staleTime: 60 * 1000,
+  });
+
+  const hasActiveStory = groupedStories.some(
+    (item) => item.user.id === post.user.id && item.stories.length > 0
+  );
+
   const getAudienceIcon = (aud: string) => {
     switch (aud) {
       case "PUBLIC":
-        return <span title="Public"><Globe className="size-3 text-muted-foreground" /></span>;
+        return <span title="Public"><Globe className="size-3 text-[#8e8e93]" /></span>;
       case "FOLLOWERS":
-        return <span title="Followers"><Users className="size-3 text-muted-foreground" /></span>;
+        return <span title="Followers"><Users className="size-3 text-[#8e8e93]" /></span>;
       case "CLOSE_FRIENDS":
         return <span className="text-[10px] text-yellow-500 font-bold" title="Close Friends">⭐</span>;
       case "PRIVATE":
-        return <span title="Only Me"><Lock className="size-3 text-muted-foreground" /></span>;
+        return <span title="Only Me"><Lock className="size-3 text-[#8e8e93]" /></span>;
       default:
-        return <span title="Public"><Globe className="size-3 text-muted-foreground" /></span>;
+        return <span title="Public"><Globe className="size-3 text-[#8e8e93]" /></span>;
     }
   };
 
@@ -94,46 +106,54 @@ export default function Post({ post }: PostProps) {
   const repostInfo = post.reposts && post.reposts.length > 0 ? post.reposts[0] : null;
 
   return (
-    <article className="group/post space-y-3 rounded-none sm:rounded-2xl bg-transparent sm:bg-card px-3 py-4 sm:p-5 shadow-none sm:shadow-sm border-b border-border/30 sm:border-b-0 relative">
+    <article className="group/post space-y-3.5 py-4 border-b border-neutral-900 bg-black relative w-full">
       {/* Track Post View */}
       <PostViewTracker postId={post.id} />
 
       {/* Repost Header */}
       {repostInfo && (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold px-1 -mt-1 mb-2">
+        <div className="flex items-center gap-1.5 text-xs text-[#8e8e93] font-semibold px-1 -mt-1 mb-2">
           <Repeat2 className="size-3.5 text-green-500" strokeWidth={2.25} />
           <span>{repostInfo.user.displayName} reposted</span>
         </div>
       )}
 
-      <div className="flex justify-between gap-3">
+      <div className="flex justify-between gap-3 px-1">
         <div className="flex flex-wrap gap-3">
           <UserTooltip user={post.user}>
-            <Link href={`/users/${post.user.username}`}>
-              <UserAvatar avatarUrl={post.user.avatarUrl} />
+            <Link href={`/users/${post.user.username}`} className="flex-shrink-0">
+              {hasActiveStory ? (
+                <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
+                  <div className="rounded-full p-[1.5px] bg-[#000000]">
+                    <UserAvatar avatarUrl={post.user.avatarUrl} size={36} className="w-[36px] h-[36px]" />
+                  </div>
+                </div>
+              ) : (
+                <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-[40px] h-[40px]" />
+              )}
             </Link>
           </UserTooltip>
-          <div>
+          <div className="flex flex-col justify-center">
             <div className="flex items-center gap-1.5">
               <UserTooltip user={post.user}>
                 <Link
                   href={`/users/${post.user.username}`}
-                  className="block font-medium hover:underline flex items-center gap-1"
+                  className="block text-[15px] font-semibold hover:underline text-white flex items-center gap-1"
                 >
-                  <span>{post.user.displayName}</span>
+                  <span>{post.user.username}</span>
                   {post.user.verified && (
-                    <span className="text-primary font-bold text-[11px]" title="Verified Creator">☑</span>
+                    <span className="text-[#0095f6] font-bold text-[13px]" title="Verified Creator">☑</span>
                   )}
                 </Link>
               </UserTooltip>
               {post.collaborators && Array.isArray(post.collaborators) && post.collaborators.map((collab: any) => (
-                <span key={collab} className="text-xs text-muted-foreground font-semibold">
+                <span key={collab} className="text-xs text-[#8e8e93] font-semibold">
                   • colab @{collab}
                 </span>
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-[#8e8e93]">
               <Link
                 href={`/posts/${post.id}`}
                 className="hover:underline"
@@ -147,7 +167,7 @@ export default function Post({ post }: PostProps) {
               {post.location && (
                 <>
                   <span>•</span>
-                  <div className="flex items-center gap-0.5 text-xs text-primary font-medium">
+                  <div className="flex items-center gap-0.5 font-medium text-[#8e8e93]">
                     <MapPin className="size-3 flex-shrink-0" />
                     <span>{post.location}</span>
                   </div>
@@ -165,17 +185,19 @@ export default function Post({ post }: PostProps) {
       </div>
 
       <Linkify>
-        <div className="whitespace-pre-line break-words text-[15px] leading-relaxed">{post.content}</div>
+        <div className="whitespace-pre-line break-words text-[16px] leading-[24px] text-white px-1">{post.content}</div>
       </Linkify>
 
       {/* POLL WIDGET */}
       {post.poll && (
-        <PollWidget poll={post.poll} userId={user.id} />
+        <div className="px-1">
+          <PollWidget poll={post.poll} userId={user.id} />
+        </div>
       )}
 
       {/* MULTI-MEDIA CAROUSEL WITH INTERACTIVE TAGGING */}
       {!!post.attachments.length && (
-        <div className="mt-3">
+        <div className="mt-2">
           <MediaCarousel
             attachments={post.attachments}
             tags={post.tags}
@@ -187,8 +209,8 @@ export default function Post({ post }: PostProps) {
       )}
 
       {/* Action Center - Placed immediately beneath the media/content */}
-      <div className="flex justify-between items-center gap-5 pt-2">
-        <div className="flex items-center gap-6">
+      <div className="flex justify-between items-center gap-5 pt-2 px-1">
+        <div className="flex items-center gap-4">
           <LikeButton
             postId={post.id}
             initialState={{
@@ -204,21 +226,21 @@ export default function Post({ post }: PostProps) {
           <RepostButton post={post} />
 
           {/* Views display */}
-          <div className="flex items-center gap-2 text-muted-foreground cursor-default" title="Views">
-            <BarChart3 className="size-[22px]" strokeWidth={1.75} />
-            <span className="text-xs font-semibold tabular-nums">
+          <div className="p-1 flex items-center gap-2 text-white cursor-default" title="Views">
+            <BarChart3 className="size-[26px]" strokeWidth={1.75} />
+            <span className="text-[15px] font-semibold tabular-nums text-white">
               {formatViews(post._count.views || 0)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setShowCollectionSelector(true)}
-            className="flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground"
+            className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white"
             title="Save to Collection"
           >
-            <FolderOpen className="size-[22px]" strokeWidth={1.75} />
+            <FolderOpen className="size-[26px]" strokeWidth={1.75} />
           </button>
 
           <BookmarkButton
@@ -232,51 +254,77 @@ export default function Post({ post }: PostProps) {
 
           <button
             onClick={handleShare}
-            className="flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground"
+            className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white"
             title="Share"
           >
-            <Share2 className="size-[22px]" strokeWidth={1.75} />
+            <Share2 className="size-[26px]" strokeWidth={1.75} />
           </button>
         </div>
       </div>
 
+      {/* Mutual Followers row */}
+      <div className="flex items-center gap-2 mt-2 px-1">
+        <div className="flex -space-x-1 overflow-hidden">
+          <img
+            className="inline-block size-4 rounded-full ring-1 ring-black object-cover"
+            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=60"
+            alt="follower 1"
+          />
+          <img
+            className="inline-block size-4 rounded-full ring-1 ring-black object-cover"
+            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=60"
+            alt="follower 2"
+          />
+          <img
+            className="inline-block size-4 rounded-full ring-1 ring-black object-cover"
+            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=60"
+            alt="follower 3"
+          />
+        </div>
+        <span className="text-[13px] text-[#8e8e93] leading-none">
+          Followed by <span className="font-semibold text-white">Rahul</span> and <span className="font-semibold text-white">243 others</span>
+        </span>
+      </div>
+
       {/* Quote Post Card */}
       {post.quotedPost && (
-        <Link
-          href={`/posts/${post.quotedPost.id}`}
-          className="block border border-border/80 hover:border-border/60 hover:bg-neutral-800/10 rounded-xl p-3 mt-2 text-xs transition-colors"
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <UserAvatar avatarUrl={post.quotedPost.user.avatarUrl} size={20} />
-            <span className="font-semibold text-neutral-200 flex items-center gap-0.5">
-              <span>{post.quotedPost.user.displayName}</span>
-              {post.quotedPost.user.verified && (
-                <span className="text-primary font-bold text-[10px]" title="Verified Creator">☑</span>
-              )}
-            </span>
-            <span className="text-neutral-500">@{post.quotedPost.user.username}</span>
-            <span className="text-neutral-500">•</span>
-            <span className="text-neutral-500">{formatRelativeDate(post.quotedPost.createdAt)}</span>
-          </div>
-          <div className="text-neutral-300 break-words whitespace-pre-wrap">{post.quotedPost.content}</div>
-          {post.quotedPost.attachments.length > 0 && (
-            <div className="mt-2 rounded-lg overflow-hidden border border-border/40 max-h-[200px] flex items-center justify-center bg-black">
-              {post.quotedPost.attachments[0].mediaType === "VIDEO" ? (
-                <video
-                  src={post.quotedPost.attachments[0].url}
-                  className="w-full max-h-[200px] object-contain"
-                  controls
-                />
-              ) : (
-                <img
-                  src={post.quotedPost.attachments[0].url}
-                  alt="Quoted attachment"
-                  className="w-full max-h-[200px] object-contain"
-                />
-              )}
+        <div className="px-1">
+          <Link
+            href={`/posts/${post.quotedPost.id}`}
+            className="block border border-border/80 hover:border-border/60 hover:bg-neutral-800/10 rounded-xl p-3 mt-2 text-xs transition-colors"
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <UserAvatar avatarUrl={post.quotedPost.user.avatarUrl} size={20} />
+              <span className="font-semibold text-neutral-200 flex items-center gap-0.5">
+                <span>{post.quotedPost.user.displayName}</span>
+                {post.quotedPost.user.verified && (
+                  <span className="text-primary font-bold text-[10px]" title="Verified Creator">☑</span>
+                )}
+              </span>
+              <span className="text-neutral-500">@{post.quotedPost.user.username}</span>
+              <span className="text-neutral-500">•</span>
+              <span className="text-neutral-500">{formatRelativeDate(post.quotedPost.createdAt)}</span>
             </div>
-          )}
-        </Link>
+            <div className="text-neutral-300 break-words whitespace-pre-wrap">{post.quotedPost.content}</div>
+            {post.quotedPost.attachments.length > 0 && (
+              <div className="mt-2 rounded-lg overflow-hidden border border-border/40 max-h-[200px] flex items-center justify-center bg-black">
+                {post.quotedPost.attachments[0].mediaType === "VIDEO" ? (
+                  <video
+                    src={post.quotedPost.attachments[0].url}
+                    className="w-full max-h-[200px] object-contain"
+                    controls
+                  />
+                ) : (
+                  <img
+                    src={post.quotedPost.attachments[0].url}
+                    alt="Quoted attachment"
+                    className="w-full max-h-[200px] object-contain"
+                  />
+                )}
+              </div>
+            )}
+          </Link>
+        </div>
       )}
 
       {showComments && <Comments post={post} />}
@@ -406,13 +454,13 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
 
       {/* Carousel Dots */}
       {attachments.length > 1 && (
-        <div className="absolute bottom-3 right-3 bg-black/60 px-2 py-1 rounded-full flex gap-1 z-20">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 px-2.5 py-1.5 rounded-full flex gap-1.5 z-20">
           {attachments.map((_, dotIdx) => (
             <div
               key={dotIdx}
               className={cn(
                 "size-1.5 rounded-full transition-all",
-                index === dotIdx ? "bg-white scale-120" : "bg-white/40"
+                index === dotIdx ? "bg-white scale-110" : "bg-white/40"
               )}
             />
           ))}
@@ -551,12 +599,12 @@ function CommentButton({ post, onClick }: CommentButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground"
+      className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white"
       title="Comment"
     >
-      <MessageCircle className="size-[22px]" strokeWidth={1.75} />
+      <MessageCircle className="size-[26px]" strokeWidth={1.75} />
       {post._count.comments > 0 && (
-        <span className="text-xs font-semibold tabular-nums">
+        <span className="text-[15px] font-semibold tabular-nums text-white">
           {post._count.comments}
         </span>
       )}

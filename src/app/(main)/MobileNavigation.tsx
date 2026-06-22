@@ -61,7 +61,7 @@ export default function MobileNavigation({
     <>
       {/* Mobile Top Header — Instagram style: Logo left, Heart + Mail right */}
       {!pathname.startsWith("/reels") && (
-        <header className="sticky top-0 z-30 flex h-11 w-full items-center justify-between border-b border-border/60 bg-background px-4 sm:hidden">
+        <header className="sticky top-0 z-30 flex h-[56px] w-full items-center justify-between border-b border-[#1c1c1c] bg-black px-4 sm:hidden">
           <Link href="/" className="flex items-center gap-1.5">
             <img
               src="/cartly-logo.webp"
@@ -73,29 +73,39 @@ export default function MobileNavigation({
             </span>
           </Link>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2">
             {/* Shop Hub */}
-            <Link href="/shop" className={`relative flex items-center justify-center ${
-              pathname.startsWith("/shop") ? "text-foreground" : "text-muted-foreground"
-            }`} title="Shop Hub">
-              <ShoppingBag className="size-[22px]" />
+            <Link
+              href="/shop"
+              className="p-2 relative flex items-center justify-center text-white hover:opacity-80 transition-opacity"
+              title="Shop Hub"
+            >
+              <ShoppingBag className="size-6" strokeWidth={1.8} />
             </Link>
 
             {/* Notifications */}
-            <Link href="/notifications" className="relative flex items-center justify-center text-foreground">
-              <Heart className="size-[22px]" />
+            <Link
+              href="/notifications"
+              className="p-2 relative flex items-center justify-center text-white hover:opacity-80 transition-opacity"
+              title="Notifications"
+            >
+              <Heart className="size-6" strokeWidth={1.8} />
               {!!notificationsData.unreadCount && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-[9px] font-bold text-white border border-black/15 shadow-sm">
+                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] text-[9px] font-bold text-white border border-black shadow-sm">
                   {notificationsData.unreadCount}
                 </span>
               )}
             </Link>
 
             {/* Messages */}
-            <Link href="/messages" className="relative flex items-center justify-center text-foreground">
-              <Mail className="size-[22px]" />
+            <Link
+              href="/messages"
+              className="p-2 relative flex items-center justify-center text-white hover:opacity-80 transition-opacity"
+              title="Messages"
+            >
+              <Mail className="size-6" strokeWidth={1.8} />
               {!!messagesData.unreadCount && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-[9px] font-bold text-white border border-black/15 shadow-sm">
+                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ff6bcb] to-[#9f5cff] text-[9px] font-bold text-white border border-black shadow-sm">
                   {messagesData.unreadCount}
                 </span>
               )}
@@ -105,46 +115,78 @@ export default function MobileNavigation({
       )}
 
       {/* Mobile Bottom Navigation Bar — 5 tabs: Home, Search, Create, Spots, Profile */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 w-full items-center justify-around border-t border-border/60 bg-background sm:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 w-full items-center justify-around border-t border-[#1c1c1c] bg-black sm:hidden">
         <Link
           href="/"
-          className={`flex items-center justify-center p-2 transition-colors ${
-            pathname === "/" ? "text-foreground" : "text-muted-foreground"
-          }`}
+          className="flex items-center justify-center p-2 transition-colors"
         >
-          <Home className="size-[26px]" strokeWidth={pathname === "/" ? 2.5 : 1.8} />
+          <Home
+            className="size-6"
+            stroke={pathname === "/" ? "url(#brand-gradient)" : "white"}
+            opacity={pathname === "/" ? 1 : 0.85}
+            strokeWidth={pathname === "/" ? 2.5 : 1.8}
+          />
         </Link>
         <Link
           href="/search"
-          className={`flex items-center justify-center p-2 transition-colors ${
-            pathname.startsWith("/search") ? "text-foreground" : "text-muted-foreground"
-          }`}
+          className="flex items-center justify-center p-2 transition-colors"
         >
-          <Search className="size-[26px]" strokeWidth={pathname.startsWith("/search") ? 2.5 : 1.8} />
+          <Search
+            className="size-6"
+            stroke={pathname.startsWith("/search") ? "url(#brand-gradient)" : "white"}
+            opacity={pathname.startsWith("/search") ? 1 : 0.85}
+            strokeWidth={pathname.startsWith("/search") ? 2.5 : 1.8}
+          />
         </Link>
         <button
           onClick={() => setIsCreateOpen(true)}
-          className="flex items-center justify-center p-2 text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center justify-center p-2 transition-colors"
         >
-          <PlusSquare className="size-[26px]" strokeWidth={1.8} />
+          <PlusSquare
+            className="size-6"
+            stroke={isCreateOpen ? "url(#brand-gradient)" : "white"}
+            opacity={isCreateOpen ? 1 : 0.85}
+            strokeWidth={isCreateOpen ? 2.5 : 1.8}
+          />
         </button>
         <Link
           href="/reels"
-          className={`flex items-center justify-center p-2 transition-colors ${
-            pathname === "/reels" ? "text-foreground" : "text-muted-foreground"
-          }`}
+          className="flex items-center justify-center p-2 transition-colors"
         >
-          <SpotsIcon className="size-[26px]" strokeWidth={pathname === "/reels" ? 2.5 : 1.8} />
+          <SpotsIcon
+            className="size-6"
+            stroke={pathname === "/reels" ? "url(#brand-gradient)" : "white"}
+            opacity={pathname === "/reels" ? 1 : 0.85}
+            strokeWidth={pathname === "/reels" ? 2.5 : 1.8}
+          />
         </Link>
         <Link
           href={`/users/${user.username}`}
-          className={`flex items-center justify-center p-2 transition-colors ${
-            pathname === `/users/${user.username}` ? "ring-2 ring-foreground rounded-full" : ""
-          }`}
+          className="flex items-center justify-center p-2 transition-colors"
         >
-          <UserAvatar avatarUrl={user.avatarUrl} size={26} />
+          <div
+            className={`rounded-full transition-all duration-200 ${
+              pathname === `/users/${user.username}`
+                ? "p-[2px] bg-gradient-to-tr from-[#ff6bcb] to-[#9f5cff]"
+                : "p-[2px] bg-transparent"
+            }`}
+          >
+            <div className="rounded-full p-[1.5px] bg-black">
+              <UserAvatar avatarUrl={user.avatarUrl} size={24} className="size-6" />
+            </div>
+          </div>
         </Link>
       </nav>
+
+      {/* SVG Gradient Definition for Bottom Navigation Icons */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <linearGradient id="brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ff6bcb" />
+            <stop offset="100%" stopColor="#9f5cff" />
+          </linearGradient>
+        </defs>
+      </svg>
 
       {/* Create Post Dialog (Mobile) */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
