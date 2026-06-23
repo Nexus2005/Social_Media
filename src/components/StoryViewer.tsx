@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Play, Pause, Heart, Send, Share2, Search, Copy, Check, Loader2, MessageSquare } from "lucide-react";
+import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Play, Pause, Heart, Send, Share2, Search, Copy, Check, Loader2, MessageSquare, MoreHorizontal } from "lucide-react";
 import { formatRelativeDate } from "@/lib/utils";
 import Image from "next/image";
 import { useSession } from "@/app/(main)/SessionProvider";
@@ -50,6 +50,7 @@ export default function StoryViewer({
   const [inputText, setInputText] = useState("");
   const [showEmojis, setShowEmojis] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showOptionsSheet, setShowOptionsSheet] = useState(false);
   const [floatingHearts, setFloatingHearts] = useState<Array<{ id: number; left: number; rotate: number; drift: number }>>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -74,6 +75,7 @@ export default function StoryViewer({
     setInputText("");
     setShowEmojis(false);
     setShowShareSheet(false);
+    setShowOptionsSheet(false);
   }, [userIndex]);
 
   // Handle story transition logic
@@ -336,6 +338,26 @@ export default function StoryViewer({
     }, 1500);
   };
 
+  const handleMuteUser = () => {
+    setToastMessage(`Muted @${currentUserStories.user.username}`);
+    setTimeout(() => setToastMessage(null), 2000);
+    setShowOptionsSheet(false);
+    
+    // Skip to next user stories
+    if (userIndex < groupedStories.length - 1) {
+      setUserIndex((prev) => prev + 1);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleReportStory = () => {
+    setToastMessage("Story reported");
+    setTimeout(() => setToastMessage(null), 2000);
+    setShowOptionsSheet(false);
+    setIsPaused(false);
+  };
+
   // Copy Link deep link builder
   const handleCopyLink = () => {
     const link = `${window.location.origin}/stories?userId=${currentUserStories.user.id}`;
@@ -455,6 +477,19 @@ export default function StoryViewer({
               </button>
             )}
 
+            {/* Options Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPaused(true);
+                setShowOptionsSheet(true);
+              }}
+              className="text-white hover:text-white/80 p-1.5 rounded-full transition-colors"
+              title="More options"
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+
             {/* Close Button */}
             <button
               onClick={(e) => {
@@ -495,36 +530,46 @@ export default function StoryViewer({
           )}
         </div>
 
-        {/* Instant Emojis reactions panel */}
+        {/* Instant Emojis reactions panel (Instagram-style overlay) */}
         {showEmojis && (
           <div 
-            className="absolute bottom-16 left-4 right-4 z-40 bg-zinc-950/90 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 animate-fade-in pointer-events-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.preventDefault()}
+            className="absolute inset-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-end p-4 pb-20 animate-fade-in pointer-events-auto"
+            onClick={() => {
+              setShowEmojis(false);
+              setIsPaused(false);
+              document.getElementById("story-input")?.blur();
+            }}
           >
-            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Quick Reactions</span>
-            <div className="grid grid-cols-6 gap-3">
-              {["😂", "😮", "😍", "😢", "👏", "🔥"].map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleSendMessage(emoji)}
-                  className="text-3xl hover:scale-125 transition-transform duration-100"
-                >
-                  {emoji}
-                </button>
-              ))}
+            {/* Emojis Grid (Centered) */}
+            <div 
+              className="flex-1 flex flex-col items-center justify-center gap-6 pb-12 animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <div className="grid grid-cols-3 gap-x-12 gap-y-10">
+                {["😂", "😮", "😍", "😢", "👏", "🔥"].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleSendMessage(emoji)}
+                    className="text-[52px] transition-transform duration-150 active:scale-90 hover:scale-115 cursor-pointer flex items-center justify-center w-16 h-16 animate-pulse-once"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Bottom Reply/Action Bar */}
+        {/* Bottom Reply/Action Bar (Instagram-style Pill Input + Right Actions) */}
         <div 
-          className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3 pointer-events-auto"
+          className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3.5 pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Send Message Input Bar */}
-          <div className="flex-1 flex items-center bg-zinc-900/80 border border-zinc-800 rounded-full px-3 py-1.5 h-10 relative">
+          {/* Send Message Input Pill */}
+          <div className="flex-1 flex items-center bg-transparent border border-white/35 hover:border-white/50 focus-within:border-white/60 focus-within:bg-black/10 rounded-full px-4.5 py-2.5 h-11 relative transition-all duration-200">
             <input
+              id="story-input"
               type="text"
               placeholder="Send message"
               value={inputText}
@@ -541,51 +586,55 @@ export default function StoryViewer({
                   handleSendMessage(inputText);
                 }
               }}
-              className="flex-grow bg-transparent text-white text-sm outline-none placeholder:text-zinc-500"
+              className="flex-grow bg-transparent text-white text-sm outline-none placeholder:text-white/60"
             />
             {inputText.trim() && (
               <button 
                 onClick={() => handleSendMessage(inputText)}
-                className="text-primary hover:text-primary-foreground font-semibold text-xs transition-colors shrink-0"
+                className="text-primary hover:text-primary-foreground font-semibold text-xs transition-colors shrink-0 pl-2"
               >
                 Send
               </button>
             )}
           </div>
 
-          {/* Floating Hearts Container */}
-          <div className="relative flex items-center justify-center shrink-0">
-            {floatingHearts.map((heart) => (
-              <Heart
-                key={heart.id}
-                style={{
-                  left: `${heart.left}px`,
-                  "--rotate-angle": `${heart.rotate}deg`,
-                  "--drift-x": `${heart.drift}px`,
-                } as React.CSSProperties}
-                className="animate-floating-heart size-6 text-red-500 fill-red-500"
-              />
-            ))}
-            
-            {/* Heart Button */}
+          {/* Action Icons directly to the right of input */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Floating Hearts + Heart/Like Button */}
+            <div className="relative flex items-center justify-center shrink-0">
+              {floatingHearts.map((heart) => (
+                <Heart
+                  key={heart.id}
+                  style={{
+                    left: `${heart.left}px`,
+                    "--rotate-angle": `${heart.rotate}deg`,
+                    "--drift-x": `${heart.drift}px`,
+                  } as React.CSSProperties}
+                  className="absolute bottom-full mb-2 animate-floating-heart size-6 text-red-500 fill-red-500 pointer-events-none"
+                />
+              ))}
+              
+              <button
+                onClick={handleLikeClick}
+                className="text-white hover:scale-115 active:scale-95 transition-transform p-1"
+                title="Like Story"
+              >
+                <Heart className="size-6.5 hover:text-red-500 hover:fill-red-500 transition-colors" strokeWidth={2} />
+              </button>
+            </div>
+
+            {/* Paper Airplane (Share) Button */}
             <button
-              onClick={handleLikeClick}
-              className="text-white hover:scale-110 active:scale-95 transition-transform p-1 shrink-0"
+              onClick={() => {
+                setIsPaused(true);
+                setShowShareSheet(true);
+              }}
+              className="text-white hover:scale-115 active:scale-95 transition-transform p-1 shrink-0"
+              title="Share Story"
             >
-              <Heart className="size-6 hover:text-red-500 hover:fill-red-500 transition-colors" />
+              <Send className="size-6.5 hover:opacity-85 transition-opacity" strokeWidth={2} />
             </button>
           </div>
-
-          {/* Share Button */}
-          <button
-            onClick={() => {
-              setIsPaused(true);
-              setShowShareSheet(true);
-            }}
-            className="text-white hover:scale-110 active:scale-95 transition-transform p-1 shrink-0"
-          >
-            <Send className="size-6" />
-          </button>
         </div>
 
         {/* Share Bottom Sheet drawer */}
@@ -599,14 +648,14 @@ export default function StoryViewer({
           >
             {/* Sheet Content Card */}
             <div 
-              className="bg-zinc-900 border-t border-zinc-800 rounded-t-3xl max-h-[75%] p-4 flex flex-col gap-3.5 animate-slide-up"
+              className="bg-[#121212] border-t border-zinc-800 rounded-t-3xl max-h-[80%] p-4.5 flex flex-col gap-4 animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header Handle bar */}
               <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
               
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-bold text-white text-base">Share Story</span>
+              <div className="flex items-center justify-between mt-1 px-1">
+                <span className="font-bold text-white text-[17px]">Share</span>
                 <button 
                   onClick={() => {
                     setShowShareSheet(false);
@@ -619,82 +668,162 @@ export default function StoryViewer({
               </div>
 
               {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+              <div className="relative px-1">
+                <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-zinc-550" />
                 <input
                   type="text"
-                  placeholder="Search people..."
+                  placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl py-2 pl-9 pr-4 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700"
+                  className="w-full bg-[#262626] border border-transparent rounded-xl py-2 pl-10 pr-4 text-[14px] text-white placeholder:text-zinc-550 outline-none focus:border-zinc-700"
                 />
               </div>
 
-              {/* Contacts List */}
-              <div className="flex-grow overflow-y-auto max-h-[220px] scrollbar-none flex flex-col gap-2">
+              {/* Contacts Grid (3-column) */}
+              <div className="flex-grow overflow-y-auto max-h-[260px] min-h-[180px] scrollbar-none px-1">
                 {loadingContacts ? (
-                  <div className="flex h-20 items-center justify-center">
-                    <Loader2 className="size-5 animate-spin text-zinc-500" />
+                  <div className="flex h-32 items-center justify-center">
+                    <Loader2 className="size-6 animate-spin text-zinc-500" />
                   </div>
                 ) : filteredContacts.length > 0 ? (
-                  filteredContacts.map((contact: any) => (
-                    <button
-                      key={contact.id}
-                      onClick={() => handleShareToUser(contact)}
-                      className="flex items-center justify-between p-2 rounded-xl hover:bg-zinc-800/50 text-start transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative size-9 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700">
-                          {contact.image || contact.avatarUrl ? (
-                            <img src={contact.image || contact.avatarUrl} alt={contact.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center font-bold text-xs uppercase text-zinc-300">
-                              {(contact.name || contact.username)[0]}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-white">{contact.name || contact.displayName}</span>
-                          <span className="text-xs text-zinc-500">@{contact.username}</span>
-                        </div>
-                      </div>
-                      <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-semibold px-3 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors">
-                        Send
-                      </span>
-                    </button>
-                  ))
+                  <div className="grid grid-cols-3 gap-y-6 gap-x-3 py-2 justify-items-center">
+                    {filteredContacts.map((contact: any) => {
+                      // High-fidelity online status and verification mock logic
+                      const isUserOnline = contact.online ?? (contact.id.charCodeAt(0) % 2 === 0);
+                      const isUserVerified = contact.verified ?? contact.isVerified ?? (contact.id.charCodeAt(1) % 3 === 0);
+                      const avatarText = (contact.name || contact.displayName || contact.username || "?")[0];
+
+                      return (
+                        <button
+                          key={contact.id}
+                          onClick={() => handleShareToUser(contact)}
+                          className="flex flex-col items-center text-center gap-1.5 group w-full max-w-[90px] transition-transform active:scale-95"
+                        >
+                          <div className="relative size-16.5 rounded-full bg-zinc-800 border border-zinc-800 shrink-0 shadow-md">
+                            {contact.image || contact.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img 
+                                src={contact.image || contact.avatarUrl} 
+                                alt={contact.name} 
+                                className="w-full h-full object-cover rounded-full" 
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center font-bold text-[20px] uppercase text-zinc-300 rounded-full">
+                                {avatarText}
+                              </div>
+                            )}
+                            
+                            {/* Online Status Dot */}
+                            {isUserOnline && (
+                              <span className="absolute bottom-0.5 right-0.5 size-3.5 bg-green-500 border-2 border-[#121212] rounded-full" />
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center justify-center gap-0.5 w-full px-1">
+                            <span className="text-[11px] font-medium text-zinc-300 group-hover:text-white truncate">
+                              {contact.name || contact.displayName || contact.username}
+                            </span>
+                            {isUserVerified && (
+                              <span className="text-[#0095f6] text-[10px] shrink-0" title="Verified">☑</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <div className="flex h-20 items-center justify-center text-xs text-zinc-500">
+                  <div className="flex h-32 items-center justify-center text-xs text-zinc-500">
                     No contacts found.
                   </div>
                 )}
               </div>
 
-              {/* Sharing apps links */}
-              <div className="border-t border-zinc-800/80 pt-3 flex justify-around gap-2 text-center text-white">
-                <button onClick={handleCopyLink} className="flex flex-col items-center gap-1.5 group">
-                  <div className="size-11 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors">
-                    {copied ? <Check className="size-5 text-green-500" /> : <Copy className="size-5" />}
+              {/* High-fidelity Brand Assets sharing row */}
+              <div className="border-t border-zinc-800/80 pt-4 pb-2 flex justify-around items-center text-center text-white">
+                {/* Copy Link */}
+                <button onClick={handleCopyLink} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
+                  <div className="size-12 rounded-full bg-[#262626] border border-zinc-850 flex items-center justify-center hover:bg-zinc-700 transition-colors shadow-md">
+                    {copied ? <Check className="size-5 text-green-500" /> : <Copy className="size-5 text-white" />}
                   </div>
-                  <span className="text-[10px] text-zinc-400 group-hover:text-white truncate max-w-[64px]">Copy link</span>
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">Copy link</span>
                 </button>
 
-                <button onClick={handleWhatsAppShare} className="flex flex-col items-center gap-1.5 group">
-                  <div className="size-11 rounded-full bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 text-green-500 transition-colors">
-                    <svg className="size-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M17.472 14.382c-.022-.08-.117-.146-.217-.196-.093-.047-.565-.278-.654-.311-.089-.033-.153-.05-.217.05-.064.098-.246.311-.301.373-.056.06-.112.067-.21.017-.1-.05-.413-.152-.788-.485-.29-.258-.487-.578-.544-.677-.056-.1-.006-.153.044-.203.046-.046.1-.116.15-.174.05-.058.067-.1.1-.166.033-.066.017-.123-.008-.174-.025-.05-.217-.52-.298-.714-.078-.189-.158-.163-.217-.163h-.185c-.066 0-.173.025-.264.124-.092.1-.35.341-.35.833s.358.966.408 1.033c.05.068.705 1.076 1.708 1.51.24.104.427.166.574.213.242.076.462.066.636.04.194-.029.565-.231.644-.454.079-.223.079-.413.056-.453zm-5.422 7.42-.004.004-.017.01c-.136.08-.29.124-.45.124H11.5c-4.963 0-9-4.037-9-9s4.037-9 9-9 9 4.037 9 9c0 1.954-.627 3.82-1.808 5.378l.002.002.008.016.033.072.115.25.105.228a.56.56 0 0 1 .05.21c0 .17-.075.33-.21.45L17.464 21.6l-.008.008a1.2 1.2 0 0 1-.84.392H16.5c-.244 0-.482-.075-.688-.22l-.128-.09-.344-.242a.56.56 0 0 0-.21-.05c-.07 0-.14.015-.205.045l-.453.21a9.04 9.04 0 0 1-2.43 1.157z" />
+                {/* WhatsApp */}
+                <button onClick={handleWhatsAppShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
+                  <div className="size-12 rounded-full bg-[#25D366] flex items-center justify-center hover:bg-[#20ba5a] transition-colors shadow-md">
+                    <svg className="size-6.5 fill-white text-white" viewBox="0 0 24 24">
+                      <path d="M12.012 2c-5.506 0-9.988 4.482-9.988 9.988 0 1.761.46 3.473 1.332 4.988L2 22l5.187-1.361c1.468.802 3.125 1.229 4.814 1.23h.004c5.505 0 9.988-4.483 9.988-9.99 0-2.67-1.04-5.18-2.92-7.06C17.18 3.04 14.67 2 12.012 2zm6.035 13.917c-.248.697-1.236 1.267-1.7 1.332-.465.065-.929.117-2.946-.683-2.58-1.025-4.225-3.66-4.354-3.832-.13-.173-1.048-1.398-1.048-2.667 0-1.27.662-1.89.897-2.148.235-.258.513-.323.684-.323.17 0 .341.002.49.01.156.007.366-.06.574.453.213.523.727 1.77.79 1.9.063.13.104.28.018.448-.085.17-.129.278-.256.426-.127.15-.266.332-.38.452-.127.13-.26.27-.113.523.147.253.654 1.077 1.402 1.745.966.86 1.778 1.13 2.037 1.258.26.13.41.11.564-.065.154-.175.662-.77.838-1.03.176-.26.353-.216.595-.126.242.09 1.542.727 1.808.86.265.132.441.197.507.307.065.11.065.637-.184 1.334z" />
                     </svg>
                   </div>
-                  <span className="text-[10px] text-zinc-400 group-hover:text-white truncate max-w-[64px]">WhatsApp</span>
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">WhatsApp</span>
                 </button>
 
-                <button onClick={handleSystemShare} className="flex flex-col items-center gap-1.5 group">
-                  <div className="size-11 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors">
-                    <Share2 className="size-5" />
+                {/* Share */}
+                <button onClick={handleSystemShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
+                  <div className="size-12 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors shadow-md">
+                    <Share2 className="size-5 text-white" />
                   </div>
-                  <span className="text-[10px] text-zinc-400 group-hover:text-white truncate max-w-[64px]">Share</span>
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">Share</span>
+                </button>
+
+                {/* WhatsApp Status */}
+                <button onClick={handleWhatsAppShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
+                  <div className="size-12 rounded-full bg-[#128C7E] flex items-center justify-center hover:bg-[#0e7266] transition-colors shadow-md">
+                    <svg className="size-6 fill-none stroke-white" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" strokeDasharray="6 3" />
+                      <circle cx="12" cy="12" r="4" className="fill-white" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[75px] leading-tight">WhatsApp Status</span>
+                </button>
+
+                {/* SMS */}
+                <button onClick={handleSystemShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
+                  <div className="size-12 rounded-full bg-[#007AFF] flex items-center justify-center hover:bg-[#0062cc] transition-colors shadow-md">
+                    <svg className="size-5 fill-white text-white" viewBox="0 0 24 24">
+                      <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">SMS</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Report / Mute Options Bottom Sheet */}
+        {showOptionsSheet && (
+          <div 
+            className="absolute inset-0 z-50 bg-black/60 flex flex-col justify-end pointer-events-auto"
+            onClick={() => {
+              setShowOptionsSheet(false);
+              setIsPaused(false);
+            }}
+          >
+            <div 
+              className="bg-[#1c1c1e] border-t border-zinc-800 rounded-t-3xl p-4.5 flex flex-col gap-1.5 animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Handle Bar */}
+              <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-2" />
+              
+              {/* Report Action */}
+              <button 
+                onClick={handleReportStory}
+                className="w-full py-4 text-center text-sm font-bold text-red-500 hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors"
+              >
+                Report
+              </button>
+              
+              <div className="h-px bg-zinc-800/60 my-0.5" />
+              
+              {/* Mute Action */}
+              <button 
+                onClick={handleMuteUser}
+                className="w-full py-4 text-center text-sm font-semibold text-white hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors"
+              >
+                Mute
+              </button>
             </div>
           </div>
         )}

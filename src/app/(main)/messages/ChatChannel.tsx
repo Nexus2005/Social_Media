@@ -839,6 +839,7 @@ export default function ChatChannel() {
               : "middle";
 
             const isSelected = selectedMessageIds.includes(message.id);
+            const isStoryReply = message.attachments?.some((a: any) => a.type === "story-reply");
 
             return (
               <div
@@ -902,8 +903,16 @@ export default function ChatChannel() {
                   }}
                   className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
                     isOutgoing
-                      ? `${message.id === highlightedMessageId ? "bg-primary/80 ring-2 ring-primary/50" : isSelected ? "bg-primary/90 ring-2 ring-primary/30" : "bg-primary"} text-primary-foreground ${
-                          getBubbleCorners(true, position)
+                      ? isStoryReply
+                        ? `${message.id === highlightedMessageId ? "bg-gradient-to-tr from-pink-400 to-purple-500 ring-2 ring-purple-400/50" : isSelected ? "bg-gradient-to-tr from-pink-450 to-purple-550 ring-2 ring-purple-400/30" : "bg-gradient-to-tr from-pink-500 to-purple-600"} text-white ${
+                            getBubbleCorners(true, position)
+                          }`
+                        : `${message.id === highlightedMessageId ? "bg-primary/80 ring-2 ring-primary/50" : isSelected ? "bg-primary/90 ring-2 ring-primary/30" : "bg-primary"} text-primary-foreground ${
+                            getBubbleCorners(true, position)
+                          }`
+                      : isStoryReply
+                      ? `${message.id === highlightedMessageId ? "bg-zinc-800/80 ring-2 ring-zinc-700/50 border border-zinc-700/80" : isSelected ? "bg-zinc-900/80 ring-2 ring-zinc-800/30 border border-zinc-800/80" : "bg-zinc-900/60 dark:bg-zinc-950/65 backdrop-blur-md border border-zinc-800/50"} text-foreground ${
+                          getBubbleCorners(false, position)
                         }`
                       : `${message.id === highlightedMessageId ? "bg-primary/20 ring-2 ring-primary/40" : isSelected ? "bg-primary/10 border-primary/30" : "bg-card border border-border/50"} text-foreground ${
                           getBubbleCorners(false, position)
@@ -913,7 +922,7 @@ export default function ChatChannel() {
                   }`}
                 >
                   {/* Outgoing Bubble SVG Tail */}
-                  {isOutgoing && isLastInGroup && (
+                  {isOutgoing && isLastInGroup && !isStoryReply && (
                     <svg
                       className="absolute bottom-0 -right-[5px] text-primary fill-current shrink-0 pointer-events-none"
                       width="8"
@@ -925,7 +934,7 @@ export default function ChatChannel() {
                   )}
 
                   {/* Incoming Bubble SVG Tail */}
-                  {!isOutgoing && isLastInGroup && (
+                  {!isOutgoing && isLastInGroup && !isStoryReply && (
                     <svg
                       className="absolute bottom-0 -left-[5px] text-card fill-current shrink-0 pointer-events-none"
                       width="8"
@@ -1446,18 +1455,18 @@ function ShareCardAttachment({ attachment }: { attachment: any }) {
 function StoryReplyAttachment({ attachment }: { attachment: any }) {
   const { mediaUrl, mediaType, username } = attachment;
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border bg-zinc-950/40 p-2 max-w-xs mb-1">
-      <div className="flex flex-col text-start flex-grow pr-2 min-w-0">
-        <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Story Reply</span>
-        <span className="text-xs text-muted-foreground truncate">@{username}&apos;s story</span>
-      </div>
-      <div className="relative size-12 rounded overflow-hidden bg-muted shrink-0 border border-zinc-800">
+    <div className="flex items-center gap-3 rounded-xl bg-black/15 p-2.5 max-w-xs mb-1.5 border border-white/5 shadow-inner">
+      <div className="relative size-14 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-850 shrink-0 shadow-sm">
         {mediaType === "IMAGE" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={mediaUrl} alt="Story Reply" className="w-full h-full object-cover" />
         ) : (
           <video src={mediaUrl} className="w-full h-full object-cover" muted />
         )}
+      </div>
+      <div className="flex flex-col text-start min-w-0">
+        <span className="text-[10px] font-black text-white/45 dark:text-zinc-500 uppercase tracking-widest leading-none">Story Reply</span>
+        <span className="text-sm font-semibold text-white/95 mt-1 truncate">@{username}&apos;s story</span>
       </div>
     </div>
   );
