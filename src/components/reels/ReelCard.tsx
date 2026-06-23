@@ -102,19 +102,91 @@ export default function ReelCard({
   }, [statusData?.detectedObjects, post]);
 
   const detectedProducts = useMemo(() => {
-    const assignments = statusData?.assignments || (post as any).assignments || [];
-    if (assignments && assignments.length > 0) {
-      return assignments.map((a: any) => ({
-        ...a.product,
-        isVerifiedMatch: a.verificationSource === "CREATOR_APPROVED" || a.verificationSource === "ADMIN_VERIFIED",
-        assignmentId: a.id,
-        displayOrder: a.displayOrder,
-        featured: a.featured,
-        assignmentStatus: a.status,
+    // 1. Get all assignments
+    const rawAssignments = statusData?.assignments || (post as any).assignments || [];
+    const assignedProducts = rawAssignments.map((a: any) => ({
+      ...a.product,
+      isVerifiedMatch: a.verificationSource === "CREATOR_APPROVED" || a.verificationSource === "ADMIN_VERIFIED",
+      assignmentId: a.id,
+      displayOrder: a.displayOrder,
+      featured: a.featured,
+      assignmentStatus: a.status,
+      verificationSource: a.verificationSource,
+      source: "assignment",
+    }));
+
+    // 2. Get raw detected products (AI results)
+    const rawDetected = statusData?.detectedProducts || post.detectedProducts || [];
+    const aiProducts = rawDetected
+      .filter((dp: any) => !assignedProducts.some((ap: any) => ap.id === dp.id))
+      .filter((dp: any) => dp.isVerifiedMatch || (dp.confidence ?? 0) >= 0.8)
+      .map((dp: any) => ({
+        ...dp,
+        isVerifiedMatch: dp.isVerifiedMatch || false,
+        assignmentId: null,
+        displayOrder: 999,
+        featured: false,
+        assignmentStatus: "PUBLISHED",
+        verificationSource: "AI_DETECTED",
+        source: "ai",
       }));
-    }
-    return statusData?.detectedProducts || post.detectedProducts || [];
+
+    // 3. Merge lists
+    const merged = [...assignedProducts, ...aiProducts];
+
+    // 4. Sort according to priority:
+    // - Featured first (featured === true)
+    // - Creator Approved / Added next (verificationSource === "CREATOR_APPROVED" or "CREATOR_ADDED")
+    // - Admin Verified next (verificationSource === "ADMIN_VERIFIED" or isVerifiedMatch === true)
+    // - AI Detected last (verificationSource === "AI_DETECTED" or other)
+    // Within groups, order by displayOrder.
+    return merged.sort((a, b) => {
+      const featA = a.featured ? 1 : 0;
+      const featB = b.featured ? 1 : 0;
+      if (featA !== featB) return featB - featA;
+
+      const getSourcePriority = (p: any) => {
+        const src = p.verificationSource || "";
+        if (src === "CREATOR_APPROVED" || src === "CREATOR_ADDED" || p.manuallyAssigned) {
+          return 3;
+        }
+        if (src === "ADMIN_VERIFIED" || p.isVerifiedMatch) {
+          return 2;
+        }
+        return 1;
+      };
+
+      const prioA = getSourcePriority(a);
+      const prioB = getSourcePriority(b);
+      if (prioA !== prioB) return prioB - prioA;
+
+      return (a.displayOrder ?? 999) - (b.displayOrder ?? 999);
+    });
   }, [statusData, post]);
+
+  const creatorAssignedProducts = useMemo(() => {
+    const rawAssignments = statusData?.assignments || (post as any).assignments || [];
+    return rawAssignments.filter((a: any) =>
+      a.verificationSource === "CREATOR_APPROVED" ||
+      a.verificationSource === "CREATOR_ADDED" ||
+      a.manuallyAssigned === true
+    );
+  }, [statusData, post]);
+
+  const approvedProducts = useMemo(() => {
+    const rawAssignments = statusData?.assignments || (post as any).assignments || [];
+    return rawAssignments.filter((a: any) => a.status === "PUBLISHED");
+  }, [statusData, post]);
+
+  const verifiedDetectedProducts = useMemo(() => {
+    const rawDetected = statusData?.detectedProducts || post.detectedProducts || [];
+    return rawDetected.filter((dp: any) => dp.isVerifiedMatch === true);
+  }, [statusData, post]);
+
+  const hasAttachedProducts = useMemo(() => {
+    return creatorAssignedProducts.length > 0 || approvedProducts.length > 0 || verifiedDetectedProducts.length > 0;
+  }, [creatorAssignedProducts, approvedProducts, verifiedDetectedProducts]);
+
   const isAdmin = loggedInUser?.username === "Omkar2005" || (loggedInUser as any)?.verified === true;
 
   // Initialize selected product ID once products are loaded
@@ -484,7 +556,7 @@ export default function ReelCard({
           )}
 
           {/* Subtle White Hotspot Dots */}
-          {showHotspots && !isImmersive && currentStatus === "COMPLETED" && detectedProducts.map((prod) => {
+          {showHotspots && !isImmersive && hasAttachedProducts && detectedProducts.map((prod) => {
             const coords = getProductHotspot(prod);
             const isSelected = prod.id === selectedProductId;
             return (
@@ -528,6 +600,26 @@ export default function ReelCard({
             {isMuted ? <VolumeX className="size-4.5" /> : <Volume2 className="size-4.5" />}
           </button>
 
+          {/* Shopping Bag Overlay on Media (Bottom Right) */}
+          {!isImmersive && hasAttachedProducts && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (videoRef.current && !videoRef.current.paused) {
+                  videoRef.current.pause();
+                  setIsPlaying(false);
+                }
+                setDrawerHeightState("min");
+                setIsShoppingDrawerOpen(true);
+              }}
+              className="absolute bottom-6 right-4 z-30 flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/85 text-white h-9 px-3 rounded-full text-xs font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 pointer-events-auto"
+              title="Shop Look"
+            >
+              <ShoppingBag className="size-4 text-white" />
+              <span>{detectedProducts.length}</span>
+            </button>
+          )}
+
           {/* Central Play/Pause Pulse Icon Overlay */}
           {overlayIcon && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none z-20">
@@ -565,7 +657,7 @@ export default function ReelCard({
             <div className="flex flex-col gap-2.5 pointer-events-auto">
               
               {/* 1. Shop CTA Button */}
-              {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
+              {hasAttachedProducts && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -579,7 +671,7 @@ export default function ReelCard({
                   className="flex items-center justify-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/85 text-white h-9 px-4 rounded-full text-[12px] font-bold w-fit max-w-[35%] shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] truncate shrink-0 pointer-events-auto"
                 >
                   <ShoppingBag className="size-3.5 text-white shrink-0" />
-                  <span className="truncate">Shop ({detectedProducts.length})</span>
+                  <span className="truncate">Shop Look ({detectedProducts.length})</span>
                 </button>
               )}
 
@@ -705,7 +797,7 @@ export default function ReelCard({
             </div>
 
             {/* Shop */}
-            {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
+            {hasAttachedProducts && (
               <div className="flex flex-col items-center">
                 <button
                   onClick={(e) => {
@@ -879,7 +971,7 @@ export default function ReelCard({
           </div>
 
           {/* Shop */}
-          {currentStatus === "COMPLETED" && detectedProducts.length > 0 && (
+          {hasAttachedProducts && (
             <div className="flex flex-col items-center">
               <button
                 onClick={() => {
@@ -967,7 +1059,7 @@ export default function ReelCard({
           post={post}
           open={isOptionsOpen}
           onOpenChange={setIsOptionsOpen}
-          hasProducts={detectedProducts.length > 0}
+          hasProducts={hasAttachedProducts}
           onShopProductsClick={() => {
             setIsOptionsOpen(false);
             if (videoRef.current && !videoRef.current.paused) {
