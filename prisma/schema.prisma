@@ -49,6 +49,12 @@ model User {
   unreadNotificationCount  Int                 @default(0)
   notificationPreference   NotificationPreference?
 
+  // Messaging Preferences V5
+  chatPins                 ChatPin[]
+  chatArchives             ChatArchive[]
+  chatMutes                ChatMute[]
+  conversationSettings     ConversationSettings[]
+
   // Spots V3 Creator Commerce System
   creatorProducts       DetectedProduct[]   @relation("CreatorProducts")
   productEvents         ProductEvent[]
@@ -768,3 +774,50 @@ model NotificationPreference {
 
   @@map("notification_preferences")
 }
+
+model ChatPin {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  channelId String   @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("chat_pins")
+}
+
+model ChatArchive {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  channelId String   @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("chat_archives")
+}
+
+model ChatMute {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  channelId String    @map("channel_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime? @map("expires_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("chat_mutes")
+}
+
+model ConversationSettings {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  channelId String   @map("channel_id")
+  wallpaper String?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("conversation_settings")
+}
+
