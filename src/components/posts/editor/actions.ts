@@ -5,6 +5,18 @@ import prisma from "@/lib/prisma";
 import { getPostDataInclude } from "@/lib/types";
 import { toPlainObject } from "@/lib/utils";
 import { createPostSchema } from "@/lib/validation";
+import { notifyQuote, notifyMention } from "@/lib/notification-center";
+
+// Parse @mentions from text content
+function parseMentions(text: string): string[] {
+  const mentionRegex = /@(\w+)/g;
+  const mentions: string[] = [];
+  let match;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    mentions.push(match[1]);
+  }
+  return [...new Set(mentions)]; // deduplicate
+}
 
 export async function submitPost(input: {
   content?: string;
@@ -110,21 +122,36 @@ export async function submitPost(input: {
     include: getPostDataInclude(user.id),
   });
 
-  // Trigger QUOTE notification if applicable
+  // Trigger QUOTE notification via notification center
   if (quotedPostId) {
     const quotedPost = await prisma.post.findUnique({
       where: { id: quotedPostId },
       select: { userId: true },
     });
     if (quotedPost && quotedPost.userId !== user.id) {
-      await prisma.notification.create({
-        data: {
-          issuerId: user.id,
-          recipientId: quotedPost.userId,
-          postId: newPost.id,
-          type: "QUOTE",
+      notifyQuote(user.id, quotedPost.userId, newPost.id, {
+        contentPreview: (content || "").slice(0, 80),
+      }).catch(console.error);
+    }
+  }
+
+  // Parse and send @mention notifications from post content
+  if (content) {
+    const mentionedUsernames = parseMentions(content);
+    if (mentionedUsernames.length > 0) {
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          username: { in: mentionedUsernames },
+          id: { not: user.id },
         },
+        select: { id: true },
       });
+
+      for (const mentionedUser of mentionedUsers) {
+        notifyMention(user.id, mentionedUser.id, newPost.id, {
+          contentPreview: content.slice(0, 80),
+        }).catch(console.error);
+      }
     }
   }
 
@@ -145,4 +172,5 @@ export async function submitPost(input: {
 
   return toPlainObject(newPost);
 }
+
 

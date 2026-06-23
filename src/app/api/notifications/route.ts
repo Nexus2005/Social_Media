@@ -6,11 +6,9 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   try {
     const cursor = req.nextUrl.searchParams.get("cursor") || undefined;
-
-    const pageSize = 10;
+    const pageSize = 15;
 
     const { user } = await validateRequest();
-
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -35,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     return Response.json(data);
   } catch (error) {
-    console.error(error);
+    console.error("GET /api/notifications error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { validateRequest } from "@/auth";
-import prisma from "@/lib/prisma";
+import { getUnreadCount } from "@/lib/notification-center";
 import { NotificationCountInfo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +12,7 @@ export async function GET() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const unreadCount = await prisma.notification.count({
-      where: {
-        recipientId: user.id,
-        read: false,
-      },
-    });
+    const unreadCount = await getUnreadCount(user.id);
 
     const data: NotificationCountInfo = {
       unreadCount,
@@ -29,3 +24,4 @@ export async function GET() {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

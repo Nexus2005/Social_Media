@@ -11,77 +11,9 @@ import { NotificationsPage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Notification from "./Notification";
 import { UINotificationData, UINotificationType } from "./types";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 
-const FILTERS = ["All", "People", "Comments", "Mentions", "Orders", "Likes", "Reposts", "Products"];
-
-// Premium Cartly-specific commerce mock notifications to merge into the real stream
-const commerceMocks: UINotificationData[] = [
-  {
-    id: "mock-order-delivered",
-    type: "PRODUCT_DELIVERED",
-    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(), // 12m ago
-    read: false,
-    issuer: {
-      username: "cartly_orders",
-      displayName: "Cartly Orders",
-      avatarUrl: "/cartly-logo.webp",
-    },
-    order: {
-      id: "ORD-99214",
-      status: "DELIVERED",
-      productName: "Air Jordan 1 Retro High",
-      productImageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff",
-    },
-  },
-  {
-    id: "mock-price-drop",
-    type: "PRODUCT_PRICE_DROP",
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45m ago
-    read: false,
-    issuer: {
-      username: "cartly_deals",
-      displayName: "Cartly Deals",
-      avatarUrl: "/cartly-logo.webp",
-    },
-    product: {
-      title: "Minimalist Leather Backpack",
-      imageUrl: "https://images.unsplash.com/photo-1547949003-9792a18a2601",
-      oldPrice: 120,
-      newPrice: 89,
-    },
-  },
-  {
-    id: "mock-order-shipped",
-    type: "PRODUCT_SHIPPED",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3h ago
-    read: true,
-    issuer: {
-      username: "cartly_orders",
-      displayName: "Cartly Orders",
-      avatarUrl: "/cartly-logo.webp",
-    },
-    order: {
-      id: "ORD-99185",
-      status: "SHIPPED",
-      productName: "Wireless Soundbar Pro",
-      productImageUrl: "https://images.unsplash.com/photo-1545454675-3531b543be5d",
-    },
-  },
-  {
-    id: "mock-collection-add",
-    type: "COLLECTION_ADD",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-    read: true,
-    issuer: {
-      username: "swayam_desai",
-      displayName: "Swayam Desai",
-      avatarUrl: null,
-    },
-    collection: {
-      name: "Cozy Winter Essentials",
-    },
-  },
-];
+const FILTERS = ["All", "People", "Comments", "Mentions", "Likes", "Reposts"];
 
 function NotificationSkeleton() {
   return (
@@ -102,6 +34,9 @@ export default function Notifications() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [sessionUnreadIds, setSessionUnreadIds] = useState<Set<string>>(new Set());
   const [hasInitializedUnread, setHasInitializedUnread] = useState(false);
+
+  // Connect to real-time SSE stream for instant notification updates
+  useRealtimeNotifications();
 
   const {
     data,
@@ -142,7 +77,7 @@ export default function Notifications() {
     mutate();
   }, [mutate]);
 
-  // Capture initial unread state in local session list to prevent instant grouping layout shifts
+  // Capture initial unread state in local session list
   useEffect(() => {
     if (status === "success" && !hasInitializedUnread && data?.pages) {
       const unreads = new Set<string>();
@@ -153,10 +88,6 @@ export default function Notifications() {
           }
         });
       });
-      // Pre-add a couple of mock commerce unreads for visual demo
-      unreads.add("mock-order-delivered");
-      unreads.add("mock-price-drop");
-
       setSessionUnreadIds(unreads);
       setHasInitializedUnread(true);
     }
@@ -164,15 +95,17 @@ export default function Notifications() {
 
   const notifications = data?.pages.flatMap((page) => page.notifications) || [];
 
-  // Convert real database notifications to UINotificationData structure and merge with commerce mocks
-  const mergedNotifications = useMemo(() => {
-    const realConverted: UINotificationData[] = notifications.map((n) => ({
+  // Convert real database notifications to UINotificationData structure (no mocks)
+  const uiNotifications = useMemo(() => {
+    const converted: UINotificationData[] = notifications.map((n) => ({
       id: n.id,
       recipientId: n.recipientId,
       issuerId: n.issuerId,
       postId: n.postId,
       type: n.type as UINotificationType,
       read: n.read,
+      deepLink: (n as any).deepLink || null,
+      metadata: (n as any).metadata || null,
       createdAt: n.createdAt,
       issuer: n.issuer,
       post: n.post ? {
@@ -182,30 +115,20 @@ export default function Notifications() {
       } : null,
     }));
 
-    const combined = [...realConverted, ...commerceMocks];
-
-    // De-duplicate in case of ID overlaps
-    const uniqueMap = new Map<string, UINotificationData>();
-    combined.forEach((item) => {
-      uniqueMap.set(item.id, item);
-    });
-
-    return Array.from(uniqueMap.values()).sort(
+    return converted.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [notifications]);
 
   // Group notifications chronologically
   const grouped = useMemo(() => {
-    const filtered = mergedNotifications.filter((n) => {
+    const filtered = uiNotifications.filter((n) => {
       if (activeFilter === "All") return true;
-      if (activeFilter === "People") return n.type === "FOLLOW";
-      if (activeFilter === "Comments") return n.type === "COMMENT" || n.type === "REPLY";
-      if (activeFilter === "Mentions") return n.type === "MENTION" || n.type === "QUOTE";
-      if (activeFilter === "Orders") return n.type === "PRODUCT_ORDER" || n.type === "PRODUCT_SHIPPED" || n.type === "PRODUCT_DELIVERED";
+      if (activeFilter === "People") return n.type === "FOLLOW" || n.type === "FOLLOW_REQUEST" || n.type === "FOLLOW_ACCEPTED";
+      if (activeFilter === "Comments") return n.type === "COMMENT" || n.type === "REPLY" || n.type === "COMMENT_LIKE";
+      if (activeFilter === "Mentions") return n.type === "MENTION" || n.type === "QUOTE" || n.type === "STORY_MENTION";
       if (activeFilter === "Likes") return n.type === "LIKE";
-      if (activeFilter === "Reposts") return n.type === "REPOST";
-      if (activeFilter === "Products") return n.type === "PRODUCT_PRICE_DROP" || n.type === "COLLECTION_ADD";
+      if (activeFilter === "Reposts") return n.type === "REPOST" || n.type === "SHARE";
       return true;
     });
 
@@ -233,7 +156,7 @@ export default function Notifications() {
     });
 
     return { newItems, todayItems, thisWeekItems, earlierItems };
-  }, [mergedNotifications, activeFilter, sessionUnreadIds]);
+  }, [uiNotifications, activeFilter, sessionUnreadIds]);
 
   if (status === "pending") {
     return (

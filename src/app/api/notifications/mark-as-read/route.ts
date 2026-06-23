@@ -1,5 +1,5 @@
 import { validateRequest } from "@/auth";
-import prisma from "@/lib/prisma";
+import { markAllAsRead } from "@/lib/notification-center";
 
 export async function PATCH() {
   try {
@@ -9,15 +9,7 @@ export async function PATCH() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.notification.updateMany({
-      where: {
-        recipientId: user.id,
-        read: false,
-      },
-      data: {
-        read: true,
-      },
-    });
+    await markAllAsRead(user.id);
 
     return new Response();
   } catch (error) {
@@ -25,3 +17,4 @@ export async function PATCH() {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

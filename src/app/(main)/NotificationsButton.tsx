@@ -6,6 +6,7 @@ import { NotificationCountInfo } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import Link from "next/link";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 
 interface NotificationsButtonProps {
   initialState: NotificationCountInfo;
@@ -14,6 +15,9 @@ interface NotificationsButtonProps {
 export default function NotificationsButton({
   initialState,
 }: NotificationsButtonProps) {
+  // SSE stream drives real-time badge count updates
+  useRealtimeNotifications();
+
   const { data } = useQuery({
     queryKey: ["unread-notification-count"],
     queryFn: () =>
@@ -21,7 +25,8 @@ export default function NotificationsButton({
         .get("/api/notifications/unread-count")
         .json<NotificationCountInfo>(),
     initialData: initialState,
-    refetchInterval: 60 * 1000,
+    // SSE handles real-time updates — this is a fallback sync every 5 minutes
+    refetchInterval: 5 * 60 * 1000,
   });
 
   return (
@@ -45,3 +50,4 @@ export default function NotificationsButton({
     </Button>
   );
 }
+

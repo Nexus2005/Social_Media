@@ -1,5 +1,6 @@
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
+import { notifyRepost, deleteRepostNotification } from "@/lib/notification-center";
 
 export async function GET(
   req: Request,
@@ -67,33 +68,24 @@ export async function POST(
       return Response.json({ error: "Post not found" }, { status: 404 });
     }
 
-    await prisma.$transaction([
-      prisma.repost.upsert({
-        where: {
-          userId_postId: {
-            userId: loggedInUser.id,
-            postId,
-          },
-        },
-        create: {
+    await prisma.repost.upsert({
+      where: {
+        userId_postId: {
           userId: loggedInUser.id,
           postId,
         },
-        update: {},
-      }),
-      ...(loggedInUser.id !== post.userId
-        ? [
-            prisma.notification.create({
-              data: {
-                issuerId: loggedInUser.id,
-                recipientId: post.userId,
-                postId,
-                type: "REPOST",
-              },
-            }),
-          ]
-        : []),
-    ]);
+      },
+      create: {
+        userId: loggedInUser.id,
+        postId,
+      },
+      update: {},
+    });
+
+    // Send notification via centralized notification center
+    if (loggedInUser.id !== post.userId) {
+      notifyRepost(loggedInUser.id, post.userId, postId).catch(console.error);
+    }
 
     return new Response();
   } catch (error) {
@@ -124,22 +116,17 @@ export async function DELETE(
       return Response.json({ error: "Post not found" }, { status: 404 });
     }
 
-    await prisma.$transaction([
-      prisma.repost.deleteMany({
-        where: {
-          userId: loggedInUser.id,
-          postId,
-        },
-      }),
-      prisma.notification.deleteMany({
-        where: {
-          issuerId: loggedInUser.id,
-          recipientId: post.userId,
-          postId,
-          type: "REPOST",
-        },
-      }),
-    ]);
+    await prisma.repost.deleteMany({
+      where: {
+        userId: loggedInUser.id,
+        postId,
+      },
+    });
+
+    // Remove notification via centralized notification center
+    if (loggedInUser.id !== post.userId) {
+      deleteRepostNotification(loggedInUser.id, post.userId, postId).catch(console.error);
+    }
 
     return new Response();
   } catch (error) {

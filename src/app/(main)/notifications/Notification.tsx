@@ -2,7 +2,7 @@
 
 import UserAvatar from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
-import { Heart, MessageCircle, User2, Repeat2, MessageSquareQuote, ChevronRight, Bookmark } from "lucide-react";
+import { Heart, MessageCircle, User2, Repeat2, MessageSquareQuote, ChevronRight, Bookmark, AtSign, Shield, CheckCircle, Bell } from "lucide-react";
 import Link from "next/link";
 import { UINotificationData } from "./types";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -36,67 +36,78 @@ function formatTimeShort(dateParam: string | Date) {
   }
 }
 
-export default function Notification({ notification, isUnread }: NotificationProps) {
-  // Determine text content and redirect href based on notification type
-  let messageText = "";
-  let href = `/posts/${notification.postId || ""}`;
+// Build message text and fallback href based on notification type
+function getNotificationContent(notification: UINotificationData): {
+  messageText: string;
+  fallbackHref: string;
+} {
+  const meta = notification.metadata as Record<string, unknown> | null;
 
   switch (notification.type) {
     case "FOLLOW":
-      messageText = "started following you.";
-      href = `/users/${notification.issuer.username}`;
-      break;
+      return { messageText: "started following you.", fallbackHref: `/users/${notification.issuer.username}` };
+    case "FOLLOW_REQUEST":
+      return { messageText: "requested to follow you.", fallbackHref: `/users/${notification.issuer.username}` };
+    case "FOLLOW_ACCEPTED":
+      return { messageText: "accepted your follow request.", fallbackHref: `/users/${notification.issuer.username}` };
     case "LIKE":
-      messageText = "liked your post.";
-      break;
-    case "COMMENT":
-      messageText = `commented: "${notification.post?.content?.slice(0, 35) || "Looks amazing 🔥"}"`;
-      break;
-    case "REPLY":
-      messageText = "replied to your comment.";
-      break;
+      return { messageText: "liked your post.", fallbackHref: `/posts/${notification.postId || ""}` };
+    case "COMMENT": {
+      const preview = (meta?.commentPreview as string) || notification.post?.content?.slice(0, 35) || "";
+      return {
+        messageText: preview ? `commented: "${preview}"` : "commented on your post.",
+        fallbackHref: `/posts/${notification.postId || ""}`,
+      };
+    }
+    case "COMMENT_LIKE":
+      return { messageText: "liked your comment.", fallbackHref: `/posts/${notification.postId || ""}` };
+    case "REPLY": {
+      const preview = (meta?.commentPreview as string) || "";
+      return {
+        messageText: preview ? `replied: "${preview}"` : "replied to your comment.",
+        fallbackHref: `/posts/${notification.postId || ""}`,
+      };
+    }
     case "MENTION":
-      messageText = "mentioned you in a post.";
-      break;
+      return { messageText: "mentioned you in a post.", fallbackHref: `/posts/${notification.postId || ""}` };
+    case "STORY_MENTION":
+      return { messageText: "mentioned you in their story.", fallbackHref: "/" };
     case "REPOST":
-      messageText = "reposted your post.";
-      break;
+      return { messageText: "reposted your post.", fallbackHref: `/posts/${notification.postId || ""}` };
     case "QUOTE":
-      messageText = "quoted your post.";
-      break;
-    case "PRODUCT_ORDER":
-      messageText = `placed an order for ${notification.order?.productName || "Product"}.`;
-      href = "/shop";
-      break;
-    case "PRODUCT_SHIPPED":
-      messageText = `Your order #${notification.order?.id || "12345"} has shipped! 🚚`;
-      href = "/shop";
-      break;
-    case "PRODUCT_DELIVERED":
-      messageText = `Your order #${notification.order?.id || "12345"} has been delivered! 🎉`;
-      href = "/shop";
-      break;
-    case "PRODUCT_PRICE_DROP":
-      messageText = `Price dropped on a product you saved! Now $${notification.product?.newPrice}.`;
-      href = "/shop";
-      break;
-    case "COLLECTION_ADD":
-      messageText = `added your post to their collection "${notification.collection?.name || "Favorites"}".`;
-      href = `/users/${notification.issuer.username}`;
-      break;
-    case "SYSTEM":
-      messageText = "System alert updated.";
-      href = "/";
-      break;
+      return { messageText: "quoted your post.", fallbackHref: `/posts/${notification.postId || ""}` };
+    case "SHARE":
+      return { messageText: "shared your post.", fallbackHref: `/posts/${notification.postId || ""}` };
+    case "COLLECTION_SAVE":
+      return { messageText: "saved your post to a collection.", fallbackHref: `/posts/${notification.postId || ""}` };
+    case "SECURITY_ALERT":
+      return { messageText: "Security alert: unusual login detected.", fallbackHref: "/settings" };
+    case "PASSWORD_CHANGED":
+      return { messageText: "Your password was changed successfully.", fallbackHref: "/settings" };
+    case "VERIFICATION_APPROVED":
+      return { messageText: "Your verification has been approved! ✓", fallbackHref: `/users/${notification.issuer.username}` };
+    case "VERIFICATION_REJECTED":
+      return { messageText: "Your verification request was not approved.", fallbackHref: "/settings" };
+    case "SYSTEM": {
+      const msg = (meta?.message as string) || "System notification.";
+      return { messageText: msg, fallbackHref: "/" };
+    }
     default:
-      messageText = "interacted with you.";
+      return { messageText: "interacted with you.", fallbackHref: "/" };
   }
+}
+
+export default function Notification({ notification, isUnread }: NotificationProps) {
+  const { messageText, fallbackHref } = getNotificationContent(notification);
+
+  // Use deepLink if available, otherwise fall back to generated href
+  const href = notification.deepLink || fallbackHref;
 
   const postAttachment = notification.post?.attachments?.[0];
   const postImageUrl = postAttachment?.url;
 
-  const renderThumbnailWithBadge = (imageUrl: string | undefined, badgeType: "like" | "comment" | "repost" | "quote") => {
-    const badges = {
+  const renderThumbnailWithBadge = (imageUrl: string | undefined, badgeType: "like" | "comment" | "repost" | "quote" | "mention" | "share" | "save") => {
+    const badges: Record<string, React.ReactNode> = {
       like: (
         <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
           <Heart className="size-2 text-white fill-white" />
@@ -115,6 +126,21 @@ export default function Notification({ notification, isUnread }: NotificationPro
       quote: (
         <div className="absolute -bottom-1 -right-1 bg-purple-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
           <MessageSquareQuote className="size-2 text-white" />
+        </div>
+      ),
+      mention: (
+        <div className="absolute -bottom-1 -right-1 bg-orange-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
+          <AtSign className="size-2 text-white" />
+        </div>
+      ),
+      share: (
+        <div className="absolute -bottom-1 -right-1 bg-sky-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
+          <Repeat2 className="size-2 text-white" />
+        </div>
+      ),
+      save: (
+        <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
+          <Bookmark className="size-2 text-white fill-white" />
         </div>
       ),
     };
@@ -139,6 +165,8 @@ export default function Notification({ notification, isUnread }: NotificationPro
   const renderActionArea = () => {
     switch (notification.type) {
       case "FOLLOW":
+      case "FOLLOW_REQUEST":
+      case "FOLLOW_ACCEPTED":
         if (notification.issuer.id) {
           return (
             <FollowButton
@@ -151,60 +179,41 @@ export default function Notification({ notification, isUnread }: NotificationPro
             />
           );
         }
-        return (
-          <button className="h-8 px-4 flex items-center justify-center rounded-full text-xs font-bold bg-[#0095f6] hover:bg-[#1877f2] text-white transition-all active:scale-95 shrink-0 border-0">
-            Follow Back
-          </button>
-        );
+        return null;
       case "LIKE":
         return renderThumbnailWithBadge(postImageUrl, "like");
       case "COMMENT":
       case "REPLY":
+      case "COMMENT_LIKE":
         return renderThumbnailWithBadge(postImageUrl, "comment");
       case "REPOST":
         return renderThumbnailWithBadge(postImageUrl, "repost");
       case "QUOTE":
         return renderThumbnailWithBadge(postImageUrl, "quote");
       case "MENTION":
-        if (postImageUrl) {
-          return (
-            <Link href={href} className="relative size-11 rounded-md overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 block hover:opacity-90 transition-opacity">
-              <img src={postImageUrl} className="object-cover w-full h-full" alt="Mention" />
-            </Link>
-          );
-        }
-        return (
-          <Link href={href} className="relative size-11 rounded-md bg-[#121212] border border-zinc-800 flex items-center justify-center p-1 text-[8px] text-zinc-400 overflow-hidden line-clamp-3 select-none leading-tight shrink-0 block hover:bg-zinc-900 transition-colors">
-            {notification.post?.content || ""}
-          </Link>
-        );
-      case "PRODUCT_PRICE_DROP":
-        return (
-          <Link href={href} className="relative size-11 rounded-md overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 block hover:opacity-90 transition-opacity">
-            <img src={notification.product?.imageUrl} className="object-cover w-full h-full" alt="Product" />
-            <div className="absolute -bottom-1 -right-1 bg-yellow-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center text-[8px] font-bold text-black size-4">
-              $
-            </div>
-          </Link>
-        );
-      case "PRODUCT_SHIPPED":
-      case "PRODUCT_DELIVERED":
-      case "PRODUCT_ORDER":
-        if (notification.order?.productImageUrl) {
-          return (
-            <Link href={href} className="relative size-11 rounded-md overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 block hover:opacity-90 transition-opacity">
-              <img src={notification.order.productImageUrl} className="object-cover w-full h-full" alt="Order Product" />
-              <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center text-white size-4">
-                <Bookmark className="size-2 fill-white" />
-              </div>
-            </Link>
-          );
-        }
-        return <ChevronRight className="size-5 text-zinc-650" />;
-      case "COLLECTION_ADD":
+      case "STORY_MENTION":
+        return renderThumbnailWithBadge(postImageUrl, "mention");
+      case "SHARE":
+        return renderThumbnailWithBadge(postImageUrl, "share");
+      case "COLLECTION_SAVE":
+        return renderThumbnailWithBadge(postImageUrl, "save");
+      case "SECURITY_ALERT":
+      case "PASSWORD_CHANGED":
         return (
           <div className="size-11 rounded-md bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
-            <Bookmark className="size-5 text-purple-400 fill-purple-400" />
+            <Shield className="size-5 text-red-400" />
+          </div>
+        );
+      case "VERIFICATION_APPROVED":
+        return (
+          <div className="size-11 rounded-md bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
+            <CheckCircle className="size-5 text-blue-400" />
+          </div>
+        );
+      case "SYSTEM":
+        return (
+          <div className="size-11 rounded-md bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
+            <Bell className="size-5 text-zinc-400" />
           </div>
         );
       default:

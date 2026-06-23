@@ -44,8 +44,10 @@ model User {
   collections           SavedCollection[]
   sessions              Session[]
   stories               Story[]
-  isPrivate             Boolean             @default(false)
-  pinnedContent         PinnedContent[]
+  isPrivate                Boolean             @default(false)
+  pinnedContent            PinnedContent[]
+  unreadNotificationCount  Int                 @default(0)
+  notificationPreference   NotificationPreference?
 
   // Spots V3 Creator Commerce System
   creatorProducts       DetectedProduct[]   @relation("CreatorProducts")
@@ -187,6 +189,8 @@ model Notification {
   postId      String?
   type        NotificationType
   read        Boolean          @default(false)
+  metadata    Json?
+  deepLink    String?
   createdAt   DateTime         @default(now())
   issuer      User             @relation("Issuer", fields: [issuerId], references: [id], onDelete: Cascade)
   post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -195,6 +199,7 @@ model Notification {
   @@index([recipientId])
   @@index([issuerId])
   @@index([postId])
+  @@index([recipientId, read])
   @@map("notifications")
 }
 
@@ -586,13 +591,41 @@ enum MediaType {
 }
 
 enum NotificationType {
+  // Social interactions
   LIKE
   FOLLOW
+  FOLLOW_REQUEST
+  FOLLOW_ACCEPTED
   COMMENT
+  COMMENT_LIKE
   REPOST
   QUOTE
   REPLY
   MENTION
+  STORY_MENTION
+  SHARE
+  COLLECTION_SAVE
+
+  // Commerce events
+  PRODUCT_ORDER
+  PRODUCT_SHIPPED
+  PRODUCT_DELIVERED
+  PRODUCT_PRICE_DROP
+  PRODUCT_BACK_IN_STOCK
+  PRODUCT_APPROVED
+  POST_APPROVED
+
+  // Social groups
+  COLLECTION_INVITE
+  GROUP_INVITE
+  MESSAGE
+
+  // Account & Security
+  VERIFICATION_APPROVED
+  VERIFICATION_REJECTED
+  SECURITY_ALERT
+  PASSWORD_CHANGED
+  SYSTEM
 }
 
 enum ProductStatus {
@@ -709,4 +742,29 @@ enum ContentFormat {
 enum FollowStatus {
   PENDING
   ACCEPTED
+}
+
+model NotificationPreference {
+  userId    String  @id
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Social
+  likes     Boolean @default(true)
+  comments  Boolean @default(true)
+  mentions  Boolean @default(true)
+  follows   Boolean @default(true)
+  reposts   Boolean @default(true)
+  quotes    Boolean @default(true)
+  shares    Boolean @default(true)
+
+  // Commerce
+  orders    Boolean @default(true)
+  products  Boolean @default(true)
+
+  // System
+  security  Boolean @default(true)
+  system    Boolean @default(true)
+  messages  Boolean @default(true)
+
+  @@map("notification_preferences")
 }
