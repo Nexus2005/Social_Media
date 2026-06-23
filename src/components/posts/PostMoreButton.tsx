@@ -1,47 +1,43 @@
-import { PostData } from "@/lib/types";
-import { MoreHorizontal, Trash2 } from "lucide-react";
+"use client";
+
 import { useState } from "react";
+import { MoreVertical } from "lucide-react";
+import { PostData } from "@/lib/types";
 import { Button } from "../ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import DeletePostDialog from "./DeletePostDialog";
+import PostOptionsBottomSheet from "./PostOptionsBottomSheet";
 
 interface PostMoreButtonProps {
   post: PostData;
   className?: string;
+  onNotInterested: () => void;
 }
 
 export default function PostMoreButton({
   post,
   className,
+  onNotInterested,
 }: PostMoreButtonProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="icon" variant="ghost" className={className}>
-            <MoreHorizontal className="size-5 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
-            <span className="flex items-center gap-3 text-destructive">
-              <Trash2 className="size-4" />
-              Delete
-            </span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DeletePostDialog
+      <Button
+        size="icon"
+        variant="ghost"
+        className={className}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowOptions(true);
+        }}
+      >
+        <MoreVertical className="size-5 text-white" />
+      </Button>
+
+      <PostOptionsBottomSheet
         post={post}
-        open={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
+        open={showOptions}
+        onClose={() => setShowOptions(false)}
+        onNotInterested={onNotInterested}
       />
     </>
   );

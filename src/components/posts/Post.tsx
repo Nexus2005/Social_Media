@@ -26,6 +26,8 @@ import UserTooltip from "../UserTooltip";
 import BookmarkButton from "./BookmarkButton";
 import LikeButton from "./LikeButton";
 import PostMoreButton from "./PostMoreButton";
+import useFollowerInfo from "@/hooks/useFollowerInfo";
+import FollowButton from "../FollowButton";
 import VideoPlayer from "../VideoPlayer";
 import { useToast } from "../ui/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -55,6 +57,14 @@ export default function Post({ post }: PostProps) {
   const { user } = useSession();
   const { toast } = useToast();
   const [showComments, setShowComments] = useState(false);
+  const [isNotInterested, setIsNotInterested] = useState(false);
+
+  const { data: followerData } = useFollowerInfo(post.user.id, {
+    followers: post.user._count.followers,
+    isFollowedByUser: post.user.followers.some(
+      (f) => f.followerId === user.id
+    ),
+  });
   const [mediaViewerUrls, setMediaViewerUrls] = useState<string[] | null>(null);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
@@ -145,6 +155,20 @@ export default function Post({ post }: PostProps) {
 
   const repostInfo = post.reposts && post.reposts.length > 0 ? post.reposts[0] : null;
 
+  if (isNotInterested) {
+    return (
+      <div className="py-6 px-4 border-b border-neutral-900 bg-black flex items-center justify-between text-sm text-zinc-400">
+        <span>Post hidden. We&apos;ll show you fewer posts like this.</span>
+        <button
+          onClick={() => setIsNotInterested(false)}
+          className="text-primary hover:underline font-bold"
+        >
+          Undo
+        </button>
+      </div>
+    );
+  }
+
   return (
     <article className="group/post space-y-3.5 py-3 sm:py-4 border-b border-neutral-900 bg-black relative w-full">
       {/* Track Post View */}
@@ -211,12 +235,23 @@ export default function Post({ post }: PostProps) {
             )}
           </div>
         </div>
-        {post.user.id === user.id && (
+        <div className="flex items-center gap-2">
+          {post.user.id !== user.id && !followerData.isFollowedByUser && (
+            <FollowButton
+              userId={post.user.id}
+              initialState={{
+                followers: post.user._count.followers,
+                isFollowedByUser: false,
+              }}
+              variant="post-header"
+            />
+          )}
           <PostMoreButton
             post={post}
-            className="opacity-0 transition-opacity group-hover/post:opacity-100"
+            onNotInterested={() => setIsNotInterested(true)}
+            className="opacity-100 sm:opacity-0 transition-opacity group-hover/post:opacity-100 focus:opacity-100"
           />
-        )}
+        </div>
       </div>
 
       <Linkify>

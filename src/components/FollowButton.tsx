@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 interface FollowButtonProps {
   userId: string;
   initialState: FollowerInfo;
-  variant?: "button" | "text" | "reel-pill" | "notification-pill";
+  variant?: "button" | "text" | "reel-pill" | "notification-pill" | "post-header";
 }
 
 export default function FollowButton({
@@ -108,6 +108,23 @@ export default function FollowButton({
           data.isFollowedByUser
             ? "bg-[#262626] hover:bg-zinc-800 text-white"
             : "bg-[#0095f6] hover:bg-[#1877f2] text-white"
+        )}
+      >
+        {getButtonText()}
+      </button>
+    );
+  }
+
+  if (variant === "post-header") {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          mutate();
+        }}
+        className={cn(
+          "h-8 px-4 flex items-center justify-center rounded-lg text-sm font-semibold transition-all active:scale-95 shrink-0 border-0",
+          "bg-[#262626] hover:bg-zinc-800 text-white"
         )}
       >
         {getButtonText()}
