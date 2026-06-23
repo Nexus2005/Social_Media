@@ -158,7 +158,7 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
       ref={containerRef}
       onClick={togglePlay}
       className={cn(
-        "relative mx-auto w-full max-h-[30rem] rounded-2xl overflow-hidden bg-black flex justify-center items-center group/player select-none cursor-pointer",
+        "relative mx-auto w-full rounded-2xl overflow-hidden bg-black flex justify-center items-center group/player select-none cursor-pointer",
         className
       )}
     >
@@ -182,7 +182,7 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
         muted={isMuted}
         playsInline
         preload="metadata"
-        className="w-full h-full max-h-[30rem] object-contain"
+        className="w-full h-full object-cover"
       />
 
       {/* Central Pulsing Play/Pause Icon Overlay */}

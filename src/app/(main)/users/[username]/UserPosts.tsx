@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useState, memo } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import kyInstance from "@/lib/ky";
-import { PostsPage } from "@/lib/types";
+import { PostsPage, PostData } from "@/lib/types";
 import { useSession } from "@/app/(main)/SessionProvider";
 import Post from "@/components/posts/Post";
 import PostsLoadingSkeleton from "@/components/posts/PostsLoadingSkeleton";
@@ -11,7 +11,6 @@ import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
 import { Loader2, Grid, Repeat2, MessageSquare, Image as ImageIcon, Film, ShoppingBag, Bookmark, Heart, FolderOpen } from "lucide-react";
 import SavedProductsGrid from "@/components/profile/SavedProductsGrid";
 import StorefrontGrid from "@/components/profile/StorefrontGrid";
-import CreatorCommerceStudio from "@/components/creator/CreatorCommerceStudio";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface UserPostsProps {
@@ -60,7 +59,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
             },
           }
         )
-         .json<PostsPage>(),
+        .json<PostsPage>(),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: isPostTab,
@@ -70,7 +69,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
 
   if (isPostTab && status === "pending") {
     return (
-      <div className="space-y-5">
+      <div className="space-y-4">
         <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
         <PostsLoadingSkeleton />
       </div>
@@ -79,17 +78,20 @@ export default function UserPosts({ userId }: UserPostsProps) {
 
   if (isPostTab && status === "error") {
     return (
-      <div className="space-y-5">
+      <div className="space-y-4">
         <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
-        <p className="text-center text-destructive py-8">
+        <p className="text-center text-destructive py-8 font-medium">
           An error occurred while loading posts.
         </p>
       </div>
     );
   }
 
+  const isGridView = ["posts", "media", "likes", "collections"].includes(activeTab);
+  const isReelsView = activeTab === "reels";
+
   return (
-    <div className="space-y-0">
+    <div className="space-y-0 select-none">
       <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
 
       {activeTab === "storefront" ? (
@@ -97,48 +99,76 @@ export default function UserPosts({ userId }: UserPostsProps) {
       ) : activeTab === "saved-products" ? (
         <SavedProductsGrid userId={userId} />
       ) : !posts.length && !hasNextPage ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center select-none">
+        <div className="flex flex-col items-center justify-center py-16 text-center select-none px-4">
           {activeTab === "reels" ? (
             <>
-              <Film className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <Film className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Reels</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Videos shared by this user will appear here.</p>
             </>
           ) : activeTab === "media" ? (
             <>
-              <ImageIcon className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <ImageIcon className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Media</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Photos and videos shared by this user will appear here.</p>
             </>
           ) : activeTab === "likes" ? (
             <>
-              <Heart className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <Heart className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Liked Posts</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Liked posts will show up here.</p>
             </>
           ) : activeTab === "reposts" ? (
             <>
-              <Repeat2 className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <Repeat2 className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Reposts</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Reposted content will show up here.</p>
             </>
           ) : activeTab === "replies" ? (
             <>
-              <MessageSquare className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <MessageSquare className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Replies</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Comments and replies will show up here.</p>
             </>
           ) : (
             <>
-              <Grid className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <Grid className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Posts Yet</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">When this user posts, they will show up here.</p>
             </>
           )}
         </div>
+      ) : isGridView ? (
+        <InfiniteScrollContainer
+          className="grid grid-cols-3 gap-0.5 w-full bg-black"
+          onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
+        >
+          {posts.map((post) => (
+            <PostGridItem key={post.id} post={post} />
+          ))}
+          {isFetchingNextPage && (
+            <div className="col-span-3 flex justify-center py-4">
+              <Loader2 className="size-6 animate-spin text-zinc-500" />
+            </div>
+          )}
+        </InfiniteScrollContainer>
+      ) : isReelsView ? (
+        <InfiniteScrollContainer
+          className="grid grid-cols-3 gap-0.5 w-full bg-black"
+          onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
+        >
+          {posts.map((post) => (
+            <ReelsGridItem key={post.id} post={post} />
+          ))}
+          {isFetchingNextPage && (
+            <div className="col-span-3 flex justify-center py-4">
+              <Loader2 className="size-6 animate-spin text-zinc-500" />
+            </div>
+          )}
+        </InfiniteScrollContainer>
       ) : (
         <InfiniteScrollContainer
-          className="space-y-0 divide-y divide-border/30"
+          className="space-y-0 divide-y divide-border/20"
           onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
         >
           {posts.map((post) => (
@@ -150,6 +180,97 @@ export default function UserPosts({ userId }: UserPostsProps) {
     </div>
   );
 }
+
+// 3-Column Square Post Grid Item
+const PostGridItem = memo(({ post }: { post: PostData }) => {
+  const router = useRouter();
+  const attachment = post.attachments?.[0];
+  const isVideo = attachment?.mediaType === "VIDEO";
+
+  return (
+    <div
+      onClick={() => router.push(`/posts/${post.id}`)}
+      className="relative aspect-square bg-zinc-900 overflow-hidden cursor-pointer hover:opacity-95 group transition-all"
+    >
+      {attachment?.url ? (
+        isVideo ? (
+          <video
+            src={attachment.url}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+          />
+        ) : (
+          <img
+            src={attachment.url}
+            alt={post.content || ""}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        )
+      ) : (
+        <div className="p-3 w-full h-full flex items-center justify-center text-[11px] text-zinc-400 overflow-hidden text-ellipsis line-clamp-4 select-text leading-tight bg-zinc-950">
+          {post.content}
+        </div>
+      )}
+      {/* Hover Stats overlay */}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white text-[14px] font-semibold">
+        <span className="flex items-center gap-1">
+          <Heart className="size-4 fill-white text-white" />
+          {post._count.likes}
+        </span>
+        <span className="flex items-center gap-1">
+          <MessageSquare className="size-4 fill-white text-white" />
+          {post._count.comments}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+PostGridItem.displayName = "PostGridItem";
+
+// 3-Column 9:16 Reels Grid Item
+const ReelsGridItem = memo(({ post }: { post: PostData }) => {
+  const router = useRouter();
+  const attachment = post.attachments?.[0];
+  const viewCount = post._count.views;
+
+  const formatViews = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toString();
+  };
+
+  return (
+    <div
+      onClick={() => router.push(`/reels/${post.id}`)}
+      className="relative aspect-[9/16] bg-zinc-900 overflow-hidden cursor-pointer hover:opacity-95 group transition-all"
+    >
+      {attachment?.url ? (
+        <video
+          src={attachment.url}
+          className="w-full h-full object-cover"
+          muted
+          playsInline
+        />
+      ) : (
+        <div className="p-3 w-full h-full flex items-center justify-center text-[11px] text-zinc-400 overflow-hidden text-ellipsis line-clamp-4 select-text leading-tight bg-zinc-950">
+          {post.content}
+        </div>
+      )}
+      {/* View count overlay at bottom left */}
+      <div className="absolute bottom-2 left-2 flex items-center gap-0.5 text-white text-[12px] font-semibold drop-shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-3.5 fill-white">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+        </svg>
+        <span>{formatViews(viewCount)}</span>
+      </div>
+    </div>
+  );
+});
+
+ReelsGridItem.displayName = "ReelsGridItem";
 
 interface TabsSelectorProps {
   activeTab: ProfileTab;
@@ -174,7 +295,7 @@ function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorP
   }
 
   return (
-    <div className="flex border-b border-[#1A1A1A] w-full bg-black/95 backdrop-blur sticky top-[56px] sm:top-0 z-20 overflow-x-auto scrollbar-none h-12">
+    <div className="flex border-b border-[#1A1A1A] w-full bg-black/95 backdrop-blur sticky top-[56px] z-20 overflow-x-auto scrollbar-none h-12">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
         const Icon = tab.icon;
@@ -186,9 +307,9 @@ function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorP
             title={tab.label}
           >
             <Icon
-              className="size-[26px] transition-colors"
+              className="size-[22px] transition-colors"
               stroke={isActive ? "white" : "#71717A"}
-              strokeWidth={1.75}
+              strokeWidth={isActive ? 2 : 1.75}
             />
             {isActive && (
               <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-white" />

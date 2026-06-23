@@ -9,6 +9,7 @@ import { createPostSchema } from "@/lib/validation";
 export async function submitPost(input: {
   content?: string;
   mediaIds?: string[];
+  contentFormat?: "FEED" | "SPOT";
   location?: string | null;
   locationName?: string | null;
   locationCity?: string | null;
@@ -40,6 +41,7 @@ export async function submitPost(input: {
   const {
     content,
     mediaIds,
+    contentFormat,
     location,
     locationName,
     locationCity,
@@ -62,10 +64,20 @@ export async function submitPost(input: {
     ? (poll.duration.days * 24 * 60 + poll.duration.hours * 60 + poll.duration.minutes) * 60 * 1000
     : 0;
 
+  const connectedMediaWithVideo = mediaIds.length > 0 ? await prisma.media.findFirst({
+    where: {
+      id: { in: mediaIds },
+      mediaType: "VIDEO"
+    }
+  }) : null;
+
+  const resolvedContentFormat = connectedMediaWithVideo ? "SPOT" : (contentFormat || "FEED");
+
   const newPost = await prisma.post.create({
     data: {
       content: content || "",
       userId: user.id,
+      contentFormat: resolvedContentFormat,
       location,
       locationName,
       locationCity,

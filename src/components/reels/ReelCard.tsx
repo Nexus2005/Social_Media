@@ -36,6 +36,7 @@ interface ReelCardProps {
   onToggleMute: () => void;
   isActive: boolean;
   shouldPreload: boolean;
+  isPrevReel?: boolean;
   onLockScroll?: (locked: boolean) => void;
 }
 
@@ -45,6 +46,7 @@ export default function ReelCard({
   onToggleMute,
   isActive,
   shouldPreload,
+  isPrevReel = false,
   onLockScroll
 }: ReelCardProps) {
   const { user: loggedInUser } = useSession();
@@ -402,13 +404,15 @@ export default function ReelCard({
       
       {/* 1. Blurred Reflection Backdrop (Desktop only) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block select-none z-0">
-        <video
-          src={videoUrl}
-          muted
-          loop
-          playsInline
-          className="w-full h-full object-cover blur-[50px] opacity-25 scale-110"
-        />
+        {isActive && (
+          <video
+            src={videoUrl}
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover blur-[50px] opacity-25 scale-110"
+          />
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{
@@ -436,19 +440,30 @@ export default function ReelCard({
       >
         {/* Main Aspect 9:16 Video Box */}
         <div className="w-[410px] max-w-full md:w-[410px] relative px-0 h-[calc(100vh-3.5rem)] md:h-[93vh] md:aspect-[9/16] md:max-h-[820px] rounded-none md:rounded-2xl overflow-hidden bg-black md:bg-zinc-950 shadow-none md:shadow-2xl flex items-center justify-center border-0 md:border border-zinc-800/80 z-10 shrink-0">
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            loop
-            playsInline
-            muted={isMuted}
-            preload={isActive || shouldPreload ? "auto" : "metadata"}
-            onClick={handleVideoClick}
-            className={cn(
-              "w-full h-full object-cover cursor-pointer transition-all duration-500",
-              isImmersive && "blur-md scale-105"
-            )}
-          />
+          {isActive || shouldPreload || isPrevReel ? (
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              loop
+              playsInline
+              muted={isMuted}
+              preload={isActive || shouldPreload ? "auto" : "metadata"}
+              onClick={handleVideoClick}
+              className={cn(
+                "w-full h-full object-cover cursor-pointer transition-all duration-500",
+                isImmersive && "blur-md scale-105"
+              )}
+            />
+          ) : (
+            <div className="w-full h-full bg-zinc-950 flex items-center justify-center">
+              {post.attachments?.[0]?.url && (
+                <div 
+                  className="w-full h-full bg-cover bg-center opacity-30 blur-sm"
+                  style={{ backgroundImage: `url(${post.attachments[0].url.replace(".mp4", ".jpg")})` }}
+                />
+              )}
+            </div>
+          )}
 
           {/* Admin Debug Overlay (Development only, in Top Left Corner) */}
           {process.env.NODE_ENV === "development" && isAdmin && !isImmersive && (

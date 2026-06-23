@@ -6,7 +6,7 @@ import { PostsPage } from "@/lib/types";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import ReelCard from "@/components/reels/ReelCard";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export default function ReelsFeed() {
@@ -16,7 +16,8 @@ export default function ReelsFeed() {
   const [isScrollLocked, setIsScrollLocked] = useState(false);
 
   const searchParams = useSearchParams();
-  const focusedPostId = searchParams.get("focusedPostId");
+  const params = useParams();
+  const focusedPostId = (params?.postId as string) || searchParams.get("focusedPostId");
 
   const {
     data,
@@ -148,6 +149,7 @@ export default function ReelsFeed() {
             onToggleMute={() => setIsMuted(!isMuted)}
             isActive={index === activeReelIndex}
             shouldPreload={index === activeReelIndex + 1}
+            isPrevReel={index === activeReelIndex - 1}
             onLockScroll={(locked) => {
               if (index === activeReelIndex) {
                 setIsScrollLocked(locked);

@@ -44,6 +44,8 @@ model User {
   collections           SavedCollection[]
   sessions              Session[]
   stories               Story[]
+  isPrivate             Boolean             @default(false)
+  pinnedContent         PinnedContent[]
 
   // Spots V3 Creator Commerce System
   creatorProducts       DetectedProduct[]   @relation("CreatorProducts")
@@ -67,6 +69,7 @@ model Session {
 model Follow {
   followerId  String
   followingId String
+  status      FollowStatus @default(ACCEPTED)
   follower    User   @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
   following   User   @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
 
@@ -93,10 +96,11 @@ model Post {
   latitude            Float?
   longitude           Float?
   tags                Json?
-  isPinned            Boolean               @default(false)
+  contentFormat       ContentFormat         @default(FEED)
   quotedPostId        String?
   bookmarks           Bookmark[]
   comments            Comment[]
+  pinnedContent       PinnedContent[]
   detectedObjects     DetectedObject[]
   detectedProducts    DetectedProduct[]
   likes               Like[]
@@ -680,4 +684,29 @@ model RecentLocation {
 
   @@index([userId])
   @@map("recent_locations")
+}
+
+model PinnedContent {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  position  Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, position])
+  @@map("pinned_contents")
+}
+
+enum ContentFormat {
+  FEED
+  SPOT
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
 }

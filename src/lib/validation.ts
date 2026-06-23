@@ -23,6 +23,7 @@ export type LoginValues = z.infer<typeof loginSchema>;
 export const createPostSchema = z.object({
   content: z.string().optional(),
   mediaIds: z.array(z.string()).max(10, "Cannot have more than 10 attachments").default([]),
+  contentFormat: z.enum(["FEED", "SPOT"]).optional().default("FEED"),
   location: z.string().trim().optional().nullable(),
   locationName: z.string().trim().optional().nullable(),
   locationCity: z.string().trim().optional().nullable(),

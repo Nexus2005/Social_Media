@@ -1,6 +1,5 @@
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
-import { FollowerInfo } from "@/lib/types";
 
 export async function GET(
   req: Request,
@@ -13,45 +12,52 @@ export async function GET(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
+    const userExists = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        followers: {
-          where: {
-            followerId: loggedInUser.id,
-          },
-          select: {
-            followerId: true,
-          },
-        },
-        _count: {
-          select: {
-            followers: true,
-          },
-        },
-      },
+      select: { id: true },
     });
 
-    if (!user) {
+    if (!userExists) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const followsYou = await prisma.follow.findUnique({
+    const followersCount = await prisma.follow.count({
+      where: {
+        followingId: userId,
+        status: "ACCEPTED",
+      },
+    });
+
+    const followRelation = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: loggedInUser.id,
+          followingId: userId,
+        },
+      },
+      select: {
+        status: true,
+      },
+    });
+
+    const followsYouRelation = await prisma.follow.findUnique({
       where: {
         followerId_followingId: {
           followerId: userId,
           followingId: loggedInUser.id,
         },
       },
+      select: {
+        status: true,
+      },
     });
 
-    const data: FollowerInfo = {
-      followers: user._count.followers,
-      isFollowedByUser: !!user.followers.length,
-      followsYou: !!followsYou,
-    };
-
-    return Response.json(data);
+    return Response.json({
+      followers: followersCount,
+      isFollowedByUser: followRelation?.status === "ACCEPTED",
+      status: followRelation?.status || null, // PENDING, ACCEPTED, or null
+      followsYou: followsYouRelation?.status === "ACCEPTED",
+    });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
@@ -69,6 +75,21 @@ export async function POST(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (loggedInUser.id === userId) {
+      return Response.json({ error: "You cannot follow yourself" }, { status: 400 });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isPrivate: true },
+    });
+
+    if (!targetUser) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const status = targetUser.isPrivate ? "PENDING" : "ACCEPTED";
+
     await prisma.$transaction([
       prisma.follow.upsert({
         where: {
@@ -80,8 +101,11 @@ export async function POST(
         create: {
           followerId: loggedInUser.id,
           followingId: userId,
+          status,
         },
-        update: {},
+        update: {
+          status,
+        },
       }),
       prisma.notification.create({
         data: {
@@ -92,7 +116,7 @@ export async function POST(
       }),
     ]);
 
-    return new Response();
+    return Response.json({ status });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "Internal server error" }, { status: 500 });

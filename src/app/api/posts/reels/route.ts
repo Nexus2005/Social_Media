@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   try {
     const cursor = req.nextUrl.searchParams.get("cursor") || undefined;
+    const focusedPostId = req.nextUrl.searchParams.get("focusedPostId") || undefined;
     const pageSize = 10;
 
     const { user } = await validateRequest();
@@ -13,14 +14,27 @@ export async function GET(req: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let focusedPost: any = null;
+    if (focusedPostId && !cursor) {
+      focusedPost = await prisma.post.findUnique({
+        where: { id: focusedPostId },
+        select: {
+          id: true,
+          createdAt: true,
+          videoJob: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      });
+    }
+
     // 1. Fetch recent 200 reels with minimal fields for status sorting
     const reelsMinimal = await prisma.post.findMany({
       where: {
-        attachments: {
-          some: {
-            mediaType: "VIDEO",
-          },
-        },
+        contentFormat: "SPOT",
+        ...(focusedPostId ? { id: { not: focusedPostId } } : {}),
       },
       select: {
         id: true,
@@ -50,7 +64,7 @@ export async function GET(req: NextRequest) {
     };
 
     // Sort by status priority first, then by createdAt DESC
-    const sortedReels = reelsMinimal.sort((a, b) => {
+    let sortedReels = reelsMinimal.sort((a, b) => {
       const priorityA = getJobPriority(a);
       const priorityB = getJobPriority(b);
       
@@ -60,6 +74,10 @@ export async function GET(req: NextRequest) {
       
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+
+    if (focusedPost) {
+      sortedReels = [focusedPost, ...sortedReels];
+    }
 
     // 2. Custom cursor pagination
     let paginatedReels = sortedReels;

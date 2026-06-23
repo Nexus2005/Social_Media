@@ -56,7 +56,7 @@ export default function MobileNavigation({
 
   const isHome = pathname === "/";
   const isProfile = pathname.startsWith("/users/") && !pathname.includes("/followers") && !pathname.includes("/following");
-  const showHeader = isHome || isProfile;
+  const showHeader = isHome;
 
   let profileUsername = "";
   if (isProfile) {
@@ -225,7 +225,8 @@ export default function MobileNavigation({
       <ProfileMenuDrawer
         open={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        isAdminOrOwner={isAdminOrOwner}
+        isOwner={user.username === profileUsername}
+        username={profileUsername || user.username}
       />
     </>
   );

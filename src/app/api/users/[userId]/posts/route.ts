@@ -47,11 +47,7 @@ export async function GET(
     } else if (tab === "reels") {
       whereClause = {
         userId,
-        attachments: {
-          some: {
-            mediaType: "VIDEO",
-          },
-        },
+        contentFormat: "SPOT",
       };
     } else if (tab === "likes") {
       whereClause = {

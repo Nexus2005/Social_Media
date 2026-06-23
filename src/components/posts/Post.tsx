@@ -60,10 +60,10 @@ export default function Post({ post }: PostProps) {
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
   const [showLikesSheet, setShowLikesSheet] = useState(false);
 
-  const { data: mutualData = { users: [], count: 0 } } = useQuery({
-    queryKey: ["mutual-followers", post.user.id],
+  const { data: likingUsers = [] } = useQuery<any[]>({
+    queryKey: ["post-likes-users-summary", post.id],
     queryFn: () =>
-      kyInstance.get(`/api/users/${post.user.id}/mutuals`).json<{ users: any[]; count: number }>(),
+      kyInstance.get(`/api/posts/${post.id}/likes/users`).json<any[]>(),
     staleTime: 60 * 1000,
   });
 
@@ -92,28 +92,35 @@ export default function Post({ post }: PostProps) {
     }
   };
 
-  const renderMutualText = () => {
-    const { users, count } = mutualData;
-    if (count === 0) return null;
-    const names = users.map(u => u.displayName || u.username);
+  const renderLikesText = () => {
+    const count = post._count.likes;
+    if (count === 0 || likingUsers.length === 0) return null;
+    const names = likingUsers.map(u => u.displayName || u.username);
     if (count === 1) {
       return (
         <span>
-          Followed by <span className="font-bold text-white">{names[0]}</span>
+          Liked by <span className="font-bold text-white">{names[0]}</span>
         </span>
       );
     }
     if (count === 2) {
       return (
         <span>
-          Followed by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
+          Liked by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
         </span>
       );
     }
     const diff = count - 2;
+    if (diff <= 0) {
+      return (
+        <span>
+          Liked by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
+        </span>
+      );
+    }
     return (
       <span>
-        Followed by <span className="font-bold text-white">{names[0]}</span>, <span className="font-bold text-white">{names[1]}</span> and <span className="font-bold text-white">{diff} other{diff > 1 ? "s" : ""}</span>
+        Liked by <span className="font-bold text-white">{names[0]}</span>, <span className="font-bold text-white">{names[1]}</span> and <span className="font-bold text-white">{diff} other{diff > 1 ? "s" : ""}</span>
       </span>
     );
   };
@@ -280,34 +287,32 @@ export default function Post({ post }: PostProps) {
         </div>
       </div>
 
-      {/* Mutual Followers & Likes row */}
-      {!post.hideLikes && (
+      {/* Likes row */}
+      {!post.hideLikes && post._count.likes > 0 && (
         <div 
           onClick={() => setShowLikesSheet(true)}
           className="flex items-center gap-2 mt-2 px-1 cursor-pointer hover:opacity-85 transition-opacity select-none"
         >
-          {mutualData.count > 0 ? (
+          {likingUsers.length > 0 ? (
             <>
               <div className="flex -space-x-1.5 overflow-hidden">
-                {mutualData.users.map((mu: any) => (
+                {likingUsers.slice(0, 3).map((u: any) => (
                   <img
-                    key={mu.id}
+                    key={u.id}
                     className="inline-block size-5 rounded-full ring-1 ring-black object-cover shrink-0"
-                    src={mu.avatarUrl || "/avatar-placeholder.png"}
-                    alt={mu.username}
+                    src={u.avatarUrl || "/avatar-placeholder.png"}
+                    alt={u.username}
                   />
                 ))}
               </div>
               <span className="text-[14px] text-[#8e8e93] leading-none">
-                {renderMutualText()}
+                {renderLikesText()}
               </span>
             </>
           ) : (
-            post._count.likes > 0 && (
-              <span className="text-[14px] font-semibold text-white leading-none">
-                {post._count.likes} {post._count.likes === 1 ? "like" : "likes"}
-              </span>
-            )
+            <span className="text-[14px] font-semibold text-white leading-none">
+              {post._count.likes} {post._count.likes === 1 ? "like" : "likes"}
+            </span>
           )}
         </div>
       )}
