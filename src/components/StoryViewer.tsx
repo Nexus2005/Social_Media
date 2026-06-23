@@ -59,6 +59,7 @@ export default function StoryViewer({
   const [contactedUsers, setContactedUsers] = useState<any[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -186,6 +187,43 @@ export default function StoryViewer({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, handleNext, handlePrev, onClose]);
+
+  // Adjust bottom layout offset based on soft keyboard height dynamically
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const handleResize = () => {
+      const viewport = window.visualViewport;
+      if (viewport) {
+        const offset = window.innerHeight - viewport.height;
+        setKeyboardHeight(offset > 80 ? offset : 0);
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.visualViewport.addEventListener("resize", handleResize);
+    window.visualViewport.addEventListener("scroll", handleResize);
+    handleResize();
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
+  // Prevent window scroll offset when story is active/focused
+  useEffect(() => {
+    if (!open) return;
+    const handleScroll = () => {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [open]);
 
   // Fetch active contacts when share drawer is opened
   useEffect(() => {
@@ -375,6 +413,17 @@ export default function StoryViewer({
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };
 
+  const handleXShare = () => {
+    const text = encodeURIComponent(`Check out @${currentUserStories.user.username}'s story on Cartly!`);
+    const url = encodeURIComponent(`${window.location.origin}/stories?userId=${currentUserStories.user.id}`);
+    window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, "_blank");
+  };
+
+  const handleSmsShare = () => {
+    const text = encodeURIComponent(`Check out @${currentUserStories.user.username}'s story on Cartly! ${window.location.origin}/stories?userId=${currentUserStories.user.id}`);
+    window.open(`sms:?&body=${text}`, "_blank");
+  };
+
   const handleSystemShare = () => {
     if (navigator.share) {
       navigator.share({
@@ -387,7 +436,7 @@ export default function StoryViewer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/95 backdrop-blur-sm select-none">
+    <div className="fixed inset-0 h-[100dvh] z-50 flex items-center justify-center bg-neutral-950/95 backdrop-blur-sm select-none overflow-hidden">
       {/* Background click to close */}
       <div className="absolute inset-0 cursor-default" onClick={onClose} />
 
@@ -407,10 +456,10 @@ export default function StoryViewer({
       {/* Story Stage Container */}
       <div
         onClick={handleScreenClick}
-        className="relative w-full max-w-[420px] h-full sm:h-[90vh] sm:max-h-[760px] bg-black sm:rounded-xl overflow-hidden flex items-center justify-center z-10 shadow-2xl"
+        className="relative w-full max-w-[420px] h-[100dvh] sm:h-[90vh] sm:max-h-[760px] bg-black sm:rounded-xl overflow-hidden flex items-center justify-center z-10 shadow-2xl"
       >
         {/* Progress Bar Indicators at the top */}
-        <div className="absolute top-3 left-3 right-3 flex gap-1 z-30 pointer-events-none">
+        <div className="absolute top-3 left-3 right-3 flex gap-1 z-50 pointer-events-none">
           {currentUserStories.stories.map((s, idx) => {
             let width = "0%";
             if (idx < storyIndex) width = "100%";
@@ -431,7 +480,7 @@ export default function StoryViewer({
         </div>
 
         {/* Top Header Overlay */}
-        <div className="absolute top-0 left-0 right-0 p-4 pt-7 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-20">
+        <div className="absolute top-0 left-0 right-0 p-4 pt-7 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-50">
           <div className="flex items-center gap-2.5">
             <div className="relative size-8 rounded-full overflow-hidden border border-white/20">
               {currentUserStories.user.avatarUrl ? (
@@ -533,7 +582,8 @@ export default function StoryViewer({
         {/* Instant Emojis reactions panel (Instagram-style overlay) */}
         {showEmojis && (
           <div 
-            className="absolute inset-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-end p-4 pb-20 animate-fade-in pointer-events-auto"
+            className="absolute inset-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-end p-4 pointer-events-auto"
+            style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight + 64}px` : "80px" }}
             onClick={() => {
               setShowEmojis(false);
               setIsPaused(false);
@@ -563,11 +613,12 @@ export default function StoryViewer({
 
         {/* Bottom Reply/Action Bar (Instagram-style Pill Input + Right Actions) */}
         <div 
-          className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3.5 pointer-events-auto"
+          className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3 pointer-events-auto transition-all duration-200"
+          style={{ bottom: keyboardHeight > 0 ? `${keyboardHeight + 12}px` : "16px" }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Send Message Input Pill */}
-          <div className="flex-1 flex items-center bg-transparent border border-white/35 hover:border-white/50 focus-within:border-white/60 focus-within:bg-black/10 rounded-full px-4.5 py-2.5 h-11 relative transition-all duration-200">
+          <div className="flex-1 flex items-center bg-transparent border border-white/35 hover:border-white/50 focus-within:border-white/60 focus-within:bg-black/10 rounded-full px-4 py-2 h-[42px] relative transition-all duration-200 min-w-0">
             <input
               id="story-input"
               type="text"
@@ -586,22 +637,22 @@ export default function StoryViewer({
                   handleSendMessage(inputText);
                 }
               }}
-              className="flex-grow bg-transparent text-white text-sm outline-none placeholder:text-white/60"
+              className="w-full min-w-0 bg-transparent text-white text-sm outline-none placeholder:text-white/60 pr-2 clip-path"
             />
             {inputText.trim() && (
               <button 
                 onClick={() => handleSendMessage(inputText)}
-                className="text-primary hover:text-primary-foreground font-semibold text-xs transition-colors shrink-0 pl-2"
+                className="text-primary hover:text-primary-foreground font-semibold text-xs transition-colors shrink-0 pl-1"
               >
                 Send
               </button>
             )}
           </div>
 
-          {/* Action Icons directly to the right of input */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Action Icons tightly aligned right outside of text input, perfectly vertical-centered */}
+          <div className="flex items-center gap-3 shrink-0 h-[42px]">
             {/* Floating Hearts + Heart/Like Button */}
-            <div className="relative flex items-center justify-center shrink-0">
+            <div className="relative flex items-center justify-center shrink-0 w-8 h-8">
               {floatingHearts.map((heart) => (
                 <Heart
                   key={heart.id}
@@ -616,10 +667,10 @@ export default function StoryViewer({
               
               <button
                 onClick={handleLikeClick}
-                className="text-white hover:scale-115 active:scale-95 transition-transform p-1"
+                className="text-white hover:scale-110 active:scale-95 transition-transform flex items-center justify-center w-full h-full"
                 title="Like Story"
               >
-                <Heart className="size-6.5 hover:text-red-500 hover:fill-red-500 transition-colors" strokeWidth={2} />
+                <Heart className="size-6 hover:text-red-500 hover:fill-red-500 transition-colors" strokeWidth={2} />
               </button>
             </div>
 
@@ -629,10 +680,10 @@ export default function StoryViewer({
                 setIsPaused(true);
                 setShowShareSheet(true);
               }}
-              className="text-white hover:scale-115 active:scale-95 transition-transform p-1 shrink-0"
+              className="text-white hover:scale-110 active:scale-95 transition-transform flex items-center justify-center w-8 h-8 shrink-0"
               title="Share Story"
             >
-              <Send className="size-6.5 hover:opacity-85 transition-opacity" strokeWidth={2} />
+              <Send className="size-6 hover:opacity-85 transition-opacity" strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -640,7 +691,7 @@ export default function StoryViewer({
         {/* Share Bottom Sheet drawer */}
         {showShareSheet && (
           <div 
-            className="absolute inset-0 z-50 bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl"
+            className="absolute inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl"
             onClick={() => {
               setShowShareSheet(false);
               setIsPaused(false);
@@ -739,53 +790,39 @@ export default function StoryViewer({
               </div>
 
               {/* High-fidelity Brand Assets sharing row */}
-              <div className="border-t border-zinc-800/80 pt-4 pb-2 flex justify-around items-center text-center text-white">
-                {/* Copy Link */}
-                <button onClick={handleCopyLink} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
-                  <div className="size-12 rounded-full bg-[#262626] border border-zinc-850 flex items-center justify-center hover:bg-zinc-700 transition-colors shadow-md">
-                    {copied ? <Check className="size-5 text-green-500" /> : <Copy className="size-5 text-white" />}
-                  </div>
-                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">Copy link</span>
-                </button>
-
-                {/* WhatsApp */}
-                <button onClick={handleWhatsAppShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
-                  <div className="size-12 rounded-full bg-[#25D366] flex items-center justify-center hover:bg-[#20ba5a] transition-colors shadow-md">
-                    <svg className="size-6.5 fill-white text-white" viewBox="0 0 24 24">
-                      <path d="M12.012 2c-5.506 0-9.988 4.482-9.988 9.988 0 1.761.46 3.473 1.332 4.988L2 22l5.187-1.361c1.468.802 3.125 1.229 4.814 1.23h.004c5.505 0 9.988-4.483 9.988-9.99 0-2.67-1.04-5.18-2.92-7.06C17.18 3.04 14.67 2 12.012 2zm6.035 13.917c-.248.697-1.236 1.267-1.7 1.332-.465.065-.929.117-2.946-.683-2.58-1.025-4.225-3.66-4.354-3.832-.13-.173-1.048-1.398-1.048-2.667 0-1.27.662-1.89.897-2.148.235-.258.513-.323.684-.323.17 0 .341.002.49.01.156.007.366-.06.574.453.213.523.727 1.77.79 1.9.063.13.104.28.018.448-.085.17-.129.278-.256.426-.127.15-.266.332-.38.452-.127.13-.26.27-.113.523.147.253.654 1.077 1.402 1.745.966.86 1.778 1.13 2.037 1.258.26.13.41.11.564-.065.154-.175.662-.77.838-1.03.176-.26.353-.216.595-.126.242.09 1.542.727 1.808.86.265.132.441.197.507.307.065.11.065.637-.184 1.334z" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">WhatsApp</span>
-                </button>
-
-                {/* Share */}
-                <button onClick={handleSystemShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
-                  <div className="size-12 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors shadow-md">
-                    <Share2 className="size-5 text-white" />
-                  </div>
-                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">Share</span>
-                </button>
-
-                {/* WhatsApp Status */}
-                <button onClick={handleWhatsAppShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
-                  <div className="size-12 rounded-full bg-[#128C7E] flex items-center justify-center hover:bg-[#0e7266] transition-colors shadow-md">
-                    <svg className="size-6 fill-none stroke-white" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="9" strokeDasharray="6 3" />
-                      <circle cx="12" cy="12" r="4" className="fill-white" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[75px] leading-tight">WhatsApp Status</span>
-                </button>
-
-                {/* SMS */}
-                <button onClick={handleSystemShare} className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95">
-                  <div className="size-12 rounded-full bg-[#007AFF] flex items-center justify-center hover:bg-[#0062cc] transition-colors shadow-md">
-                    <svg className="size-5 fill-white text-white" viewBox="0 0 24 24">
-                      <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px]">SMS</span>
-                </button>
+              <div className="border-t border-zinc-800/80 pt-4 pb-2 flex justify-start items-center text-center text-white overflow-x-auto scrollbar-none gap-4.5 px-2 flex-nowrap">
+                {[
+                  { id: "copy", name: "Copy link", iconUrl: "/icons/social-media/copy-link.svg", action: handleCopyLink },
+                  { id: "whatsapp", name: "WhatsApp", iconUrl: "/icons/social-media/whatsapp.svg", action: handleWhatsAppShare },
+                  { id: "x", name: "X", iconUrl: "/icons/social-media/x.svg", action: handleXShare },
+                  { id: "sms", name: "SMS", iconUrl: "/icons/social-media/sms.svg", action: handleSmsShare },
+                  { id: "whatsapp-status", name: "Status", iconUrl: "/icons/social-media/whatsapp-status.svg", action: handleWhatsAppShare },
+                  { id: "share", name: "Share", iconUrl: "/icons/social-media/share.svg", action: handleSystemShare }
+                ].map((channel) => (
+                  <button 
+                    key={channel.id}
+                    onClick={channel.action}
+                    className="flex flex-col items-center gap-1.5 group select-none transition-transform active:scale-95 shrink-0"
+                  >
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-md">
+                      {channel.id === "copy" && copied ? (
+                        <div className="w-full h-full bg-[#262626] flex items-center justify-center rounded-full">
+                          <Check className="size-5 text-green-500" />
+                        </div>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img 
+                          src={channel.iconUrl} 
+                          alt={channel.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <span className="text-[10px] font-medium text-zinc-400 group-hover:text-white truncate max-w-[70px] leading-tight">
+                      {channel.name}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -794,7 +831,7 @@ export default function StoryViewer({
         {/* Report / Mute Options Bottom Sheet */}
         {showOptionsSheet && (
           <div 
-            className="absolute inset-0 z-50 bg-black/60 flex flex-col justify-end pointer-events-auto"
+            className="absolute inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto"
             onClick={() => {
               setShowOptionsSheet(false);
               setIsPaused(false);
