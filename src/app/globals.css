@@ -369,8 +369,7 @@ body.chat-active .main-content-wrapper {
     overflow: hidden !important;
   }
   body.chat-active .chat-main-container {
-    height: 100vh !important;
-    height: 100dvh !important;
+    height: 100%;
     max-height: 100vh !important;
     max-height: 100dvh !important;
     border-radius: 0 !important;

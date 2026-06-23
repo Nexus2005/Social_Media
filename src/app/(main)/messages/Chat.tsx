@@ -59,6 +59,53 @@ export default function Chat() {
   const [mediaViewerState, setMediaViewerState] = useState<MediaViewerState | null>(null);
   const [profileOverlayChannel, setProfileOverlayChannel] = useState<Channel | null>(null);
 
+  // Responsive and Keyboard / Visual Viewport Resizing
+  const [isMobile, setIsMobile] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<string>("100%");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const visualViewport = window.visualViewport;
+    if (!visualViewport) return;
+
+    const handleResize = () => {
+      setViewportHeight(`${visualViewport.height}px`);
+    };
+
+    visualViewport.addEventListener("resize", handleResize);
+    visualViewport.addEventListener("scroll", handleResize);
+    
+    handleResize();
+
+    return () => {
+      visualViewport.removeEventListener("resize", handleResize);
+      visualViewport.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
+  // Prevent window scroll offset when chat is active
+  useEffect(() => {
+    const handleScroll = () => {
+      if (document.body.classList.contains("chat-active")) {
+        if (window.scrollY !== 0) {
+          window.scrollTo(0, 0);
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   // Load preferences from PostgreSQL
   useEffect(() => {
     if (!chatClient) return;
@@ -182,7 +229,14 @@ export default function Chat() {
         setProfileOverlayChannel,
       }}
     >
-      <main className="chat-main-container relative flex h-[calc(100vh-96px)] w-full overflow-hidden rounded-2xl border bg-background shadow-lg md:h-[calc(100vh-120px)]">
+      <main
+        style={{
+          height: isMobile && mobileView === "chat" && activeChannel
+            ? viewportHeight
+            : undefined
+        }}
+        className="chat-main-container relative flex h-[calc(100vh-96px)] w-full overflow-hidden rounded-2xl border bg-background shadow-lg md:h-[calc(100vh-120px)]"
+      >
         {/* Chat List Sidebar (Split Pane on Desktop, Screen on Mobile) */}
         <div
           className={`h-full w-full border-e md:flex md:w-80 lg:w-96 ${
