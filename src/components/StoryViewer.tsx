@@ -60,6 +60,8 @@ export default function StoryViewer({
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [copied, setCopied] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [stageHeight, setStageHeight] = useState<string>("100%");
+  const [isMobile, setIsMobile] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -188,6 +190,15 @@ export default function StoryViewer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, handleNext, handlePrev, onClose]);
 
+  // Detect mobile width (sm breakpoint is 640px)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Adjust bottom layout offset based on soft keyboard height dynamically
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
@@ -210,6 +221,26 @@ export default function StoryViewer({
       window.visualViewport?.removeEventListener("scroll", handleResize);
     };
   }, []);
+
+  // Set fixed Stage Container height when keyboard is active to prevent resizing and shifting
+  useEffect(() => {
+    if (!open) return;
+    setStageHeight(`${window.innerHeight}px`);
+
+    const handleResize = () => {
+      const viewport = window.visualViewport;
+      if (viewport) {
+        const offset = window.innerHeight - viewport.height;
+        // Only update base stage height when keyboard is not visible
+        if (offset <= 80) {
+          setStageHeight(`${window.innerHeight}px`);
+        }
+      }
+    };
+
+    window.visualViewport?.addEventListener("resize", handleResize);
+    return () => window.visualViewport?.removeEventListener("resize", handleResize);
+  }, [open]);
 
   // Prevent window scroll offset when story is active/focused
   useEffect(() => {
@@ -456,6 +487,7 @@ export default function StoryViewer({
       {/* Story Stage Container */}
       <div
         onClick={handleScreenClick}
+        style={{ height: isMobile ? stageHeight : undefined }}
         className="relative w-full max-w-[420px] h-[100dvh] sm:h-[90vh] sm:max-h-[760px] bg-black sm:rounded-xl overflow-hidden flex items-center justify-center z-10 shadow-2xl"
       >
         {/* Progress Bar Indicators at the top */}
@@ -480,7 +512,7 @@ export default function StoryViewer({
         </div>
 
         {/* Top Header Overlay */}
-        <div className="absolute top-0 left-0 right-0 p-4 pt-7 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-50">
+        <div className="absolute top-0 left-0 w-full p-4 pt-7 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-50">
           <div className="flex items-center gap-2.5">
             <div className="relative size-8 rounded-full overflow-hidden border border-white/20">
               {currentUserStories.user.avatarUrl ? (
@@ -705,14 +737,14 @@ export default function StoryViewer({
               {/* Header Handle bar */}
               <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
               
-              <div className="flex items-center justify-between mt-1 px-1">
+              <div className="relative flex items-center justify-center mt-1 px-1 py-1">
                 <span className="font-bold text-white text-[17px]">Share</span>
                 <button 
                   onClick={() => {
                     setShowShareSheet(false);
                     setIsPaused(false);
                   }}
-                  className="text-zinc-400 hover:text-white"
+                  className="absolute right-1 text-zinc-400 hover:text-white"
                 >
                   <X className="size-5" />
                 </button>
@@ -741,7 +773,6 @@ export default function StoryViewer({
                     {filteredContacts.map((contact: any) => {
                       // High-fidelity online status and verification mock logic
                       const isUserOnline = contact.online ?? (contact.id.charCodeAt(0) % 2 === 0);
-                      const isUserVerified = contact.verified ?? contact.isVerified ?? (contact.id.charCodeAt(1) % 3 === 0);
                       const avatarText = (contact.name || contact.displayName || contact.username || "?")[0];
 
                       return (
@@ -774,9 +805,6 @@ export default function StoryViewer({
                             <span className="text-[11px] font-medium text-zinc-300 group-hover:text-white truncate">
                               {contact.name || contact.displayName || contact.username}
                             </span>
-                            {isUserVerified && (
-                              <span className="text-[#0095f6] text-[10px] shrink-0" title="Verified">☑</span>
-                            )}
                           </div>
                         </button>
                       );
@@ -790,7 +818,7 @@ export default function StoryViewer({
               </div>
 
               {/* High-fidelity Brand Assets sharing row */}
-              <div className="border-t border-zinc-800/80 pt-4 pb-2 flex justify-start items-center text-center text-white overflow-x-auto scrollbar-none gap-4.5 px-2 flex-nowrap">
+              <div className="border-t border-zinc-800/80 pt-4 pb-2 flex items-center text-center text-white overflow-x-auto scrollbar-none gap-6 px-4 flex-nowrap">
                 {[
                   { id: "copy", name: "Copy link", iconUrl: "/icons/social-media/copy-link.svg", action: handleCopyLink },
                   { id: "whatsapp", name: "WhatsApp", iconUrl: "/icons/social-media/whatsapp.svg", action: handleWhatsAppShare },

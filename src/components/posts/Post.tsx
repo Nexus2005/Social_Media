@@ -105,22 +105,38 @@ export default function Post({ post }: PostProps) {
   const renderLikesText = () => {
     const count = post._count.likes;
     if (count === 0 || likingUsers.length === 0) return null;
-    const names = likingUsers.map(u => u.displayName || u.username);
-    if (count === 1) {
+
+    const isLikedByMe = post.likes.some((like) => like.userId === user.id);
+    const otherLikingUsers = likingUsers.filter((u) => u.id !== user.id);
+    const names = otherLikingUsers.map(u => u.displayName || u.username);
+    
+    const othersCount = isLikedByMe ? count - 1 : count;
+
+    if (othersCount === 0 || names.length === 0) {
+      return (
+        <span>
+          {count} {count === 1 ? "like" : "likes"}
+        </span>
+      );
+    }
+
+    if (othersCount === 1) {
       return (
         <span>
           Liked by <span className="font-bold text-white">{names[0]}</span>
         </span>
       );
     }
-    if (count === 2) {
+
+    if (othersCount === 2) {
       return (
         <span>
           Liked by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
         </span>
       );
     }
-    const diff = count - 2;
+
+    const diff = othersCount - 2;
     if (diff <= 0) {
       return (
         <span>
@@ -128,6 +144,7 @@ export default function Post({ post }: PostProps) {
         </span>
       );
     }
+
     return (
       <span>
         Liked by <span className="font-bold text-white">{names[0]}</span>, <span className="font-bold text-white">{names[1]}</span> and <span className="font-bold text-white">{diff} other{diff > 1 ? "s" : ""}</span>
@@ -325,16 +342,21 @@ export default function Post({ post }: PostProps) {
         >
           {likingUsers.length > 0 ? (
             <>
-              <div className="flex -space-x-1.5 overflow-hidden">
-                {likingUsers.slice(0, 3).map((u: any) => (
-                  <img
-                    key={u.id}
-                    className="inline-block size-5 rounded-full ring-1 ring-black object-cover shrink-0"
-                    src={u.avatarUrl || "/avatar-placeholder.png"}
-                    alt={u.username}
-                  />
-                ))}
-              </div>
+              {likingUsers.some((u: any) => u.id !== user.id) && (
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {likingUsers
+                    .filter((u: any) => u.id !== user.id)
+                    .slice(0, 3)
+                    .map((u: any) => (
+                      <img
+                        key={u.id}
+                        className="inline-block size-5 rounded-full ring-1 ring-black object-cover shrink-0"
+                        src={u.avatarUrl || "/avatar-placeholder.png"}
+                        alt={u.username}
+                      />
+                    ))}
+                </div>
+              )}
               <span className="text-[14px] text-[#8e8e93] leading-none">
                 {renderLikesText()}
               </span>
