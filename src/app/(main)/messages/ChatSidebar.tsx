@@ -84,6 +84,7 @@ export default function ChatSidebar() {
     mutes,
     togglePreference,
     setMobileView,
+    conversationSettings,
   } = useChatUI();
 
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -327,7 +328,7 @@ export default function ChatSidebar() {
   return (
     <div className="flex h-full w-full flex-col bg-background select-none relative">
       {/* Search Header Panel */}
-      <div className="flex items-center gap-3 p-3 pb-2">
+      <div className="flex items-center gap-3 p-3.5 pb-2.5">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 transform text-muted-foreground" />
           <input
@@ -336,7 +337,7 @@ export default function ChatSidebar() {
             value={searchQuery}
             onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg bg-muted/50 pe-8 ps-10 text-sm focus:outline-none focus:ring-1 focus:ring-primary/45 border"
+            className="h-10 w-full rounded-xl bg-muted/50 pe-10 ps-10 text-sm focus:outline-none focus:ring-1 focus:ring-primary/45 border border-border/80"
           />
           {isSearchFocused && (
             <button
@@ -344,7 +345,7 @@ export default function ChatSidebar() {
                 setSearchQuery("");
                 setIsSearchFocused(false);
               }}
-              className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 transform text-muted-foreground hover:text-foreground"
+              className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 transform text-muted-foreground hover:text-foreground"
             >
               <X className="size-4" />
             </button>
@@ -352,10 +353,10 @@ export default function ChatSidebar() {
         </div>
         <button
           onClick={() => setShowNewChatDialog(true)}
-          className="rounded-full bg-primary/10 p-2 text-primary hover:bg-primary/20 transition-colors shrink-0"
+          className="rounded-full bg-primary/10 p-2.5 text-primary hover:bg-primary/20 transition-colors shrink-0"
           title="New Message"
         >
-          <Edit className="size-4" />
+          <Edit className="size-5" />
         </button>
       </div>
 
@@ -458,6 +459,7 @@ export default function ChatSidebar() {
                         }}
                         onContextMenu={handleContextMenu}
                         loggedInUserId={loggedInUser.id}
+                        lastClearedAt={conversationSettings.find((s) => s.channelId === channel.id)?.lastClearedAt || undefined}
                       />
                     ))}
                   </div>
@@ -481,6 +483,7 @@ export default function ChatSidebar() {
                   }}
                   onContextMenu={handleContextMenu}
                   loggedInUserId={loggedInUser.id}
+                  lastClearedAt={conversationSettings.find((s) => s.channelId === channel.id)?.lastClearedAt || undefined}
                 />
               ))}
 
@@ -615,9 +618,10 @@ interface ChatRowProps {
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   loggedInUserId: string;
+  lastClearedAt?: string;
 }
 
-function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onContextMenu, loggedInUserId }: ChatRowProps) {
+function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onContextMenu, loggedInUserId, lastClearedAt }: ChatRowProps) {
   const members = Object.values(channel.state.members || {});
   const otherMember = members.find((m) => m.user?.id !== loggedInUserId)?.user;
   
@@ -625,11 +629,25 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
   const avatarUrl = channel.data?.image || otherMember?.image;
   const isOnline = otherMember?.online || false;
 
-  // Extract last message info
-  const messages = channel.state.messages || [];
-  const lastMessage = messages[messages.length - 1];
+  // Extract active message info, filtering out deleted and cleared history
+  const activeMessages = useMemo(() => {
+    const list = channel.state.messages || [];
+    return list.filter((m) => {
+      if (m.deleted_at || m.type === "system") return false;
+      if (!lastClearedAt) return true;
+      const clearedTime = new Date(lastClearedAt).getTime();
+      const msgTime = new Date(m.created_at || (m as any).createdAt || Date.now()).getTime();
+      return msgTime > clearedTime;
+    });
+  }, [channel.state.messages, lastClearedAt]);
+
+  const lastMessage = activeMessages[activeMessages.length - 1];
   
-  const unreadCount = channel.countUnread();
+  const lastRead = channel.state.read?.[loggedInUserId]?.last_read;
+  const lastReadTime = lastRead ? new Date(lastRead as any).getTime() : 0;
+  const unreadCount = activeMessages.filter(
+    (m) => m.user?.id !== loggedInUserId && new Date(m.created_at as any).getTime() > lastReadTime
+  ).length;
   
   // Format Timestamp (Telegram-style)
   let timestampStr = "";

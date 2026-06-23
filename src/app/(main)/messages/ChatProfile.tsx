@@ -8,6 +8,9 @@ import { useChatUI } from "./Chat";
 import UserAvatar from "@/components/UserAvatar";
 import { useChat } from "../ChatProvider";
 import { useToast } from "@/components/ui/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import kyInstance from "@/lib/ky";
+import Link from "next/link";
 
 interface ChatProfileProps {
   channel: Channel;
@@ -32,6 +35,15 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
   const otherMember = members.find((m) => m.user?.id !== chatClient?.userID)?.user;
 
   const displayName = (channel.data?.name || otherMember?.name || "Chat Info") as string;
+
+  const { data: dbUser } = useQuery<any>({
+    queryKey: ["user-db-profile", otherMember?.username],
+    queryFn: () =>
+      otherMember?.username
+        ? kyInstance.get(`/api/users/username/${otherMember.username}`).json<any>()
+        : null,
+    enabled: !!otherMember?.username,
+  });
 
   // Fetch messages with attachments and common groups
   useEffect(() => {
@@ -143,7 +155,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
   // Get recipient information (for DMs)
   const avatarUrl = (channel.data?.image || otherMember?.image) as string | undefined;
   const username = otherMember?.username ? `@${otherMember.username}` : "";
-  const bio = ((otherMember as any)?.bio || "No bio info available") as string;
+  const bio = dbUser?.bio || (otherMember as any)?.bio || "No bio info available";
 
   return (
     <motion.div
@@ -163,10 +175,20 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
 
       {/* Info Card Panel */}
       <div className="flex flex-col items-center border-b p-6 text-center">
-        <UserAvatar avatarUrl={avatarUrl} size={100} className="size-[100px] rounded-full border shadow-sm" />
-        <h3 className="mt-4 text-xl font-bold">{displayName}</h3>
-        {username && <p className="text-sm text-muted-foreground">{username}</p>}
-        {bio && <p className="mt-3 text-sm max-w-xs">{bio}</p>}
+        {otherMember?.username ? (
+          <Link href={`/users/${otherMember.username}`} className="flex flex-col items-center group cursor-pointer">
+            <UserAvatar avatarUrl={avatarUrl} size={100} className="size-[100px] rounded-full border shadow-sm group-hover:opacity-85 transition-opacity" />
+            <h3 className="mt-4 text-xl font-bold group-hover:text-primary transition-colors">{displayName}</h3>
+            {username && <p className="text-sm text-muted-foreground">@{otherMember.username}</p>}
+          </Link>
+        ) : (
+          <>
+            <UserAvatar avatarUrl={avatarUrl} size={100} className="size-[100px] rounded-full border shadow-sm" />
+            <h3 className="mt-4 text-xl font-bold">{displayName}</h3>
+            {username && <p className="text-sm text-muted-foreground">{username}</p>}
+          </>
+        )}
+        {bio && <p className="mt-3 text-sm max-w-xs text-muted-foreground/90">{bio}</p>}
       </div>
 
       {/* Settings Row */}

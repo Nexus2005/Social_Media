@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Channel, MessageResponse } from "stream-chat";
@@ -78,6 +78,24 @@ const renderQuotedAttachmentPreview = (msg: any) => {
   );
 };
 
+const reactionMap: Record<string, string> = {
+  "👍": "like",
+  "❤️": "love",
+  "😂": "haha",
+  "😮": "wow",
+  "😢": "sad",
+  "🙏": "pray"
+};
+
+const reactionEmojiMap: Record<string, string> = {
+  "like": "👍",
+  "love": "❤️",
+  "haha": "😂",
+  "wow": "😮",
+  "sad": "😢",
+  "pray": "🙏"
+};
+
 export default function ChatChannel() {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
@@ -136,9 +154,10 @@ export default function ChatChannel() {
 
   // Filter messages based on local user clearance
   const filteredMessages = useMemo(() => {
-    if (!lastClearedAt) return messages;
-    const clearedTime = new Date(lastClearedAt).getTime();
     return messages.filter((m) => {
+      if (m.deleted_at || m.type === "system") return false;
+      if (!lastClearedAt) return true;
+      const clearedTime = new Date(lastClearedAt).getTime();
       const msgTime = new Date(m.created_at || (m as any).createdAt || Date.now()).getTime();
       return msgTime > clearedTime;
     });
@@ -159,6 +178,7 @@ export default function ChatChannel() {
     const clearedTime = activeSettings?.lastClearedAt ? new Date(activeSettings.lastClearedAt).getTime() : 0;
     
     const relevantMessages = (channel.state.messages || []).filter((m) => {
+      if (m.deleted_at || m.type === "system") return false;
       const msgTime = new Date(m.created_at || (m as any).createdAt || Date.now()).getTime();
       return msgTime > clearedTime;
     });
@@ -495,25 +515,26 @@ export default function ChatChannel() {
 
   const handleToggleReaction = async (messageId: string, reactionType: string) => {
     if (!channel) return;
+    const apiReactionType = reactionMap[reactionType] || reactionType;
     try {
       const message = messages.find((m) => m.id === messageId);
-      const hasReaction = message?.own_reactions?.some((r) => r.type === reactionType);
+      const hasReaction = message?.own_reactions?.some((r) => r.type === apiReactionType);
       if (hasReaction) {
-        await channel.deleteReaction(messageId, reactionType);
+        await channel.deleteReaction(messageId, apiReactionType);
       } else {
-        await channel.sendReaction(messageId, { type: reactionType });
+        await channel.sendReaction(messageId, { type: apiReactionType });
       }
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;
           const ownReactions = m.own_reactions || [];
           const updatedOwn = hasReaction
-            ? ownReactions.filter((r) => r.type !== reactionType)
-            : [...ownReactions, { type: reactionType, user: loggedInUser }];
+            ? ownReactions.filter((r) => r.type !== apiReactionType)
+            : [...ownReactions, { type: apiReactionType, user: loggedInUser }];
           const latestReactions = m.latest_reactions || [];
           const updatedLatest = hasReaction
-            ? latestReactions.filter((r) => !(r.type === reactionType && r.user_id === loggedInUser.id))
-            : [...latestReactions, { type: reactionType, user_id: loggedInUser.id, user: loggedInUser }];
+            ? latestReactions.filter((r) => !(r.type === apiReactionType && r.user_id === loggedInUser.id))
+            : [...latestReactions, { type: apiReactionType, user_id: loggedInUser.id, user: loggedInUser }];
           return { ...m, own_reactions: updatedOwn, latest_reactions: updatedLatest } as any;
         })
       );
@@ -676,20 +697,20 @@ export default function ChatChannel() {
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
               title={isMuted ? "Unmute" : "Mute"}
             >
-              {isMuted ? <VolumeX className="size-4 text-red-500" /> : <Volume2 className="size-4" />}
+              {isMuted ? <VolumeX className="size-5 text-red-500" /> : <Volume2 className="size-5" />}
             </button>
             <button
               onClick={handlePin}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
               title={isPinned ? "Unpin" : "Pin"}
             >
-              <Pin className={`size-4 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
+              <Pin className={`size-5 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
             </button>
             <button
               onClick={() => setProfileOverlayChannel(channel)}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
             >
-              <MoreVertical className="size-4" />
+              <MoreVertical className="size-5" />
             </button>
           </div>
         </div>
@@ -742,7 +763,7 @@ export default function ChatChannel() {
                   }}
                   className="py-2 flex justify-center"
                 >
-                  <div className="rounded-full bg-zinc-800/10 dark:bg-zinc-800/60 px-3 py-0.5 text-xs font-semibold text-zinc-500 dark:text-zinc-300">
+                  <div className="rounded-full bg-zinc-800/10 dark:bg-zinc-800/60 px-3 py-0.5 text-[13px] font-semibold text-zinc-500 dark:text-zinc-300">
                     {item.date}
                   </div>
                 </div>
@@ -764,11 +785,11 @@ export default function ChatChannel() {
                   }}
                   className="py-1 flex items-center w-full"
                 >
-                  <div className="flex-1 border-t border-red-500/30" />
-                  <span className="mx-3 text-[10px] uppercase font-bold text-red-500 tracking-wider">
+                  <div className="flex-1 border-t border-zinc-800/40" />
+                  <span className="mx-3 text-[13px] uppercase font-bold text-zinc-500 tracking-wider">
                     Unread Messages ({initialUnreadCount})
                   </span>
-                  <div className="flex-1 border-t border-red-500/30" />
+                  <div className="flex-1 border-t border-zinc-800/40" />
                 </div>
               );
             }
@@ -776,9 +797,12 @@ export default function ChatChannel() {
             if (item.type !== "message") return null;
 
             const message = item.message;
-            const isOutgoing = message.user?.id === loggedInUser.id;
+            const isOutgoing = message.user?.id === loggedInUser.id || (message as any).senderId === loggedInUser.id;
             const isQueue = "status" in message;
             
+            const getSenderId = (m: any) => m.user?.id || m.senderId;
+            const msgSenderId = getSenderId(message);
+
             // Grouping bubble shapes logic
             let prevMsg = null;
             for (let i = virtualRow.index - 1; i >= 0; i--) {
@@ -797,10 +821,13 @@ export default function ChatChannel() {
               }
             }
 
-            const isFirstInGroup = !prevMsg || prevMsg.user?.id !== message.user?.id || 
+            const prevSenderId = prevMsg ? getSenderId(prevMsg) : null;
+            const nextSenderId = nextMsg ? getSenderId(nextMsg) : null;
+
+            const isFirstInGroup = !prevMsg || prevSenderId !== msgSenderId || 
               (new Date(message.created_at || (message as any).createdAt).getTime() - new Date(prevMsg.created_at || (prevMsg as any).createdAt).getTime() > 300000);
               
-            const isLastInGroup = !nextMsg || nextMsg.user?.id !== message.user?.id || 
+            const isLastInGroup = !nextMsg || nextSenderId !== msgSenderId || 
               (new Date(nextMsg.created_at || (nextMsg as any).createdAt).getTime() - new Date(message.created_at || (message as any).createdAt).getTime() > 300000);
 
             const position = isFirstInGroup && isLastInGroup
@@ -854,7 +881,7 @@ export default function ChatChannel() {
                   </div>
                 )}
 
-                <div
+                <motion.div
                   onClick={(e) => {
                     if (isSelectionMode) {
                       e.preventDefault();
@@ -862,6 +889,15 @@ export default function ChatChannel() {
                       toggleMessageSelection(message.id);
                     } else {
                       handleMessageClick(e, message);
+                    }
+                  }}
+                  drag={isSelectionMode ? false : "x"}
+                  dragConstraints={{ left: 0, right: 100 }}
+                  dragElastic={{ left: 0, right: 0.5 }}
+                  dragSnapToOrigin
+                  onDragEnd={(event, info) => {
+                    if (info.offset.x > 50) {
+                      setReplyMessage(message);
                     }
                   }}
                   className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
@@ -1034,14 +1070,14 @@ export default function ChatChannel() {
                                 : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-foreground"
                             }`}
                           >
-                            <span>{type}</span>
+                            <span>{reactionEmojiMap[type] || type}</span>
                             {count > 1 && <span className="text-[10px] opacity-75">{count}</span>}
                           </motion.button>
                         );
                       })}
                     </div>
                   )}
-                </div>
+                </motion.div>
               </div>
             );
           })}
@@ -1050,15 +1086,15 @@ export default function ChatChannel() {
 
       {/* Reply Preview Bar */}
       {replyMessage && (
-        <div className="flex h-12 items-center justify-between border-t bg-muted/20 px-3 text-xs">
+        <div className="flex h-12 items-center justify-between border-l-[3px] border-primary pl-2 bg-zinc-950/40 backdrop-blur-md text-xs">
           <div className="flex items-center gap-2 truncate">
-            <MessageSquare className="size-4 text-primary shrink-0" />
+            <CornerUpLeft className="size-4 text-primary shrink-0" />
             <div className="truncate flex flex-col text-start">
-              <span className="font-bold text-primary">Reply to {replyMessage.user?.name}</span>
+              <span className="font-bold text-primary text-[11px]">Reply to {replyMessage.user?.name}</span>
               <span className="text-[10px] text-muted-foreground truncate">{replyMessage.text}</span>
             </div>
           </div>
-          <button onClick={() => setReplyMessage(null)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setReplyMessage(null)} className="text-muted-foreground hover:text-foreground pr-3">
             <X className="size-4" />
           </button>
         </div>
@@ -1115,7 +1151,7 @@ export default function ChatChannel() {
             onChange={handleInputChange}
             rows={1}
             style={{ maxHeight: "120px" }}
-            className="flex-1 resize-none rounded-lg border bg-muted/40 px-3 py-1.5 text-[16px] focus:outline-none focus:ring-1 focus:ring-primary/45 h-9 min-h-[36px]"
+            className="flex-1 resize-none rounded-lg border bg-muted/40 px-3 py-1.5 text-[16px] focus:outline-none focus:ring-1 focus:ring-primary/45 h-9 min-h-[36px] scrollbar-none"
           />
 
           {/* Send FAB Action */}
