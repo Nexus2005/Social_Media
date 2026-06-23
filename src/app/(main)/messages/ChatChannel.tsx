@@ -973,6 +973,13 @@ export default function ChatChannel() {
                     />
                   ) : null}
 
+                  {/* Story Reply Rendering */}
+                  {message.attachments?.some((a: any) => a.type === "story-reply") ? (
+                    <StoryReplyAttachment
+                      attachment={message.attachments.find((a: any) => a.type === "story-reply")}
+                    />
+                  ) : null}
+
                   {/* Sticker Rendering */}
                   {message.attachments?.some((a: any) => a.type === "sticker") ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -1432,5 +1439,26 @@ function ShareCardAttachment({ attachment }: { attachment: any }) {
         </span>
       </div>
     </a>
+  );
+}
+
+// Story Reply preview renderer
+function StoryReplyAttachment({ attachment }: { attachment: any }) {
+  const { mediaUrl, mediaType, username } = attachment;
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border bg-zinc-950/40 p-2 max-w-xs mb-1">
+      <div className="flex flex-col text-start flex-grow pr-2 min-w-0">
+        <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Story Reply</span>
+        <span className="text-xs text-muted-foreground truncate">@{username}&apos;s story</span>
+      </div>
+      <div className="relative size-12 rounded overflow-hidden bg-muted shrink-0 border border-zinc-800">
+        {mediaType === "IMAGE" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mediaUrl} alt="Story Reply" className="w-full h-full object-cover" />
+        ) : (
+          <video src={mediaUrl} className="w-full h-full object-cover" muted />
+        )}
+      </div>
+    </div>
   );
 }

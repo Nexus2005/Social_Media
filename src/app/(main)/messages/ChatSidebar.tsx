@@ -679,10 +679,11 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
     // Check attachments
     if (lastMessage.attachments?.length) {
       const type = lastMessage.attachments[0].type;
+      const displayType = type === "story-reply" ? "Story Reply" : type === "image" ? "Photo" : type === "video" ? "Video" : "File";
       return (
         <span className="text-muted-foreground text-sm flex items-center gap-1.5 truncate">
           <span>{sender}</span>
-          <span className="italic text-primary">[{type === "image" ? "Photo" : type === "video" ? "Video" : "File"}]</span>
+          <span className="italic text-primary">[{displayType}]</span>
           <span>{lastMessage.text}</span>
         </span>
       );
