@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
 import ReelsCommentDialog from "./ReelsCommentDialog";
+import RepostButton from "@/components/posts/RepostButton";
 import { useToast } from "../ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -655,6 +656,9 @@ export default function ReelCard({
               </span>
             </div>
 
+            {/* Repost */}
+            <RepostButton post={post} variant="reel" />
+
             {/* Share */}
             <div className="flex flex-col items-center">
               <button
@@ -831,6 +835,9 @@ export default function ReelCard({
               {post._count.comments.toLocaleString()}
             </span>
           </div>
+
+          {/* Repost */}
+          <RepostButton post={post} variant="reel-desktop" />
 
           {/* Share */}
           <div className="flex flex-col items-center">

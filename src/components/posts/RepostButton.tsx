@@ -23,6 +23,7 @@ import QuotePostDialog from "./QuotePostDialog";
 
 interface RepostButtonProps {
   post: PostData;
+  variant?: "feed" | "reel" | "reel-desktop";
 }
 
 interface RepostInfo {
@@ -30,7 +31,7 @@ interface RepostInfo {
   isRepostedByUser: boolean;
 }
 
-export default function RepostButton({ post }: RepostButtonProps) {
+export default function RepostButton({ post, variant = "feed" }: RepostButtonProps) {
   const { user } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -83,6 +84,60 @@ export default function RepostButton({ post }: RepostButtonProps) {
       queryClient.invalidateQueries({ queryKey: ["post-feed"] });
     },
   });
+
+  if (variant === "reel" || variant === "reel-desktop") {
+    const isDesktop = variant === "reel-desktop";
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="flex flex-col items-center">
+              <button
+                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                title="Repost"
+              >
+                <Repeat2
+                  className={cn(
+                    "size-7 transition-colors",
+                    data.isRepostedByUser && "text-green-500"
+                  )}
+                  strokeWidth={1.75}
+                />
+              </button>
+              <span className={cn(
+                "text-[12px] font-semibold mt-0.5",
+                isDesktop ? "text-zinc-300" : "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
+              )}>
+                {data.reposts > 0 ? data.reposts.toLocaleString() : "Repost"}
+              </span>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-[#090909] border border-zinc-800 rounded-xl text-white">
+            <DropdownMenuItem
+              onClick={() => mutate()}
+              className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer hover:bg-zinc-900 focus:bg-zinc-900 py-2 px-3 text-white"
+            >
+              <Repeat2 className="size-4" />
+              <span>{data.isRepostedByUser ? "Undo repost" : "Repost"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setShowQuoteDialog(true)}
+              className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer hover:bg-zinc-900 focus:bg-zinc-900 py-2 px-3 text-white"
+            >
+              <MessageSquareQuote className="size-4" />
+              <span>Quote</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <QuotePostDialog
+          post={post}
+          open={showQuoteDialog}
+          onClose={() => setShowQuoteDialog(false)}
+        />
+      </>
+    );
+  }
 
   return (
     <>
