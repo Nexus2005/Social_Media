@@ -146,7 +146,7 @@ export default function Post({ post }: PostProps) {
   const repostInfo = post.reposts && post.reposts.length > 0 ? post.reposts[0] : null;
 
   return (
-    <article className="group/post space-y-3.5 py-4 border-b border-neutral-900 bg-black relative w-full">
+    <article className="group/post space-y-3.5 py-3 sm:py-4 border-b border-neutral-900 bg-black relative w-full">
       {/* Track Post View */}
       <PostViewTracker postId={post.id} />
 

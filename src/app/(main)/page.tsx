@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="mx-auto flex w-full max-w-[935px] gap-0 sm:gap-8 px-0 sm:px-4 md:px-8 py-0 sm:py-6 justify-center bg-black">
       {/* Column 2 (Center Feed) */}
-      <div className="w-full max-w-[600px] space-y-2">
+      <div className="w-full max-w-[600px] space-y-1 sm:space-y-2">
         {/* Stories Carousel */}
         <StoriesCarousel />
 
@@ -31,7 +31,7 @@ export default function Home() {
           </TabsList>
 
           {/* Sticky Search Bar - sticks below the 56px (h-14) mobile header */}
-          <div className="sticky top-14 sm:top-0 z-20 bg-black py-2.5 px-4 sm:px-0">
+          <div className="sticky top-14 sm:top-0 z-20 bg-black py-1.5 px-4 sm:py-2.5 sm:px-0">
             <form action="/search" method="GET" className="w-full">
               <div className="relative flex items-center h-11 w-full bg-[#121212] rounded-xl px-3 gap-2">
                 <Search className="size-5 text-white shrink-0" />
@@ -48,10 +48,10 @@ export default function Home() {
             </form>
           </div>
 
-          <TabsContent value="for-you" className="mt-2 outline-none">
+          <TabsContent value="for-you" className="mt-1 outline-none">
             <ForYouFeed />
           </TabsContent>
-          <TabsContent value="following" className="mt-2 outline-none">
+          <TabsContent value="following" className="mt-1 outline-none">
             <FollowingFeed />
           </TabsContent>
         </Tabs>

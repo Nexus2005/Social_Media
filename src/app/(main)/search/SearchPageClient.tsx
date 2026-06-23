@@ -619,7 +619,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                       <span className="text-xs font-semibold text-purple-400">Tag aggregate</span>
                     </div>
 
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
                       {posts.map((post) => (
                         <Post key={post.id} post={post} />
                       ))}
@@ -664,7 +664,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   <p className="text-center text-zinc-500 py-10">No search results matching &quot;{committedQuery}&quot;</p>
                 ) : (
                   <InfiniteScrollContainer
-                    className="flex flex-col gap-4"
+                    className="flex flex-col gap-2"
                     onBottomReached={() => hasNextPage && !isFetching && fetchNextPage()}
                   >
                     {posts.map((post) => (

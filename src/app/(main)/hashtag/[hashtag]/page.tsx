@@ -132,7 +132,7 @@ export default function HashtagPage({ params: { hashtag } }: HashtagPageProps) {
           <p className="text-center text-zinc-500 py-10">No posts contain this hashtag.</p>
         ) : (
           <InfiniteScrollContainer
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-2"
             onBottomReached={() => hasNextPage && !isFetching && fetchNextPage()}
           >
             {posts.map((post) => (

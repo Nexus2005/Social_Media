@@ -94,7 +94,7 @@ export default function StoriesCarousel() {
     : otherStories;
 
   return (
-    <div className="relative group/carousel w-full bg-black select-none py-3 px-4 sm:px-0">
+    <div className="relative group/carousel w-full bg-black select-none pt-3 pb-1 px-4 sm:py-3 sm:px-0">
       {/* Scroll Left Button */}
       {canScrollLeft && (
         <button
