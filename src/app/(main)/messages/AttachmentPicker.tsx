@@ -77,36 +77,36 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
           {activeSheet === "menu" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between border-b pb-2">
-                <span className="font-bold">Share Attachment</span>
-                <button onClick={onClose} className="rounded-full p-1.5 hover:bg-muted">
+                <span className="font-semibold text-base text-foreground">Share Attachment</span>
+                <button onClick={onClose} className="rounded-full p-1.5 hover:bg-muted text-muted-foreground">
                   <X className="size-5" />
                 </button>
               </div>
 
               {/* Grid 1: Basic Files and Camera */}
-              <div className="grid grid-cols-4 gap-4 p-2 text-center text-xs">
-                <label className="flex cursor-pointer flex-col items-center gap-1.5 hover:opacity-85">
+              <div className="grid grid-cols-4 gap-x-2 gap-y-5 p-2 text-center text-[11px] font-medium text-muted-foreground">
+                <label className="flex cursor-pointer flex-col items-center gap-2 hover:opacity-85">
                   <input type="file" className="hidden" onChange={handleFileChange} />
-                  <div className="flex size-12 items-center justify-center rounded-full bg-blue-500 text-white">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                     <ImageIcon className="size-5" />
                   </div>
                   <span>Gallery</span>
                 </label>
-                <div className="flex cursor-pointer flex-col items-center gap-1.5 hover:opacity-85">
-                  <div className="flex size-12 items-center justify-center rounded-full bg-red-500 text-white">
+                <div className="flex cursor-pointer flex-col items-center gap-2 hover:opacity-85">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                     <Camera className="size-5" />
                   </div>
                   <span>Camera</span>
                 </div>
-                <label className="flex cursor-pointer flex-col items-center gap-1.5 hover:opacity-85">
+                <label className="flex cursor-pointer flex-col items-center gap-2 hover:opacity-85">
                   <input type="file" className="hidden" onChange={handleFileChange} />
-                  <div className="flex size-12 items-center justify-center rounded-full bg-purple-500 text-white">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                     <FileText className="size-5" />
                   </div>
                   <span>File</span>
                 </label>
-                <div className="flex cursor-pointer flex-col items-center gap-1.5 hover:opacity-85">
-                  <div className="flex size-12 items-center justify-center rounded-full bg-green-500 text-white">
+                <div className="flex cursor-pointer flex-col items-center gap-2 hover:opacity-85">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                     <MapPin className="size-5" />
                   </div>
                   <span>Location</span>
@@ -115,28 +115,28 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
 
               {/* Grid 2: Cartly-specific Social Commerce shares */}
               <div className="border-t pt-4">
-                <span className="px-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Cartly Shares</span>
-                <div className="grid grid-cols-4 gap-4 p-2 mt-2 text-center text-xs">
-                  <button onClick={() => handleSelectType("products")} className="flex flex-col items-center gap-1.5 hover:opacity-85">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-amber-500 text-white">
+                <span className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cartly Shares</span>
+                <div className="grid grid-cols-4 gap-x-2 gap-y-5 p-2 mt-2 text-center text-[11px] font-medium text-muted-foreground">
+                  <button onClick={() => handleSelectType("products")} className="flex flex-col items-center gap-2 hover:opacity-85">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                       <ShoppingBag className="size-5" />
                     </div>
                     <span>Product</span>
                   </button>
-                  <button onClick={() => handleSelectType("posts")} className="flex flex-col items-center gap-1.5 hover:opacity-85">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-pink-500 text-white">
+                  <button onClick={() => handleSelectType("posts")} className="flex flex-col items-center gap-2 hover:opacity-85">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                       <Layers className="size-5" />
                     </div>
                     <span>Post</span>
                   </button>
-                  <button onClick={() => handleSelectType("profiles")} className="flex flex-col items-center gap-1.5 hover:opacity-85">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-teal-500 text-white">
+                  <button onClick={() => handleSelectType("profiles")} className="flex flex-col items-center gap-2 hover:opacity-85">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                       <User className="size-5" />
                     </div>
                     <span>Profile</span>
                   </button>
-                  <button onClick={() => handleSelectType("collections")} className="flex flex-col items-center gap-1.5 hover:opacity-85">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-indigo-500 text-white">
+                  <button onClick={() => handleSelectType("collections")} className="flex flex-col items-center gap-2 hover:opacity-85">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                       <BookOpen className="size-5" />
                     </div>
                     <span>Collection</span>

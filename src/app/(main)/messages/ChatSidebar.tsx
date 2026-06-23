@@ -96,19 +96,18 @@ export default function ChatSidebar() {
     const delayDebounceFn = setTimeout(async () => {
       try {
         setSearching(true);
-        const response = await chatClient.queryUsers(
-          {
-            id: { $ne: loggedInUser.id },
-            role: { $ne: "admin" },
-            $or: [
-              { name: { $autocomplete: searchQuery } },
-              { username: { $autocomplete: searchQuery } },
-            ],
-          },
-          { name: 1, username: 1 },
-          { limit: 8 }
-        );
-        setSearchUsers(response.users || []);
+        const res = await fetch(`/api/search?type=accounts&q=${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) throw new Error("Failed to fetch users");
+        const data = await res.json();
+        const mappedUsers = (data.users || [])
+          .filter((u: any) => u.id !== loggedInUser.id)
+          .map((u: any) => ({
+            id: u.id,
+            name: u.displayName || u.username,
+            image: u.avatarUrl,
+            username: u.username,
+          }));
+        setSearchUsers(mappedUsers);
       } catch (error) {
         console.error("Failed to query global users:", error);
       } finally {
@@ -205,9 +204,9 @@ export default function ChatSidebar() {
                       onClick={() => handleStartChat(user)}
                       className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-muted/50 text-start"
                     >
-                      <UserAvatar avatarUrl={user.image as string | null | undefined} size={40} />
+                      <UserAvatar avatarUrl={user.image as string | null | undefined} size={48} className="size-[48px]" />
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold">{user.name}</span>
+                        <span className="text-[17px] font-semibold text-foreground">{user.name}</span>
                         <span className="text-xs text-muted-foreground">@{user.username}</span>
                       </div>
                     </button>
@@ -221,13 +220,13 @@ export default function ChatSidebar() {
               <div className="border-b">
                 <button
                   onClick={() => setShowArchived(!showArchived)}
-                  className="flex w-full items-center gap-3 px-4 py-3 hover:bg-muted/30 text-start transition-colors"
+                  className="flex w-full items-center gap-3 px-4 h-[72px] hover:bg-muted/30 text-start transition-colors"
                 >
-                  <div className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <FolderDown className="size-5" />
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <FolderDown className="size-6" />
                   </div>
                   <div className="flex-1">
-                    <span className="text-sm font-semibold text-foreground">Archived Chats</span>
+                    <span className="text-[17px] font-semibold text-foreground">Archived Chats</span>
                     <p className="text-xs text-muted-foreground">{archivedChannels.length} chats</p>
                   </div>
                 </button>
@@ -367,13 +366,13 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, log
   return (
     <button
       onClick={onClick}
-      className={`relative flex w-full items-center gap-3 px-4 py-2.5 transition-colors ${
+      className={`relative flex w-full items-center gap-3 px-4 h-[72px] transition-colors ${
         isActive ? "bg-muted" : "hover:bg-muted/30"
       }`}
     >
-      {/* Avatar circular frame (56px) */}
-      <div className="relative size-11 shrink-0">
-        <UserAvatar avatarUrl={avatarUrl as string | null | undefined} size={44} className="size-[44px] rounded-full border" />
+      {/* Avatar circular frame (48px) */}
+      <div className="relative size-12 shrink-0">
+        <UserAvatar avatarUrl={avatarUrl as string | null | undefined} size={48} className="size-[48px] rounded-full border" />
         {isOnline && (
           <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-background bg-green-500" />
         )}
@@ -382,7 +381,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, log
       {/* Row detail cards */}
       <div className="flex flex-1 flex-col overflow-hidden text-start">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold truncate flex-1 pr-2">{displayName}</span>
+          <span className="text-[17px] font-semibold text-foreground truncate flex-1 pr-2">{displayName}</span>
           <span className="text-xs text-muted-foreground shrink-0">{timestampStr}</span>
         </div>
         

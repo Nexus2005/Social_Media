@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Smile, Gift, Layers, Search, Loader2 } from "lucide-react";
+import { Smile, Gift, Layers, Search, Loader2, History } from "lucide-react";
 import { motion } from "framer-motion";
 import kyInstance from "@/lib/ky";
 
@@ -36,12 +36,35 @@ const STATIC_STICKERS = [
 ];
 
 export default function StickerPicker({ onSelectEmoji, onSelectGif, onSelectSticker }: StickerPickerProps) {
-  const [activeTab, setActiveTab] = useState<"emoji" | "gif" | "sticker">("emoji");
+  const [activeTab, setActiveTab] = useState<"recent" | "emoji" | "gif" | "sticker">("emoji");
+  const [recentEmojis, setRecentEmojis] = useState<string[]>([]);
   
   // GIF state
   const [gifs, setGifs] = useState<string[]>([]);
   const [gifQuery, setGifQuery] = useState("");
   const [loadingGifs, setLoadingGifs] = useState(false);
+
+  // Load recent emojis from local storage
+  useEffect(() => {
+    const stored = localStorage.getItem("cartly-recent-emojis");
+    if (stored) {
+      try {
+        setRecentEmojis(JSON.parse(stored));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
+  const handleEmojiClick = (emoji: string) => {
+    onSelectEmoji(emoji);
+    setRecentEmojis((prev) => {
+      const filtered = prev.filter((e) => e !== emoji);
+      const updated = [emoji, ...filtered].slice(0, 32);
+      localStorage.setItem("cartly-recent-emojis", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const fetchGifs = async (query: string) => {
     try {
@@ -91,12 +114,34 @@ export default function StickerPicker({ onSelectEmoji, onSelectGif, onSelectStic
 
       {/* Grid Content Area */}
       <div className="flex-1 overflow-y-auto p-3">
+        {activeTab === "recent" && (
+          <div>
+            {recentEmojis.length > 0 ? (
+              <div className="grid grid-cols-8 gap-2 text-center text-2xl">
+                {recentEmojis.map((emoji, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleEmojiClick(emoji)}
+                    className="rounded p-1 transition-transform hover:scale-125 hover:bg-muted/50"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground mt-12">
+                No recently used emojis.
+              </p>
+            )}
+          </div>
+        )}
+
         {activeTab === "emoji" && (
           <div className="grid grid-cols-8 gap-2 text-center text-2xl">
             {EMOJIS.map((emoji, i) => (
               <button
                 key={i}
-                onClick={() => onSelectEmoji(emoji)}
+                onClick={() => handleEmojiClick(emoji)}
                 className="rounded p-1 transition-transform hover:scale-125 hover:bg-muted/50"
               >
                 {emoji}
@@ -149,6 +194,15 @@ export default function StickerPicker({ onSelectEmoji, onSelectGif, onSelectStic
 
       {/* Footer Navigation Bar */}
       <div className="flex h-12 border-t text-muted-foreground bg-muted/30">
+        <button
+          onClick={() => setActiveTab("recent")}
+          className={`flex flex-1 items-center justify-center py-2 transition-colors ${
+            activeTab === "recent" ? "text-primary" : "hover:text-foreground"
+          }`}
+          title="Recent"
+        >
+          <History className="size-5" />
+        </button>
         <button
           onClick={() => setActiveTab("emoji")}
           className={`flex flex-1 items-center justify-center py-2 transition-colors ${

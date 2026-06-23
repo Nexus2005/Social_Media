@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Bell, BellOff, Image as ImageIcon, FileText, Link as LinkIcon, Mic, Film, Users, Loader2 } from "lucide-react";
+import { X, Bell, BellOff, Image as ImageIcon, FileText, Link as LinkIcon, Mic, Film, Users, Loader2, Ban, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
 import { Channel, MessageResponse } from "stream-chat";
 import { useChatUI } from "./Chat";
 import UserAvatar from "@/components/UserAvatar";
 import { useChat } from "../ChatProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ChatProfileProps {
   channel: Channel;
@@ -20,10 +21,19 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
   // State for loaded attachments
   const [messages, setMessages] = useState<MessageResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commonGroups, setCommonGroups] = useState<Channel[]>([]);
 
   const isMuted = mutes.some((m) => m.channelId === channel.id);
+  const { toast } = useToast();
+  const chatClient = useChat();
 
-  // Fetch messages with attachments
+  // Get recipient information (for DMs)
+  const members = Object.values(channel.state.members || {});
+  const otherMember = members.find((m) => m.user?.id !== chatClient?.userID)?.user;
+
+  const displayName = (channel.data?.name || otherMember?.name || "Chat Info") as string;
+
+  // Fetch messages with attachments and common groups
   useEffect(() => {
     const fetchSharedAttachments = async () => {
       try {
@@ -42,7 +52,47 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
     fetchSharedAttachments();
   }, [channel]);
 
-  const chatClient = useChat();
+  useEffect(() => {
+    if (!chatClient || !otherMember) return;
+    const fetchCommonGroups = async () => {
+      try {
+        const response = await chatClient.queryChannels({
+          type: "messaging",
+          members: { $in: [chatClient.userID!, otherMember.id] },
+        });
+        const groups = response.filter((c) => {
+          const memberIds = Object.keys(c.state.members || {});
+          return memberIds.includes(chatClient.userID!) && memberIds.includes(otherMember.id) && memberIds.length > 2;
+        });
+        setCommonGroups(groups);
+      } catch (e) {
+        console.error("Error fetching common groups:", e);
+      }
+    };
+    fetchCommonGroups();
+  }, [chatClient, otherMember]);
+
+  const handleBlockUser = async () => {
+    if (!chatClient || !otherMember) return;
+    try {
+      await chatClient.blockUser(otherMember.id);
+      toast({ description: `${displayName} has been blocked.` });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", description: "Failed to block user." });
+    }
+  };
+
+  const handleReportUser = async () => {
+    if (!chatClient || !otherMember) return;
+    try {
+      await chatClient.flagUser(otherMember.id);
+      toast({ description: "Conversation reported successfully." });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", description: "Failed to report." });
+    }
+  };
 
   // Extract shared items by category
   const images = (messages.flatMap((m) =>
@@ -81,10 +131,6 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
   };
 
   // Get recipient information (for DMs)
-  const members = Object.values(channel.state.members || {});
-  const otherMember = members.find((m) => m.user?.id !== chatClient?.userID)?.user;
-
-  const displayName = (channel.data?.name || otherMember?.name || "Chat Info") as string;
   const avatarUrl = (channel.data?.image || otherMember?.image) as string | undefined;
   const username = otherMember?.username ? `@${otherMember.username}` : "";
   const bio = ((otherMember as any)?.bio || "No bio info available") as string;
@@ -137,7 +183,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
       <div className="flex border-b text-sm text-muted-foreground select-none overflow-x-auto">
         <button
           onClick={() => setActiveTab("media")}
-          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors ${
+          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors shrink-0 px-3 ${
             activeTab === "media" ? "border-primary text-foreground" : "border-transparent hover:text-foreground"
           }`}
         >
@@ -145,7 +191,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
         </button>
         <button
           onClick={() => setActiveTab("files")}
-          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors ${
+          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors shrink-0 px-3 ${
             activeTab === "files" ? "border-primary text-foreground" : "border-transparent hover:text-foreground"
           }`}
         >
@@ -153,7 +199,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
         </button>
         <button
           onClick={() => setActiveTab("links")}
-          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors ${
+          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors shrink-0 px-3 ${
             activeTab === "links" ? "border-primary text-foreground" : "border-transparent hover:text-foreground"
           }`}
         >
@@ -161,11 +207,19 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
         </button>
         <button
           onClick={() => setActiveTab("voice")}
-          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors ${
+          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors shrink-0 px-3 ${
             activeTab === "voice" ? "border-primary text-foreground" : "border-transparent hover:text-foreground"
           }`}
         >
           Voice
+        </button>
+        <button
+          onClick={() => setActiveTab("groups")}
+          className={`flex-1 py-3 text-center font-medium border-b-2 transition-colors shrink-0 px-3 ${
+            activeTab === "groups" ? "border-primary text-foreground" : "border-transparent hover:text-foreground"
+          }`}
+        >
+          Groups
         </button>
       </div>
 
@@ -259,9 +313,51 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
                 <EmptyState icon={<Mic />} label="No shared voice notes" />
               )
             )}
+
+            {activeTab === "groups" && (
+              commonGroups.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {commonGroups.map((c, i) => {
+                    const m = Object.values(c.state.members || {});
+                    const count = m.length;
+                    return (
+                      <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                        <Users className="size-5 text-muted-foreground shrink-0" />
+                        <div className="flex-1 overflow-hidden">
+                          <p className="truncate text-sm font-medium">{c.data?.name || "Group Chat"}</p>
+                          <p className="text-xs text-muted-foreground">{count} members</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState icon={<Users />} label="No groups in common" />
+              )
+            )}
           </>
         )}
       </div>
+
+      {/* Destructive Actions Footer */}
+      {otherMember && (
+        <div className="border-t p-4 flex flex-col gap-2 bg-muted/10 shrink-0">
+          <button
+            onClick={handleBlockUser}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <Ban className="size-4" />
+            Block User
+          </button>
+          <button
+            onClick={handleReportUser}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 py-2 text-sm font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400 transition-colors"
+          >
+            <ShieldAlert className="size-4" />
+            Report User
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

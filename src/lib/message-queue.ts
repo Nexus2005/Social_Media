@@ -10,6 +10,7 @@ export interface QueueMessage {
   status: QueueMessageStatus;
   createdAt: Date;
   senderId: string;
+  quotedMessageId?: string;
 }
 
 class OutgoingMessageQueueManager {
@@ -37,7 +38,8 @@ class OutgoingMessageQueueManager {
     channel: Channel,
     text: string,
     senderId: string,
-    attachments: any[] = []
+    attachments: any[] = [],
+    quotedMessageId?: string
   ): Promise<void> {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     const newItem: QueueMessage = {
@@ -48,6 +50,7 @@ class OutgoingMessageQueueManager {
       status: "PENDING",
       createdAt: new Date(),
       senderId,
+      quotedMessageId,
     };
 
     this.queue.push(newItem);
@@ -68,6 +71,7 @@ class OutgoingMessageQueueManager {
       await channel.sendMessage({
         text: this.queue[idx].text,
         attachments: this.queue[idx].attachments,
+        quoted_message_id: this.queue[idx].quotedMessageId,
       });
 
       // Remove from queue once successfully sent to Stream.

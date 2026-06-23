@@ -40,23 +40,24 @@ export default function NewChatDialog({
 
   const { data, isFetching, isError, isSuccess } = useQuery({
     queryKey: ["stream-users", searchInputDebounced],
-    queryFn: async () =>
-      client.queryUsers(
-        {
-          id: { $ne: loggedInUser.id },
-          role: { $ne: "admin" },
-          ...(searchInputDebounced
-            ? {
-                $or: [
-                  { name: { $autocomplete: searchInputDebounced } },
-                  { username: { $autocomplete: searchInputDebounced } },
-                ],
-              }
-            : {}),
-        },
-        { name: 1, username: 1 },
-        { limit: 15 },
-      ),
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/search?type=accounts&q=${encodeURIComponent(searchInputDebounced)}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+      const result = await response.json();
+      const mappedUsers = (result.users || [])
+        .filter((u: any) => u.id !== loggedInUser.id)
+        .map((u: any) => ({
+          id: u.id,
+          name: u.displayName || u.username,
+          image: u.avatarUrl,
+          username: u.username,
+        }));
+      return { users: mappedUsers };
+    },
   });
 
   const mutation = useMutation({
@@ -120,7 +121,7 @@ export default function NewChatDialog({
           <hr />
           <div className="h-96 overflow-y-auto">
             {isSuccess &&
-              data.users.map((user) => (
+              data.users.map((user: any) => (
                 <UserResult
                   key={user.id}
                   user={user}
