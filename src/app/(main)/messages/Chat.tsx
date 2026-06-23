@@ -179,7 +179,7 @@ export default function Chat() {
         setProfileOverlayChannel,
       }}
     >
-      <main className="relative flex h-[calc(100vh-96px)] w-full overflow-hidden rounded-2xl border bg-background shadow-lg md:h-[calc(100vh-120px)]">
+      <main className="chat-main-container relative flex h-[calc(100vh-96px)] w-full overflow-hidden rounded-2xl border bg-background shadow-lg md:h-[calc(100vh-120px)]">
         {/* Chat List Sidebar (Split Pane on Desktop, Screen on Mobile) */}
         <div
           className={`h-full w-full border-e md:flex md:w-80 lg:w-96 ${

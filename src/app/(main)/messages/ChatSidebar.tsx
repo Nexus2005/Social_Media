@@ -74,11 +74,15 @@ export default function ChatSidebar() {
     chatClient.on("message.new", handleNewMessage);
     chatClient.on("notification.message_new", handleNewMessage);
     chatClient.on("user.presence.changed", handlePresence);
+    chatClient.on("message.read", handleNewMessage);
+    chatClient.on("notification.mark_read", handleNewMessage);
 
     return () => {
       chatClient.off("message.new", handleNewMessage);
       chatClient.off("notification.message_new", handleNewMessage);
       chatClient.off("user.presence.changed", handlePresence);
+      chatClient.off("message.read", handleNewMessage);
+      chatClient.off("notification.mark_read", handleNewMessage);
     };
   }, [chatClient, loggedInUser]);
 

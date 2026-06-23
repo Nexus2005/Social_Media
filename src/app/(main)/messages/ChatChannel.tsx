@@ -10,11 +10,13 @@ import { useSession } from "../SessionProvider";
 import UserAvatar from "@/components/UserAvatar";
 import { outgoingMessageQueue, QueueMessage } from "@/lib/message-queue";
 import { draftStorage } from "@/lib/draft-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import AttachmentPicker from "./AttachmentPicker";
 import StickerPicker from "./StickerPicker";
 
 export default function ChatChannel() {
   const { user: loggedInUser } = useSession();
+  const queryClient = useQueryClient();
   
   const {
     activeChannel: channel,
@@ -73,6 +75,10 @@ export default function ChatChannel() {
         });
         setMessages(response.messages || []);
         
+        // Mark channel as read when opened!
+        await channel.markRead();
+        queryClient.invalidateQueries({ queryKey: ["unread-messages-count"] });
+        
         // Restore local drafts if any
         const draft = await draftStorage.getDraft(channel.id!);
         if (draft && draft.draftText) {
@@ -96,6 +102,11 @@ export default function ChatChannel() {
     const handleNewMessage = (event: any) => {
       if (event.message) {
         setMessages((prev) => [...prev.filter((m) => m.id !== event.message.id), event.message]);
+        
+        // Mark channel as read and invalidate unread count queries
+        channel.markRead()
+          .then(() => queryClient.invalidateQueries({ queryKey: ["unread-messages-count"] }))
+          .catch((err) => console.error("Failed to mark channel as read:", err));
       }
     };
 
