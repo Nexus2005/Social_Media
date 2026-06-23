@@ -9,6 +9,7 @@ import ChatChannel from "./ChatChannel";
 import MediaViewer, { MediaViewerState } from "./MediaViewer";
 import ChatProfile from "./ChatProfile";
 import kyInstance from "@/lib/ky";
+import { useSession } from "../SessionProvider";
 
 // Custom UI State Context for Telegram Android Parity
 interface ChatUIContextType {
@@ -43,6 +44,7 @@ export function useChatUI() {
 
 export default function Chat() {
   const chatClient = useChat();
+  const { user: loggedInUser } = useSession();
 
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
@@ -75,6 +77,36 @@ export default function Chat() {
     
     fetchPrefs();
   }, [chatClient]);
+
+  // Handle auto-starting chat with a specific user via query parameter (?userId=...)
+  useEffect(() => {
+    if (!chatClient || !loggedInUser) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUserId = urlParams.get("userId");
+    
+    if (targetUserId) {
+      const initiateChat = async () => {
+        try {
+          const channel = chatClient.channel("messaging", {
+            members: [loggedInUser.id, targetUserId],
+          });
+          await channel.create();
+          
+          setActiveChannel(channel);
+          setMobileView("chat");
+          
+          // Clear query parameter from URL without page reload
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, "", newUrl);
+        } catch (error) {
+          console.error("Failed to auto-start chat with user:", error);
+        }
+      };
+      
+      initiateChat();
+    }
+  }, [chatClient, loggedInUser, setActiveChannel]);
 
   // Toggle Preference Helper
   const togglePreference = async (

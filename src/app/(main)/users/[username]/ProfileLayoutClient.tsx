@@ -15,6 +15,8 @@ import ProfileHeaderActions from "./ProfileHeaderActions";
 import ProfileFollowsInfo from "./ProfileFollowsInfo";
 import MutualsLink from "./MutualsLink";
 import ProfileMenuDrawer from "./ProfileMenuDrawer";
+import useFollowerInfo from "@/hooks/useFollowerInfo";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ProfileLayoutClientProps {
   user: UserData;
@@ -26,6 +28,7 @@ export default function ProfileLayoutClient({
   loggedInUserId,
 }: ProfileLayoutClientProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [scrollY, setScrollY] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -63,6 +66,8 @@ export default function ProfileLayoutClient({
       ({ followerId }) => followerId === loggedInUserId
     ),
   };
+
+  const { data: followerState } = useFollowerInfo(user.id, followerInfo);
 
   // Fetch pinned reels
   const { data: pinnedReels = [], isLoading: isLoadingPinned } = useQuery<any[]>({
@@ -229,8 +234,32 @@ export default function ProfileLayoutClient({
               </Link>
             </>
           ) : (
-            <div className="w-full">
-              <FollowButton userId={user.id} initialState={followerInfo} />
+            <div className="flex gap-2 items-center w-full">
+              <div className="flex-1">
+                <FollowButton userId={user.id} initialState={followerInfo} />
+              </div>
+              {followerState.isFollowedByUser && (
+                <>
+                  <button
+                    onClick={() => router.push(`/messages?userId=${user.id}`)}
+                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center justify-center border-0 shrink-0"
+                  >
+                    Message
+                  </button>
+                  <button
+                    onClick={() => {
+                      const profileUrl = `${window.location.origin}/users/${user.username}`;
+                      navigator.clipboard.writeText(profileUrl);
+                      toast({
+                        description: "Profile link copied to clipboard!",
+                      });
+                    }}
+                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center justify-center border-0 shrink-0"
+                  >
+                    Share Profile
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
