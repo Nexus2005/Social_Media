@@ -173,12 +173,12 @@ export default function Post({ post }: PostProps) {
               )}
             </Link>
           </UserTooltip>
-          <div className="flex flex-col justify-center">
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-col justify-center min-w-0">
+            <div className="flex flex-wrap items-center gap-1 text-[15px] font-semibold text-white">
               <UserTooltip user={post.user}>
                 <Link
                   href={`/users/${post.user.username}`}
-                  className="block text-[16px] font-semibold hover:underline text-white flex items-center gap-1"
+                  className="hover:underline flex items-center gap-1 text-white"
                 >
                   <span>{post.user.username}</span>
                   {post.user.verified && (
@@ -187,33 +187,28 @@ export default function Post({ post }: PostProps) {
                 </Link>
               </UserTooltip>
               {post.collaborators && Array.isArray(post.collaborators) && post.collaborators.map((collab: any) => (
-                <span key={collab} className="text-xs text-[#8e8e93] font-semibold">
+                <span key={collab} className="text-xs text-[#8e8e93] font-semibold shrink-0">
                   • colab @{collab}
                 </span>
               ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5 text-[14px] text-[#8e8e93]">
+              <span className="text-[#8e8e93] font-normal select-none text-[13px] px-0.5">•</span>
               <Link
                 href={`/posts/${post.id}`}
-                className="hover:underline"
+                className="hover:underline text-[13px] text-[#8e8e93] font-normal"
                 suppressHydrationWarning
               >
                 {formatRelativeDate(post.createdAt)}
               </Link>
-              <span>•</span>
-              {getAudienceIcon(post.audience)}
-
-              {post.location && (
-                <>
-                  <span>•</span>
-                  <div className="flex items-center gap-0.5 font-medium text-[#8e8e93]">
-                    <MapPin className="size-3.5 flex-shrink-0" />
-                    <span>{post.location}</span>
-                  </div>
-                </>
-              )}
+              <span className="text-[#8e8e93] font-normal select-none text-[13px] px-0.5">•</span>
+              <span className="flex items-center shrink-0">{getAudienceIcon(post.audience)}</span>
             </div>
+
+            {post.location && (
+              <div className="flex items-center gap-1 font-medium text-[13px] text-[#8e8e93] mt-0.5 max-w-[280px] sm:max-w-[400px] truncate select-none">
+                <MapPin className="size-3.5 flex-shrink-0 text-zinc-500" />
+                <span className="truncate hover:underline cursor-pointer">{post.location}</span>
+              </div>
+            )}
           </div>
         </div>
         {post.user.id === user.id && (
