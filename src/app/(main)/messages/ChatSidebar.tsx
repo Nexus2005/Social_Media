@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, FolderDown, Edit, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut, Volume2, Trash2, X } from "lucide-react";
+import { Search, FolderDown, Edit, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut, Volume2, Trash2, X, MoreVertical, Sun, Moon, Users, FolderHeart } from "lucide-react";
 import { Channel, UserResponse } from "stream-chat";
 import { useChat } from "../ChatProvider";
 import { useChatUI } from "./Chat";
@@ -11,6 +11,7 @@ import { draftStorage } from "@/lib/draft-storage";
 import { useSession } from "../SessionProvider";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
 
 const getFuzzyRatio = (str: string, query: string): number => {
   str = str.toLowerCase();
@@ -101,6 +102,8 @@ export default function ChatSidebar() {
   const [recentSearches, setRecentSearches] = useState<any[]>([]);
   const [contextMenuChannel, setContextMenuChannel] = useState<Channel | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   // Load channels and register event listeners
   useEffect(() => {
@@ -328,7 +331,7 @@ export default function ChatSidebar() {
   return (
     <div className="flex h-full w-full flex-col bg-background select-none relative">
       {/* Search Header Panel */}
-      <div className="flex items-center gap-3 p-3.5 pb-2.5">
+      <div className="flex items-center gap-3 p-3.5 pb-2.5 relative">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 transform text-muted-foreground" />
           <input
@@ -352,12 +355,78 @@ export default function ChatSidebar() {
           )}
         </div>
         <button
-          onClick={() => setShowNewChatDialog(true)}
-          className="rounded-full bg-primary/10 p-2.5 text-primary hover:bg-primary/20 transition-colors shrink-0"
-          title="New Message"
+          onClick={() => setShowAdminMenu(!showAdminMenu)}
+          className="rounded-full bg-muted/65 p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          title="Settings & Tools"
         >
-          <Edit className="size-5" />
+          <MoreVertical className="size-5" />
         </button>
+
+        {/* Sleek Telegram-styled Administration Dropdown */}
+        {showAdminMenu && (
+          <>
+            <div 
+              className="fixed inset-0 z-45 cursor-default" 
+              onClick={() => setShowAdminMenu(false)}
+            />
+            <div className="absolute right-3.5 top-[52px] z-50 w-56 rounded-2xl bg-card border border-border/80 shadow-2xl p-1.5 flex flex-col gap-0.5 text-[14px]">
+              {/* Day / Night Mode Toggle */}
+              <button
+                onClick={() => {
+                  setTheme(theme === "dark" ? "light" : "dark");
+                  setShowAdminMenu(false);
+                }}
+                className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl hover:bg-muted text-start text-foreground"
+              >
+                <div className="flex items-center gap-3">
+                  {theme === "dark" ? (
+                    <Sun className="size-4 text-amber-500" />
+                  ) : (
+                    <Moon className="size-4 text-blue-500" />
+                  )}
+                  <span>{theme === "dark" ? "Day Mode" : "Night Mode"}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold bg-muted px-1.5 py-0.5 rounded-md">
+                  {theme === "dark" ? "Light" : "Dark"}
+                </span>
+              </button>
+
+              {/* New Group */}
+              <button
+                onClick={() => {
+                  setShowAdminMenu(false);
+                  setShowNewChatDialog(true);
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-start w-full text-foreground"
+              >
+                <Users className="size-4 text-muted-foreground" />
+                <span>New Group</span>
+              </button>
+
+              {/* Saved Messages */}
+              <button
+                onClick={async () => {
+                  setShowAdminMenu(false);
+                  if (!chatClient || !loggedInUser) return;
+                  try {
+                    const channel = chatClient.channel("messaging", {
+                      members: [loggedInUser.id],
+                    });
+                    await channel.watch();
+                    setActiveChannel(channel);
+                    setMobileView("chat");
+                  } catch (error) {
+                    console.error("Failed to start Saved Messages:", error);
+                  }
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-start w-full text-foreground"
+              >
+                <FolderHeart className="size-4 text-muted-foreground" />
+                <span>Saved Messages</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Channels List */}
@@ -496,6 +565,15 @@ export default function ChatSidebar() {
           </>
         )}
       </div>
+
+      {/* Telegram-style Circular FAB in bottom right */}
+      <button
+        onClick={() => setShowNewChatDialog(true)}
+        className="absolute bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-xl hover:bg-primary/95 transition-all duration-200 active:scale-95 hover:scale-105 hover:shadow-primary/20"
+        title="New Message"
+      >
+        <Edit className="size-6" />
+      </button>
 
       {/* Compose Dialog overlay */}
       {showNewChatDialog && (

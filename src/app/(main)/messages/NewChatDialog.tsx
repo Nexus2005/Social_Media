@@ -10,11 +10,12 @@ import { useToast } from "@/components/ui/use-toast";
 import UserAvatar from "@/components/UserAvatar";
 import useDebounce from "@/hooks/useDebounce";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Loader2, SearchIcon, X } from "lucide-react";
+import { Check, Loader2, SearchIcon, X, Users, Megaphone } from "lucide-react";
 import { useState } from "react";
 import { UserResponse } from "stream-chat";
 import { DefaultStreamChatGenerics, useChatContext } from "stream-chat-react";
 import { useSession } from "../SessionProvider";
+import { cn } from "@/lib/utils";
 
 interface NewChatDialogProps {
   onOpenChange: (open: boolean) => void;
@@ -120,21 +121,58 @@ export default function NewChatDialog({
           )}
           <hr />
           <div className="h-96 overflow-y-auto">
-            {isSuccess &&
-              data.users.map((user: any) => (
-                <UserResult
-                  key={user.id}
-                  user={user}
-                  selected={selectedUsers.some((u) => u.id === user.id)}
+            {/* Telegram-style sticky rows */}
+            {!searchInput && (
+              <div className="flex flex-col border-b border-border/60 pb-1 select-none">
+                <button
                   onClick={() => {
-                    setSelectedUsers((prev) =>
-                      prev.some((u) => u.id === user.id)
-                        ? prev.filter((u) => u.id !== user.id)
-                        : [...prev, user],
-                    );
+                    toast({ description: "Select multiple members below to start a Group chat." });
                   }}
-                />
-              ))}
+                  className="flex w-full items-center gap-3 px-4 py-3 hover:bg-muted/50 text-start"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 shrink-0">
+                    <Users className="size-5" />
+                  </div>
+                  <span className="font-semibold text-sm text-foreground">New Group</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    toast({ description: "New Channel creation will be integrated soon." });
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 hover:bg-muted/50 text-start"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-full bg-orange-500/10 text-orange-500 shrink-0">
+                    <Megaphone className="size-5" />
+                  </div>
+                  <span className="font-semibold text-sm text-foreground">New Channel</span>
+                </button>
+              </div>
+            )}
+
+            {isSuccess && !!data.users.length && (
+              <div className="px-4 py-2 bg-muted/20 border-b border-border/40 text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+                Sorted by last seen time
+              </div>
+            )}
+
+            {isSuccess &&
+              [...data.users]
+                .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
+                .map((user: any) => (
+                  <UserResult
+                    key={user.id}
+                    user={user}
+                    selected={selectedUsers.some((u) => u.id === user.id)}
+                    onClick={() => {
+                      setSelectedUsers((prev) =>
+                        prev.some((u) => u.id === user.id)
+                          ? prev.filter((u) => u.id !== user.id)
+                          : [...prev, user],
+                      );
+                    }}
+                  />
+                ))}
             {isSuccess && !data.users.length && (
               <p className="my-3 text-center text-muted-foreground">
                 No users found. Try a different name.
@@ -169,19 +207,30 @@ interface UserResultProps {
 }
 
 function UserResult({ user, selected, onClick }: UserResultProps) {
+  const mockLastSeen = user.id.charCodeAt(0) % 3 === 0 
+    ? "last seen recently" 
+    : user.id.charCodeAt(0) % 3 === 1 
+    ? "last seen 5 minutes ago" 
+    : "online";
+
   return (
     <button
-      className="flex w-full items-center justify-between px-4 py-2.5 transition-colors hover:bg-muted/50"
+      className="flex w-full items-center justify-between px-4 py-2.5 transition-colors hover:bg-muted/50 text-start"
       onClick={onClick}
     >
-      <div className="flex items-center gap-2">
-        <UserAvatar avatarUrl={user.image} />
-        <div className="flex flex-col text-start">
-          <p className="font-bold">{user.name}</p>
-          <p className="text-muted-foreground">@{user.username}</p>
+      <div className="flex items-center gap-3 min-w-0">
+        <UserAvatar avatarUrl={user.image} size={40} className="shrink-0" />
+        <div className="flex flex-col justify-center min-w-0">
+          <span className="font-bold text-sm text-foreground truncate">{user.name}</span>
+          <span className={cn(
+            "text-xs truncate", 
+            mockLastSeen === "online" ? "text-primary font-medium" : "text-muted-foreground"
+          )}>
+            {mockLastSeen}
+          </span>
         </div>
       </div>
-      {selected && <Check className="size-5 text-green-500" />}
+      {selected && <Check className="size-5 text-green-500 shrink-0" />}
     </button>
   );
 }
