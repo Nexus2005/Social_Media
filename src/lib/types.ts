@@ -205,6 +205,7 @@ export interface CommentsPage {
 export const notificationsInclude = {
   issuer: {
     select: {
+      id: true,
       username: true,
       displayName: true,
       avatarUrl: true,
@@ -212,7 +213,9 @@ export const notificationsInclude = {
   },
   post: {
     select: {
+      id: true,
       content: true,
+      attachments: true,
     },
   },
 } satisfies Prisma.NotificationInclude;
