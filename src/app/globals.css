@@ -178,3 +178,11 @@ body[data-commerce-immersive="true"] nav.fixed {
   display: none !important;
 }
 
+/* Hide fixed bottom navigation when chat is active on mobile size */
+body.chat-active nav.fixed.bottom-0 {
+  display: none !important;
+}
+
+body.chat-active .main-content-wrapper {
+  padding-bottom: 0 !important;
+}

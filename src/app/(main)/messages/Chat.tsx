@@ -91,7 +91,7 @@ export default function Chat() {
           const channel = chatClient.channel("messaging", {
             members: [loggedInUser.id, targetUserId],
           });
-          await channel.create();
+          await channel.watch();
           
           setActiveChannel(channel);
           setMobileView("chat");
@@ -107,6 +107,19 @@ export default function Chat() {
       initiateChat();
     }
   }, [chatClient, loggedInUser, setActiveChannel]);
+
+  // Manage "chat-active" class on body for mobile styling adjustments (hiding bottom footer)
+  useEffect(() => {
+    const isChatActive = activeChannel !== null && mobileView === "chat";
+    if (isChatActive) {
+      document.body.classList.add("chat-active");
+    } else {
+      document.body.classList.remove("chat-active");
+    }
+    return () => {
+      document.body.classList.remove("chat-active");
+    };
+  }, [activeChannel, mobileView]);
 
   // Toggle Preference Helper
   const togglePreference = async (

@@ -129,7 +129,11 @@ export default function ChatChannel() {
     setInputText(text);
     if (text.trim()) {
       draftStorage.saveDraft(channel.id!, loggedInUser.id, text);
-      channel.keystroke();
+      try {
+        channel.keystroke();
+      } catch (err) {
+        console.warn("Failed to trigger keystroke event:", err);
+      }
     } else {
       draftStorage.deleteDraft(channel.id!);
     }

@@ -122,7 +122,7 @@ export default function ChatSidebar() {
       const channel = chatClient.channel("messaging", {
         members: [loggedInUser.id, user.id],
       });
-      await channel.create();
+      await channel.watch();
       setActiveChannel(channel);
       setMobileView("chat");
       setSearchQuery("");
