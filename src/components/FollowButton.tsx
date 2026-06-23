@@ -6,6 +6,7 @@ import { FollowerInfo } from "@/lib/types";
 import { QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { useToast } from "./ui/use-toast";
+import { cn } from "@/lib/utils";
 
 interface FollowButtonProps {
   userId: string;
@@ -88,7 +89,7 @@ export default function FollowButton({
           e.stopPropagation();
           mutate();
         }}
-        className="h-7 px-3 flex items-center justify-center rounded-full text-[11px] font-semibold text-white bg-black/40 hover:bg-black/60 border border-white/10 transition-colors"
+        className="h-7 px-3 flex items-center justify-center rounded-full text-[11px] font-semibold text-white bg-[#262626] hover:bg-zinc-800 border-0 transition-colors"
       >
         {getButtonText()}
       </button>
@@ -102,7 +103,12 @@ export default function FollowButton({
         e.stopPropagation();
         mutate();
       }}
-      className={data.isFollowedByUser ? "" : "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-bold px-4"}
+      className={cn(
+        "h-9 px-6 rounded-[10px] text-xs font-semibold w-full transition-colors flex items-center justify-center border-0",
+        data.isFollowedByUser
+          ? "bg-[#262626] hover:bg-zinc-800 text-white"
+          : "bg-[#0095f6] hover:bg-[#1877f2] text-white"
+      )}
     >
       {getButtonText()}
     </Button>

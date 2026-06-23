@@ -12,9 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageCircle,
-  BarChart3,
   Share2,
-  FolderOpen,
   Repeat2,
 } from "lucide-react";
 import Image from "next/image";
@@ -34,6 +32,7 @@ import { formatDistanceToNow } from "date-fns";
 import MediaViewer from "./MediaViewer";
 import RepostButton from "./RepostButton";
 import CollectionSelector from "./CollectionSelector";
+import LikesBottomSheet from "./LikesBottomSheet";
 import PostViewTracker from "./PostViewTracker";
 import { useQuery } from "@tanstack/react-query";
 import kyInstance from "@/lib/ky";
@@ -59,6 +58,14 @@ export default function Post({ post }: PostProps) {
   const [mediaViewerUrls, setMediaViewerUrls] = useState<string[] | null>(null);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
+  const [showLikesSheet, setShowLikesSheet] = useState(false);
+
+  const { data: mutualData = { users: [], count: 0 } } = useQuery({
+    queryKey: ["mutual-followers", post.user.id],
+    queryFn: () =>
+      kyInstance.get(`/api/users/${post.user.id}/mutuals`).json<{ users: any[]; count: number }>(),
+    staleTime: 60 * 1000,
+  });
 
   const { data: groupedStories = [] } = useQuery<any[]>({
     queryKey: ["stories"],
@@ -83,6 +90,32 @@ export default function Post({ post }: PostProps) {
       default:
         return <span title="Public"><Globe className="size-3 text-[#8e8e93]" /></span>;
     }
+  };
+
+  const renderMutualText = () => {
+    const { users, count } = mutualData;
+    if (count === 0) return null;
+    const names = users.map(u => u.displayName || u.username);
+    if (count === 1) {
+      return (
+        <span>
+          Followed by <span className="font-bold text-white">{names[0]}</span>
+        </span>
+      );
+    }
+    if (count === 2) {
+      return (
+        <span>
+          Followed by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
+        </span>
+      );
+    }
+    const diff = count - 2;
+    return (
+      <span>
+        Followed by <span className="font-bold text-white">{names[0]}</span>, <span className="font-bold text-white">{names[1]}</span> and <span className="font-bold text-white">{diff} other{diff > 1 ? "s" : ""}</span>
+      </span>
+    );
   };
 
   const handleShare = () => {
@@ -125,11 +158,11 @@ export default function Post({ post }: PostProps) {
               {hasActiveStory ? (
                 <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
                   <div className="rounded-full p-[1.5px] bg-[#000000]">
-                    <UserAvatar avatarUrl={post.user.avatarUrl} size={36} className="w-[36px] h-[36px]" />
+                    <UserAvatar avatarUrl={post.user.avatarUrl} size={48} className="w-[48px] h-[48px]" />
                   </div>
                 </div>
               ) : (
-                <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-[40px] h-[40px]" />
+                <UserAvatar avatarUrl={post.user.avatarUrl} size={48} className="w-[48px] h-[48px]" />
               )}
             </Link>
           </UserTooltip>
@@ -138,7 +171,7 @@ export default function Post({ post }: PostProps) {
               <UserTooltip user={post.user}>
                 <Link
                   href={`/users/${post.user.username}`}
-                  className="block text-[15px] font-semibold hover:underline text-white flex items-center gap-1"
+                  className="block text-[16px] font-semibold hover:underline text-white flex items-center gap-1"
                 >
                   <span>{post.user.username}</span>
                   {post.user.verified && (
@@ -153,7 +186,7 @@ export default function Post({ post }: PostProps) {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-[#8e8e93]">
+            <div className="flex flex-wrap items-center gap-1.5 text-[14px] text-[#8e8e93]">
               <Link
                 href={`/posts/${post.id}`}
                 className="hover:underline"
@@ -168,7 +201,7 @@ export default function Post({ post }: PostProps) {
                 <>
                   <span>•</span>
                   <div className="flex items-center gap-0.5 font-medium text-[#8e8e93]">
-                    <MapPin className="size-3 flex-shrink-0" />
+                    <MapPin className="size-3.5 flex-shrink-0" />
                     <span>{post.location}</span>
                   </div>
                 </>
@@ -185,7 +218,7 @@ export default function Post({ post }: PostProps) {
       </div>
 
       <Linkify>
-        <div className="whitespace-pre-line break-words text-[16px] leading-[24px] text-white px-1">{post.content}</div>
+        <div className="whitespace-pre-line break-words text-[16px] leading-[24px] text-white px-1 mt-3">{post.content}</div>
       </Linkify>
 
       {/* POLL WIDGET */}
@@ -209,15 +242,15 @@ export default function Post({ post }: PostProps) {
       )}
 
       {/* Action Center - Placed immediately beneath the media/content */}
-      <div className="flex justify-between items-center gap-5 pt-2 px-1">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between items-center gap-5 pt-3 px-1">
+        <div className="flex items-center gap-2">
           <LikeButton
             postId={post.id}
             initialState={{
               likes: post._count.likes,
               isLikedByUser: post.likes.some((like) => like.userId === user.id),
             }}
-            hideLikes={post.hideLikes}
+            hideLikes={true}
           />
           <CommentButton
             post={post}
@@ -225,24 +258,16 @@ export default function Post({ post }: PostProps) {
           />
           <RepostButton post={post} />
 
-          {/* Views display */}
-          <div className="p-1 flex items-center gap-2 text-white cursor-default" title="Views">
-            <BarChart3 className="size-[26px]" strokeWidth={1.75} />
-            <span className="text-[15px] font-semibold tabular-nums text-white">
-              {formatViews(post._count.views || 0)}
-            </span>
-          </div>
+          <button
+            onClick={handleShare}
+            className="h-11 w-11 flex items-center justify-center hover:opacity-85 transition-opacity text-white"
+            title="Share"
+          >
+            <Share2 className="size-6" strokeWidth={1.75} />
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowCollectionSelector(true)}
-            className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white"
-            title="Save to Collection"
-          >
-            <FolderOpen className="size-[26px]" strokeWidth={1.75} />
-          </button>
-
+        <div>
           <BookmarkButton
             postId={post.id}
             initialState={{
@@ -250,41 +275,42 @@ export default function Post({ post }: PostProps) {
                 (bookmark) => bookmark.userId === user.id,
               ),
             }}
+            onSaved={() => setShowCollectionSelector(true)}
           />
-
-          <button
-            onClick={handleShare}
-            className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white"
-            title="Share"
-          >
-            <Share2 className="size-[26px]" strokeWidth={1.75} />
-          </button>
         </div>
       </div>
 
-      {/* Mutual Followers row */}
-      <div className="flex items-center gap-2 mt-2 px-1">
-        <div className="flex -space-x-1 overflow-hidden">
-          <img
-            className="inline-block size-4 rounded-full ring-1 ring-black object-cover"
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=60"
-            alt="follower 1"
-          />
-          <img
-            className="inline-block size-4 rounded-full ring-1 ring-black object-cover"
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=60"
-            alt="follower 2"
-          />
-          <img
-            className="inline-block size-4 rounded-full ring-1 ring-black object-cover"
-            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=60"
-            alt="follower 3"
-          />
+      {/* Mutual Followers & Likes row */}
+      {!post.hideLikes && (
+        <div 
+          onClick={() => setShowLikesSheet(true)}
+          className="flex items-center gap-2 mt-2 px-1 cursor-pointer hover:opacity-85 transition-opacity select-none"
+        >
+          {mutualData.count > 0 ? (
+            <>
+              <div className="flex -space-x-1.5 overflow-hidden">
+                {mutualData.users.map((mu: any) => (
+                  <img
+                    key={mu.id}
+                    className="inline-block size-5 rounded-full ring-1 ring-black object-cover shrink-0"
+                    src={mu.avatarUrl || "/avatar-placeholder.png"}
+                    alt={mu.username}
+                  />
+                ))}
+              </div>
+              <span className="text-[14px] text-[#8e8e93] leading-none">
+                {renderMutualText()}
+              </span>
+            </>
+          ) : (
+            post._count.likes > 0 && (
+              <span className="text-[14px] font-semibold text-white leading-none">
+                {post._count.likes} {post._count.likes === 1 ? "like" : "likes"}
+              </span>
+            )
+          )}
         </div>
-        <span className="text-[13px] text-[#8e8e93] leading-none">
-          Followed by <span className="font-semibold text-white">Rahul</span> and <span className="font-semibold text-white">243 others</span>
-        </span>
-      </div>
+      )}
 
       {/* Quote Post Card */}
       {post.quotedPost && (
@@ -343,6 +369,13 @@ export default function Post({ post }: PostProps) {
         postId={post.id}
         open={showCollectionSelector}
         onClose={() => setShowCollectionSelector(false)}
+      />
+
+      {/* Likes Bottom Sheet */}
+      <LikesBottomSheet
+        postId={post.id}
+        open={showLikesSheet}
+        onClose={() => setShowLikesSheet(false)}
       />
     </article>
   );
@@ -590,19 +623,14 @@ function PollWidget({ poll, userId }: PollWidgetProps) {
 }
 
 // Comment Button helper
-interface CommentButtonProps {
-  post: PostData;
-  onClick: () => void;
-}
-
-function CommentButton({ post, onClick }: CommentButtonProps) {
+function CommentButton({ post, onClick }: { post: PostData; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white"
+      className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-white"
       title="Comment"
     >
-      <MessageCircle className="size-[26px]" strokeWidth={1.75} />
+      <MessageCircle className="size-6" strokeWidth={1.75} />
       {post._count.comments > 0 && (
         <span className="text-[15px] font-semibold tabular-nums text-white">
           {post._count.comments}

@@ -89,12 +89,12 @@ export default function RepostButton({ post }: RepostButtonProps) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="p-1 flex items-center gap-2 hover:text-green-500 transition-colors text-white"
+            className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-white"
             title="Repost"
           >
             <Repeat2
               className={cn(
-                "size-[26px]",
+                "size-6",
                 data.isRepostedByUser && "text-green-500"
               )}
               strokeWidth={1.75}

@@ -560,25 +560,28 @@ export default function ReelCard({
                     setDrawerHeightState("min");
                     setIsShoppingDrawerOpen(true);
                   }}
-                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-500 hover:to-purple-600 text-white h-11 px-5 rounded-full text-xs font-bold w-fit shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center justify-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/85 text-white h-9 px-4 rounded-full text-[12px] font-bold w-fit max-w-[35%] shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] truncate shrink-0 pointer-events-auto"
                 >
-                  <ShoppingBag className="size-4 text-white" />
-                  <span>Shop Look ({detectedProducts.length})</span>
+                  <ShoppingBag className="size-3.5 text-white shrink-0" />
+                  <span className="truncate">Shop ({detectedProducts.length})</span>
                 </button>
               )}
 
               {/* 2. Creator Profile & Understated Follow */}
               <div className="flex items-center gap-2.5">
                 <Link href={`/users/${post.user.username}`} className="flex-shrink-0">
-                  <UserAvatar avatarUrl={post.user.avatarUrl} size={36} className="border border-white/20" />
+                  <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover" />
                 </Link>
                 <div className="flex items-center gap-2">
-                  <Link href={`/users/${post.user.username}`} className="font-semibold text-sm hover:underline truncate max-w-[150px]">
+                  <Link href={`/users/${post.user.username}`} className="font-semibold text-[15px] hover:underline truncate max-w-[150px] text-white">
                     {post.user.username}
                   </Link>
+                  {post.user.verified && (
+                    <span className="text-[#0095f6] text-[12px] font-bold shrink-0" title="Verified Creator">☑</span>
+                  )}
                   {post.user.id !== loggedInUser.id && (
                     <>
-                      <span className="text-white/60 text-[10px]">&#8226;</span>
+                      <span className="text-white/60 text-[10px] select-none shrink-0">&#8226;</span>
                       <FollowButton userId={post.user.id} initialState={followerInfo} variant="reel-pill" />
                     </>
                   )}
@@ -617,69 +620,69 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className={cn("absolute right-4 bottom-24 z-20 flex flex-col items-center gap-4.5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
+          <div className={cn("absolute right-3 bottom-24 z-20 flex flex-col items-center gap-4 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
             {/* Like */}
-            <div className="flex flex-col items-center gap-0.5">
+            <div className="flex flex-col items-center">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleLike();
                 }}
-                className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Like"
               >
-                <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.8} />
+                <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.75} />
               </button>
-              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {likeData.likes.toLocaleString()}
               </span>
             </div>
 
             {/* Comment */}
-            <div className="flex flex-col items-center gap-0.5">
+            <div className="flex flex-col items-center">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsCommentsOpen(true);
                 }}
-                className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Comments"
               >
-                <MessageCircle className="size-7" strokeWidth={1.8} />
+                <MessageCircle className="size-7" strokeWidth={1.75} />
               </button>
-              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {post._count.comments.toLocaleString()}
               </span>
             </div>
 
             {/* Share */}
-            <div className="flex flex-col items-center gap-0.5">
+            <div className="flex flex-col items-center">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleShareClick();
                 }}
-                className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Copy Link"
               >
-                <Send className="size-7" strokeWidth={1.8} />
+                <Send className="size-7" strokeWidth={1.75} />
               </button>
-              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">Share</span>
+              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Share</span>
             </div>
 
             {/* Save */}
-            <div className="flex flex-col items-center gap-0.5">
+            <div className="flex flex-col items-center">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleBookmark();
                 }}
-                className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Save"
               >
-                <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.8} />
+                <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.75} />
               </button>
-              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">Save</span>
+              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Save</span>
             </div>
 
             {/* Shop */}
@@ -695,12 +698,12 @@ export default function ReelCard({
                     setDrawerHeightState("min");
                     setIsShoppingDrawerOpen(true);
                   }}
-                  className="relative p-2 rounded-full hover:scale-110 active:scale-90 transition-all bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md flex items-center justify-center size-[38px]"
+                  className="h-12 w-12 flex items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md hover:scale-105 active:scale-95 transition-all"
                   title="Shop Look"
                 >
-                  <ShoppingBag className="size-[22px] text-white" strokeWidth={1.8} />
+                  <ShoppingBag className="size-6 text-white" strokeWidth={1.75} />
                 </button>
-                <span className="text-[11px] font-semibold text-white mt-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">Shop</span>
+                <span className="text-[12px] font-semibold text-white mt-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">Shop</span>
               </div>
             )}
           </div>
@@ -800,57 +803,57 @@ export default function ReelCard({
         </div>
 
         {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
-        <div className={cn("hidden md:flex flex-col items-center gap-4.5 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
+        <div className={cn("hidden md:flex flex-col items-center gap-4 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
           {/* Like */}
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center">
             <button
               onClick={() => toggleLike()}
-              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Like"
             >
-              <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.8} />
+              <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.75} />
             </button>
-            <span className="text-[11px] font-semibold text-zinc-300">
+            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">
               {likeData.likes.toLocaleString()}
             </span>
           </div>
 
           {/* Comment */}
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center">
             <button
               onClick={() => setIsCommentsOpen(true)}
-              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Comments"
             >
-              <MessageCircle className="size-7" strokeWidth={1.8} />
+              <MessageCircle className="size-7" strokeWidth={1.75} />
             </button>
-            <span className="text-[11px] font-semibold text-zinc-300">
+            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">
               {post._count.comments.toLocaleString()}
             </span>
           </div>
 
           {/* Share */}
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center">
             <button
               onClick={handleShareClick}
-              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Copy Link"
             >
-              <Send className="size-7" strokeWidth={1.8} />
+              <Send className="size-7" strokeWidth={1.75} />
             </button>
-            <span className="text-[11px] font-semibold text-zinc-300">Share</span>
+            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">Share</span>
           </div>
 
           {/* Save */}
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center">
             <button
               onClick={() => toggleBookmark()}
-              className="p-1.5 bg-transparent hover:scale-110 active:scale-90 transition-all text-white"
+              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Save"
             >
-              <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.8} />
+              <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.75} />
             </button>
-            <span className="text-[11px] font-semibold text-zinc-300">Save</span>
+            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">Save</span>
           </div>
 
           {/* Shop */}
@@ -864,12 +867,12 @@ export default function ReelCard({
                   }
                   setIsShoppingDrawerOpen(true);
                 }}
-                className="relative p-2 rounded-full hover:scale-110 active:scale-90 transition-all bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md flex items-center justify-center size-[38px]"
+                className="h-12 w-12 flex items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md hover:scale-105 active:scale-95 transition-all"
                 title="Shop Look"
               >
-                <ShoppingBag className="size-[22px] text-white" strokeWidth={1.8} />
+                <ShoppingBag className="size-6 text-white" strokeWidth={1.75} />
               </button>
-              <span className="text-[11px] font-semibold text-zinc-300 mt-1">Shop</span>
+              <span className="text-[12px] font-semibold text-zinc-300 mt-1">Shop</span>
             </div>
           )}
         </div>

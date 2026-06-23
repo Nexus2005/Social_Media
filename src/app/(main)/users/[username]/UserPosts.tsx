@@ -8,7 +8,7 @@ import { useSession } from "@/app/(main)/SessionProvider";
 import Post from "@/components/posts/Post";
 import PostsLoadingSkeleton from "@/components/posts/PostsLoadingSkeleton";
 import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
-import { Loader2 } from "lucide-react";
+import { Loader2, Grid, Repeat2, MessageSquare, Image as ImageIcon, Film, ShoppingBag, Bookmark, Heart, FolderOpen } from "lucide-react";
 import SavedProductsGrid from "@/components/profile/SavedProductsGrid";
 import StorefrontGrid from "@/components/profile/StorefrontGrid";
 import CreatorCommerceStudio from "@/components/creator/CreatorCommerceStudio";
@@ -97,9 +97,45 @@ export default function UserPosts({ userId }: UserPostsProps) {
       ) : activeTab === "saved-products" ? (
         <SavedProductsGrid userId={userId} />
       ) : !posts.length && !hasNextPage ? (
-        <p className="text-center text-muted-foreground py-12 text-sm">
-          No posts found in this category.
-        </p>
+        <div className="flex flex-col items-center justify-center py-16 text-center select-none">
+          {activeTab === "reels" ? (
+            <>
+              <Film className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-white mb-1">No Reels</h3>
+              <p className="text-[14px] text-zinc-500 max-w-[280px]">Videos shared by this user will appear here.</p>
+            </>
+          ) : activeTab === "media" ? (
+            <>
+              <ImageIcon className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-white mb-1">No Media</h3>
+              <p className="text-[14px] text-zinc-500 max-w-[280px]">Photos and videos shared by this user will appear here.</p>
+            </>
+          ) : activeTab === "likes" ? (
+            <>
+              <Heart className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-white mb-1">No Liked Posts</h3>
+              <p className="text-[14px] text-zinc-500 max-w-[280px]">Liked posts will show up here.</p>
+            </>
+          ) : activeTab === "reposts" ? (
+            <>
+              <Repeat2 className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-white mb-1">No Reposts</h3>
+              <p className="text-[14px] text-zinc-500 max-w-[280px]">Reposted content will show up here.</p>
+            </>
+          ) : activeTab === "replies" ? (
+            <>
+              <MessageSquare className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-white mb-1">No Replies</h3>
+              <p className="text-[14px] text-zinc-500 max-w-[280px]">Comments and replies will show up here.</p>
+            </>
+          ) : (
+            <>
+              <Grid className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-white mb-1">No Posts Yet</h3>
+              <p className="text-[14px] text-zinc-500 max-w-[280px]">When this user posts, they will show up here.</p>
+            </>
+          )}
+        </div>
       ) : (
         <InfiniteScrollContainer
           className="space-y-0 divide-y divide-border/30"
@@ -122,36 +158,40 @@ interface TabsSelectorProps {
 }
 
 function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorProps) {
-  const tabs: { value: ProfileTab; label: string }[] = [
-    { value: "posts", label: "Posts" },
-    { value: "reposts", label: "Reposts" },
-    { value: "replies", label: "Replies" },
-    { value: "media", label: "Media" },
-    { value: "reels", label: "Reels" },
-    { value: "storefront", label: "Shop" },
-    { value: "saved-products", label: "Saved" },
-    { value: "likes", label: "Likes" },
+  const tabs: { value: ProfileTab; icon: any; label: string }[] = [
+    { value: "posts", icon: Grid, label: "Posts" },
+    { value: "reposts", icon: Repeat2, label: "Reposts" },
+    { value: "replies", icon: MessageSquare, label: "Replies" },
+    { value: "media", icon: ImageIcon, label: "Media" },
+    { value: "reels", icon: Film, label: "Reels" },
+    { value: "storefront", icon: ShoppingBag, label: "Shop" },
+    { value: "saved-products", icon: Bookmark, label: "Saved" },
+    { value: "likes", icon: Heart, label: "Likes" },
   ];
 
   if (showCollections) {
-    tabs.push({ value: "collections", label: "Collections" });
+    tabs.push({ value: "collections", icon: FolderOpen, label: "Collections" });
   }
 
   return (
-    <div className="flex border-b border-border/40 w-full bg-background/95 backdrop-blur sticky top-11 sm:top-0 z-20 overflow-x-auto scrollbar-none">
+    <div className="flex border-b border-[#1A1A1A] w-full bg-black/95 backdrop-blur sticky top-[56px] sm:top-0 z-20 overflow-x-auto scrollbar-none h-12">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
+        const Icon = tab.icon;
         return (
           <button
             key={tab.value}
             onClick={() => onTabChange(tab.value)}
-            className="flex-1 min-w-[70px] sm:min-w-0 py-3.5 text-center font-semibold text-xs sm:text-sm transition relative hover:bg-muted/30 shrink-0"
+            className="flex-1 min-w-[50px] sm:min-w-0 flex items-center justify-center transition relative hover:bg-zinc-900/30 shrink-0 h-full"
+            title={tab.label}
           >
-            <span className={isActive ? "text-foreground font-bold" : "text-muted-foreground font-medium"}>
-              {tab.label}
-            </span>
+            <Icon
+              className="size-[26px] transition-colors"
+              stroke={isActive ? "white" : "#71717A"}
+              strokeWidth={1.75}
+            />
             {isActive && (
-              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 sm:w-16 h-[3px] bg-primary rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-white" />
             )}
           </button>
         );

@@ -29,7 +29,7 @@ export default function LocationPickerSheet({
 
   useEffect(() => {
     // Read recent locations
-    setRecents(locationProvider.getRecentLocations());
+    locationProvider.getRecentLocations().then(setRecents);
   }, []);
 
   // Search autocomplete debouncer
@@ -59,7 +59,7 @@ export default function LocationPickerSheet({
     try {
       const loc = await locationProvider.getCurrentLocation();
       onSelectLocation(loc);
-      locationProvider.saveRecentLocation(loc);
+      await locationProvider.saveRecentLocation(loc);
       onClose();
     } catch (e) {
       console.error(e);
@@ -72,9 +72,9 @@ export default function LocationPickerSheet({
     }
   };
 
-  const handleSelect = (loc: LocationData) => {
+  const handleSelect = async (loc: LocationData) => {
     onSelectLocation(loc);
-    locationProvider.saveRecentLocation(loc);
+    await locationProvider.saveRecentLocation(loc);
     onClose();
   };
 
@@ -144,7 +144,7 @@ export default function LocationPickerSheet({
           {searching ? (
             <div className="flex items-center justify-center py-10 text-neutral-500">
               <Loader2 className="size-6 animate-spin text-neutral-500 mr-2" />
-              <span className="text-xs font-semibold">Searching Google Places...</span>
+              <span className="text-xs font-semibold">Searching places...</span>
             </div>
           ) : query.trim() !== "" ? (
             // Search Results

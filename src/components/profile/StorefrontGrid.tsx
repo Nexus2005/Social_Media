@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import kyInstance from "@/lib/ky";
-import { Loader2, Share2, Grid, ArrowUpRight, Folder } from "lucide-react";
+import { Loader2, Share2, Grid, ArrowUpRight, Folder, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { cn, formatNumber } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -281,8 +281,12 @@ export default function StorefrontGrid({ userId, isOwner }: StorefrontGridProps)
         </div>
 
         {filteredProducts.length === 0 ? (
-          <div className="text-center py-12 text-[#A1A1AA] text-sm font-semibold bg-[#0A0A0A] border border-[#1A1A1A] rounded-xl">
-            No products found in this section.
+          <div className="flex flex-col items-center justify-center py-16 text-center select-none bg-[#0A0A0A] border border-zinc-850 rounded-2xl">
+            <ShoppingBag className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+            <h3 className="text-[16px] font-bold text-white mb-1">No Products Found</h3>
+            <p className="text-[14px] text-zinc-500 max-w-[280px]">
+              There are no products listed in this section of the storefront.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-8">

@@ -19,6 +19,41 @@ CREATE TYPE "SourceType" AS ENUM ('AI_DETECTED', 'CREATOR_MANUAL', 'BRAND_PARTNE
 -- CreateEnum
 CREATE TYPE "CampaignStatus" AS ENUM ('DRAFT', 'ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED');
 
+-- CreateTable
+CREATE TABLE "product_collections" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "product_collections_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "product_collection_items" (
+    "id" TEXT NOT NULL,
+    "collection_id" TEXT NOT NULL,
+    "product_id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "product_collection_items_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "product_collections_userId_name_key" ON "product_collections"("userId", "name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "product_collection_items_collection_id_product_id_key" ON "product_collection_items"("collection_id", "product_id");
+
+-- AddForeignKey
+ALTER TABLE "product_collections" ADD CONSTRAINT "product_collections_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "product_collection_items" ADD CONSTRAINT "product_collection_items_collection_id_fkey" FOREIGN KEY ("collection_id") REFERENCES "product_collections"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "product_collection_items" ADD CONSTRAINT "product_collection_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "detected_products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
 -- AlterTable
 ALTER TABLE "detected_products" ADD COLUMN     "brand" TEXT,
 ADD COLUMN     "creator_id" TEXT,

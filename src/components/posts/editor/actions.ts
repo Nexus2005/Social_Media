@@ -10,6 +10,13 @@ export async function submitPost(input: {
   content?: string;
   mediaIds?: string[];
   location?: string | null;
+  locationName?: string | null;
+  locationCity?: string | null;
+  locationState?: string | null;
+  locationCountry?: string | null;
+  locationDisplay?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   disableComments?: boolean;
   hideLikes?: boolean;
   altText?: string | null;
@@ -34,6 +41,13 @@ export async function submitPost(input: {
     content,
     mediaIds,
     location,
+    locationName,
+    locationCity,
+    locationState,
+    locationCountry,
+    locationDisplay,
+    latitude,
+    longitude,
     disableComments,
     hideLikes,
     altText,
@@ -53,6 +67,13 @@ export async function submitPost(input: {
       content: content || "",
       userId: user.id,
       location,
+      locationName,
+      locationCity,
+      locationState,
+      locationCountry,
+      locationDisplay,
+      latitude,
+      longitude,
       disableComments,
       hideLikes,
       altText,

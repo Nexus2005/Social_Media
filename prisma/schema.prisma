@@ -50,6 +50,7 @@ model User {
   productEvents         ProductEvent[]
   campaigns             Campaign[]
   assignedAssignments   ProductAssignment[] @relation("AssignedProducts")
+  recentLocations       RecentLocation[]
 
   @@map("users")
 }
@@ -84,6 +85,13 @@ model Post {
   disableComments     Boolean               @default(false)
   hideLikes           Boolean               @default(false)
   location            String?
+  locationName        String?               @map("location_name")
+  locationCity        String?               @map("location_city")
+  locationState       String?               @map("location_state")
+  locationCountry     String?               @map("location_country")
+  locationDisplay     String?               @map("location_display")
+  latitude            Float?
+  longitude           Float?
   tags                Json?
   isPinned            Boolean               @default(false)
   quotedPostId        String?
@@ -640,4 +648,36 @@ enum ProductSource {
   AI
   MANUAL
   IMPORTED
+}
+
+model LocationCache {
+  id          String    @id @default(cuid())
+  latRounded  Float     @map("lat_rounded")
+  lngRounded  Float     @map("lng_rounded")
+  osmId       String?   @map("osm_id")
+  displayName String    @map("display_name")
+  city        String?
+  state       String?
+  country     String?
+  expiresAt   DateTime  @map("expires_at")
+
+  @@unique([latRounded, lngRounded])
+  @@map("location_cache")
+}
+
+model RecentLocation {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  locationName String   @map("location_name")
+  city         String?
+  state        String?
+  country      String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("recent_locations")
 }

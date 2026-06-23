@@ -283,13 +283,13 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   useEffect(() => {
     if (activePanel === "location") {
       const provider = new GooglePlacesLocationProvider();
-      setRecentLocations(provider.getRecentLocations());
+      provider.getRecentLocations().then(setRecentLocations).catch(console.error);
     }
   }, [activePanel]);
 
-  // Location Places API search autocomplete
+  // Location search autocomplete
   useEffect(() => {
-    if (!locationSearch.trim()) {
+    if (!locationSearch.trim() || locationSearch.trim().length < 2) {
       setLocationResults([]);
       return;
     }
@@ -305,7 +305,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       } finally {
         setSearchingLocations(false);
       }
-    }, 450);
+    }, 300);
 
     return () => clearTimeout(delay);
   }, [locationSearch]);
@@ -536,9 +536,9 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       const provider = new GooglePlacesLocationProvider();
       const loc = await provider.getCurrentLocation();
       setSelectedLocation(loc);
-      provider.saveRecentLocation(loc);
+      await provider.saveRecentLocation(loc);
       setActivePanel("none");
-      toast({ description: `Location added: ${loc.name}` });
+      toast({ description: `Location added: ${loc.locationDisplay || loc.name}` });
     } catch (e) {
       console.error(e);
       toast({
@@ -623,6 +623,13 @@ export default function PostEditor({ onClose }: PostEditorProps) {
           content: node.text,
           mediaIds: nodeMediaIds,
           location: selectedLocation?.name || null,
+          locationName: selectedLocation?.name || null,
+          locationCity: selectedLocation?.city || null,
+          locationState: selectedLocation?.state || null,
+          locationCountry: selectedLocation?.country || null,
+          locationDisplay: selectedLocation?.locationDisplay || null,
+          latitude: selectedLocation?.lat || null,
+          longitude: selectedLocation?.lng || null,
           disableComments: !allowComments,
           hideLikes: hideLikeCount,
           altText: attachments.length > 0 ? mediaAltTexts[attachments[0].file.name] || null : null,
@@ -817,7 +824,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                 {searchingLocations ? (
                   <div className="flex items-center justify-center py-8 text-[#A1A1AA]">
                     <Loader2 className="size-5 animate-spin mr-2" />
-                    <span className="text-[14px]">Searching Google Places...</span>
+                    <span className="text-[14px]">Searching places...</span>
                   </div>
                 ) : locationSearch.trim() !== "" ? (
                   locationResults.length === 0 ? (
@@ -826,8 +833,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     locationResults.map((loc, idx) => (
                       <button
                         key={idx}
-                        onClick={() => {
+                        onClick={async () => {
                           setSelectedLocation(loc);
+                          const provider = new GooglePlacesLocationProvider();
+                          await provider.saveRecentLocation(loc);
                           setActivePanel("none");
                         }}
                         className="w-full text-left p-3 hover:bg-[#121212] rounded-xl flex flex-col gap-0.5 border-b border-[#27272A]/40 transition-colors"
@@ -848,8 +857,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                       recentLocations.map((loc, idx) => (
                         <button
                           key={idx}
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedLocation(loc);
+                            const provider = new GooglePlacesLocationProvider();
+                            await provider.saveRecentLocation(loc);
                             setActivePanel("none");
                           }}
                           className="w-full text-left p-3 hover:bg-[#121212] rounded-xl flex items-center gap-3 border-b border-[#27272A]/40 transition-colors"

@@ -109,8 +109,12 @@ export default function SavedProductsGrid({ userId }: SavedProductsGridProps) {
 
   if (savedProducts.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground text-sm font-medium">
-        No saved products found. Add items to collections in shop drawers!
+      <div className="flex flex-col items-center justify-center py-16 text-center select-none">
+        <FolderHeart className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+        <h3 className="text-[16px] font-bold text-white mb-1">No Saved Products</h3>
+        <p className="text-[14px] text-zinc-500 max-w-[280px]">
+          Add items to collections in Spot product lists to see them here.
+        </p>
       </div>
     );
   }

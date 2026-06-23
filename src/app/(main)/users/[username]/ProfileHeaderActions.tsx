@@ -24,21 +24,21 @@ export default function ProfileHeaderActions({ user }: ProfileHeaderActionsProps
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="w-full flex items-center gap-2">
       <Button 
-        variant="outline" 
+        variant="ghost" 
         onClick={() => setShowDialog(true)}
-        className="h-9 px-4 rounded-lg border-border bg-[#0A0A0A] hover:bg-[#111111] text-[#FFFFFF] text-sm font-semibold transition-colors"
+        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-850 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors border-0"
       >
         Edit profile
       </Button>
 
       <Button
-        variant="outline"
+        variant="ghost"
         onClick={handleShare}
-        className="h-9 px-4 rounded-lg border-border bg-[#0A0A0A] hover:bg-[#111111] text-[#FFFFFF] text-sm font-semibold transition-colors flex items-center gap-2"
+        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-850 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors flex items-center justify-center gap-2 border-0"
       >
-        <Share2 className="size-5 text-[#A1A1AA]" strokeWidth={1.75} />
+        <Share2 className="size-4.5 text-[#FFFFFF]" strokeWidth={1.75} />
         <span>Share profile</span>
       </Button>
 

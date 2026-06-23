@@ -13,11 +13,13 @@ import { useToast } from "../ui/use-toast";
 interface BookmarkButtonProps {
   postId: string;
   initialState: BookmarkInfo;
+  onSaved?: () => void;
 }
 
 export default function BookmarkButton({
   postId,
   initialState,
+  onSaved,
 }: BookmarkButtonProps) {
   const { toast } = useToast();
 
@@ -39,8 +41,9 @@ export default function BookmarkButton({
         ? kyInstance.delete(`/api/posts/${postId}/bookmark`)
         : kyInstance.post(`/api/posts/${postId}/bookmark`),
     onMutate: async () => {
+      const willBookmark = !data.isBookmarkedByUser;
       toast({
-        description: `Post ${data.isBookmarkedByUser ? "un" : ""}bookmarked`,
+        description: `Post ${willBookmark ? "" : "un"}bookmarked`,
       });
 
       await queryClient.cancelQueries({ queryKey });
@@ -50,6 +53,10 @@ export default function BookmarkButton({
       queryClient.setQueryData<BookmarkInfo>(queryKey, () => ({
         isBookmarkedByUser: !previousState?.isBookmarkedByUser,
       }));
+
+      if (willBookmark && onSaved) {
+        onSaved();
+      }
 
       return { previousState };
     },
@@ -64,10 +71,10 @@ export default function BookmarkButton({
   });
 
   return (
-    <button onClick={() => mutate()} className="p-1 flex items-center gap-2 hover:opacity-85 transition-opacity text-white">
+    <button onClick={() => mutate()} className="h-11 w-11 flex items-center justify-center hover:opacity-80 transition-opacity text-white">
       <Bookmark
         className={cn(
-          "size-[26px]",
+          "size-6",
           data.isBookmarkedByUser && "fill-white text-white",
         )}
         strokeWidth={1.75}
