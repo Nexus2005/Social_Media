@@ -820,7 +820,7 @@ export default function StoryViewer({
               {/* High-fidelity Brand Assets sharing row */}
               <div className="border-t border-zinc-800/80 pt-4 pb-2 flex items-center text-center text-white overflow-x-auto scrollbar-none gap-6 px-4 flex-nowrap">
                 {[
-                  { id: "copy", name: "Copy link", iconUrl: "/icons/social-media/copy-link.svg", action: handleCopyLink },
+                  { id: "copy", name: "Copy link", iconUrl: "/icons/social-media/icons8-link.gif", action: handleCopyLink },
                   { id: "whatsapp", name: "WhatsApp", iconUrl: "/icons/social-media/whatsapp.svg", action: handleWhatsAppShare },
                   { id: "x", name: "X", iconUrl: "/icons/social-media/x.svg", action: handleXShare },
                   { id: "sms", name: "SMS", iconUrl: "/icons/social-media/sms.svg", action: handleSmsShare },
