@@ -36,14 +36,38 @@ export async function GET(req: NextRequest) {
           location: true,
           verified: true,
           followers: {
+            where: {
+              followerId: user.id,
+            },
             select: {
               followerId: true,
             },
           },
+          following: {
+            where: {
+              followingId: user.id,
+            },
+            select: {
+              followingId: true,
+            },
+          },
         },
-        take: 20,
+        take: 50,
       });
-      return Response.json({ users });
+
+      const mapped = users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        avatarUrl: u.avatarUrl,
+        bio: u.bio,
+        location: u.location,
+        verified: u.verified,
+        isFollowing: u.followers.length > 0,
+        isFollower: u.following.length > 0,
+      }));
+
+      return Response.json({ users: mapped });
     }
 
     const whereClause: any = {};

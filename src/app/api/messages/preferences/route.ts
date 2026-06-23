@@ -26,14 +26,14 @@ export async function GET(req: NextRequest) {
 
     const settings = await prisma.conversationSettings.findMany({
       where: { userId: user.id },
-      select: { channelId: true, wallpaper: true },
+      select: { channelId: true, wallpaper: true, lastClearedAt: true },
     });
 
     return NextResponse.json({
       pins: pins.map((p) => p.channelId),
       archives: archives.map((a) => a.channelId),
       mutes: mutes.map((m) => ({ channelId: m.channelId, expiresAt: m.expiresAt })),
-      settings: settings.map((s) => ({ channelId: s.channelId, wallpaper: s.wallpaper })),
+      settings: settings.map((s) => ({ channelId: s.channelId, wallpaper: s.wallpaper, lastClearedAt: s.lastClearedAt })),
     });
   } catch (error) {
     console.error("Error in messaging preferences GET API:", error);
@@ -83,6 +83,12 @@ export async function POST(req: NextRequest) {
     } else if (action === "unmute") {
       await prisma.chatMute.deleteMany({
         where: { userId: user.id, channelId },
+      });
+    } else if (action === "clear_history") {
+      await prisma.conversationSettings.upsert({
+        where: { userId_channelId: { userId: user.id, channelId } },
+        create: { userId: user.id, channelId, lastClearedAt: new Date() },
+        update: { lastClearedAt: new Date() },
       });
     } else if (action === "wallpaper") {
       await prisma.conversationSettings.upsert({

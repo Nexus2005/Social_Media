@@ -18,12 +18,12 @@ interface ChatUIContextType {
   mobileView: "list" | "chat";
   setMobileView: (view: "list" | "chat") => void;
   
-  // Database Preferences (Pins, Archives, Mutes, Wallpapers)
+  // Database Preferences (Pins, Archives, Mutes, ConversationSettings)
   pins: string[];
   archives: string[];
   mutes: { channelId: string; expiresAt: string | null }[];
-  wallpapers: { channelId: string; wallpaper: string }[];
-  togglePreference: (action: "pin" | "unpin" | "archive" | "unarchive" | "mute" | "unmute" | "wallpaper", channelId: string, extra?: any) => Promise<void>;
+  conversationSettings: { channelId: string; wallpaper: string | null; lastClearedAt: string | null }[];
+  togglePreference: (action: "pin" | "unpin" | "archive" | "unarchive" | "mute" | "unmute" | "wallpaper" | "clear_history", channelId: string, extra?: any) => Promise<void>;
   
   // Overlays
   mediaViewerState: MediaViewerState | null;
@@ -53,7 +53,7 @@ export default function Chat() {
   const [pins, setPins] = useState<string[]>([]);
   const [archives, setArchives] = useState<string[]>([]);
   const [mutes, setMutes] = useState<{ channelId: string; expiresAt: string | null }[]>([]);
-  const [wallpapers, setWallpapers] = useState<{ channelId: string; wallpaper: string }[]>([]);
+  const [conversationSettings, setConversationSettings] = useState<{ channelId: string; wallpaper: string | null; lastClearedAt: string | null }[]>([]);
   
   // Overlays
   const [mediaViewerState, setMediaViewerState] = useState<MediaViewerState | null>(null);
@@ -69,7 +69,7 @@ export default function Chat() {
         setPins(data.pins || []);
         setArchives(data.archives || []);
         setMutes(data.mutes || []);
-        setWallpapers(data.settings || []);
+        setConversationSettings(data.settings || []);
       } catch (error) {
         console.error("Failed to fetch chat preferences:", error);
       }
@@ -123,7 +123,7 @@ export default function Chat() {
 
   // Toggle Preference Helper
   const togglePreference = async (
-    action: "pin" | "unpin" | "archive" | "unarchive" | "mute" | "unmute" | "wallpaper",
+    action: "pin" | "unpin" | "archive" | "unarchive" | "mute" | "unmute" | "wallpaper" | "clear_history",
     channelId: string,
     extra?: any
   ) => {
@@ -142,7 +142,10 @@ export default function Chat() {
       } else if (action === "unmute") {
         setMutes((m) => m.filter((item) => item.channelId !== channelId));
       } else if (action === "wallpaper") {
-        setWallpapers((w) => [...w.filter((item) => item.channelId !== channelId), { channelId, wallpaper: extra?.wallpaper }]);
+        setConversationSettings((w) => [...w.filter((item) => item.channelId !== channelId), { channelId, wallpaper: extra?.wallpaper, lastClearedAt: w.find((x) => x.channelId === channelId)?.lastClearedAt || null }]);
+      } else if (action === "clear_history") {
+        const now = new Date().toISOString();
+        setConversationSettings((w) => [...w.filter((item) => item.channelId !== channelId), { channelId, wallpaper: w.find((x) => x.channelId === channelId)?.wallpaper || null, lastClearedAt: now }]);
       }
 
       await kyInstance.post("/api/messages/preferences", {
@@ -171,7 +174,7 @@ export default function Chat() {
         pins,
         archives,
         mutes,
-        wallpapers,
+        conversationSettings,
         togglePreference,
         mediaViewerState,
         setMediaViewerState,

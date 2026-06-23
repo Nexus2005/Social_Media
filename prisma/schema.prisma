@@ -810,12 +810,13 @@ model ChatMute {
 }
 
 model ConversationSettings {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  channelId String   @map("channel_id")
-  wallpaper String?
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  channelId     String    @map("channel_id")
+  wallpaper     String?
+  lastClearedAt DateTime? @map("last_cleared_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, channelId])
   @@map("conversation_settings")

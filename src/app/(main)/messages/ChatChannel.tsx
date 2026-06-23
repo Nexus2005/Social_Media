@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Channel, MessageResponse } from "stream-chat";
@@ -15,6 +15,69 @@ import AttachmentPicker from "./AttachmentPicker";
 import StickerPicker from "./StickerPicker";
 import { useChat } from "../ChatProvider";
 
+// Helper to calculate message bubble corner rounding rules
+const getBubbleCorners = (isOutgoing: boolean, pos: "single" | "first" | "middle" | "last") => {
+  if (isOutgoing) {
+    switch (pos) {
+      case "single":
+        return "rounded-[18px] rounded-br-[4px]";
+      case "first":
+        return "rounded-[18px] rounded-br-[18px]";
+      case "middle":
+        return "rounded-[18px] rounded-r-[6px] rounded-l-[18px]";
+      case "last":
+        return "rounded-[18px] rounded-tr-[18px] rounded-br-[4px]";
+    }
+  } else {
+    switch (pos) {
+      case "single":
+        return "rounded-[18px] rounded-bl-[4px]";
+      case "first":
+        return "rounded-[18px] rounded-bl-[18px]";
+      case "middle":
+        return "rounded-[18px] rounded-l-[6px] rounded-r-[18px]";
+      case "last":
+        return "rounded-[18px] rounded-tl-[18px] rounded-bl-[4px]";
+    }
+  }
+};
+
+const renderQuotedAttachmentPreview = (msg: any) => {
+  if (!msg.attachments || msg.attachments.length === 0) return null;
+  const firstAttachment = msg.attachments[0];
+  const type = firstAttachment.type;
+  if (type === "image") {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-primary italic">
+        <ImageIcon className="size-3 shrink-0" />
+        <span>Photo</span>
+      </span>
+    );
+  }
+  if (type === "video") {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-primary italic">
+        <Film className="size-3 shrink-0" />
+        <span>Video</span>
+      </span>
+    );
+  }
+  if (type === "sticker" || type === "giphy") {
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-primary italic">
+        <Smile className="size-3 shrink-0" />
+        <span>{type === "giphy" ? "GIF" : "Sticker"}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 text-[11px] text-primary italic">
+      <FileText className="size-3 shrink-0" />
+      <span>File</span>
+    </span>
+  );
+};
+
 export default function ChatChannel() {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
@@ -25,6 +88,7 @@ export default function ChatChannel() {
     setMobileView,
     pins,
     mutes,
+    conversationSettings,
     togglePreference,
     setMediaViewerState,
     setProfileOverlayChannel,
@@ -46,6 +110,11 @@ export default function ChatChannel() {
   const [isTyping, setIsTyping] = useState(false);
   const [typingState, setTypingState] = useState<string | null>(null);
 
+  // Jump highlights & unread lock states
+  const [initialFirstUnreadId, setInitialFirstUnreadId] = useState<string | null>(null);
+  const [initialUnreadCount, setInitialUnreadCount] = useState<number>(0);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
   // Context Actions Menu & Forward state
   const [contextMenuMessage, setContextMenuMessage] = useState<MessageResponse | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -53,13 +122,63 @@ export default function ChatChannel() {
   const [forwardingMessage, setForwardingMessage] = useState<MessageResponse | null>(null);
   const [forwardChannels, setForwardChannels] = useState<Channel[]>([]);
 
+  // Selection Mode states
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+
   const isMuted = channel ? mutes.some((m) => m.channelId === channel.id) : false;
   const isPinned = channel ? pins.includes(channel.id!) : false;
 
+  const activeSettings = useMemo(() => {
+    return conversationSettings.find((s) => s.channelId === channel?.id);
+  }, [conversationSettings, channel?.id]);
+  const lastClearedAt = activeSettings?.lastClearedAt;
+
+  // Filter messages based on local user clearance
+  const filteredMessages = useMemo(() => {
+    if (!lastClearedAt) return messages;
+    const clearedTime = new Date(lastClearedAt).getTime();
+    return messages.filter((m) => {
+      const msgTime = new Date(m.created_at || (m as any).createdAt || Date.now()).getTime();
+      return msgTime > clearedTime;
+    });
+  }, [messages, lastClearedAt]);
+
+  // Lock first unread count and id when switching channels
+  useEffect(() => {
+    if (!channel) {
+      setInitialFirstUnreadId(null);
+      setInitialUnreadCount(0);
+      return;
+    }
+    const lastRead = channel.state.read?.[loggedInUser.id]?.last_read;
+    const lastReadTime = lastRead ? new Date(lastRead as any).getTime() : 0;
+    
+    // Filter messages based on history clearance
+    const activeSettings = conversationSettings.find((s) => s.channelId === channel.id);
+    const clearedTime = activeSettings?.lastClearedAt ? new Date(activeSettings.lastClearedAt).getTime() : 0;
+    
+    const relevantMessages = (channel.state.messages || []).filter((m) => {
+      const msgTime = new Date(m.created_at || (m as any).createdAt || Date.now()).getTime();
+      return msgTime > clearedTime;
+    });
+
+    const unreadMsgs = relevantMessages.filter(
+      (m) => m.user?.id !== loggedInUser.id && new Date(m.created_at as any).getTime() > lastReadTime
+    );
+    if (unreadMsgs.length > 0) {
+      setInitialFirstUnreadId(unreadMsgs[0].id);
+      setInitialUnreadCount(unreadMsgs.length);
+    } else {
+      setInitialFirstUnreadId(null);
+      setInitialUnreadCount(0);
+    }
+  }, [channel?.id, loggedInUser.id, conversationSettings]);
+
   // Combine real and optimistic queue messages
   const allMessages = useMemo(() => {
-    return [...messages, ...queueMessages];
-  }, [messages, queueMessages]);
+    return [...filteredMessages, ...queueMessages];
+  }, [filteredMessages, queueMessages]);
 
   // Compute final virtual list items (injecting Date and Unread separators)
   const listItems = useMemo(() => {
@@ -71,19 +190,6 @@ export default function ChatChannel() {
     
     if (allMessages.length === 0) return [];
     
-    // Find first unread message ID if last read exists
-    const lastRead = channel?.state?.read?.[loggedInUser.id]?.last_read;
-    let firstUnreadId = null;
-    if (lastRead) {
-      const lastReadTime = new Date(lastRead as any).getTime();
-      const firstUnread = messages.find(
-        (m) => m.user?.id !== loggedInUser.id && new Date(m.created_at as any).getTime() > lastReadTime
-      );
-      if (firstUnread) {
-        firstUnreadId = firstUnread.id;
-      }
-    }
-
     let lastDateStr = "";
     
     allMessages.forEach((msg) => {
@@ -96,7 +202,7 @@ export default function ChatChannel() {
       }
       
       // Check Unread Separator
-      if (firstUnreadId && msg.id === firstUnreadId) {
+      if (initialFirstUnreadId && msg.id === initialFirstUnreadId) {
         items.push({ type: "unread" });
       }
       
@@ -104,7 +210,64 @@ export default function ChatChannel() {
     });
     
     return items;
-  }, [allMessages, channel, loggedInUser.id, messages]);
+  }, [allMessages, initialFirstUnreadId]);
+
+  // Jump to specific message by ID and briefly trigger a pulse highlight
+  const scrollToMessage = (messageId: string) => {
+    const idx = listItems.findIndex(
+      (item) => item.type === "message" && item.message.id === messageId
+    );
+    if (idx !== -1) {
+      rowVirtualizer.scrollToIndex(idx, { align: "center" });
+      setHighlightedMessageId(messageId);
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 1500);
+    }
+  };
+
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessageIds((prev) =>
+      prev.includes(messageId)
+        ? prev.filter((id) => id !== messageId)
+        : [...prev, messageId]
+    );
+  };
+
+  const handleExitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedMessageIds([]);
+  };
+
+  const handleSelectionCopy = () => {
+    const selectedMsgs = messages.filter((m) => selectedMessageIds.includes(m.id));
+    const concatenatedText = selectedMsgs
+      .map((m) => `${m.user?.name || "User"}: ${m.text || "[Attachment]"}`)
+      .join("\n");
+    navigator.clipboard.writeText(concatenatedText);
+    handleExitSelectionMode();
+  };
+
+  const handleSelectionDelete = async () => {
+    if (!chatClient) return;
+    try {
+      await Promise.all(selectedMessageIds.map((id) => chatClient.deleteMessage(id)));
+      setMessages((prev) => prev.filter((m) => !selectedMessageIds.includes(m.id)));
+    } catch (err) {
+      console.error("Failed to delete selected messages:", err);
+    }
+    handleExitSelectionMode();
+  };
+
+  const handleSelectionForward = () => {
+    const firstSelected = messages.find((m) => selectedMessageIds.includes(m.id));
+    if (firstSelected) {
+      setForwardingMessage(firstSelected);
+      fetchForwardChannels();
+      setShowForwardDialog(true);
+    }
+    handleExitSelectionMode();
+  };
 
   // Virtualizer setup
   const rowVirtualizer = useVirtualizer({
@@ -438,65 +601,104 @@ export default function ChatChannel() {
   return (
     <div className="flex h-full w-full flex-col bg-background select-none relative">
       {/* Header Panel */}
-      <div className="flex h-14 items-center justify-between border-b bg-card/50 px-3 z-10">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setActiveChannel(null);
-              setMobileView("list");
-            }}
-            className="rounded-full p-1.5 hover:bg-muted md:hidden"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          
-          {/* Avatar details */}
-          <div
-            className="flex items-center gap-2.5 cursor-pointer hover:opacity-85"
-            onClick={() => setProfileOverlayChannel(channel)}
-          >
-            <UserAvatar avatarUrl={avatarUrl as string | undefined} size={40} className="size-10 border" />
-            <div className="flex flex-col text-start leading-tight">
-              <span className="text-[18px] font-semibold text-foreground">{displayName}</span>
-              <span className="text-[13px] text-zinc-400 dark:text-zinc-500">
-                {typingState || (isOnline ? "online" : "offline")}
-              </span>
-            </div>
+      {isSelectionMode ? (
+        <div className="flex h-14 items-center justify-between border-b bg-primary/10 px-3 z-10 animate-fade-in shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExitSelectionMode}
+              className="rounded-full p-1.5 hover:bg-primary/20 text-primary"
+            >
+              <X className="size-5" />
+            </button>
+            <span className="text-[17px] font-semibold text-foreground">
+              Selected: {selectedMessageIds.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSelectionCopy}
+              disabled={selectedMessageIds.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-card hover:bg-muted border disabled:opacity-50 text-foreground"
+            >
+              <Copy className="size-3.5 text-muted-foreground" />
+              <span>Copy</span>
+            </button>
+            <button
+              onClick={handleSelectionForward}
+              disabled={selectedMessageIds.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-card hover:bg-muted border disabled:opacity-50 text-foreground"
+            >
+              <Share2 className="size-3.5 text-muted-foreground" />
+              <span>Forward</span>
+            </button>
+            <button
+              onClick={handleSelectionDelete}
+              disabled={selectedMessageIds.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 disabled:opacity-50 animate-pulse-once"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Delete</span>
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="flex h-14 items-center justify-between border-b bg-card/50 px-3 z-10 shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setActiveChannel(null);
+                setMobileView("list");
+              }}
+              className="rounded-full p-1.5 hover:bg-muted md:hidden"
+            >
+              <ArrowLeft className="size-5" />
+            </button>
+            
+            {/* Avatar details */}
+            <div
+              className="flex items-center gap-2.5 cursor-pointer hover:opacity-85"
+              onClick={() => setProfileOverlayChannel(channel)}
+            >
+              <UserAvatar avatarUrl={avatarUrl as string | undefined} size={40} className="size-10 border" />
+              <div className="flex flex-col text-start leading-tight">
+                <span className="text-[18px] font-semibold text-foreground">{displayName}</span>
+                <span className="text-[13px] text-zinc-400 dark:text-zinc-500">
+                  {typingState || (isOnline ? "online" : "offline")}
+                </span>
+              </div>
+            </div>
+          </div>
 
-        {/* Ellipsis Actions menu */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleMute}
-            className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
-            title={isMuted ? "Unmute" : "Mute"}
-          >
-            {isMuted ? <VolumeX className="size-4 text-red-500" /> : <Volume2 className="size-4" />}
-          </button>
-          <button
-            onClick={handlePin}
-            className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
-            title={isPinned ? "Unpin" : "Pin"}
-          >
-            <Pin className={`size-4 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
-          </button>
-          <button
-            onClick={() => setProfileOverlayChannel(channel)}
-            className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
-          >
-            <MoreVertical className="size-4" />
-          </button>
+          {/* Ellipsis Actions menu */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleMute}
+              className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX className="size-4 text-red-500" /> : <Volume2 className="size-4" />}
+            </button>
+            <button
+              onClick={handlePin}
+              className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
+              title={isPinned ? "Unpin" : "Pin"}
+            >
+              <Pin className={`size-4 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
+            </button>
+            <button
+              onClick={() => setProfileOverlayChannel(channel)}
+              className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
+            >
+              <MoreVertical className="size-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Pinned Messages Banner */}
       {latestPinned && (
         <div
-          onClick={() => {
-            const idx = allMessages.findIndex((m) => m.id === latestPinned.id);
-            if (idx !== -1) rowVirtualizer.scrollToIndex(idx, { align: "center" });
-          }}
+          onClick={() => scrollToMessage(latestPinned.id)}
           className="flex h-10 items-center justify-between border-b bg-primary/5 px-4 text-xs cursor-pointer hover:bg-primary/10 transition-colors z-10"
         >
           <div className="flex items-center gap-2 truncate">
@@ -563,7 +765,9 @@ export default function ChatChannel() {
                   className="py-1 flex items-center w-full"
                 >
                   <div className="flex-1 border-t border-red-500/30" />
-                  <span className="mx-3 text-[10px] uppercase font-bold text-red-500 tracking-wider">Unread Messages</span>
+                  <span className="mx-3 text-[10px] uppercase font-bold text-red-500 tracking-wider">
+                    Unread Messages ({initialUnreadCount})
+                  </span>
                   <div className="flex-1 border-t border-red-500/30" />
                 </div>
               );
@@ -599,6 +803,16 @@ export default function ChatChannel() {
             const isLastInGroup = !nextMsg || nextMsg.user?.id !== message.user?.id || 
               (new Date(nextMsg.created_at || (nextMsg as any).createdAt).getTime() - new Date(message.created_at || (message as any).createdAt).getTime() > 300000);
 
+            const position = isFirstInGroup && isLastInGroup
+              ? "single"
+              : isFirstInGroup
+              ? "first"
+              : isLastInGroup
+              ? "last"
+              : "middle";
+
+            const isSelected = selectedMessageIds.includes(message.id);
+
             return (
               <div
                 key={virtualRow.key}
@@ -611,19 +825,56 @@ export default function ChatChannel() {
                   width: "100%",
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className={`py-0.5 flex ${isOutgoing ? "justify-end" : "justify-start"}`}
+                className={`py-0.5 flex ${isOutgoing ? "justify-end" : "justify-start"} items-end gap-2 transition-all duration-200 ${
+                  isSelectionMode ? "bg-primary/5 px-2 rounded-xl" : ""
+                }`}
               >
+                {isSelectionMode && (
+                  <div className="flex items-center justify-center pr-1 shrink-0 h-8 self-center">
+                    <input 
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleMessageSelection(message.id)}
+                      className="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                    />
+                  </div>
+                )}
+
+                {!isOutgoing && channel.data?.isGroup === true && (
+                  <div className="flex shrink-0 w-8 items-end justify-center mb-1">
+                    {isLastInGroup ? (
+                      <UserAvatar 
+                        avatarUrl={message.user?.image as string | undefined} 
+                        size={32} 
+                        className="size-8 border rounded-full shrink-0" 
+                      />
+                    ) : (
+                      <div className="size-8 w-8 shrink-0" />
+                    )}
+                  </div>
+                )}
+
                 <div
-                  onClick={(e) => handleMessageClick(e, message)}
-                  className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none ${
+                  onClick={(e) => {
+                    if (isSelectionMode) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleMessageSelection(message.id);
+                    } else {
+                      handleMessageClick(e, message);
+                    }
+                  }}
+                  className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
                     isOutgoing
-                      ? `bg-primary text-primary-foreground ${
-                          isLastInGroup ? "rounded-2xl rounded-br-sm" : "rounded-2xl"
+                      ? `${message.id === highlightedMessageId ? "bg-primary/80 ring-2 ring-primary/50" : isSelected ? "bg-primary/90 ring-2 ring-primary/30" : "bg-primary"} text-primary-foreground ${
+                          getBubbleCorners(true, position)
                         }`
-                      : `bg-card border border-border/50 text-foreground ${
-                          isLastInGroup ? "rounded-2xl rounded-bl-sm" : "rounded-2xl"
+                      : `${message.id === highlightedMessageId ? "bg-primary/20 ring-2 ring-primary/40" : isSelected ? "bg-primary/10 border-primary/30" : "bg-card border border-border/50"} text-foreground ${
+                          getBubbleCorners(false, position)
                         }`
-                  } ${isFirstInGroup ? "mt-3" : "mt-0.5"}`}
+                  } ${isFirstInGroup ? "mt-3" : "mt-0.5"} ${
+                    message.id === highlightedMessageId || isSelected ? "scale-[1.03]" : ""
+                  }`}
                 >
                   {/* Outgoing Bubble SVG Tail */}
                   {isOutgoing && isLastInGroup && (
@@ -661,20 +912,21 @@ export default function ChatChannel() {
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
-                        const targetId = message.quoted_message.id;
-                        const idx = listItems.findIndex((li) => li.type === "message" && li.message.id === targetId);
-                        if (idx !== -1) {
-                          rowVirtualizer.scrollToIndex(idx, { align: "center" });
-                        }
+                        scrollToMessage(message.quoted_message.id);
                       }}
-                      className="border-s-2 border-primary bg-zinc-100/50 dark:bg-zinc-800/50 px-2 py-1 rounded text-xs mb-1.5 cursor-pointer flex flex-col text-start"
+                      className="border-s-2 border-primary bg-zinc-100/50 dark:bg-zinc-800/50 px-2 py-1 rounded text-xs mb-1.5 cursor-pointer flex flex-col text-start select-none"
                     >
                       <span className="font-bold text-primary text-[11px] truncate">
                         {message.quoted_message.user?.name || "Reply"}
                       </span>
-                      <span className="text-muted-foreground text-[11px] truncate">
-                        {message.quoted_message.text}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5 max-w-full truncate">
+                        {renderQuotedAttachmentPreview(message.quoted_message)}
+                        {message.quoted_message.text && (
+                          <span className="text-muted-foreground text-[11px] truncate">
+                            {message.quoted_message.text}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -767,8 +1019,11 @@ export default function ChatChannel() {
                       ).map(([type, count]: any) => {
                         const ownReacted = message.own_reactions?.some((r: any) => r.type === type);
                         return (
-                          <button
-                            key={type}
+                          <motion.button
+                            key={`${type}-${count}-${ownReacted}`}
+                            whileTap={{ scale: 0.9 }}
+                            animate={{ scale: [0.9, 1.1, 1] }}
+                            transition={{ duration: 0.18, ease: "easeOut" }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleToggleReaction(message.id, type);
@@ -781,7 +1036,7 @@ export default function ChatChannel() {
                           >
                             <span>{type}</span>
                             {count > 1 && <span className="text-[10px] opacity-75">{count}</span>}
-                          </button>
+                          </motion.button>
                         );
                       })}
                     </div>
@@ -975,6 +1230,19 @@ export default function ChatChannel() {
             >
               <Share2 className="size-4 text-muted-foreground" />
               <span>Forward</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsSelectionMode(true);
+                setSelectedMessageIds([contextMenuMessage.id]);
+                setContextMenuMessage(null);
+                setContextMenuPosition(null);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted text-start w-full text-foreground"
+            >
+              <Check className="size-4 text-muted-foreground" />
+              <span>Select Message</span>
             </button>
 
             {contextMenuMessage.user?.id === loggedInUser.id && (

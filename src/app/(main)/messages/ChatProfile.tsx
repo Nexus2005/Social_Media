@@ -94,6 +94,16 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
     }
   };
 
+  const handleClearHistory = async () => {
+    try {
+      await togglePreference("clear_history", channel.id!);
+      toast({ description: "Chat history cleared." });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", description: "Failed to clear history." });
+    }
+  };
+
   // Extract shared items by category
   const images = (messages.flatMap((m) =>
     ((m.attachments || []) as any[])
@@ -342,6 +352,12 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
       {/* Destructive Actions Footer */}
       {otherMember && (
         <div className="border-t p-4 flex flex-col gap-2 bg-muted/10 shrink-0">
+          <button
+            onClick={handleClearHistory}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 py-2 text-sm font-semibold text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            Clear History
+          </button>
           <button
             onClick={handleBlockUser}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 transition-colors"

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Search, FolderDown, Edit, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Search, FolderDown, Edit, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut, Volume2, Trash2, X } from "lucide-react";
 import { Channel, UserResponse } from "stream-chat";
 import { useChat } from "../ChatProvider";
 import { useChatUI } from "./Chat";
@@ -10,10 +10,71 @@ import NewChatDialog from "./NewChatDialog";
 import { draftStorage } from "@/lib/draft-storage";
 import { useSession } from "../SessionProvider";
 import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
+
+const getFuzzyRatio = (str: string, query: string): number => {
+  str = str.toLowerCase();
+  query = query.toLowerCase();
+  if (str === query) return 1.0;
+  if (str.startsWith(query)) return 0.8 + (query.length / str.length) * 0.15;
+  if (str.includes(query)) return 0.5 + (query.length / str.length) * 0.2;
+  
+  const strWords = str.split(/[\s_-]+/);
+  const queryWords = query.split(/[\s_-]+/);
+  let matches = 0;
+  for (const qWord of queryWords) {
+    if (strWords.some(sWord => sWord.includes(qWord) || qWord.includes(sWord))) {
+      matches++;
+    }
+  }
+  return matches / Math.max(strWords.length, queryWords.length);
+};
+
+const rankSearchUsers = (users: any[], query: string, recentChatUserIds: string[]) => {
+  const q = query.toLowerCase().trim();
+  if (!q) return users;
+
+  return [...users].sort((a, b) => {
+    const aExactUsername = a.username?.toLowerCase() === q;
+    const bExactUsername = b.username?.toLowerCase() === q;
+    if (aExactUsername && !bExactUsername) return -1;
+    if (!aExactUsername && bExactUsername) return 1;
+
+    const aExactName = a.displayName?.toLowerCase() === q;
+    const bExactName = b.displayName?.toLowerCase() === q;
+    if (aExactName && !bExactName) return -1;
+    if (!aExactName && bExactName) return 1;
+
+    const aRecent = recentChatUserIds.includes(a.id);
+    const bRecent = recentChatUserIds.includes(b.id);
+    if (aRecent && !bRecent) return -1;
+    if (!aRecent && bRecent) return 1;
+
+    const aMutual = a.isFollowing && a.isFollower;
+    const bMutual = b.isFollowing && b.isFollower;
+    if (aMutual && !bMutual) return -1;
+    if (!aMutual && bMutual) return 1;
+
+    if (a.isFollowing && !b.isFollowing) return -1;
+    if (!a.isFollowing && b.isFollowing) return 1;
+
+    if (a.verified && !b.verified) return -1;
+    if (!a.verified && b.verified) return 1;
+
+    const aFuzzy = Math.max(getFuzzyRatio(a.username || "", q), getFuzzyRatio(a.displayName || "", q));
+    const bFuzzy = Math.max(getFuzzyRatio(b.username || "", q), getFuzzyRatio(b.displayName || "", q));
+    if (aFuzzy !== bFuzzy) {
+      return bFuzzy - aFuzzy;
+    }
+
+    return 0;
+  });
+};
 
 export default function ChatSidebar() {
   const chatClient = useChat();
   const { user: loggedInUser } = useSession();
+  const queryClient = useQueryClient();
   
   const {
     activeChannel,
@@ -21,6 +82,7 @@ export default function ChatSidebar() {
     pins,
     archives,
     mutes,
+    togglePreference,
     setMobileView,
   } = useChatUI();
 
@@ -28,10 +90,16 @@ export default function ChatSidebar() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchUsers, setSearchUsers] = useState<UserResponse[]>([]);
+  const [searchUsers, setSearchUsers] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+
+  // Focus and context state
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<any[]>([]);
+  const [contextMenuChannel, setContextMenuChannel] = useState<Channel | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Load channels and register event listeners
   useEffect(() => {
@@ -68,23 +136,107 @@ export default function ChatSidebar() {
     fetchChannels();
 
     // Stream Chat Real-time Listeners
-    const handleNewMessage = () => fetchChannels();
-    const handlePresence = () => fetchChannels();
-    
+    const handleNewMessage = (event: any) => {
+      const channelId = event.channel_id;
+      if (!channelId) return;
+      setChannels((prev) => {
+        const index = prev.findIndex((c) => c.id === channelId);
+        if (index > -1) {
+          const updated = [...prev];
+          const channel = updated[index];
+          updated.splice(index, 1);
+          return [channel, ...updated];
+        } else {
+          fetchChannels();
+          return prev;
+        }
+      });
+    };
+
+    const handlePresence = () => {
+      setChannels((prev) => [...prev]);
+    };
+
+    const handleMarkRead = () => {
+      setChannels((prev) => [...prev]);
+    };
+
+    const handleChannelHidden = (event: any) => {
+      const channelId = event.channel_id;
+      if (channelId) {
+        setChannels((prev) => prev.filter((c) => c.id !== channelId));
+      }
+    };
+
+    const handleChannelVisible = () => {
+      fetchChannels();
+    };
+
     chatClient.on("message.new", handleNewMessage);
-    chatClient.on("notification.message_new", handleNewMessage);
+    chatClient.on("notification.message_new", fetchChannels);
     chatClient.on("user.presence.changed", handlePresence);
-    chatClient.on("message.read", handleNewMessage);
-    chatClient.on("notification.mark_read", handleNewMessage);
+    chatClient.on("message.read", handleMarkRead);
+    chatClient.on("notification.mark_read", handleMarkRead);
+    chatClient.on("channel.hidden", handleChannelHidden);
+    chatClient.on("channel.visible", handleChannelVisible);
 
     return () => {
       chatClient.off("message.new", handleNewMessage);
-      chatClient.off("notification.message_new", handleNewMessage);
+      chatClient.off("notification.message_new", fetchChannels);
       chatClient.off("user.presence.changed", handlePresence);
-      chatClient.off("message.read", handleNewMessage);
-      chatClient.off("notification.mark_read", handleNewMessage);
+      chatClient.off("message.read", handleMarkRead);
+      chatClient.off("notification.mark_read", handleMarkRead);
+      chatClient.off("channel.hidden", handleChannelHidden);
+      chatClient.off("channel.visible", handleChannelVisible);
     };
   }, [chatClient, loggedInUser]);
+
+  const recentChatUserIds = useMemo(() => {
+    return channels.flatMap((c) =>
+      Object.keys(c.state.members || {}).filter((id) => id !== loggedInUser.id)
+    );
+  }, [channels, loggedInUser.id]);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cartly-recent-searches");
+      if (stored) {
+        setRecentSearches(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handleAddRecentSearch = (user: any) => {
+    try {
+      const item = {
+        id: user.id,
+        name: user.name || user.displayName,
+        image: user.image || user.avatarUrl,
+        username: user.username,
+      };
+      const stored = localStorage.getItem("cartly-recent-searches");
+      let list = stored ? JSON.parse(stored) : [];
+      list = list.filter((i: any) => i.id !== item.id);
+      list.unshift(item);
+      list = list.slice(0, 8);
+      localStorage.setItem("cartly-recent-searches", JSON.stringify(list));
+      setRecentSearches(list);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearRecentSearches = () => {
+    try {
+      localStorage.removeItem("cartly-recent-searches");
+      setRecentSearches([]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Global user search Suggester
   useEffect(() => {
@@ -106,8 +258,13 @@ export default function ChatSidebar() {
             name: u.displayName || u.username,
             image: u.avatarUrl,
             username: u.username,
+            isFollowing: u.isFollowing,
+            isFollower: u.isFollower,
+            verified: u.verified,
           }));
-        setSearchUsers(mappedUsers);
+        
+        const ranked = rankSearchUsers(mappedUsers, searchQuery, recentChatUserIds);
+        setSearchUsers(ranked);
       } catch (error) {
         console.error("Failed to query global users:", error);
       } finally {
@@ -116,12 +273,13 @@ export default function ChatSidebar() {
     }, 400);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [chatClient, searchQuery, loggedInUser.id]);
+  }, [chatClient, searchQuery, loggedInUser.id, recentChatUserIds]);
 
   // Handle start chat with search suggested user
-  const handleStartChat = async (user: UserResponse) => {
+  const handleStartChat = async (user: any) => {
     if (!chatClient) return;
     try {
+      handleAddRecentSearch(user);
       const channel = chatClient.channel("messaging", {
         members: [loggedInUser.id, user.id],
       });
@@ -160,8 +318,14 @@ export default function ChatSidebar() {
     return channelName.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  const handleContextMenu = (e: React.MouseEvent, channel: Channel) => {
+    e.preventDefault();
+    setContextMenuChannel(channel);
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+  };
+
   return (
-    <div className="flex h-full w-full flex-col bg-background select-none">
+    <div className="flex h-full w-full flex-col bg-background select-none relative">
       {/* Search Header Panel */}
       <div className="flex items-center gap-3 p-3 pb-2">
         <div className="relative flex-1">
@@ -170,13 +334,25 @@ export default function ChatSidebar() {
             type="text"
             placeholder="Search Chats"
             value={searchQuery}
+            onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg bg-muted/50 pe-3 ps-10 text-sm focus:outline-none focus:ring-1 focus:ring-primary/45 border"
+            className="h-9 w-full rounded-lg bg-muted/50 pe-8 ps-10 text-sm focus:outline-none focus:ring-1 focus:ring-primary/45 border"
           />
+          {isSearchFocused && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setIsSearchFocused(false);
+              }}
+              className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 transform text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
         <button
           onClick={() => setShowNewChatDialog(true)}
-          className="rounded-full bg-primary/10 p-2 text-primary hover:bg-primary/20 transition-colors"
+          className="rounded-full bg-primary/10 p-2 text-primary hover:bg-primary/20 transition-colors shrink-0"
           title="New Message"
         >
           <Edit className="size-4" />
@@ -191,6 +367,35 @@ export default function ChatSidebar() {
           </div>
         ) : (
           <>
+            {/* Recent Searches Panel (horizontal avatars) */}
+            {!searchQuery && isSearchFocused && recentSearches.length > 0 && (
+              <div className="border-b pb-3 bg-card px-4 py-2.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Recent Searches</span>
+                  <button 
+                    onClick={handleClearRecentSearches}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+                  {recentSearches.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleStartChat(item)}
+                      className="flex flex-col items-center gap-1 min-w-[64px] text-center"
+                    >
+                      <UserAvatar avatarUrl={item.image} size={48} className="size-12 border" />
+                      <span className="text-[11px] font-medium text-foreground truncate max-w-[64px]">
+                        {item.name.split(" ")[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Global User Suggestion List */}
             {searchQuery && searchUsers.length > 0 && (
               <div className="border-b pb-2">
@@ -206,7 +411,12 @@ export default function ChatSidebar() {
                     >
                       <UserAvatar avatarUrl={user.image as string | null | undefined} size={48} className="size-[48px]" />
                       <div className="flex flex-col">
-                        <span className="text-[17px] font-semibold text-foreground">{user.name}</span>
+                        <span className="text-[17px] font-semibold text-foreground flex items-center gap-1">
+                          {user.name}
+                          {user.verified && (
+                            <span className="bg-primary text-white rounded-full p-0.5 text-[8px] leading-none">✓</span>
+                          )}
+                        </span>
                         <span className="text-xs text-muted-foreground">@{user.username}</span>
                       </div>
                     </button>
@@ -246,6 +456,7 @@ export default function ChatSidebar() {
                           setActiveChannel(channel);
                           setMobileView("chat");
                         }}
+                        onContextMenu={handleContextMenu}
                         loggedInUserId={loggedInUser.id}
                       />
                     ))}
@@ -268,6 +479,7 @@ export default function ChatSidebar() {
                     setActiveChannel(channel);
                     setMobileView("chat");
                   }}
+                  onContextMenu={handleContextMenu}
                   loggedInUserId={loggedInUser.id}
                 />
               ))}
@@ -289,6 +501,107 @@ export default function ChatSidebar() {
           onChatCreated={() => setShowNewChatDialog(false)}
         />
       )}
+
+      {/* Context Actions Menu Overlay */}
+      {contextMenuChannel && contextMenuPosition && (
+        <div
+          className="fixed inset-0 z-50 bg-black/10 cursor-default"
+          onClick={() => {
+            setContextMenuChannel(null);
+            setContextMenuPosition(null);
+          }}
+        >
+          <div
+            style={{
+              position: "fixed",
+              top: Math.min(contextMenuPosition.y, window.innerHeight - 280),
+              left: Math.min(contextMenuPosition.x, window.innerWidth - 220),
+            }}
+            className="z-50 w-52 rounded-2xl bg-card border border-border/80 shadow-2xl p-1.5 flex flex-col gap-0.5 text-[14px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={async () => {
+                const channelId = contextMenuChannel.id!;
+                const isPinned = pins.includes(channelId);
+                await togglePreference(isPinned ? "unpin" : "pin", channelId);
+                setContextMenuChannel(null);
+                setContextMenuPosition(null);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted text-start w-full text-foreground"
+            >
+              <Pin className="size-4 text-muted-foreground rotate-45" />
+              <span>{pins.includes(contextMenuChannel.id!) ? "Unpin Chat" : "Pin Chat"}</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                const channelId = contextMenuChannel.id!;
+                const isMuted = mutes.some((m) => m.channelId === channelId);
+                await togglePreference(isMuted ? "unmute" : "mute", channelId);
+                setContextMenuChannel(null);
+                setContextMenuPosition(null);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted text-start w-full text-foreground"
+            >
+              {mutes.some((m) => m.channelId === contextMenuChannel.id) ? (
+                <>
+                  <Volume2 className="size-4 text-muted-foreground" />
+                  <span>Unmute Chat</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX className="size-4 text-muted-foreground" />
+                  <span>Mute Chat</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={async () => {
+                const channelId = contextMenuChannel.id!;
+                const isArchived = archives.includes(channelId);
+                await togglePreference(isArchived ? "unarchive" : "archive", channelId);
+                setContextMenuChannel(null);
+                setContextMenuPosition(null);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted text-start w-full text-foreground"
+            >
+              <FolderDown className="size-4 text-muted-foreground" />
+              <span>{archives.includes(contextMenuChannel.id!) ? "Unarchive" : "Archive"}</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                await contextMenuChannel.markRead();
+                queryClient.invalidateQueries({ queryKey: ["unread-messages-count"] });
+                setContextMenuChannel(null);
+                setContextMenuPosition(null);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted text-start w-full text-foreground"
+            >
+              <CheckCheck className="size-4 text-muted-foreground" />
+              <span>Mark Read</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                const channelId = contextMenuChannel.id!;
+                await contextMenuChannel.hide();
+                if (activeChannel?.id === channelId) {
+                  setActiveChannel(null);
+                }
+                setContextMenuChannel(null);
+                setContextMenuPosition(null);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-500 text-start w-full font-medium"
+            >
+              <Trash2 className="size-4 text-red-500" />
+              <span>Delete Chat</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -300,10 +613,11 @@ interface ChatRowProps {
   isPinned: boolean;
   isMuted: boolean;
   onClick: () => void;
+  onContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   loggedInUserId: string;
 }
 
-function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, loggedInUserId }: ChatRowProps) {
+function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onContextMenu, loggedInUserId }: ChatRowProps) {
   const members = Object.values(channel.state.members || {});
   const otherMember = members.find((m) => m.user?.id !== loggedInUserId)?.user;
   
@@ -363,9 +677,26 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, log
     );
   };
 
+  let touchTimeout: any = null;
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+    touchTimeout = setTimeout(() => {
+      onContextMenu({ clientX, clientY, preventDefault: () => {} } as any, channel);
+    }, 600);
+  };
+  const handleTouchEnd = () => {
+    if (touchTimeout) clearTimeout(touchTimeout);
+  };
+
   return (
     <button
       onClick={onClick}
+      onContextMenu={(e) => onContextMenu(e, channel)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
       className={`relative flex w-full items-center gap-3 px-4 h-[72px] transition-colors ${
         isActive ? "bg-muted" : "hover:bg-muted/30"
       }`}
