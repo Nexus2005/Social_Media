@@ -482,7 +482,7 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setIndex((prev) => prev - 1);
+            setIndex((prev) => prev + 1);
           }}
           className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white p-2 rounded-full z-20 opacity-0 group-hover:opacity-100 transition-opacity"
         >
