@@ -395,6 +395,39 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
   const [showTags, setShowTags] = useState(false);
   const router = useRouter();
 
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
+
+  const minSwipeDistance = 50;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setIsSwiping(false);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const currentX = e.targetTouches[0].clientX;
+    setTouchEnd(currentX);
+    if (touchStart && Math.abs(touchStart - currentX) > 10) {
+      setIsSwiping(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && index < attachments.length - 1) {
+      setIndex((prev) => prev + 1);
+    } else if (isRightSwipe && index > 0) {
+      setIndex((prev) => prev - 1);
+    }
+  };
+
   if (!attachments.length) return null;
 
   const currentMedia = attachments[index];
@@ -405,11 +438,17 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
     : [];
 
   return (
-    <div className="relative w-full aspect-[4/5] bg-zinc-900 rounded-xl sm:rounded-2xl overflow-hidden group select-none flex items-center justify-center border border-border/5">
+    <div 
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className="relative w-full aspect-[4/5] bg-zinc-900 rounded-xl sm:rounded-2xl overflow-hidden group select-none flex items-center justify-center border border-border/5"
+    >
       {/* Media Element */}
       <div
         className="w-full h-full flex items-center justify-center relative cursor-pointer"
         onClick={() => {
+          if (isSwiping) return;
           if (isVideo) {
             router.push(`/reels?focusedPostId=${postId}`);
           } else {
