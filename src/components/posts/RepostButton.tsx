@@ -20,6 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import QuotePostDialog from "./QuotePostDialog";
+import { RepostIcon } from "@/components/reels/ReelsIcons";
+import { motion } from "framer-motion";
 
 interface RepostButtonProps {
   post: PostData;
@@ -92,18 +94,19 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div className="flex flex-col items-center">
-              <button
-                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+              <motion.button
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.9 }}
+                className="h-10 w-10 flex items-center justify-center text-white"
                 title="Repost"
               >
-                <Repeat2
+                <RepostIcon
                   className={cn(
                     "w-7 h-7 transition-colors",
                     data.isRepostedByUser && "text-green-500"
                   )}
-                  strokeWidth={1.75}
                 />
-              </button>
+              </motion.button>
               <span className={cn(
                 "text-[11px] font-semibold mt-0.5",
                 isDesktop ? "text-zinc-300" : "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"

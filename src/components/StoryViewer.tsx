@@ -529,8 +529,7 @@ export default function StoryViewer({
       >
         {/* Pinned Top Container (Header & Progress Bars) */}
         <div 
-          style={{ transform: `translateY(${viewportOffsetTop}px)` }}
-          className="absolute top-0 left-0 w-full z-50 transition-transform duration-75 ease-out pointer-events-none"
+          className="absolute top-0 left-0 w-full z-50 pointer-events-none"
         >
           {/* Progress Bar Indicators at the top */}
           <div className="absolute top-3 left-3 right-3 flex gap-1 pointer-events-none">
@@ -629,8 +628,7 @@ export default function StoryViewer({
 
         {/* Media Render (Image or Video) */}
         <div 
-          style={{ transform: `translateY(${viewportOffsetTop}px)` }}
-          className="w-full h-full flex items-center justify-center transition-transform duration-75 ease-out"
+          className="w-full h-full flex items-center justify-center"
         >
           {currentStory.mediaType === "IMAGE" ? (
             <div className="relative w-full h-full">
@@ -660,10 +658,9 @@ export default function StoryViewer({
         {/* Instant Emojis reactions panel (Instagram-style overlay) */}
         {showEmojis && (
           <div 
-            className="absolute left-0 right-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-center items-center pointer-events-auto transition-all duration-75 ease-out"
+            className="absolute inset-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-center items-center pointer-events-auto transition-all duration-75 ease-out"
             style={{ 
-              top: `${viewportOffsetTop}px`,
-              height: window.visualViewport ? `${window.visualViewport.height}px` : "100%"
+              paddingBottom: `${keyboardHeight}px`
             }}
             onClick={() => {
               setShowEmojis(false);
@@ -695,7 +692,7 @@ export default function StoryViewer({
         {/* Bottom Reply/Action Bar (Instagram-style Pill Input + Right Actions) */}
         <div 
           className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3 pointer-events-auto transition-transform duration-75 ease-out"
-          style={{ transform: `translateY(${viewportOffsetTop - keyboardHeight}px)` }}
+          style={{ transform: `translateY(${-keyboardHeight}px)` }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Send Message Input Pill */}

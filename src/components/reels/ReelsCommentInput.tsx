@@ -106,7 +106,7 @@ export default function ReelsCommentInput({ post, parentCommentId, onSuccess }: 
   };
 
   return (
-    <div className="flex flex-col gap-2 w-full select-none bg-[#090909]">
+    <div className="flex flex-col gap-2 w-full select-none bg-zinc-950">
       
       {/* 1. Instagram-style Horizontal Quick Emojis scroll row */}
       <div className="flex items-center gap-4 overflow-x-auto scrollbar-none py-1.5 border-b border-zinc-900/60 justify-between select-none">

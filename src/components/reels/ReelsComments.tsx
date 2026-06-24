@@ -42,7 +42,7 @@ export default function ReelsComments({ post }: ReelsCommentsProps) {
   }
 
   return (
-    <div className="flex flex-col h-full select-none bg-[#090909] overflow-hidden">
+    <div className="flex flex-col h-full select-none bg-zinc-950 overflow-hidden">
       {/* Scrollable list container */}
       <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-none">
         {hasNextPage && (
@@ -74,7 +74,7 @@ export default function ReelsComments({ post }: ReelsCommentsProps) {
       </div>
 
       {/* Input container strictly pinned at bottom */}
-      <div className="border-t border-zinc-900/60 p-4 bg-[#090909] shrink-0">
+      <div className="border-t border-zinc-900/60 p-4 bg-zinc-950 shrink-0">
         <ReelsCommentInput post={post} />
       </div>
     </div>
