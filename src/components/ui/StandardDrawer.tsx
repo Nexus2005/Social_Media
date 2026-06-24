@@ -11,6 +11,7 @@ interface StandardDrawerProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  hideHeader?: boolean;
 }
 
 export default function StandardDrawer({
@@ -19,6 +20,7 @@ export default function StandardDrawer({
   title,
   children,
   className,
+  hideHeader = false,
 }: StandardDrawerProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(val) => !val && onClose()}>
@@ -39,19 +41,21 @@ export default function StandardDrawer({
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 shrink-0">
-            {title ? (
-              <DialogPrimitive.Title className="text-base font-bold text-white">
-                {title}
-              </DialogPrimitive.Title>
-            ) : (
-              <div />
-            )}
-            <DialogPrimitive.Close className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors">
-              <X className="size-5" />
-              <span className="sr-only">Close</span>
-            </DialogPrimitive.Close>
-          </div>
+          {!hideHeader && (
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 shrink-0">
+              {title ? (
+                <DialogPrimitive.Title className="text-base font-bold text-white">
+                  {title}
+                </DialogPrimitive.Title>
+              ) : (
+                <div />
+              )}
+              <DialogPrimitive.Close className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors">
+                <X className="size-5" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
+            </div>
+          )}
 
           {/* Content Body */}
           <div className="flex-1 overflow-y-auto min-h-0">
