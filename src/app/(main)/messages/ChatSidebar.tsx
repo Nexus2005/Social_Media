@@ -658,7 +658,7 @@ export default function ChatSidebar() {
             {/* Horizontal Stories / Active Contacts Scrollbar (Responsively Sized) */}
             {!searchQuery && (
               <div 
-                className="flex gap-[14px] overflow-x-auto py-3 sm:py-4 px-4 scrollbar-none border-b border-zinc-950" 
+                className="flex gap-[16px] overflow-x-auto py-4 sm:py-5 px-5 scrollbar-none border-b border-zinc-950" 
                 style={{ scrollbarWidth: "none" }}
               >
                 {/* LOGGED IN USER (Your note / camera snap triggers) */}
@@ -688,13 +688,13 @@ export default function ChatSidebar() {
                       }`}
                     >
                       <div className="bg-black p-[2px] rounded-full">
-                        <div className="relative w-14 h-14 sm:w-[68px] sm:h-[68px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
+                        <div className="relative w-[60px] h-[60px] sm:w-[74px] sm:h-[74px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                           {loggedInUser.avatarUrl ? (
                             <Image
                               src={loggedInUser.avatarUrl}
                               alt="Your avatar"
                               fill
-                              sizes="(max-width: 640px) 56px, 68px"
+                              sizes="(max-width: 640px) 60px, 74px"
                               className="object-cover"
                             />
                           ) : (
@@ -704,12 +704,12 @@ export default function ChatSidebar() {
                       </div>
                     </div>
                     {!loggedInUserHasInstant && (
-                      <div className="absolute bottom-0 right-0 bg-[#7c3aed] text-white rounded-full size-[20px] sm:size-[24px] flex items-center justify-center border-2 border-black">
-                        <Plus className="size-3 sm:size-4 stroke-[3px]" />
+                      <div className="absolute bottom-0 right-0 bg-[#7c3aed] text-white rounded-full size-[22px] sm:size-[26px] flex items-center justify-center border-2 border-black">
+                        <Plus className="size-3.5 sm:size-4 stroke-[3px]" />
                       </div>
                     )}
                   </div>
-                  <span className="text-[11px] sm:text-[12px] font-semibold text-zinc-400 w-[64px] sm:w-[76px] text-center truncate">
+                  <span className="text-xs sm:text-[13px] font-bold text-zinc-400 w-[68px] sm:w-[82px] text-center truncate">
                     Your note
                   </span>
                 </div>
@@ -725,13 +725,13 @@ export default function ChatSidebar() {
                       className={`rounded-full p-[2.5px] bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]`}
                     >
                       <div className="bg-black p-[2px] rounded-full">
-                        <div className="relative w-14 h-14 sm:w-[68px] sm:h-[68px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
+                        <div className="relative w-[60px] h-[60px] sm:w-[74px] sm:h-[74px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                           {user.avatarUrl ? (
                             <Image
                               src={user.avatarUrl}
                               alt={user.username}
                               fill
-                              sizes="(max-width: 640px) 56px, 68px"
+                              sizes="(max-width: 640px) 60px, 74px"
                               className="object-cover"
                               unoptimized
                             />
@@ -741,7 +741,7 @@ export default function ChatSidebar() {
                         </div>
                       </div>
                     </div>
-                    <span className="text-[11px] sm:text-[12px] font-semibold text-zinc-300 w-[64px] sm:w-[76px] text-center truncate">
+                    <span className="text-xs sm:text-[13px] font-bold text-zinc-300 w-[68px] sm:w-[82px] text-center truncate">
                       {user.displayName.split(" ")[0]}
                     </span>
                   </div>
@@ -1158,14 +1158,14 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
 
     if (draftText) {
       return (
-        <span className="text-[13px] sm:text-[14px] truncate">
+        <span className="text-[15px] sm:text-[16px] truncate">
           <span className="text-red-500 font-semibold">Draft: </span>
           <span className="text-zinc-400">{draftText}</span>
         </span>
       );
     }
     
-    if (!lastMessage) return <span className="text-zinc-500 text-[13px] sm:text-[14px]">No messages</span>;
+    if (!lastMessage) return <span className="text-zinc-500 text-[15px] sm:text-[16px]">No messages</span>;
 
     const sender = lastMessage.user?.id === loggedInUserId ? "You: " : "";
     
@@ -1179,14 +1179,14 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
       if (type === "image" || type === "instant-reply") {
         const text = type === "instant-reply" ? "Replied to snap" : "Photo";
         return (
-          <span className="text-zinc-400 text-[13px] sm:text-[14px] truncate">
+          <span className="text-zinc-400 text-[15px] sm:text-[16px] truncate">
             {sender}{text}{suffix}
           </span>
         );
       }
       if (type === "video") {
         return (
-          <span className="text-zinc-400 text-[13px] sm:text-[14px] flex items-center gap-1 truncate">
+          <span className="text-zinc-400 text-[15px] sm:text-[16px] flex items-center gap-1 truncate">
             <svg className="size-3.5 fill-zinc-500 text-zinc-500 inline shrink-0" viewBox="0 0 24 24">
               <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
             </svg>
@@ -1197,14 +1197,14 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
       
       const displayType = type === "story-reply" ? "Story Reply" : "File";
       return (
-        <span className="text-zinc-400 text-[13px] sm:text-[14px] truncate">
+        <span className="text-zinc-400 text-[15px] sm:text-[16px] truncate">
           {sender}[{displayType}]{suffix}
         </span>
       );
     }
 
     return (
-      <span className="text-zinc-400 text-[13px] sm:text-[14px] truncate">
+      <span className="text-zinc-400 text-[15px] sm:text-[16px] truncate">
         {sender}{lastMessage.text}{suffix}
       </span>
     );
@@ -1248,11 +1248,11 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
-      className={`relative flex w-full items-center gap-3.5 px-4 h-[76px] sm:h-[88px] transition-colors border-b border-zinc-950/40 ${
+      className={`relative flex w-full items-center gap-3.5 px-4 h-[84px] sm:h-[96px] transition-colors border-b border-zinc-950/40 ${
         isActive ? "bg-zinc-900/60" : "hover:bg-zinc-950/40"
       }`}
     >
-      {/* Circle Avatar (52px on mobile, 58px on sm/desktop) */}
+      {/* Circle Avatar (58px on mobile, 64px on sm/desktop) */}
       <div 
         onClick={handleAvatarClick}
         className={`relative shrink-0 select-none active:scale-95 transition-transform ${
@@ -1271,27 +1271,27 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
           <div className="bg-black p-[1px] rounded-full">
             <UserAvatar 
               avatarUrl={avatarUrl as string | null | undefined} 
-              size={50} 
-              className="size-[50px] sm:size-[56px] rounded-full border border-zinc-800" 
+              size={58} 
+              className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
             />
           </div>
         </div>
         {isOnline && (
-          <span className="absolute bottom-0.5 right-0.5 size-3 sm:size-3.5 rounded-full border-2 border-black bg-green-500" />
+          <span className="absolute bottom-0.5 right-0.5 size-3.5 sm:size-4 rounded-full border-2 border-black bg-green-500" />
         )}
       </div>
 
       {/* Row details */}
       <div className="flex flex-1 flex-col overflow-hidden text-start py-1">
         <div className="flex items-center justify-between">
-          <span className="text-[15px] sm:text-[17px] font-semibold sm:font-bold text-white truncate flex-1 pr-2 flex items-center gap-1.5">
+          <span className="text-[17px] sm:text-[19px] font-semibold sm:font-bold text-white truncate flex-1 pr-2 flex items-center gap-1.5">
             {displayName}
             {(otherMember as any)?.verified && (
               <VerifiedBadge size={14} className="text-[#8a3ffc] shrink-0" />
             )}
           </span>
           {showTimeOnRight && (
-            <span className="text-xs sm:text-[13px] text-zinc-500 shrink-0 font-medium">{timestampStr}</span>
+            <span className="text-[13px] sm:text-sm text-zinc-500 shrink-0 font-medium">{timestampStr}</span>
           )}
         </div>
         
@@ -1309,7 +1309,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
               showUnreadDot ? (
                 <span className="size-2.5 rounded-full bg-[#7c3aed]" />
               ) : (
-                <span className="flex h-5 min-w-5 sm:h-5.5 sm:min-w-5.5 items-center justify-center rounded-full px-1.5 text-[10px] sm:text-[11px] font-extrabold text-white bg-[#7c3aed]">
+                <span className="flex h-5.5 min-w-5.5 sm:h-6 sm:min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] sm:text-[12px] font-extrabold text-white bg-[#7c3aed]">
                   {unreadCount}
                 </span>
               )
@@ -1324,9 +1324,9 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
             {!unreadCount && !isTyping && lastMessage && lastMessage.user?.id === loggedInUserId && (
               channel.state.read[otherMember?.id || ""]?.last_read && 
               new Date(channel.state.read[otherMember?.id || ""]!.last_read).getTime() >= new Date(lastMessage.created_at).getTime() ? (
-                <CheckCheck className="size-4 sm:size-5 text-[#7c3aed]" />
+                <CheckCheck className="size-4.5 sm:size-5.5 text-[#7c3aed]" />
               ) : (
-                <Check className="size-4 sm:size-5 text-zinc-500" />
+                <Check className="size-4.5 sm:size-5.5 text-zinc-500" />
               )
             )}
           </div>
