@@ -147,6 +147,62 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const mediaRecorderRef = useRef<any>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 0);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const handleResize = () => {
+      if (window.visualViewport) {
+        setViewportHeight(window.visualViewport.height);
+      }
+    };
+
+    window.visualViewport.addEventListener("resize", handleResize);
+    handleResize();
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // Lock document scroll on mobile to prevent layout shifting on input focus
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth >= 640) return;
+
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyWidth = document.body.style.width;
+    const originalBodyHeight = document.body.style.height;
+
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalHtmlPosition = document.documentElement.style.position;
+    const originalHtmlWidth = document.documentElement.style.width;
+    const originalHtmlHeight = document.documentElement.style.height;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.height = "100%";
+
+    document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.position = "fixed";
+    document.documentElement.style.width = "100%";
+    document.documentElement.style.height = "100%";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.width = originalBodyWidth;
+      document.body.style.height = originalBodyHeight;
+
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.documentElement.style.position = originalHtmlPosition;
+      document.documentElement.style.width = originalHtmlWidth;
+      document.documentElement.style.height = originalHtmlHeight;
+    };
+  }, []);
+
   // Unified State Panel Route
   const [activePanel, setActivePanel] = useState<PanelType>("none");
   const [postType, setPostType] = useState<"normal" | "thread" | "poll" | "article">("normal");
@@ -1521,7 +1577,14 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   // If sub-view is active, render it directly full screen
   if (activePanel !== "none" && activePanel !== "draft-recovery") {
     return (
-      <div className="w-full h-full sm:h-auto min-h-screen sm:min-h-0 sm:max-h-[90vh] flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans relative">
+      <div 
+        className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
+        style={{
+          height: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "auto",
+          maxHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none",
+          minHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none"
+        }}
+      >
         {(isProcessingAndSubmitting || mutation.isPending) && (
           <div className="absolute inset-0 bg-[#000000]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
             <Loader2 className="size-5 animate-spin text-white" strokeWidth={1.75} />
@@ -1534,7 +1597,14 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   }
 
   return (
-    <div className="w-full h-full sm:h-auto min-h-screen sm:min-h-0 sm:max-h-[92vh] flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans relative">
+    <div 
+      className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
+      style={{
+        height: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "auto",
+        maxHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none",
+        minHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none"
+      }}
+    >
       <input 
         type="file"
         accept="image/*, video/*"
@@ -1573,7 +1643,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
           onClick={handlePublish}
           loading={mutation.isPending || isProcessingAndSubmitting}
           disabled={(!threads[0].text.trim() && attachments.length === 0) || isUploading || isOverLimit}
-          className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-black px-6 py-1.5 text-[14px] disabled:opacity-50 disabled:pointer-events-none transition-all"
+          className="rounded-full bg-white hover:bg-zinc-200 text-black font-black px-6 py-1.5 text-[14px] disabled:opacity-50 disabled:pointer-events-none transition-all"
         >
           {postType === "thread" ? "Post Thread" : "Post"}
         </LoadingButton>
@@ -1694,7 +1764,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             </div>
           </div>
         )}
+      </div>
 
+      {/* Pinned Bottom Area (stays above bottom toolbar, outside the scrollable view) */}
+      <div className="flex flex-col bg-black border-t border-zinc-900 pb-3 pt-2 gap-3 flex-shrink-0 select-none">
         {/* Media Preview Row (Horizontal scroll) */}
         <div className="pl-[52px] w-full">
           <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none items-center">
@@ -1702,10 +1775,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             <button
               type="button"
               onClick={() => setActivePanel("camera")}
-              className="size-20 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex items-center justify-center text-primary hover:text-primary/95 transition-colors shrink-0 cursor-pointer"
+              className="size-20 rounded-2xl border border-zinc-800 bg-[#0A0A0A] hover:bg-zinc-900 transition-colors flex items-center justify-center text-white shrink-0 cursor-pointer"
               title="Open Camera"
             >
-              <Camera className="size-6 text-primary" strokeWidth={2} />
+              <Camera className="size-6 text-zinc-300" strokeWidth={2} />
             </button>
 
             {/* 2. Attachments Previews */}
@@ -1716,7 +1789,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
               return (
                 <div 
                   key={idx} 
-                  className="relative size-20 rounded-2xl overflow-hidden shrink-0 border border-zinc-800 bg-zinc-900/40 flex items-center justify-center group"
+                  className="relative size-20 rounded-2xl overflow-hidden shrink-0 border border-zinc-800 bg-[#0A0A0A] flex items-center justify-center group"
                 >
                   {isVideoFile ? (
                     <video src={item.previewUrl} className="w-full h-full object-cover" muted />
@@ -1771,9 +1844,9 @@ export default function PostEditor({ onClose }: PostEditorProps) {
           <button
             type="button"
             onClick={() => setActivePanel("audience")}
-            className="flex items-center gap-2 text-[14px] font-bold text-primary hover:opacity-85 transition-opacity"
+            className="flex items-center gap-2 text-[14px] font-bold text-zinc-300 hover:text-white transition-colors"
           >
-            <Globe className="size-4.5 text-primary" strokeWidth={2} />
+            <Globe className="size-4.5 text-zinc-300" strokeWidth={2} />
             <span>{getAudienceLabel()}</span>
           </button>
         </div>
@@ -1788,20 +1861,20 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900/60 rounded-full transition-colors flex items-center justify-center cursor-pointer group"
               title="Gallery"
             >
-              <ImageIcon className="size-[22px] text-primary" strokeWidth={2} />
+              <ImageIcon className="size-[22px] transition-colors" strokeWidth={2} />
             </button>
 
             {/* GIF Button */}
             <button
               type="button"
               onClick={() => setActivePanel("gif")}
-              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900/60 rounded-full transition-colors flex items-center justify-center cursor-pointer group"
               title="GIF"
             >
-              <IconGif className="text-primary size-[22px]" />
+              <IconGif className="size-[22px] transition-colors" />
             </button>
 
             {/* Poll Button */}
@@ -1815,42 +1888,42 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                 }
               }}
               className={cn(
-                "p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer",
-                postType === "poll" ? "bg-zinc-900 text-primary" : "text-primary hover:bg-zinc-900"
+                "p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer group",
+                postType === "poll" ? "bg-zinc-900 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
               )}
               title="Poll"
             >
-              <IconPoll className="text-primary size-[22px]" />
+              <IconPoll className="size-[22px] transition-colors" />
             </button>
 
             {/* Location Button */}
             <button
               type="button"
               onClick={() => setActivePanel("location")}
-              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900/60 rounded-full transition-colors flex items-center justify-center cursor-pointer group"
               title="Location"
             >
-              <IconLocation className="text-primary size-[22px]" />
+              <IconLocation className="size-[22px] transition-colors" />
             </button>
 
             {/* Schedule/Calendar Button */}
             <button
               type="button"
               onClick={() => setActivePanel("schedule")}
-              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900/60 rounded-full transition-colors flex items-center justify-center cursor-pointer group"
               title="Schedule"
             >
-              <Calendar className="size-[22px] text-primary" strokeWidth={2} />
+              <Calendar className="size-[22px] transition-colors" strokeWidth={2} />
             </button>
 
             {/* Advanced Settings Button */}
             <button
               type="button"
               onClick={() => setActivePanel("settings")}
-              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900/60 rounded-full transition-colors flex items-center justify-center cursor-pointer group"
               title="Advanced Settings"
             >
-              <Settings className="size-[22px] text-primary" strokeWidth={2} />
+              <Settings className="size-[22px] transition-colors" strokeWidth={2} />
             </button>
           </div>
 
@@ -1872,8 +1945,8 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     cy="10"
                     r="8"
                     className={cn(
-                      "transition-all duration-200",
-                      percentage >= 100 ? "stroke-red-500" : percentage >= 90 ? "stroke-amber-500" : "stroke-primary"
+                      "stroke-zinc-300 transition-all duration-200",
+                      percentage >= 100 ? "stroke-red-500" : percentage >= 90 ? "stroke-amber-500" : "stroke-white"
                     )}
                     strokeWidth="2"
                     fill="transparent"
@@ -1891,7 +1964,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             <button
               type="button"
               onClick={handleAddThreadNode}
-              className="p-1 text-primary hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-800 rounded-full transition-all flex items-center justify-center cursor-pointer"
+              className="p-1 text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700 rounded-full transition-all flex items-center justify-center cursor-pointer hover:bg-zinc-900/60"
               title="Add thread post"
             >
               <span className="text-lg font-bold px-1.5 leading-none">+</span>
