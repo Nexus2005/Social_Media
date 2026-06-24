@@ -8,22 +8,12 @@ export async function GET(req: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 1. Find mutual followers (Friends who follow back)
+    // 1. Find followings (Users the logged-in user is following)
     const followings = await prisma.follow.findMany({
       where: { followerId: user.id, status: "ACCEPTED" },
       select: { followingId: true },
     });
     const followingIds = followings.map((f) => f.followingId);
-
-    const mutuals = await prisma.follow.findMany({
-      where: {
-        followerId: { in: followingIds },
-        followingId: user.id,
-        status: "ACCEPTED",
-      },
-      select: { followerId: true },
-    });
-    const mutualIds = mutuals.map((m) => m.followerId);
 
     // 2. Find users who have designated the logged-in user as a Close Friend
     const closeFriendsOfOthers = await prisma.closeFriend.findMany({
@@ -46,7 +36,7 @@ export async function GET(req: Request) {
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         OR: [
           {
-            senderId: { in: mutualIds },
+            senderId: { in: followingIds },
             audience: "FRIENDS",
           },
           {
