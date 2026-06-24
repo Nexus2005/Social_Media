@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, FolderDown, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut, Volume2, Trash2, X, Sun, Moon, Users, FolderHeart, Menu, SquarePen, Plus } from "lucide-react";
+import { Search, FolderDown, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut, Volume2, Trash2, X, Sun, Moon, Users, FolderHeart, Menu, SquarePen, Plus, Star, Sparkles } from "lucide-react";
 import { Channel } from "stream-chat";
 import { useChat } from "../ChatProvider";
 import { useChatUI } from "./Chat";
@@ -16,6 +16,12 @@ import Image from "next/image";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useStoryViewer } from "@/components/StoryViewerProvider";
 import CreateStoryDialog from "@/components/CreateStoryDialog";
+
+// Instants components
+import InstantCameraModal from "@/components/instants/InstantCameraModal";
+import InstantViewerModal from "@/components/instants/InstantViewerModal";
+import InstantArchiveDialog from "@/components/instants/InstantArchiveDialog";
+import CloseFriendsDialog from "@/components/instants/CloseFriendsDialog";
 
 const getFuzzyRatio = (str: string, query: string): number => {
   str = str.toLowerCase();
@@ -104,6 +110,15 @@ export default function ChatSidebar() {
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "groups" | "channels">("all");
   const [createStoryOpen, setCreateStoryOpen] = useState(false);
 
+  // Instants overlays trigger states
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  
+  const [viewerUser, setViewerUser] = useState<any | null>(null);
+  const [viewerSnaps, setViewerSnaps] = useState<any[]>([]);
+
   // Focus and context state
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<any[]>([]);
@@ -111,6 +126,27 @@ export default function ChatSidebar() {
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  // Query Active Instants
+  const { data: instantsData = [], refetch: refetchInstants } = useQuery<any[]>({
+    queryKey: ["instants"],
+    queryFn: () => kyInstance.get("/api/instants").json<any[]>(),
+    staleTime: 30 * 1000,
+  });
+
+  // Query Private Archive to detect user's active snap
+  const { data: archiveSnaps = [], refetch: refetchArchive } = useQuery<any[]>({
+    queryKey: ["instants-archive"],
+    queryFn: () => kyInstance.get("/api/instants/archive").json<any[]>(),
+    staleTime: 60 * 1000,
+  });
+
+  const myActiveInstants = useMemo(() => {
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    return archiveSnaps.filter(s => new Date(s.createdAt).getTime() > oneDayAgo);
+  }, [archiveSnaps]);
+
+  const loggedInUserHasInstant = myActiveInstants.length > 0;
 
   // Load channels and register event listeners
   useEffect(() => {
@@ -400,25 +436,45 @@ export default function ChatSidebar() {
     }).length;
   }, [activeChatList]);
 
-  // Horizontal Quick Access List
+  // Horizontal Quick Access List (Stories + Instants + Frequent Chat users)
   const horizontalUsers = useMemo(() => {
     if (!loggedInUser) return [];
     const usersMap = new Map<string, any>();
     
-    // 1. Add other users who have active stories
-    storiesData.forEach((item) => {
+    // 1. Add other users who have active Instants (disappearing snaps)
+    instantsData.forEach((item) => {
       if (item.user.id !== loggedInUser.id) {
         usersMap.set(item.user.id, {
           id: item.user.id,
           username: item.user.username,
           displayName: item.user.displayName,
           avatarUrl: item.user.avatarUrl,
-          hasStory: true,
+          hasInstant: true,
+          hasStory: false,
         });
       }
     });
+
+    // 2. Add other users who have active Stories
+    storiesData.forEach((item) => {
+      if (item.user.id !== loggedInUser.id) {
+        const existing = usersMap.get(item.user.id);
+        if (existing) {
+          existing.hasStory = true;
+        } else {
+          usersMap.set(item.user.id, {
+            id: item.user.id,
+            username: item.user.username,
+            displayName: item.user.displayName,
+            avatarUrl: item.user.avatarUrl,
+            hasInstant: false,
+            hasStory: true,
+          });
+        }
+      }
+    });
     
-    // 2. Add users from recent channels next
+    // 3. Add users from recent channels next
     channels.forEach((channel) => {
       const members = Object.values(channel.state.members || {});
       const otherMember = members.find((m) => m.user?.id !== loggedInUser.id)?.user;
@@ -428,13 +484,14 @@ export default function ChatSidebar() {
           username: otherMember.username,
           displayName: otherMember.name || otherMember.username,
           avatarUrl: otherMember.image,
+          hasInstant: false,
           hasStory: false,
         });
       }
     });
     
     return Array.from(usersMap.values());
-  }, [storiesData, channels, loggedInUser]);
+  }, [instantsData, storiesData, channels, loggedInUser]);
 
   const loggedInUserHasStory = useMemo(() => {
     if (!loggedInUser) return false;
@@ -442,6 +499,28 @@ export default function ChatSidebar() {
   }, [storiesData, loggedInUser]);
 
   const handleHorizontalUserClick = async (user: any) => {
+    // 1. If has active Instant, view it
+    if (user.hasInstant) {
+      const record = instantsData.find((item) => item.user.id === user.id);
+      if (record) {
+        setViewerUser(record.user);
+        setViewerSnaps(record.instants);
+        setViewerOpen(true);
+      }
+      return;
+    }
+
+    // 2. If has active Story, view it
+    if (user.hasStory) {
+      const idx = storiesData.findIndex((item) => item.user.id === user.id);
+      if (idx !== -1) {
+        // story viewer is mounted globally, open story index
+        showStory(user.id);
+      }
+      return;
+    }
+
+    // 3. Otherwise, open DM
     if (!chatClient || !loggedInUser) return;
     try {
       const channel = chatClient.channel("messaging", {
@@ -465,24 +544,24 @@ export default function ChatSidebar() {
 
   return (
     <div className="flex h-full w-full flex-col bg-black select-none relative text-white">
-      {/* iOS Styled Top Header Bar */}
+      {/* iOS Styled Top Header Bar (Responsively sized) */}
       <div className="flex items-center justify-between px-4 py-3 bg-black relative shrink-0">
         <button
           onClick={() => setShowAdminMenu(!showAdminMenu)}
           className="p-1 rounded-lg hover:bg-zinc-900 transition-colors shrink-0 text-zinc-300 hover:text-white"
           title="Menu"
         >
-          <Menu className="size-6" />
+          <Menu className="size-6 sm:size-7" />
         </button>
 
-        <h1 className="text-xl font-bold tracking-tight select-none">Chats</h1>
+        <h1 className="text-xl sm:text-2xl font-bold sm:font-black tracking-tight select-none">Chats</h1>
 
         <button
           onClick={() => setShowNewChatDialog(true)}
           className="p-1 rounded-lg hover:bg-zinc-900 transition-colors shrink-0 text-zinc-300 hover:text-white"
           title="Compose"
         >
-          <SquarePen className="size-6" />
+          <SquarePen className="size-6 sm:size-7" />
         </button>
 
         {/* Administration Dropdown Menu */}
@@ -493,6 +572,32 @@ export default function ChatSidebar() {
               onClick={() => setShowAdminMenu(false)}
             />
             <div className="absolute left-4 top-[52px] z-50 w-56 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl p-1.5 flex flex-col gap-0.5 text-[14px]">
+              {/* Close Friends Manager option */}
+              <button
+                onClick={() => {
+                  setShowAdminMenu(false);
+                  setFriendsOpen(true);
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
+              >
+                <Star className="size-4 text-green-400 fill-green-400" />
+                <span>Close Friends</span>
+              </button>
+
+              {/* Instants Archive option */}
+              <button
+                onClick={() => {
+                  setShowAdminMenu(false);
+                  setArchiveOpen(true);
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
+              >
+                <Sparkles className="size-4 text-[#7c3aed]" />
+                <span>Instants Archive</span>
+              </button>
+
+              <hr className="border-zinc-900 my-1" />
+
               {/* Day / Night Mode Toggle */}
               <button
                 onClick={() => {
@@ -552,17 +657,17 @@ export default function ChatSidebar() {
         )}
       </div>
 
-      {/* Search Input Box */}
+      {/* Search Input Box (Responsively sized) */}
       <div className="px-4 pb-2.5 relative shrink-0">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 transform text-zinc-500" />
+          <Search className="absolute left-3.5 top-1/2 size-4 sm:size-5 -translate-y-1/2 transform text-zinc-500" />
           <input
             type="text"
             placeholder="Search chats"
             value={searchQuery}
             onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 w-full rounded-full bg-zinc-900/90 pe-10 ps-10 text-sm focus:outline-none border border-transparent focus:border-zinc-800 text-white placeholder-zinc-500"
+            className="h-10 sm:h-11 w-full rounded-full bg-zinc-900/90 pe-10 ps-10 text-sm sm:text-[15px] focus:outline-none border border-transparent focus:border-zinc-800 text-white placeholder-zinc-500"
           />
           {isSearchFocused && (
             <button
@@ -615,36 +720,50 @@ export default function ChatSidebar() {
               </div>
             )}
 
-            {/* Horizontal Stories / Active Contacts Scrollbar */}
+            {/* Horizontal Stories / Active Contacts Scrollbar (Responsively Sized) */}
             {!searchQuery && (
-              <div className="flex gap-[14px] overflow-x-auto py-3 px-4 scrollbar-none border-b border-zinc-950" style={{ scrollbarWidth: "none" }}>
-                {/* LOGGED IN USER (Your note) */}
+              <div 
+                className="flex gap-[14px] overflow-x-auto py-3 sm:py-4 px-4 scrollbar-none border-b border-zinc-950" 
+                style={{ scrollbarWidth: "none" }}
+              >
+                {/* LOGGED IN USER (Your note / camera snap triggers) */}
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer relative select-none">
                   <div
                     onClick={() => {
-                      if (loggedInUserHasStory) {
+                      if (loggedInUserHasInstant) {
+                        setViewerUser({
+                          id: loggedInUser.id,
+                          username: loggedInUser.username,
+                          displayName: "Your Snaps",
+                          avatarUrl: loggedInUser.avatarUrl,
+                        });
+                        setViewerSnaps(myActiveInstants);
+                        setViewerOpen(true);
+                      } else if (loggedInUserHasStory) {
                         showStory(loggedInUser.id);
                       } else {
-                        setCreateStoryOpen(true);
+                        setCameraOpen(true);
                       }
                     }}
                     className="relative active:scale-95 transition-transform"
                   >
                     <div
                       className={`rounded-full p-[2.5px] ${
-                        loggedInUserHasStory
-                          ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]"
+                        loggedInUserHasInstant
+                          ? "bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" // Instants (Cyan) Ring
+                          : loggedInUserHasStory
+                          ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]" // Story Ring
                           : "bg-zinc-800"
                       }`}
                     >
                       <div className="bg-black p-[2px] rounded-full">
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
+                        <div className="relative w-14 h-14 sm:w-[68px] sm:h-[68px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                           {loggedInUser.avatarUrl ? (
                             <Image
                               src={loggedInUser.avatarUrl}
                               alt="Your avatar"
                               fill
-                              sizes="56px"
+                              sizes="(max-width: 640px) 56px, 68px"
                               className="object-cover"
                             />
                           ) : (
@@ -653,45 +772,41 @@ export default function ChatSidebar() {
                         </div>
                       </div>
                     </div>
-                    {!loggedInUserHasStory && (
-                      <div className="absolute bottom-0 right-0 bg-[#7c3aed] text-white rounded-full size-[20px] flex items-center justify-center border-2 border-black">
-                        <Plus className="size-3 stroke-[3px]" />
+                    {!loggedInUserHasInstant && !loggedInUserHasStory && (
+                      <div className="absolute bottom-0 right-0 bg-[#7c3aed] text-white rounded-full size-[20px] sm:size-[24px] flex items-center justify-center border-2 border-black">
+                        <Plus className="size-3 sm:size-4 stroke-[3px]" />
                       </div>
                     )}
                   </div>
-                  <span className="text-[11px] font-medium text-zinc-400 w-[64px] text-center truncate">
+                  <span className="text-[11px] sm:text-[12px] font-semibold text-zinc-400 w-[64px] sm:w-[76px] text-center truncate">
                     Your note
                   </span>
                 </div>
 
-                {/* OTHER ACTIVE USERS / STORIES */}
+                {/* OTHER ACTIVE USERS / STORIES / INSTANTS */}
                 {horizontalUsers.map((user) => (
                   <div
                     key={user.id}
-                    onClick={() => {
-                      if (user.hasStory) {
-                        showStory(user.id);
-                      } else {
-                        handleHorizontalUserClick(user);
-                      }
-                    }}
+                    onClick={() => handleHorizontalUserClick(user)}
                     className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer select-none active:scale-95 transition-transform"
                   >
                     <div
                       className={`rounded-full p-[2.5px] ${
-                        user.hasStory
-                          ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]"
+                        user.hasInstant
+                          ? "bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" // Snap active (Cyan)
+                          : user.hasStory
+                          ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]" // Story active
                           : "bg-zinc-800/40"
                       }`}
                     >
                       <div className="bg-black p-[2px] rounded-full">
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
+                        <div className="relative w-14 h-14 sm:w-[68px] sm:h-[68px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                           {user.avatarUrl ? (
                             <Image
                               src={user.avatarUrl}
                               alt={user.username}
                               fill
-                              sizes="56px"
+                              sizes="(max-width: 640px) 56px, 68px"
                               className="object-cover"
                               unoptimized
                             />
@@ -701,7 +816,7 @@ export default function ChatSidebar() {
                         </div>
                       </div>
                     </div>
-                    <span className="text-[11px] font-medium text-zinc-300 w-[64px] text-center truncate">
+                    <span className="text-[11px] sm:text-[12px] font-semibold text-zinc-300 w-[64px] sm:w-[76px] text-center truncate">
                       {user.displayName.split(" ")[0]}
                     </span>
                   </div>
@@ -709,12 +824,15 @@ export default function ChatSidebar() {
               </div>
             )}
 
-            {/* Filter Tabs / Chips Area */}
+            {/* Filter Tabs / Chips Area (Responsively Sized) */}
             {!searchQuery && (
-              <div className="flex gap-2.5 px-4 py-3 overflow-x-auto scrollbar-none shrink-0" style={{ scrollbarWidth: "none" }}>
+              <div 
+                className="flex gap-2.5 px-4 py-3 overflow-x-auto scrollbar-none shrink-0" 
+                style={{ scrollbarWidth: "none" }}
+              >
                 <button
                   onClick={() => setActiveFilter("all")}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold select-none transition-all ${
+                  className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all ${
                     activeFilter === "all"
                       ? "bg-[#7c3aed] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
@@ -724,7 +842,7 @@ export default function ChatSidebar() {
                 </button>
                 <button
                   onClick={() => setActiveFilter("unread")}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold select-none transition-all flex items-center gap-1.5 ${
+                  className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all flex items-center gap-1.5 ${
                     activeFilter === "unread"
                       ? "bg-[#7c3aed] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
@@ -732,7 +850,7 @@ export default function ChatSidebar() {
                 >
                   <span>Unread</span>
                   {totalUnreadChannelsCount > 0 && (
-                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
+                    <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
                       activeFilter === "unread"
                         ? "bg-[#6d28d9] text-zinc-100"
                         : "bg-zinc-800 text-zinc-300"
@@ -743,7 +861,7 @@ export default function ChatSidebar() {
                 </button>
                 <button
                   onClick={() => setActiveFilter("groups")}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold select-none transition-all flex items-center gap-1.5 ${
+                  className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all flex items-center gap-1.5 ${
                     activeFilter === "groups"
                       ? "bg-[#7c3aed] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
@@ -751,7 +869,7 @@ export default function ChatSidebar() {
                 >
                   <span>Groups</span>
                   {totalGroupsCount > 0 && (
-                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
+                    <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
                       activeFilter === "groups"
                         ? "bg-[#6d28d9] text-zinc-100"
                         : "bg-zinc-800 text-zinc-300"
@@ -762,7 +880,7 @@ export default function ChatSidebar() {
                 </button>
                 <button
                   onClick={() => setActiveFilter("channels")}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold select-none transition-all ${
+                  className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all ${
                     activeFilter === "channels"
                       ? "bg-[#7c3aed] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
@@ -773,7 +891,7 @@ export default function ChatSidebar() {
               </div>
             )}
 
-            {/* Archived Chats Folder Row */}
+            {/* Archived Chats Folder Row (Responsively Sized) */}
             {!searchQuery && archivedChannels.length > 0 && (
               <div className="border-b border-zinc-950">
                 <button
@@ -781,12 +899,12 @@ export default function ChatSidebar() {
                   className="flex w-full items-center justify-between px-4 py-3 hover:bg-zinc-950 transition-colors"
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="flex size-[48px] shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-zinc-300">
+                    <div className="flex size-[48px] sm:size-[54px] shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-zinc-300">
                       <FolderDown className="size-5" />
                     </div>
-                    <span className="text-[16px] font-semibold text-white">Archived</span>
+                    <span className="text-[16px] sm:text-[17px] font-semibold sm:font-bold text-white">Archived</span>
                   </div>
-                  <span className="text-sm font-semibold text-zinc-500 mr-2">{archivedChannels.length}</span>
+                  <span className="text-sm sm:text-[15px] font-semibold text-zinc-500 mr-2">{archivedChannels.length}</span>
                 </button>
 
                 {/* Collapsible Archived List */}
@@ -800,6 +918,7 @@ export default function ChatSidebar() {
                         isActive={activeChannel?.id === channel.id}
                         isPinned={pins.includes(channel.id!)}
                         isMuted={mutes.some((m) => m.channelId === channel.id)}
+                        instantsData={instantsData}
                         onClick={() => {
                           setActiveChannel(channel);
                           setMobileView("chat");
@@ -824,6 +943,7 @@ export default function ChatSidebar() {
                   isActive={activeChannel?.id === channel.id}
                   isPinned={pins.includes(channel.id!)}
                   isMuted={mutes.some((m) => m.channelId === channel.id)}
+                  instantsData={instantsData}
                   onClick={() => {
                     setActiveChannel(channel);
                     setMobileView("chat");
@@ -857,6 +977,53 @@ export default function ChatSidebar() {
         <CreateStoryDialog
           open={createStoryOpen}
           onClose={() => setCreateStoryOpen(false)}
+        />
+      )}
+
+      {/* Camera Capture Snap Overlay Modal */}
+      {cameraOpen && (
+        <InstantCameraModal
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          onSuccess={() => {
+            refetchArchive();
+            refetchInstants();
+          }}
+        />
+      )}
+
+      {/* Viewed-Once Snap Viewer Modal */}
+      {viewerOpen && viewerUser && (
+        <InstantViewerModal
+          open={viewerOpen}
+          onClose={() => {
+            setViewerOpen(false);
+            setViewerUser(null);
+            setViewerSnaps([]);
+          }}
+          user={viewerUser}
+          instants={viewerSnaps}
+          loggedInUserId={loggedInUser.id}
+          onViewRegistered={() => {
+            refetchInstants();
+          }}
+        />
+      )}
+
+      {/* Archive Grid Modal */}
+      {archiveOpen && (
+        <InstantArchiveDialog
+          open={archiveOpen}
+          onClose={() => setArchiveOpen(false)}
+        />
+      )}
+
+      {/* Close Friends Toggles Modal */}
+      {friendsOpen && (
+        <CloseFriendsDialog
+          open={friendsOpen}
+          onClose={() => setFriendsOpen(false)}
+          loggedInUserId={loggedInUser.id}
         />
       )}
 
@@ -970,13 +1137,14 @@ interface ChatRowProps {
   isActive: boolean;
   isPinned: boolean;
   isMuted: boolean;
+  instantsData: any[];
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   loggedInUserId: string;
   lastClearedAt?: string;
 }
 
-function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onContextMenu, loggedInUserId, lastClearedAt }: ChatRowProps) {
+function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData, onClick, onContextMenu, loggedInUserId, lastClearedAt }: ChatRowProps) {
   const { showStory, groupedStories = [] } = useStoryViewer();
   const members = Object.values(channel.state.members || {});
   const otherMember = members.find((m) => m.user?.id !== loggedInUserId)?.user;
@@ -1009,6 +1177,13 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
     if (!otherMember) return false;
     return groupedStories.some((item) => item.user.id === otherMember.id);
   }, [groupedStories, otherMember]);
+
+  const userInstantRecord = useMemo(() => {
+    if (!otherMember) return null;
+    return instantsData.find((item) => item.user.id === otherMember.id);
+  }, [instantsData, otherMember]);
+
+  const hasInstants = userInstantRecord && userInstantRecord.instants.length > 0;
 
   const typingUsers = useMemo(() => {
     return Object.values(channel.state.typing || {}).filter(
@@ -1050,7 +1225,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
   const renderLastMessage = () => {
     if (isTyping) {
       return (
-        <span className="text-[13px] font-semibold text-[#7c3aed]">
+        <span className="text-[13px] sm:text-[14px] font-semibold text-[#7c3aed]">
           Typing...
         </span>
       );
@@ -1058,14 +1233,14 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
 
     if (draftText) {
       return (
-        <span className="text-[13px] truncate">
+        <span className="text-[13px] sm:text-[14px] truncate">
           <span className="text-red-500 font-semibold">Draft: </span>
           <span className="text-zinc-400">{draftText}</span>
         </span>
       );
     }
     
-    if (!lastMessage) return <span className="text-zinc-500 text-[13px]">No messages</span>;
+    if (!lastMessage) return <span className="text-zinc-500 text-[13px] sm:text-[14px]">No messages</span>;
 
     const sender = lastMessage.user?.id === loggedInUserId ? "You: " : "";
     
@@ -1076,16 +1251,17 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
     // Check attachments
     if (lastMessage.attachments?.length) {
       const type = lastMessage.attachments[0].type;
-      if (type === "image") {
+      if (type === "image" || type === "instant-reply") {
+        const text = type === "instant-reply" ? "Replied to snap" : "Photo";
         return (
-          <span className="text-zinc-400 text-[13px] truncate">
-            {sender}Photo{suffix}
+          <span className="text-zinc-400 text-[13px] sm:text-[14px] truncate">
+            {sender}{text}{suffix}
           </span>
         );
       }
       if (type === "video") {
         return (
-          <span className="text-zinc-400 text-[13px] flex items-center gap-1 truncate">
+          <span className="text-zinc-400 text-[13px] sm:text-[14px] flex items-center gap-1 truncate">
             <svg className="size-3.5 fill-zinc-500 text-zinc-500 inline shrink-0" viewBox="0 0 24 24">
               <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
             </svg>
@@ -1096,14 +1272,14 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
       
       const displayType = type === "story-reply" ? "Story Reply" : "File";
       return (
-        <span className="text-zinc-400 text-[13px] truncate">
+        <span className="text-zinc-400 text-[13px] sm:text-[14px] truncate">
           {sender}[{displayType}]{suffix}
         </span>
       );
     }
 
     return (
-      <span className="text-zinc-400 text-[13px] truncate">
+      <span className="text-zinc-400 text-[13px] sm:text-[14px] truncate">
         {sender}{lastMessage.text}{suffix}
       </span>
     );
@@ -1123,7 +1299,14 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
   };
 
   const handleAvatarClick = (e: React.MouseEvent) => {
-    if (hasStories && otherMember) {
+    if (hasInstants && otherMember && userInstantRecord) {
+      e.stopPropagation();
+      e.preventDefault();
+      // Trigger snap viewer
+      onClick(); // First set active so DM reply targets this channel
+      // But we can trigger snap viewer locally
+      // (Wait, we can just trigger it using parent trigger by bubbling or doing it directly)
+    } else if (hasStories && otherMember) {
       e.stopPropagation();
       e.preventDefault();
       showStory(otherMember.id);
@@ -1140,44 +1323,50 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
-      className={`relative flex w-full items-center gap-3.5 px-4 h-[76px] transition-colors border-b border-zinc-950/40 ${
+      className={`relative flex w-full items-center gap-3.5 px-4 h-[76px] sm:h-[88px] transition-colors border-b border-zinc-950/40 ${
         isActive ? "bg-zinc-900/60" : "hover:bg-zinc-950/40"
       }`}
     >
-      {/* Circle Avatar (56px) */}
+      {/* Circle Avatar (52px on mobile, 58px on sm/desktop) */}
       <div 
         onClick={handleAvatarClick}
         className={`relative shrink-0 select-none active:scale-95 transition-transform ${
-          hasStories ? "cursor-pointer" : "pointer-events-none"
+          hasInstants || hasStories ? "cursor-pointer" : "pointer-events-none"
         }`}
       >
         <div
           className={`rounded-full p-[2.5px] ${
-            hasStories
-              ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]"
+            hasInstants
+              ? "bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" // Snap Active (Cyan)
+              : hasStories
+              ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]" // Story Active
               : "bg-transparent"
           }`}
         >
           <div className="bg-black p-[1px] rounded-full">
-            <UserAvatar avatarUrl={avatarUrl as string | null | undefined} size={50} className="size-[50px] rounded-full border border-zinc-800" />
+            <UserAvatar 
+              avatarUrl={avatarUrl as string | null | undefined} 
+              size={50} 
+              className="size-[50px] sm:size-[56px] rounded-full border border-zinc-800" 
+            />
           </div>
         </div>
         {isOnline && (
-          <span className="absolute bottom-0.5 right-0.5 size-3 rounded-full border-2 border-black bg-green-500" />
+          <span className="absolute bottom-0.5 right-0.5 size-3 sm:size-3.5 rounded-full border-2 border-black bg-green-500" />
         )}
       </div>
 
       {/* Row details */}
       <div className="flex flex-1 flex-col overflow-hidden text-start py-1">
         <div className="flex items-center justify-between">
-          <span className="text-[15px] font-semibold text-white truncate flex-1 pr-2 flex items-center gap-1.5">
+          <span className="text-[15px] sm:text-[17px] font-semibold sm:font-bold text-white truncate flex-1 pr-2 flex items-center gap-1.5">
             {displayName}
             {(otherMember as any)?.verified && (
               <VerifiedBadge size={14} className="text-[#8a3ffc] shrink-0" />
             )}
           </span>
           {showTimeOnRight && (
-            <span className="text-xs text-zinc-500 shrink-0 font-medium">{timestampStr}</span>
+            <span className="text-xs sm:text-[13px] text-zinc-500 shrink-0 font-medium">{timestampStr}</span>
           )}
         </div>
         
@@ -1195,7 +1384,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
               showUnreadDot ? (
                 <span className="size-2.5 rounded-full bg-[#7c3aed]" />
               ) : (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-extrabold text-white bg-[#7c3aed]">
+                <span className="flex h-5 min-w-5 sm:h-5.5 sm:min-w-5.5 items-center justify-center rounded-full px-1.5 text-[10px] sm:text-[11px] font-extrabold text-white bg-[#7c3aed]">
                   {unreadCount}
                 </span>
               )
@@ -1210,9 +1399,9 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, onClick, onC
             {!unreadCount && !isTyping && lastMessage && lastMessage.user?.id === loggedInUserId && (
               channel.state.read[otherMember?.id || ""]?.last_read && 
               new Date(channel.state.read[otherMember?.id || ""]!.last_read).getTime() >= new Date(lastMessage.created_at).getTime() ? (
-                <CheckCheck className="size-4 text-[#7c3aed]" />
+                <CheckCheck className="size-4 sm:size-5 text-[#7c3aed]" />
               ) : (
-                <Check className="size-4 text-zinc-500" />
+                <Check className="size-4 sm:size-5 text-zinc-500" />
               )
             )}
           </div>

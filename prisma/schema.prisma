@@ -44,6 +44,10 @@ model User {
   collections           SavedCollection[]
   sessions              Session[]
   stories               Story[]
+  closeFriends          CloseFriend[]       @relation("UserCloseFriends")
+  designatedAsCloseFriend CloseFriend[]     @relation("FriendCloseFriends")
+  sentInstants          Instant[]           @relation("SentInstants")
+  instantViews          InstantView[]
   isPrivate                Boolean             @default(false)
   pinnedContent            PinnedContent[]
   unreadNotificationCount  Int                 @default(0)
@@ -821,4 +825,43 @@ model ConversationSettings {
   @@unique([userId, channelId])
   @@map("conversation_settings")
 }
+
+model CloseFriend {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation("UserCloseFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendCloseFriends", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@map("close_friends")
+}
+
+model Instant {
+  id        String        @id @default(cuid())
+  senderId  String        @map("sender_id")
+  mediaUrl  String        @map("media_url")
+  audience  String        @default("FRIENDS") // "FRIENDS" or "CLOSE_FRIENDS"
+  createdAt DateTime      @default(now()) @map("created_at")
+  sender    User          @relation("SentInstants", fields: [senderId], references: [id], onDelete: Cascade)
+  views     InstantView[]
+
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("instants")
+}
+
+model InstantView {
+  id        String   @id @default(cuid())
+  instantId String   @map("instant_id")
+  userId    String   @map("user_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+  instant   Instant  @relation(fields: [instantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([instantId, userId])
+  @@map("instant_views")
+}
+
 

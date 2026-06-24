@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     }
 
     const formData = await req.formData();
-    const endpoint = formData.get("endpoint") as "avatar" | "banner" | "attachment" | "story" | "system-bg";
+    const endpoint = formData.get("endpoint") as "avatar" | "banner" | "attachment" | "story" | "system-bg" | "instant";
     const files = formData.getAll("files") as File[];
     const metadataStr = formData.get("metadata") as string | null;
     const metadata = metadataStr ? JSON.parse(metadataStr) : null;
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     }
 
     for (const file of files) {
-      if (endpoint === "attachment" || endpoint === "story") {
+      if (endpoint === "attachment" || endpoint === "story" || endpoint === "instant") {
         const errorMsg = validateMediaFile(file);
         if (errorMsg) {
           return Response.json({ error: errorMsg }, { status: 400 });
@@ -213,6 +213,38 @@ export async function POST(req: Request) {
           url: publicUrl,
           serverData: {
             storyId: story.id,
+          },
+        });
+      } else if (endpoint === "instant") {
+        const fileKey = `instants/${uniqueId}.${fileExtension}`;
+
+        const { error } = await supabaseAdmin.storage
+          .from("social-media")
+          .upload(fileKey, buffer, {
+            contentType: file.type,
+            cacheControl: "31536000",
+            upsert: true,
+          });
+
+        if (error) throw error;
+
+        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/social-media/${fileKey}`;
+
+        // Create Instant DB record
+        const audience = (formData.get("audience") as string) || "FRIENDS";
+        const instant = await prisma.instant.create({
+          data: {
+            senderId: user.id,
+            mediaUrl: publicUrl,
+            audience,
+          },
+        });
+
+        uploadResults.push({
+          name: file.name,
+          url: publicUrl,
+          serverData: {
+            instantId: instant.id,
           },
         });
       }
