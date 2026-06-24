@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Channel, MessageResponse } from "stream-chat";
@@ -96,6 +96,416 @@ const reactionEmojiMap: Record<string, string> = {
   "pray": "🙏"
 };
 
+interface MessageBubbleContainerProps {
+  message: MessageResponse;
+  virtualRow: any;
+  rowVirtualizer: any;
+  loggedInUser: any;
+  channel: Channel;
+  selectedMessage: MessageResponse | null;
+  setSelectedMessage: (msg: MessageResponse | null) => void;
+  replyMessage: MessageResponse | null;
+  setReplyMessage: (msg: MessageResponse | null) => void;
+  highlightedMessageId: string | null;
+  scrollToMessage: (id: string) => void;
+  setMediaViewerState: (state: any) => void;
+  handleToggleReaction: (msgId: string, emoji: string) => void;
+  isSelectionMode: boolean;
+  selectedMessageIds: string[];
+  toggleMessageSelection: (id: string) => void;
+  handlePinMessage: (msg: any) => void;
+  handleDeleteMessage: (id: string) => void;
+  setEditingMessage: (msg: any) => void;
+  setInputText: (txt: string) => void;
+  textareaRef: any;
+  setShowStickerPicker: (val: boolean) => void;
+  position: "single" | "first" | "middle" | "last";
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+  otherMember: any;
+}
+
+const MessageBubbleContainer = React.memo(({
+  message,
+  virtualRow,
+  rowVirtualizer,
+  loggedInUser,
+  channel,
+  selectedMessage,
+  setSelectedMessage,
+  replyMessage,
+  setReplyMessage,
+  highlightedMessageId,
+  scrollToMessage,
+  setMediaViewerState,
+  handleToggleReaction,
+  isSelectionMode,
+  selectedMessageIds,
+  toggleMessageSelection,
+  handlePinMessage,
+  handleDeleteMessage,
+  setEditingMessage,
+  setInputText,
+  textareaRef,
+  setShowStickerPicker,
+  position,
+  isFirstInGroup,
+  isLastInGroup,
+  otherMember,
+}: MessageBubbleContainerProps) => {
+  const isOutgoing = message.user?.id === loggedInUser.id || (message as any).senderId === loggedInUser.id;
+  const isQueue = "status" in message;
+  const isSelected = selectedMessage?.id === message.id;
+  const isSelectedMulti = selectedMessageIds.includes(message.id);
+  const isStoryReply = message.attachments?.some((a: any) => a.type === "story-reply");
+
+  const [dragX, setDragX] = useState(0);
+  const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const startLongPress = () => {
+    longPressTimeout.current = setTimeout(() => {
+      setSelectedMessage(message);
+      if (navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+    }, 500);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
+    }
+  };
+
+  return (
+    <div
+      data-index={virtualRow.index}
+      ref={rowVirtualizer.measureElement}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        transform: `translateY(${virtualRow.start}px)`,
+      }}
+      className={`py-0.5 flex ${isOutgoing ? "justify-end" : "justify-start"} items-end gap-2 transition-all duration-200 ${
+        isSelectionMode ? "bg-primary/5 px-2 rounded-xl" : ""
+      } ${isSelected ? "z-30 relative" : "z-0"}`}
+    >
+      {/* Swipe-to-Reply Arrow Indicator (WhatsApp style) */}
+      {!isSelectionMode && !selectedMessage && (
+        <div 
+          className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center pl-4 pointer-events-none transition-opacity duration-150"
+          style={{ opacity: dragX > 10 ? 1 : 0 }}
+        >
+          <motion.div 
+            style={{ 
+              x: dragX > 60 ? 60 : dragX,
+              rotate: dragX * 2,
+              scale: Math.min(dragX / 50, 1.2) 
+            }}
+            className={`p-2 rounded-full transition-colors duration-200 ${
+              dragX > 60 ? 'bg-[#00a884] text-white' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            <CornerUpLeft className="size-4" />
+          </motion.div>
+        </div>
+      )}
+
+      {isSelectionMode && (
+        <div className="flex items-center justify-center pr-1 shrink-0 h-8 self-center">
+          <input 
+            type="checkbox"
+            checked={isSelectedMulti}
+            onChange={() => toggleMessageSelection(message.id)}
+            className="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+          />
+        </div>
+      )}
+
+      {!isOutgoing && channel.data?.isGroup === true && (
+        <div className="flex shrink-0 w-8 items-end justify-center mb-1">
+          {isLastInGroup ? (
+            <UserAvatar 
+              avatarUrl={message.user?.image as string | undefined} 
+              size={32} 
+              className="size-8 border rounded-full shrink-0" 
+            />
+          ) : (
+            <div className="size-8 w-8 shrink-0" />
+          )}
+        </div>
+      )}
+
+      <motion.div
+        onClick={(e) => {
+          if (isSelectionMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMessageSelection(message.id);
+          } else if (selectedMessage) {
+            e.preventDefault();
+            e.stopPropagation();
+            setSelectedMessage(null);
+          } else {
+            setSelectedMessage(message);
+          }
+        }}
+        onPointerDown={isSelectionMode || selectedMessage ? undefined : startLongPress}
+        onPointerUp={cancelLongPress}
+        onPointerLeave={cancelLongPress}
+        drag={isSelectionMode || selectedMessage ? false : "x"}
+        dragConstraints={{ left: 0, right: 120 }}
+        dragElastic={0.4}
+        dragSnapToOrigin
+        onDrag={(event, info) => {
+          setDragX(info.offset.x);
+        }}
+        onDragEnd={(event, info) => {
+          setDragX(0);
+          if (info.offset.x > 60) {
+            setReplyMessage(message);
+            if (navigator.vibrate) {
+              navigator.vibrate(10);
+            }
+          }
+        }}
+        className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
+          isOutgoing
+            ? isStoryReply
+              ? `${message.id === highlightedMessageId ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 ring-2 ring-zinc-500/30" : isSelected ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 ring-2 ring-zinc-500/20" : "bg-gradient-to-tr from-pink-500/95 to-purple-600/95"} text-white ${
+                  getBubbleCorners(true, position)
+                }`
+              : `${message.id === highlightedMessageId ? "bg-primary/90 ring-2 ring-zinc-500/30" : isSelected ? "bg-primary/95 ring-2 ring-zinc-500/20" : "bg-primary"} text-primary-foreground ${
+                  getBubbleCorners(true, position)
+                }`
+            : isStoryReply
+            ? `${message.id === highlightedMessageId ? "bg-zinc-900/70 ring-2 ring-zinc-700/50 border border-zinc-800/80" : isSelected ? "bg-zinc-900/85 ring-2 ring-zinc-800/30 border border-zinc-800/80" : "bg-zinc-900/60 dark:bg-zinc-950/65 backdrop-blur-md border border-zinc-800/50"} text-foreground ${
+                getBubbleCorners(false, position)
+              }`
+            : `${message.id === highlightedMessageId ? "bg-card dark:bg-zinc-900 ring-2 ring-zinc-500/25 border-zinc-300 dark:border-zinc-700" : isSelected ? "bg-zinc-100 dark:bg-zinc-900/80 border-zinc-200 dark:border-zinc-800" : "bg-card border border-zinc-200 dark:border-zinc-800/60"} text-foreground ${
+                getBubbleCorners(false, position)
+              }`
+        } ${isFirstInGroup ? "mt-3" : "mt-0.5"} ${
+          message.id === highlightedMessageId || isSelected ? "scale-[1.03] shadow-md" : ""
+        }`}
+      >
+        {/* Outgoing Bubble SVG Tail */}
+        {isOutgoing && isLastInGroup && !isStoryReply && (
+          <svg
+            className="absolute bottom-0 -right-[5px] text-primary fill-current shrink-0 pointer-events-none"
+            width="8"
+            height="10"
+            viewBox="0 0 8 10"
+          >
+            <path d="M0,10 h8 C8,10 5,8 4,5 C3,2 4,0 4,0 C4,0 3,4 0,7 z" />
+          </svg>
+        )}
+
+        {/* Incoming Bubble SVG Tail */}
+        {!isOutgoing && isLastInGroup && !isStoryReply && (
+          <svg
+            className="absolute bottom-0 -left-[5px] text-card fill-current shrink-0 pointer-events-none"
+            width="8"
+            height="10"
+            viewBox="0 0 8 10"
+          >
+            <path d="M8,10 h-8 C0,10 3,8 4,5 C5,2 4,0 4,0 C4,0 5,4 8,7 z" />
+          </svg>
+        )}
+
+        {/* Sender Name if Group chat */}
+        {!isOutgoing && isFirstInGroup && channel.data?.isGroup === true && (
+          <span className="text-[10px] font-bold text-primary block mb-0.5">
+            {message.user?.name}
+          </span>
+        )}
+
+        {/* Quoted message reply preview */}
+        {message.quoted_message && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              scrollToMessage(message.quoted_message!.id);
+            }}
+            className="border-s-2 border-primary bg-zinc-100/50 dark:bg-zinc-800/50 px-2 py-1 rounded text-xs mb-1.5 cursor-pointer flex flex-col text-start select-none"
+          >
+            <span className="font-bold text-primary text-[11px] truncate">
+              {message.quoted_message.user?.name || "Reply"}
+            </span>
+            <div className="flex items-center gap-1.5 mt-0.5 max-w-full truncate">
+              {renderQuotedAttachmentPreview(message.quoted_message)}
+              {message.quoted_message.text && (
+                <span className="text-muted-foreground text-[11px] truncate">
+                  {message.quoted_message.text}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Share Card Payload Rendering */}
+        {message.attachments?.some((a: any) => a.type === "share-card") ? (
+          <ShareCardAttachment
+            attachment={message.attachments.find((a: any) => a.type === "share-card")}
+          />
+        ) : null}
+
+        {/* Story Reply Rendering */}
+        {message.attachments?.some((a: any) => a.type === "story-reply") ? (
+          <StoryReplyAttachment
+            attachment={message.attachments.find((a: any) => a.type === "story-reply")}
+          />
+        ) : null}
+
+        {/* Sticker Rendering */}
+        {message.attachments?.some((a: any) => a.type === "sticker") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={message.attachments.find((a: any) => a.type === "sticker")?.image_url}
+            alt="Sticker"
+            className="size-20 object-contain my-1 cursor-pointer"
+          />
+        ) : null}
+
+        {/* Giphy Rendering */}
+        {message.attachments?.some((a: any) => a.type === "giphy") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={message.attachments.find((a: any) => a.type === "giphy")?.image_url}
+            alt="GIF"
+            className="max-h-40 rounded object-cover my-1 cursor-pointer"
+            onClick={() => setMediaViewerState({
+              attachments: [{ url: message.attachments!.find((a: any) => a.type === "giphy")!.image_url!, type: "image" }],
+              initialIndex: 0
+            })}
+          />
+        ) : null}
+
+        {/* Standard Image Rendering */}
+        {message.attachments?.some((a: any) => a.type === "image") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={message.attachments.find((a: any) => a.type === "image")?.asset_url}
+            alt="Image Attachment"
+            className="max-h-48 rounded object-cover my-1 cursor-pointer"
+            onClick={() => setMediaViewerState({
+              attachments: [{ url: message.attachments!.find((a: any) => a.type === "image")!.asset_url!, type: "image" }],
+              initialIndex: 0
+            })}
+          />
+        ) : null}
+
+        {/* Message Text content */}
+        {message.text && (
+          <p className="whitespace-pre-wrap break-words pr-14 text-[16px] leading-[22px]">{message.text}</p>
+        )}
+
+        {/* Floating Metadata (Time and status checks) */}
+        <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[9px] opacity-75 shrink-0 pointer-events-none select-none">
+          <span>
+            {new Date(message.created_at || (message as any).createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+          
+          {/* Read status checks for outgoing bubbles */}
+          {isOutgoing && (
+            isQueue ? (
+              (message as any).status === "PENDING" || (message as any).status === "SENDING" ? (
+                <span className="size-2 rounded-full border border-current border-t-transparent animate-spin shrink-0" />
+              ) : (
+                <AlertCircle className="size-3 text-destructive shrink-0" />
+              )
+            ) : (
+              channel.state.read[otherMember?.id || ""]?.last_read && 
+              new Date(channel.state.read[otherMember?.id || ""]?.last_read || "").getTime() >= new Date(message.created_at || "").getTime() ? (
+                <span className="text-white font-bold">✓✓</span>
+              ) : (
+                <span className="opacity-75 text-white">✓</span>
+              )
+            )
+          )}
+        </div>
+
+        {/* Reactions Display Panel */}
+        {message.latest_reactions && message.latest_reactions.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {Object.entries(
+              message.latest_reactions.reduce((acc: Record<string, number>, r: any) => {
+                acc[r.type] = (acc[r.type] || 0) + 1;
+                return acc;
+              }, {})
+            ).map(([type, count]: any) => {
+              const ownReacted = message.own_reactions?.some((r: any) => r.type === type);
+              return (
+                <motion.button
+                  key={`${type}-${count}-${ownReacted}`}
+                  whileTap={{ scale: 0.9 }}
+                  animate={{ scale: [0.9, 1.1, 1] }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleReaction(message.id, type);
+                  }}
+                  className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border transition-colors ${
+                    ownReacted
+                      ? "bg-primary/20 border-primary/30 text-primary-foreground"
+                      : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-foreground"
+                  }`}
+                >
+                  <span>{reactionEmojiMap[type] || type}</span>
+                  {count > 1 && <span className="text-[10px] opacity-75">{count}</span>}
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Floating Reaction Capsule above the bubble when selected */}
+      <AnimatePresence>
+        {isSelected && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 10, x: "-50%" }}
+            animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, scale: 0.8, y: 10, x: "-50%" }}
+            className="absolute -top-16 left-1/2 z-50 bg-[#1f2c34] dark:bg-[#233138] border border-[#2f3b43] rounded-full px-4 py-2.5 shadow-2xl flex items-center gap-3 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  handleToggleReaction(message.id, emoji);
+                  setSelectedMessage(null);
+                }}
+                className="text-2xl hover:scale-125 active:scale-95 transition-all drop-shadow-md cursor-pointer shrink-0"
+              >
+                {emoji}
+              </button>
+            ))}
+            {/* Circular plus picker button */}
+            <button
+              onClick={() => {
+                setShowStickerPicker(true);
+                setSelectedMessage(null);
+              }}
+              className="size-8 rounded-full bg-[#374248] hover:bg-[#465158] flex items-center justify-center text-zinc-400 font-bold text-lg cursor-pointer shrink-0"
+            >
+              +
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+MessageBubbleContainer.displayName = "MessageBubbleContainer";
+
 export default function ChatChannel() {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
@@ -143,6 +553,13 @@ export default function ChatChannel() {
   // Selection Mode states
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [selectedMessage, setSelectedMessage] = useState<MessageResponse | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Reset selected message when switching channels
+  useEffect(() => {
+    setSelectedMessage(null);
+  }, [channel?.id]);
 
   const isMuted = channel ? mutes.some((m) => m.channelId === channel.id) : false;
   const isPinned = channel ? pins.includes(channel.id!) : false;
@@ -622,12 +1039,150 @@ export default function ChatChannel() {
   return (
     <div className="flex h-full w-full flex-col bg-background select-none relative">
       {/* Header Panel */}
-      {isSelectionMode ? (
+      {selectedMessage ? (
+        <div className="flex h-14 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedMessage(null)}
+              className="rounded-full p-1.5 hover:bg-white/10"
+              type="button"
+            >
+              <ArrowLeft className="size-5 text-white" />
+            </button>
+            <span className="text-[17px] font-semibold">1</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Reply */}
+            <button
+              onClick={() => {
+                setReplyMessage(selectedMessage);
+                setSelectedMessage(null);
+              }}
+              className="rounded-full p-2 hover:bg-white/10"
+              title="Reply"
+              type="button"
+            >
+              <CornerUpLeft className="size-5" />
+            </button>
+
+            {/* Star */}
+            <button
+              onClick={() => {
+                setToastMessage("Message starred");
+                setTimeout(() => setToastMessage(null), 2000);
+                if (selectedMessage) {
+                  (selectedMessage as any).starred = !(selectedMessage as any).starred;
+                }
+                setSelectedMessage(null);
+              }}
+              className="rounded-full p-2 hover:bg-white/10"
+              title="Star"
+              type="button"
+            >
+              <Star className="size-5" />
+            </button>
+
+            {/* Copy */}
+            {selectedMessage?.text && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedMessage.text || "");
+                  setToastMessage("Copied to clipboard");
+                  setTimeout(() => setToastMessage(null), 2000);
+                  setSelectedMessage(null);
+                }}
+                className="rounded-full p-2 hover:bg-white/10"
+                title="Copy"
+                type="button"
+              >
+                <Copy className="size-5" />
+              </button>
+            )}
+
+            {/* Pin */}
+            <button
+              onClick={() => {
+                if (selectedMessage) {
+                  handlePinMessage(selectedMessage);
+                }
+                setSelectedMessage(null);
+              }}
+              className="rounded-full p-2 hover:bg-white/10"
+              title="Pin"
+              type="button"
+            >
+              <Pin className="size-5 rotate-45" />
+            </button>
+
+            {/* Edit (if own message) */}
+            {selectedMessage?.user?.id === loggedInUser.id && selectedMessage?.text && (
+              <button
+                onClick={() => {
+                  setEditingMessage(selectedMessage);
+                  setInputText(selectedMessage.text || "");
+                  textareaRef.current?.focus();
+                  setSelectedMessage(null);
+                }}
+                className="rounded-full p-2 hover:bg-white/10"
+                title="Edit"
+                type="button"
+              >
+                <Edit2 className="size-5" />
+              </button>
+            )}
+
+            {/* Forward */}
+            <button
+              onClick={() => {
+                setForwardingMessage(selectedMessage);
+                fetchForwardChannels();
+                setShowForwardDialog(true);
+                setSelectedMessage(null);
+              }}
+              className="rounded-full p-2 hover:bg-white/10"
+              title="Forward"
+              type="button"
+            >
+              <Share2 className="size-5" />
+            </button>
+
+            {/* Message Info */}
+            <button
+              onClick={() => {
+                const infoText = `Sent by: ${selectedMessage?.user?.name || "Unknown"}\nTime: ${new Date(selectedMessage?.created_at || "").toLocaleString()}\nStatus: Sent`;
+                alert(infoText);
+                setSelectedMessage(null);
+              }}
+              className="rounded-full p-2 hover:bg-white/10"
+              title="Info"
+              type="button"
+            >
+              <AlertCircle className="size-5" />
+            </button>
+
+            {/* Delete */}
+            <button
+              onClick={() => {
+                if (selectedMessage) {
+                  handleDeleteMessage(selectedMessage.id);
+                }
+                setSelectedMessage(null);
+              }}
+              className="rounded-full p-2 hover:bg-white/10 text-red-400"
+              title="Delete"
+              type="button"
+            >
+              <Trash2 className="size-5" />
+            </button>
+          </div>
+        </div>
+      ) : isSelectionMode ? (
         <div className="flex h-14 items-center justify-between border-b bg-primary/10 px-3 z-10 animate-fade-in shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={handleExitSelectionMode}
               className="rounded-full p-1.5 hover:bg-primary/20 text-primary"
+              type="button"
             >
               <X className="size-5" />
             </button>
@@ -640,6 +1195,7 @@ export default function ChatChannel() {
               onClick={handleSelectionCopy}
               disabled={selectedMessageIds.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-card hover:bg-muted border disabled:opacity-50 text-foreground"
+              type="button"
             >
               <Copy className="size-3.5 text-muted-foreground" />
               <span>Copy</span>
@@ -648,6 +1204,7 @@ export default function ChatChannel() {
               onClick={handleSelectionForward}
               disabled={selectedMessageIds.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-card hover:bg-muted border disabled:opacity-50 text-foreground"
+              type="button"
             >
               <Share2 className="size-3.5 text-muted-foreground" />
               <span>Forward</span>
@@ -656,6 +1213,7 @@ export default function ChatChannel() {
               onClick={handleSelectionDelete}
               disabled={selectedMessageIds.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 disabled:opacity-50 animate-pulse-once"
+              type="button"
             >
               <Trash2 className="size-3.5" />
               <span>Delete</span>
@@ -671,6 +1229,7 @@ export default function ChatChannel() {
                 setMobileView("list");
               }}
               className="rounded-full p-1.5 hover:bg-muted md:hidden"
+              type="button"
             >
               <ArrowLeft className="size-5" />
             </button>
@@ -696,6 +1255,7 @@ export default function ChatChannel() {
               onClick={handleMute}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
               title={isMuted ? "Unmute" : "Mute"}
+              type="button"
             >
               {isMuted ? <VolumeX className="size-5 text-red-500" /> : <Volume2 className="size-5" />}
             </button>
@@ -703,16 +1263,34 @@ export default function ChatChannel() {
               onClick={handlePin}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
               title={isPinned ? "Unpin" : "Pin"}
+              type="button"
             >
               <Pin className={`size-5 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
             </button>
             <button
               onClick={() => setProfileOverlayChannel(channel)}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
+              type="button"
             >
               <MoreVertical className="size-5" />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Dimmed backdrop overlay when selecting message */}
+      {selectedMessage && (
+        <div 
+          className="fixed inset-0 z-20 bg-black/10 backdrop-blur-[1px] cursor-default" 
+          onClick={() => setSelectedMessage(null)} 
+        />
+      )}
+
+      {/* Toast message popup */}
+      {toastMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-[#005c4b] border border-[#004f40] text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-xl flex items-center gap-2 animate-fade-in">
+          <MessageSquare className="size-3.5 text-white shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
@@ -735,7 +1313,7 @@ export default function ChatChannel() {
       {/* Scrollable Messages Panel */}
       <div
         ref={parentRef}
-        className="flex-1 overflow-y-auto px-4 py-3 bg-muted/5 relative"
+        className="flex-1 overflow-y-auto px-4 py-3 bg-[#efeae2] dark:bg-[#0b141a] relative shadow-inner"
       >
         <div
           style={{
@@ -797,9 +1375,6 @@ export default function ChatChannel() {
             if (item.type !== "message") return null;
 
             const message = item.message;
-            const isOutgoing = message.user?.id === loggedInUser.id || (message as any).senderId === loggedInUser.id;
-            const isQueue = "status" in message;
-            
             const getSenderId = (m: any) => m.user?.id || m.senderId;
             const msgSenderId = getSenderId(message);
 
@@ -838,263 +1413,39 @@ export default function ChatChannel() {
               ? "last"
               : "middle";
 
-            const isSelected = selectedMessageIds.includes(message.id);
-            const isStoryReply = message.attachments?.some((a: any) => a.type === "story-reply");
+            const members = Object.values(channel.state.members || {});
+            const otherMember = members.find((m) => m.user?.id !== loggedInUser.id)?.user;
 
             return (
-              <div
+              <MessageBubbleContainer
                 key={virtualRow.key}
-                data-index={virtualRow.index}
-                ref={rowVirtualizer.measureElement}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-                className={`py-0.5 flex ${isOutgoing ? "justify-end" : "justify-start"} items-end gap-2 transition-all duration-200 ${
-                  isSelectionMode ? "bg-primary/5 px-2 rounded-xl" : ""
-                }`}
-              >
-                {isSelectionMode && (
-                  <div className="flex items-center justify-center pr-1 shrink-0 h-8 self-center">
-                    <input 
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleMessageSelection(message.id)}
-                      className="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                    />
-                  </div>
-                )}
-
-                {!isOutgoing && channel.data?.isGroup === true && (
-                  <div className="flex shrink-0 w-8 items-end justify-center mb-1">
-                    {isLastInGroup ? (
-                      <UserAvatar 
-                        avatarUrl={message.user?.image as string | undefined} 
-                        size={32} 
-                        className="size-8 border rounded-full shrink-0" 
-                      />
-                    ) : (
-                      <div className="size-8 w-8 shrink-0" />
-                    )}
-                  </div>
-                )}
-
-                <motion.div
-                  onClick={(e) => {
-                    if (isSelectionMode) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleMessageSelection(message.id);
-                    } else {
-                      handleMessageClick(e, message);
-                    }
-                  }}
-                  drag={isSelectionMode ? false : "x"}
-                  dragConstraints={{ left: 0, right: 100 }}
-                  dragElastic={{ left: 0, right: 0.5 }}
-                  dragSnapToOrigin
-                  onDragEnd={(event, info) => {
-                    if (info.offset.x > 50) {
-                      setReplyMessage(message);
-                    }
-                  }}
-                  className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
-                    isOutgoing
-                      ? isStoryReply
-                        ? `${message.id === highlightedMessageId ? "bg-gradient-to-tr from-pink-400 to-purple-500 ring-2 ring-purple-400/50" : isSelected ? "bg-gradient-to-tr from-pink-450 to-purple-550 ring-2 ring-purple-400/30" : "bg-gradient-to-tr from-pink-500 to-purple-600"} text-white ${
-                            getBubbleCorners(true, position)
-                          }`
-                        : `${message.id === highlightedMessageId ? "bg-primary/80 ring-2 ring-primary/50" : isSelected ? "bg-primary/90 ring-2 ring-primary/30" : "bg-primary"} text-primary-foreground ${
-                            getBubbleCorners(true, position)
-                          }`
-                      : isStoryReply
-                      ? `${message.id === highlightedMessageId ? "bg-zinc-800/80 ring-2 ring-zinc-700/50 border border-zinc-700/80" : isSelected ? "bg-zinc-900/80 ring-2 ring-zinc-800/30 border border-zinc-800/80" : "bg-zinc-900/60 dark:bg-zinc-950/65 backdrop-blur-md border border-zinc-800/50"} text-foreground ${
-                          getBubbleCorners(false, position)
-                        }`
-                      : `${message.id === highlightedMessageId ? "bg-primary/20 ring-2 ring-primary/40" : isSelected ? "bg-primary/10 border-primary/30" : "bg-card border border-border/50"} text-foreground ${
-                          getBubbleCorners(false, position)
-                        }`
-                  } ${isFirstInGroup ? "mt-3" : "mt-0.5"} ${
-                    message.id === highlightedMessageId || isSelected ? "scale-[1.03]" : ""
-                  }`}
-                >
-                  {/* Outgoing Bubble SVG Tail */}
-                  {isOutgoing && isLastInGroup && !isStoryReply && (
-                    <svg
-                      className="absolute bottom-0 -right-[5px] text-primary fill-current shrink-0 pointer-events-none"
-                      width="8"
-                      height="10"
-                      viewBox="0 0 8 10"
-                    >
-                      <path d="M0,10 h8 C8,10 5,8 4,5 C3,2 4,0 4,0 C4,0 3,4 0,7 z" />
-                    </svg>
-                  )}
-
-                  {/* Incoming Bubble SVG Tail */}
-                  {!isOutgoing && isLastInGroup && !isStoryReply && (
-                    <svg
-                      className="absolute bottom-0 -left-[5px] text-card fill-current shrink-0 pointer-events-none"
-                      width="8"
-                      height="10"
-                      viewBox="0 0 8 10"
-                    >
-                      <path d="M8,10 h-8 C0,10 3,8 4,5 C5,2 4,0 4,0 C4,0 5,4 8,7 z" />
-                    </svg>
-                  )}
-
-                  {/* Sender Name if Group chat */}
-                  {!isOutgoing && isFirstInGroup && channel.data?.isGroup && (
-                    <span className="text-[10px] font-bold text-primary block mb-0.5">
-                      {message.user?.name}
-                    </span>
-                  )}
-
-                  {/* Quoted message reply preview */}
-                  {message.quoted_message && (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        scrollToMessage(message.quoted_message.id);
-                      }}
-                      className="border-s-2 border-primary bg-zinc-100/50 dark:bg-zinc-800/50 px-2 py-1 rounded text-xs mb-1.5 cursor-pointer flex flex-col text-start select-none"
-                    >
-                      <span className="font-bold text-primary text-[11px] truncate">
-                        {message.quoted_message.user?.name || "Reply"}
-                      </span>
-                      <div className="flex items-center gap-1.5 mt-0.5 max-w-full truncate">
-                        {renderQuotedAttachmentPreview(message.quoted_message)}
-                        {message.quoted_message.text && (
-                          <span className="text-muted-foreground text-[11px] truncate">
-                            {message.quoted_message.text}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Share Card Payload Rendering */}
-                  {message.attachments?.some((a: any) => a.type === "share-card") ? (
-                    <ShareCardAttachment
-                      attachment={message.attachments.find((a: any) => a.type === "share-card")}
-                    />
-                  ) : null}
-
-                  {/* Story Reply Rendering */}
-                  {message.attachments?.some((a: any) => a.type === "story-reply") ? (
-                    <StoryReplyAttachment
-                      attachment={message.attachments.find((a: any) => a.type === "story-reply")}
-                    />
-                  ) : null}
-
-                  {/* Sticker Rendering */}
-                  {message.attachments?.some((a: any) => a.type === "sticker") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={message.attachments.find((a: any) => a.type === "sticker")?.image_url}
-                      alt="Sticker"
-                      className="size-20 object-contain my-1 cursor-pointer"
-                    />
-                  ) : null}
-
-                  {/* Giphy Rendering */}
-                  {message.attachments?.some((a: any) => a.type === "giphy") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={message.attachments.find((a: any) => a.type === "giphy")?.image_url}
-                      alt="GIF"
-                      className="max-h-40 rounded object-cover my-1 cursor-pointer"
-                      onClick={() => setMediaViewerState({
-                        attachments: [{ url: message.attachments!.find((a: any) => a.type === "giphy")!.image_url!, type: "image" }],
-                        initialIndex: 0
-                      })}
-                    />
-                  ) : null}
-
-                  {/* Standard Image Rendering */}
-                  {message.attachments?.some((a: any) => a.type === "image") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={message.attachments.find((a: any) => a.type === "image")?.asset_url}
-                      alt="Image Attachment"
-                      className="max-h-48 rounded object-cover my-1 cursor-pointer"
-                      onClick={() => setMediaViewerState({
-                        attachments: [{ url: message.attachments!.find((a: any) => a.type === "image")!.asset_url!, type: "image" }],
-                        initialIndex: 0
-                      })}
-                    />
-                  ) : null}
-
-                  {/* Message Text content */}
-                  {message.text && (
-                    <p className="whitespace-pre-wrap break-words pr-14 text-[16px] leading-[22px]">{message.text}</p>
-                  )}
-
-                  {/* Floating Metadata (Time and status checks) */}
-                  <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[9px] opacity-75 shrink-0 pointer-events-none select-none">
-                    <span>
-                      {new Date(message.created_at || (message as any).createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    
-                    {/* Read status checks for outgoing bubbles */}
-                    {isOutgoing && (
-                      isQueue ? (
-                        (message as any).status === "PENDING" || (message as any).status === "SENDING" ? (
-                          <span className="size-2 rounded-full border border-current border-t-transparent animate-spin shrink-0" />
-                        ) : (
-                          <AlertCircle className="size-3 text-destructive shrink-0" />
-                        )
-                      ) : (
-                        channel.state.read[otherMember?.id || ""]?.last_read && 
-                        new Date(channel.state.read[otherMember?.id || ""]!.last_read).getTime() >= new Date(message.created_at).getTime() ? (
-                          <span className="text-white font-bold">✓✓</span>
-                        ) : (
-                          <span className="opacity-75 text-white">✓</span>
-                        )
-                      )
-                    )}
-                  </div>
-
-                  {/* Reactions Display Panel */}
-                  {message.latest_reactions && message.latest_reactions.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {Object.entries(
-                        message.latest_reactions.reduce((acc: Record<string, number>, r: any) => {
-                          acc[r.type] = (acc[r.type] || 0) + 1;
-                          return acc;
-                        }, {})
-                      ).map(([type, count]: any) => {
-                        const ownReacted = message.own_reactions?.some((r: any) => r.type === type);
-                        return (
-                          <motion.button
-                            key={`${type}-${count}-${ownReacted}`}
-                            whileTap={{ scale: 0.9 }}
-                            animate={{ scale: [0.9, 1.1, 1] }}
-                            transition={{ duration: 0.18, ease: "easeOut" }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleReaction(message.id, type);
-                            }}
-                            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border transition-colors ${
-                              ownReacted
-                                ? "bg-primary/20 border-primary/30 text-primary-foreground"
-                                : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-foreground"
-                            }`}
-                          >
-                            <span>{reactionEmojiMap[type] || type}</span>
-                            {count > 1 && <span className="text-[10px] opacity-75">{count}</span>}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </motion.div>
-              </div>
+                message={message}
+                virtualRow={virtualRow}
+                rowVirtualizer={rowVirtualizer}
+                loggedInUser={loggedInUser}
+                channel={channel}
+                selectedMessage={selectedMessage}
+                setSelectedMessage={setSelectedMessage}
+                replyMessage={replyMessage}
+                setReplyMessage={setReplyMessage}
+                highlightedMessageId={highlightedMessageId}
+                scrollToMessage={scrollToMessage}
+                setMediaViewerState={setMediaViewerState}
+                handleToggleReaction={handleToggleReaction}
+                isSelectionMode={isSelectionMode}
+                selectedMessageIds={selectedMessageIds}
+                toggleMessageSelection={toggleMessageSelection}
+                handlePinMessage={handlePinMessage}
+                handleDeleteMessage={handleDeleteMessage}
+                setEditingMessage={setEditingMessage}
+                setInputText={setInputText}
+                textareaRef={textareaRef}
+                setShowStickerPicker={setShowStickerPicker}
+                position={position}
+                isFirstInGroup={isFirstInGroup}
+                isLastInGroup={isLastInGroup}
+                otherMember={otherMember}
+              />
             );
           })}
         </div>
@@ -1132,51 +1483,72 @@ export default function ChatChannel() {
         </div>
       )}
 
-      {/* Input Message Composer Bar */}
-      <div className="flex flex-col border-t bg-card">
-        <div className="flex items-end gap-2 p-2">
-          {/* Sticker drawer toggle */}
-          <button
-            onClick={() => {
-              setShowStickerPicker(!showStickerPicker);
-              setShowAttachmentPicker(false);
-            }}
-            className={`rounded-full p-2 hover:bg-muted transition-colors ${
-              showStickerPicker ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <Smile className="size-5" />
-          </button>
+      {/* Input Message Composer Bar (WhatsApp style) */}
+      <div className="flex flex-col bg-transparent relative z-25">
+        <div className="flex items-end gap-2 p-3 bg-transparent select-none max-w-full">
+          {/* The Main Input Pill */}
+          <div className="flex-1 flex items-end bg-[#f0f2f5] dark:bg-[#202c33] rounded-[24px] px-3 py-1.5 min-w-0 transition-all border border-transparent shadow-sm">
+            {/* Sticker/Emoji drawer toggle */}
+            <button
+              onClick={() => {
+                setShowStickerPicker(!showStickerPicker);
+                setShowAttachmentPicker(false);
+              }}
+              className={`rounded-full p-1.5 transition-colors shrink-0 ${
+                showStickerPicker ? "text-[#00a884]" : "text-muted-foreground hover:text-foreground"
+              }`}
+              type="button"
+            >
+              <Smile className="size-6 shrink-0" />
+            </button>
 
-          {/* Attachment Paperclip toggle */}
-          <button
-            onClick={() => {
-              setShowAttachmentPicker(true);
-              setShowStickerPicker(false);
-            }}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <Paperclip className="size-5" />
-          </button>
+            {/* Attachment Paperclip toggle */}
+            <button
+              onClick={() => {
+                setShowAttachmentPicker(true);
+                setShowStickerPicker(false);
+              }}
+              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground shrink-0"
+              type="button"
+            >
+              <Paperclip className="size-6 shrink-0" />
+            </button>
 
-          {/* Expanding input text editor */}
-          <textarea
-            ref={textareaRef}
-            placeholder="Message"
-            value={inputText}
-            onChange={handleInputChange}
-            rows={1}
-            style={{ maxHeight: "120px" }}
-            className="flex-1 resize-none rounded-lg border bg-muted/40 px-3 py-1.5 text-[16px] focus:outline-none focus:ring-1 focus:ring-primary/45 h-9 min-h-[36px] scrollbar-none"
-          />
+            {/* Expanding input text editor */}
+            <textarea
+              ref={textareaRef}
+              placeholder="Message"
+              value={inputText}
+              onChange={handleInputChange}
+              rows={1}
+              style={{ maxHeight: "120px" }}
+              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-[16px] md:text-[17px] text-foreground placeholder:text-muted-foreground outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
+            />
 
-          {/* Send FAB Action */}
+            {/* Camera / Media Quick attachment trigger */}
+            <button
+              onClick={() => {
+                setShowAttachmentPicker(true);
+                setShowStickerPicker(false);
+              }}
+              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground shrink-0"
+              type="button"
+            >
+              <ImageIcon className="size-6 shrink-0" />
+            </button>
+          </div>
+
+          {/* Detached FAB Action button */}
           <button
-            onClick={handleSendMessage}
-            disabled={!inputText.trim()}
-            className="rounded-full bg-primary p-2 text-primary-foreground hover:bg-primary/95 disabled:opacity-50 shrink-0"
+            onClick={inputText.trim() ? handleSendMessage : undefined}
+            className="size-12 rounded-full bg-[#00a884] text-white flex items-center justify-center shadow-md hover:bg-[#008f72] active:scale-95 transition-all shrink-0 cursor-pointer"
+            type="button"
           >
-            <Send className="size-4" />
+            {inputText.trim() ? (
+              <Send className="size-5 fill-white text-white ml-0.5" />
+            ) : (
+              <Mic className="size-5 text-white" />
+            )}
           </button>
         </div>
 
