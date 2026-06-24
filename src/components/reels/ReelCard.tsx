@@ -192,11 +192,18 @@ export default function ReelCard({
   const isAdmin = loggedInUser?.username === "Omkar2005" || (loggedInUser as any)?.verified === true;
 
   // Initialize selected product ID once products are loaded
+  // Automatically select first product & transition drawer height to mid on drawer open
   useEffect(() => {
-    if (detectedProducts && detectedProducts.length > 0 && !selectedProductId) {
-      setSelectedProductId(detectedProducts[0].id);
+    if (isShoppingDrawerOpen && detectedProducts && detectedProducts.length > 0) {
+      const exists = detectedProducts.some((p) => p.id === selectedProductId);
+      if (!exists || !selectedProductId) {
+        setSelectedProductId(detectedProducts[0].id);
+      }
+      if (drawerHeightState === "min") {
+        setDrawerHeightState("mid");
+      }
     }
-  }, [detectedProducts, selectedProductId]);
+  }, [isShoppingDrawerOpen, detectedProducts]);
 
   // Track drawer opens (DRAWER_OPEN)
   useEffect(() => {
@@ -1281,6 +1288,17 @@ function ProductList({
     return isNaN(num) ? Infinity : num;
   };
 
+  const getOriginalPrice = (priceStr: string) => {
+    const numeric = parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
+    if (isNaN(numeric)) return null;
+    const original = Math.round(numeric * 1.35);
+    const symbol = priceStr.startsWith("$") ? "$" : (priceStr.startsWith("₹") ? "₹" : "");
+    if (symbol === "₹") {
+      return `₹${original.toLocaleString("en-IN")}`;
+    }
+    return `${symbol}${original}`;
+  };
+
   const getDeliveryDays = (match: any): number => {
     const text = (match.deliveryText || getDeliveryTag(match.sourceStore || "")).toLowerCase();
     if (text.includes("tomorrow") || text.includes("1 day")) return 1;
@@ -1414,13 +1432,13 @@ function ProductList({
                     : "bg-[#121212] text-white border-zinc-800/80 hover:bg-zinc-900"
                 )}
               >
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-zinc-950 mb-1.5 border border-zinc-800/40 relative">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-950 mb-1.5 relative border border-transparent">
                   <img
                     src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=60"}
                     alt={prod.label}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-full"
                   />
-                  <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 px-1 rounded text-white">{emoji}</span>
+                  <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 px-1.5 py-0.5 rounded-full text-white">{emoji}</span>
                 </div>
                 <span className="text-[9px] font-bold tracking-tight text-center truncate w-full capitalize leading-tight">
                   {prod.label}
@@ -1614,22 +1632,32 @@ function ProductList({
                 </div>
 
                 <div className="flex items-center gap-3 flex-shrink-0 z-10">
-                  <div className="text-right">
-                    <span className="text-[20px] font-black text-white block">
+                  <div className="flex flex-row items-center gap-2">
+                    <span className="text-[20px] font-bold text-white leading-none">
                       {bestMatch.price}
                     </span>
+                    {getOriginalPrice(bestMatch.price) && (
+                      <span className="line-through text-zinc-500 text-sm font-medium leading-none">
+                        {getOriginalPrice(bestMatch.price)}
+                      </span>
+                    )}
                   </div>
-                  {/* Hide Buy button in Best Price Card when sticky CTA will be shown at the bottom */}
-                  {drawerHeightState !== "max" && (
-                    <span className="text-[11px] font-bold text-black bg-white hover:bg-zinc-200 px-4 py-2.5 rounded-xl transition-all shadow">
-                      BUY NOW
-                    </span>
-                  )}
                 </div>
 
                 <span className="absolute top-2.5 right-2.5 bg-zinc-800 text-zinc-300 text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full select-none shadow-sm">
                   BEST DEAL
                 </span>
+              </a>
+
+              {/* Action button "Buy Now" directly below the Best Price card */}
+              <a
+                href={bestMatch.productUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => handleBuyClick(e, bestMatch.id, bestMatch.productUrl)}
+                className="w-full bg-white text-black font-semibold py-3.5 rounded-lg text-center active:scale-[0.98] transition-all block mt-1 hover:bg-zinc-200 shadow-md uppercase tracking-wider text-xs"
+              >
+                Buy Now
               </a>
             </div>
           ) : (
@@ -1682,9 +1710,16 @@ function ProductList({
                     </div>
 
                     <div className="flex items-center gap-2.5 flex-shrink-0">
-                      <span className="text-xs font-bold text-zinc-200 block">
-                        {match.price}
-                      </span>
+                      <div className="flex flex-row items-center gap-1.5">
+                        <span className="text-xs font-bold text-zinc-200 block">
+                          {match.price}
+                        </span>
+                        {getOriginalPrice(match.price) && (
+                          <span className="line-through text-zinc-500 text-[10px] font-medium leading-none">
+                            {getOriginalPrice(match.price)}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 hover:text-white hover:bg-zinc-800 px-3 py-1.5 border border-zinc-800 rounded-lg transition-all">
                         Buy
                       </span>
