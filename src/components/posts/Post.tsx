@@ -674,7 +674,7 @@ function PollWidget({ poll, userId }: PollWidgetProps) {
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 flex flex-col gap-3 max-w-md my-2 text-white">
       <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-neutral-400">
-        <span>📊 Poll</span>
+        <span>Poll</span>
         <span>
           {isExpired
             ? "Final Results"
@@ -698,13 +698,13 @@ function PollWidget({ poll, userId }: PollWidgetProps) {
                   style={{ width: `${pct}%` }}
                   className={cn(
                     "absolute left-0 top-0 bottom-0 transition-all duration-500",
-                    isSelected ? "bg-primary/25" : "bg-neutral-800/40"
+                    isSelected ? "bg-zinc-700/60" : "bg-black/60"
                   )}
                 />
 
                 <span className="relative z-10 flex items-center gap-1.5">
                   {option.text}
-                  {isSelected && <span className="text-[10px] text-primary">✔ voted</span>}
+                  {isSelected && <span className="text-[10px] text-white font-normal">(voted)</span>}
                 </span>
                 <span className="relative z-10 text-xs text-neutral-450">{pct}% ({voteCount})</span>
               </div>

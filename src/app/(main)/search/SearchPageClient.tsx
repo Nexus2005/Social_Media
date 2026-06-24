@@ -284,7 +284,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
       {/* Sticky top search input */}
       <div className="sticky top-0 z-30 w-full bg-black/80 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex flex-col items-center">
         <form onSubmit={handleSearchSubmit} className="w-full max-w-[600px] relative">
-          <div className="bg-zinc-900 border border-transparent focus-within:border-purple-500 focus-within:bg-black rounded-full h-10 px-4 w-full flex items-center gap-3 transition-all">
+          <div className="bg-zinc-900 border border-transparent focus-within:border-white focus-within:bg-black rounded-full h-10 px-4 w-full flex items-center gap-3 transition-all">
             <Search className="size-4 text-zinc-500" />
             <input
               ref={inputRef}
@@ -329,7 +329,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                         setShowRecentDropdown(false);
                         inputRef.current?.blur();
                       }}
-                      className="px-2 py-2 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-purple-400 font-semibold"
+                      className="px-2 py-2 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-white font-semibold"
                     >
                       Search for &quot;{searchQuery}&quot;
                     </div>
@@ -370,7 +370,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 <>
                   <div className="flex justify-between items-center text-xs font-bold text-zinc-400">
                     <span>Recent Searches</span>
-                    <button type="button" onClick={clearAllRecent} className="text-purple-400 hover:text-purple-300">
+                    <button type="button" onClick={clearAllRecent} className="text-white hover:text-zinc-300">
                       Clear all
                     </button>
                   </div>
@@ -444,7 +444,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
             {(activeTab === "For You" || activeTab === "Trending") && (
               <div className="flex flex-col w-full animate-fade-in mb-6">
                 {/* Hero space banner */}
-                <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 bg-gradient-to-tr from-purple-900 via-zinc-950 to-sky-950 border border-zinc-900 group">
+                <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 bg-gradient-to-tr from-zinc-900 via-zinc-950 to-sky-950 border border-zinc-900 group">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
                   <div className="absolute top-3 left-3 bg-red-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest flex items-center gap-1 z-20">
                     <Radio className="size-3 animate-pulse" /> LIVE SPACES
@@ -616,7 +616,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                         <span className="text-lg font-black text-white">#{committedQuery.replace("#", "")}</span>
                         <span className="text-xs text-zinc-400 mt-1">{posts.length}+ active posts</span>
                       </div>
-                      <span className="text-xs font-semibold text-purple-400">Tag aggregate</span>
+                      <span className="text-xs font-semibold text-white">Tag aggregate</span>
                     </div>
 
                     <div className="flex flex-col gap-2">

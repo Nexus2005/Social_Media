@@ -454,7 +454,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
         <span className="text-xs font-bold uppercase tracking-widest text-neutral-450">Story Creator</span>
         <Button
           onClick={handlePublish}
-          className="bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 hover:opacity-95 text-white font-bold rounded-full px-5 py-1 text-sm border-0"
+          className="bg-white hover:bg-zinc-200 text-black font-bold rounded-full px-5 py-1 text-sm border-0"
         >
           Share
         </Button>
@@ -636,7 +636,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                 )}
                 {sticker.type === "music" && (
                   <div className="p-3 bg-black/85 backdrop-blur rounded-2xl flex items-center gap-2 border border-neutral-800 shadow-xl max-w-[200px]">
-                    <div className="p-2 bg-purple-600 rounded-lg text-white">
+                    <div className="p-2 bg-white rounded-lg text-black">
                       <Music className="size-5 animate-pulse" />
                     </div>
                     <div className="flex flex-col min-w-0">

@@ -77,7 +77,7 @@ export default function HashtagPage({ params: { hashtag } }: HashtagPageProps) {
             <span className="text-xs text-zinc-500">{stats.totalPosts} posts</span>
           </div>
         </div>
-        <span className="text-xs font-bold text-purple-400 bg-purple-950/40 border border-purple-900 px-3 py-1 rounded-full">
+        <span className="text-xs font-bold text-white bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full">
           Hashtag Hub
         </span>
       </div>
@@ -93,7 +93,7 @@ export default function HashtagPage({ params: { hashtag } }: HashtagPageProps) {
             </div>
             <div className="bg-zinc-900 border border-zinc-850 rounded-xl p-3 flex flex-col">
               <span className="text-[10px] font-bold text-zinc-500 uppercase">Last 24h</span>
-              <span className="text-lg font-black text-purple-400 mt-1">{stats.recentActivityCount} new</span>
+              <span className="text-lg font-black text-white mt-1">{stats.recentActivityCount} new</span>
             </div>
             <div className="bg-zinc-900 border border-zinc-850 rounded-xl p-3 flex flex-col">
               <span className="text-[10px] font-bold text-zinc-500 uppercase">Trend Score</span>
@@ -116,7 +116,7 @@ export default function HashtagPage({ params: { hashtag } }: HashtagPageProps) {
                   {tab.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 sm:w-16 h-[3px] bg-purple-500 rounded-full" />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 sm:w-16 h-[3px] bg-white rounded-full" />
                 )}
               </button>
             );
@@ -138,7 +138,7 @@ export default function HashtagPage({ params: { hashtag } }: HashtagPageProps) {
             {posts.map((post) => (
               <Post key={post.id} post={post} />
             ))}
-            {isFetchingNextPage && <Loader2 className="mx-auto my-4 animate-spin text-purple-500" />}
+            {isFetchingNextPage && <Loader2 className="mx-auto my-4 animate-spin text-white" />}
           </InfiniteScrollContainer>
         )}
       </main>

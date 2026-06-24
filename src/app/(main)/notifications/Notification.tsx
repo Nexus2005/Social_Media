@@ -124,8 +124,8 @@ export default function Notification({ notification, isUnread }: NotificationPro
         </div>
       ),
       quote: (
-        <div className="absolute -bottom-1.5 -right-1.5 bg-purple-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
-          <MessageSquareQuote className="size-3.5 text-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-white rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <MessageSquareQuote className="size-3.5 text-black" />
         </div>
       ),
       mention: (
@@ -139,8 +139,8 @@ export default function Notification({ notification, isUnread }: NotificationPro
         </div>
       ),
       save: (
-        <div className="absolute -bottom-1.5 -right-1.5 bg-purple-600 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
-          <Bookmark className="size-3.5 text-white fill-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-white rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <Bookmark className="size-3.5 text-black fill-black" />
         </div>
       ),
     };
