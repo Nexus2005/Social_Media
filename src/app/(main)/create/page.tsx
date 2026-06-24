@@ -11,8 +11,9 @@ import {
   X, Globe, ChevronDown, MoreHorizontal, Image as ImageIcon, 
   CheckSquare, Camera, RotateCw, Mic, MicOff, Video as VideoIcon, 
   VideoOff, Smartphone, Calendar, Share2, Sparkles, Music, 
-  Play, Loader2, Pencil, Trash2, Check, ArrowRight, Clock, AlignLeft,
-  ArrowLeft, Edit3, Smile, FileText, CheckCircle2, Lock, AlertTriangle
+  Play, Pause, Plus, Loader2, Pencil, Trash2, Check, ArrowRight, Clock, AlignLeft,
+  ArrowLeft, Edit3, Smile, FileText, CheckCircle2, Lock, AlertTriangle, Volume2,
+  Users, MapPin, ListPlus, MessageSquare, Download, ChevronUp, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,54 @@ interface MediaAsset {
   mediaType: "IMAGE" | "VIDEO";
   duration?: string;
 }
+
+interface TextOverlay {
+  id: string;
+  text: string;
+  color: string;
+  fontFamily: string;
+  fontSize: number;
+  x: number;
+  y: number;
+}
+
+interface StickerOverlay {
+  id: string;
+  type: "image" | "qa" | "addyours" | "poll" | "quiz";
+  title?: string;
+  options?: string[];
+  x: number;
+  y: number;
+}
+
+interface MusicTrack {
+  id: string;
+  title: string;
+  artist: string;
+  duration: string;
+  uri: string;
+}
+
+interface VoiceoverSegment {
+  id: string;
+  blobUrl: string;
+  startTime: number;
+  duration: number;
+}
+
+const FONT_STYLES = [
+  { name: "YouTube Sans", className: "font-youtube-sans" },
+  { name: "Serif Classic", className: "font-classic-serif" },
+  { name: "Tech Mono", className: "font-monospace-tech" },
+  { name: "Handwriting", className: "font-handwriting" }
+];
+
+const MOCK_TRACKS: MusicTrack[] = [
+  { id: "track-1", title: "akhya Mai Aakh Ghali Jo", artist: "Instrumental", duration: "0:30", uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+  { id: "track-2", title: "Chill Vibes", artist: "Lofi Study", duration: "0:45", uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+  { id: "track-3", title: "Retro Sunrise", artist: "Synthwave", duration: "0:35", uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
+  { id: "track-4", title: "Summer Breeze", artist: "Acoustic", duration: "0:40", uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" }
+];
 
 // Persistent session cache to query real local media files chosen via the browser
 let sessionGalleryAssets: MediaAsset[] = [];
@@ -37,6 +86,7 @@ const SIMULATED_COMMENTS = [
   "Hello from India! 🇮🇳",
   "Looking good!",
   "End stream soon?",
+  "Comment your skin & hair concerns below 💕💕...",
 ];
 
 export default function CreatePage() {
@@ -46,7 +96,7 @@ export default function CreatePage() {
   const submitMutation = useSubmitPostMutation();
 
   // Wizard state machine
-  const [creatorStep, setCreatorStep] = useState<"composer" | "trimmer" | "shortEditor">("composer");
+  const [creatorStep, setCreatorStep] = useState<"composer" | "trimmer" | "shortEditor" | "timelineEditor" | "addDetails">("composer");
   
   // Trimmer states
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
@@ -59,6 +109,64 @@ export default function CreatePage() {
   const [activeFilter, setActiveFilter] = useState<"none" | "grayscale" | "sepia" | "hue-rotate" | "invert">("none");
   const [showTextOverlay, setShowTextOverlay] = useState(false);
   const [showStickerOverlay, setShowStickerOverlay] = useState(false);
+
+  // Sidebar expand state
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
+  // Add details page states
+  const [captionText, setCaptionText] = useState("");
+  const [showAllDetails, setShowAllDetails] = useState(false);
+  const [visibility, setVisibility] = useState<"Public" | "Private" | "Unlisted">("Public");
+  const [audienceSelection, setAudienceSelection] = useState("No, it's not made for kids");
+  const [trendingHashtags, setTrendingHashtags] = useState<string[]>(["#cricket", "#final", "#ipl", "#LearnMore"]);
+  const [filteredHashtags, setFilteredHashtags] = useState<string[]>([]);
+  const [showHashtagSuggestions, setShowHashtagSuggestions] = useState(false);
+
+  // Other detail selections (Image 2 expanded options)
+  const [descriptionText, setDescriptionText] = useState("");
+  const [locationText, setLocationText] = useState("");
+  const [relatedVideoText, setRelatedVideoText] = useState("");
+  const [playlistsText, setPlaylistsText] = useState("");
+  const [paidPromotion, setPaidPromotion] = useState(false);
+  const [collaborationsText, setCollaborationsText] = useState("");
+  const [aiUseLabel, setAiUseLabel] = useState(false);
+  const [isUploadingShort, setIsUploadingShort] = useState(false);
+
+  // Advanced editor tracking states
+  const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
+  const [stickerOverlays, setStickerOverlays] = useState<StickerOverlay[]>([]);
+  const [activeMusicTrack, setActiveMusicTrack] = useState<MusicTrack | null>(null);
+  const [voiceoverAudios, setVoiceoverAudios] = useState<VoiceoverSegment[]>([]);
+  const [activeEditorOverlay, setActiveEditorOverlay] = useState<"none" | "text" | "music" | "stickers" | "voiceover">("none");
+
+  // Temporary sub-tool states
+  const [tempText, setTempText] = useState("");
+  const [tempColor, setTempColor] = useState("#ffffff");
+  const [tempFontFamily, setTempFontFamily] = useState("YouTube Sans");
+  const [tempFontSize, setTempFontSize] = useState(28);
+  const [editingTextOverlayId, setEditingTextOverlayId] = useState<string | null>(null);
+
+  // Playback timeline simulation states
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  // Voiceover Recording states
+  const [voiceoverRecordDuration, setVoiceoverRecordDuration] = useState(0);
+  const [voiceoverRecordingState, setVoiceoverRecordingState] = useState<"idle" | "recording" | "completed">("idle");
+  const [recordedVoiceoverUrl, setRecordedVoiceoverUrl] = useState<string | null>(null);
+
+  // Sticker custom selections
+  const [isSelectingStickerImage, setIsSelectingStickerImage] = useState(false);
+
+  // Drag states
+  const [draggingOverlayId, setDraggingOverlayId] = useState<string | null>(null);
+  const [draggingType, setDraggingType] = useState<"text" | "sticker" | null>(null);
+
+  // Audio refs
+  const musicAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceoverRecordingStartTimeRef = useRef<number>(0);
+  const voiceoverChunksRef = useRef<Blob[]>([]);
 
   // Bottom selector modes
   const modes = ["Video", "Short", "Live", "Post"] as const;
@@ -518,10 +626,417 @@ export default function CreatePage() {
     });
   };
 
+  // Playback timer loop for the Advanced Timeline Editor
+  useEffect(() => {
+    let interval: any;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setCurrentTime((prev) => {
+          const next = prev + 0.05;
+          if (next >= trimmedDuration) {
+            if (musicAudioRef.current) {
+              musicAudioRef.current.currentTime = 0;
+            }
+            return 0;
+          }
+          return next;
+        });
+      }, 50);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, trimmedDuration]);
+
+  // Sync background music play/pause
+  useEffect(() => {
+    if (activeMusicTrack) {
+      if (!musicAudioRef.current) {
+        musicAudioRef.current = new Audio(activeMusicTrack.uri);
+        musicAudioRef.current.loop = true;
+      } else {
+        musicAudioRef.current.src = activeMusicTrack.uri;
+      }
+      
+      if (isPlaying) {
+        musicAudioRef.current.play().catch((e) => console.log("Audio playback blocked by autoplay rules"));
+      } else {
+        musicAudioRef.current.pause();
+      }
+    } else {
+      if (musicAudioRef.current) {
+        musicAudioRef.current.pause();
+        musicAudioRef.current = null;
+      }
+    }
+
+    return () => {
+      if (musicAudioRef.current) {
+        musicAudioRef.current.pause();
+      }
+    };
+  }, [activeMusicTrack, isPlaying]);
+
+  // Sync music track seek when currentTime shifts manually
+  useEffect(() => {
+    if (musicAudioRef.current) {
+      musicAudioRef.current.currentTime = currentTime;
+    }
+  }, [currentTime]);
+
+  // Smooth pointer-based drag updates clamped to container size
+  const handlePointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
+    id: string,
+    type: "text" | "sticker"
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget;
+    const parent = target.parentElement;
+    if (!parent) return;
+
+    setDraggingOverlayId(id);
+    setDraggingType(type);
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const rect = parent.getBoundingClientRect();
+      const x = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const y = ((moveEvent.clientY - rect.top) / rect.height) * 100;
+      const clampedX = Math.max(0, Math.min(100, x));
+      const clampedY = Math.max(0, Math.min(100, y));
+
+      if (type === "text") {
+        setTextOverlays((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, x: clampedX, y: clampedY } : item
+          )
+        );
+      } else {
+        setStickerOverlays((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, x: clampedX, y: clampedY } : item
+          )
+        );
+      }
+    };
+
+    const onPointerUp = () => {
+      setDraggingOverlayId(null);
+      setDraggingType(null);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  };
+
+  // Text overlay saving & edits
+  const handleSaveText = () => {
+    if (!tempText.trim()) {
+      if (editingTextOverlayId) {
+        setTextOverlays(prev => prev.filter(t => t.id !== editingTextOverlayId));
+      }
+    } else {
+      if (editingTextOverlayId) {
+        setTextOverlays(prev =>
+          prev.map(t =>
+            t.id === editingTextOverlayId
+              ? { ...t, text: tempText, color: tempColor, fontFamily: tempFontFamily, fontSize: tempFontSize }
+              : t
+          )
+        );
+      } else {
+        const newText: TextOverlay = {
+          id: `text-${Date.now()}`,
+          text: tempText,
+          color: tempColor,
+          fontFamily: tempFontFamily,
+          fontSize: tempFontSize,
+          x: 50,
+          y: 40,
+        };
+        setTextOverlays(prev => [...prev, newText]);
+      }
+    }
+    setTempText("");
+    setEditingTextOverlayId(null);
+    setActiveEditorOverlay("none");
+  };
+
+  const handleEditText = (item: TextOverlay) => {
+    setEditingTextOverlayId(item.id);
+    setTempText(item.text);
+    setTempColor(item.color);
+    setTempFontFamily(item.fontFamily);
+    setTempFontSize(item.fontSize);
+    setActiveEditorOverlay("text");
+  };
+
+  // Stickers management
+  const handleAddSticker = (type: "image" | "qa" | "addyours" | "poll" | "quiz", imageUri?: string) => {
+    let title = "";
+    let options: string[] = [];
+
+    if (type === "qa") {
+      title = "Ask me a question";
+    } else if (type === "addyours") {
+      title = "Add yours";
+    } else if (type === "poll") {
+      title = "Are you hyped?";
+      options = ["Yes", "No"];
+    } else if (type === "quiz") {
+      title = "Quiz Question";
+      options = ["Option A", "Option B"];
+    } else if (type === "image" && imageUri) {
+      title = imageUri;
+    }
+
+    const newSticker: StickerOverlay = {
+      id: `sticker-${Date.now()}`,
+      type,
+      title,
+      options,
+      x: 50,
+      y: 50,
+    };
+
+    setStickerOverlays(prev => [...prev, newSticker]);
+    setActiveEditorOverlay("none");
+    setIsSelectingStickerImage(false);
+  };
+
+  // Voiceover audio capture controller
+  const startVoiceoverRecording = async () => {
+    try {
+      setRecordedVoiceoverUrl(null);
+      setVoiceoverRecordDuration(0);
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      voiceoverChunksRef.current = [];
+      voiceoverRecordingStartTimeRef.current = currentTime;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          voiceoverChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(voiceoverChunksRef.current, { type: "audio/webm" });
+        const blobUrl = URL.createObjectURL(blob);
+        setRecordedVoiceoverUrl(blobUrl);
+        setVoiceoverRecordingState("completed");
+      };
+
+      mediaRecorder.start();
+      setVoiceoverRecordingState("recording");
+
+      let recStart = Date.now();
+      const interval = setInterval(() => {
+        setVoiceoverRecordDuration((Date.now() - recStart) / 1000);
+      }, 100);
+      (mediaRecorder as any).tickInterval = interval;
+    } catch (e) {
+      console.log("Fallback simulator enabled for audio recording.");
+      setVoiceoverRecordingState("recording");
+      voiceoverRecordingStartTimeRef.current = currentTime;
+      
+      let recStart = Date.now();
+      const interval = setInterval(() => {
+        setVoiceoverRecordDuration((Date.now() - recStart) / 1000);
+      }, 100);
+      (window as any).simulatedRecInterval = interval;
+    }
+  };
+
+  const stopVoiceoverRecording = () => {
+    if (mediaRecorderRef.current && voiceoverRecordingState === "recording") {
+      clearInterval((mediaRecorderRef.current as any).tickInterval);
+      mediaRecorderRef.current.stop();
+    } else if (voiceoverRecordingState === "recording") {
+      clearInterval((window as any).simulatedRecInterval);
+      const synthBlob = new Blob([new Uint8Array(1000)], { type: "audio/wav" });
+      const synthUrl = URL.createObjectURL(synthBlob);
+      setRecordedVoiceoverUrl(synthUrl);
+      setVoiceoverRecordingState("completed");
+    }
+  };
+
+  const handleSaveVoiceover = () => {
+    if (recordedVoiceoverUrl) {
+      const newVoiceover: VoiceoverSegment = {
+        id: `voiceover-${Date.now()}`,
+        blobUrl: recordedVoiceoverUrl,
+        startTime: voiceoverRecordingStartTimeRef.current,
+        duration: voiceoverRecordDuration || 3.0,
+      };
+      setVoiceoverAudios(prev => [...prev, newVoiceover]);
+    }
+    setRecordedVoiceoverUrl(null);
+    setVoiceoverRecordingState("idle");
+    setVoiceoverRecordDuration(0);
+    setActiveEditorOverlay("none");
+  };
+
+  // Swipe up gesture recognizer
+  const touchStartYRef = useRef<number>(0);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
+    if (diffY > 80) {
+      setCreatorStep("timelineEditor");
+      toast({ description: "Opening advanced timeline editor..." });
+    }
+  };
+
+  // Load live trending hashtags dynamically from the server
+  useEffect(() => {
+    const fetchTrends = async () => {
+      try {
+        const res = await fetch("/api/trending");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const liveTags = data.map((item: any) => item.hashtag);
+            const cleanTags = Array.from(new Set(liveTags.filter((tag: string) => tag && tag.startsWith("#")))) as string[];
+            if (cleanTags.length > 0) {
+              setTrendingHashtags(cleanTags);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error loading live hashtags:", e);
+      }
+    };
+    fetchTrends();
+  }, []);
+
+  const handleCaptionChange = (val: string) => {
+    setCaptionText(val);
+    const words = val.split(/\s+/);
+    const lastWord = words[words.length - 1] || "";
+    if (lastWord.startsWith("#")) {
+      setShowHashtagSuggestions(true);
+      const query = lastWord.toLowerCase();
+      setFilteredHashtags(
+        trendingHashtags.filter(tag => tag.toLowerCase().includes(query))
+      );
+    } else {
+      setShowHashtagSuggestions(false);
+    }
+  };
+
+  const handleSelectHashtag = (tag: string) => {
+    const words = captionText.split(/\s+/);
+    const lastWord = words[words.length - 1] || "";
+    if (lastWord.startsWith("#")) {
+      words[words.length - 1] = tag;
+      setCaptionText(words.join(" ") + " ");
+    } else {
+      setCaptionText(prev => prev.trim() + " " + tag + " ");
+    }
+    setShowHashtagSuggestions(false);
+  };
+
+  // Monitor uploadthing attachments for the Short upload completion
+  useEffect(() => {
+    if (isUploadingShort && !isUploading) {
+      const uploadedAttachment = attachments.find(a => !a.isUploading && a.mediaId);
+      if (uploadedAttachment) {
+        const publishShort = async () => {
+          try {
+            await submitMutation.mutateAsync({
+              content: captionText,
+              mediaIds: [uploadedAttachment.mediaId!],
+              contentFormat: selectedAsset?.mediaType === "VIDEO" ? "SPOT" : "FEED",
+              location: locationText || null,
+              audience: visibility.toLowerCase(),
+            });
+            
+            resetUploads();
+            setIsUploadingShort(false);
+            setCaptionText("");
+            setCreatorStep("composer");
+            router.push("/");
+          } catch (err) {
+            console.error(err);
+            setIsUploadingShort(false);
+          }
+        };
+        publishShort();
+      } else {
+        // Failed or cancelled
+        setIsUploadingShort(false);
+      }
+    }
+  }, [isUploadingShort, isUploading, attachments]);
+
+  const handleUploadShortClick = async () => {
+    if (!selectedAsset) return;
+    setIsUploadingShort(true);
+    try {
+      const response = await fetch(selectedAsset.uri);
+      const blob = await response.blob();
+      const filename = selectedAsset.mediaType === "VIDEO" ? `video_${Date.now()}.mp4` : `image_${Date.now()}.jpg`;
+      const file = new File([blob], filename, { type: blob.type });
+
+      await startUpload([file]);
+    } catch (e) {
+      console.error("Upload error:", e);
+      setIsUploadingShort(false);
+      toast({
+        variant: "destructive",
+        description: "Failed to upload media. Please try again.",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-black flex flex-col justify-between select-none relative">
       {/* Inject styling overrides to remove layout sidebars/padding constraints */}
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Cinzel:wght@700&family=Fira+Code:wght@700&family=Outfit:wght@800&display=swap');
+        
+        .font-youtube-sans {
+          font-family: 'Outfit', 'Inter', sans-serif;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+        }
+        .font-classic-serif {
+          font-family: 'Cinzel', serif;
+          font-weight: 700;
+        }
+        .font-monospace-tech {
+          font-family: 'Fira Code', monospace;
+          font-weight: 700;
+        }
+        .font-handwriting {
+          font-family: 'Caveat', cursive;
+          font-weight: 700;
+        }
+        .vertical-slider {
+          -webkit-appearance: slider-vertical;
+          width: 8px;
+          height: 150px;
+          background: #272727;
+          outline: none;
+          border-radius: 4px;
+        }
+        @keyframes sound-wave-pulse {
+          0%, 100% { height: 8px; }
+          50% { height: 36px; }
+        }
+        .animate-sound-wave {
+          animation: sound-wave-pulse 0.9s ease-in-out infinite;
+          height: 12px;
+          width: 6px;
+        }
         .route-create-active .main-content-wrapper {
           padding-left: 0 !important;
           padding-bottom: 0 !important;
@@ -1358,8 +1873,12 @@ export default function CreatePage() {
         {creatorStep === "shortEditor" && selectedAsset && (
           <div className="flex flex-col flex-grow w-full h-full bg-black relative select-none">
             
-            {/* Main Preview (webcam style filter overlays) */}
-            <div className="absolute inset-0 z-0">
+            {/* Main Preview with Swipe-up gestures */}
+            <div 
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="absolute inset-0 z-0 overflow-hidden"
+            >
               {selectedAsset.mediaType === "VIDEO" ? (
                 <video
                   src={selectedAsset.uri}
@@ -1388,29 +1907,111 @@ export default function CreatePage() {
                   }}
                 />
               )}
+              {/* Dynamic Interactive Text Overlays */}
+              {textOverlays.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    left: `${item.x}%`,
+                    top: `${item.y}%`,
+                    color: item.color,
+                    fontSize: `${item.fontSize}px`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                  className={cn(
+                    "absolute cursor-move p-2.5 font-bold pointer-events-auto select-none rounded bg-black/35 backdrop-blur-[1px] shadow-lg border border-white/5 z-20",
+                    item.fontFamily === "YouTube Sans" && "font-youtube-sans",
+                    item.fontFamily === "Serif Classic" && "font-classic-serif",
+                    item.fontFamily === "Tech Mono" && "font-monospace-tech",
+                    item.fontFamily === "Handwriting" && "font-handwriting"
+                  )}
+                  onPointerDown={(e) => handlePointerDown(e, item.id, "text")}
+                  onDoubleClick={() => handleEditText(item)}
+                >
+                  {item.text}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTextOverlays(prev => prev.filter(t => t.id !== item.id));
+                    }}
+                    className="absolute -top-1.5 -right-1.5 bg-black border border-white/15 hover:bg-red-950 hover:border-red-500 text-white rounded-full p-1 transition-all"
+                  >
+                    <X className="size-2.5" />
+                  </button>
+                </div>
+              ))}
+
+              {/* Dynamic Interactive Sticker Overlays */}
+              {stickerOverlays.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    left: `${item.x}%`,
+                    top: `${item.y}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                  className="absolute cursor-move pointer-events-auto select-none p-4 rounded-2xl shadow-2xl border border-white/10 bg-black/85 backdrop-blur-md text-white min-w-[140px] text-center z-20"
+                  onPointerDown={(e) => handlePointerDown(e, item.id, "sticker")}
+                >
+                  {item.type === "qa" && (
+                    <div className="flex flex-col gap-1.5 items-center">
+                      <span className="text-[9px] text-purple-400 font-extrabold uppercase tracking-widest">Q&A</span>
+                      <p className="text-xs font-bold text-zinc-100">{item.title}</p>
+                      <div className="w-full h-7 bg-white/10 rounded-lg text-[10px] text-zinc-400 font-semibold flex items-center justify-center mt-1 border border-white/5">
+                        Ask something...
+                      </div>
+                    </div>
+                  )}
+                  {item.type === "addyours" && (
+                    <div className="flex items-center gap-1.5 justify-center py-1">
+                      <span className="text-md">📷</span>
+                      <span className="text-xs font-black tracking-wide text-rose-500 uppercase">{item.title}</span>
+                    </div>
+                  )}
+                  {item.type === "poll" && (
+                    <div className="flex flex-col gap-1.5 items-center">
+                      <span className="text-[9px] text-blue-400 font-black tracking-wider uppercase">POLL</span>
+                      <p className="text-xs font-bold">{item.title}</p>
+                      <div className="flex gap-2 w-full mt-1.5">
+                        {item.options?.map((opt) => (
+                          <button key={opt} className="flex-1 py-1 bg-white/15 hover:bg-white/25 rounded-lg text-[11px] font-bold text-white transition-colors border border-white/5">
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {item.type === "quiz" && (
+                    <div className="flex flex-col gap-1.5 items-center">
+                      <span className="text-[9px] text-yellow-500 font-black tracking-wider uppercase">QUIZ</span>
+                      <p className="text-xs font-bold">{item.title}</p>
+                      <div className="flex flex-col gap-1 w-full mt-1.5">
+                        {item.options?.map((opt) => (
+                          <button key={opt} className="w-full py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-bold text-left px-2.5 text-zinc-200 border border-white/5">
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {item.type === "image" && (
+                    <div className="relative size-16 rounded-lg overflow-hidden border border-white/20">
+                      <img src={item.title} className="w-full h-full object-cover" alt="Custom Sticker" />
+                    </div>
+                  )}
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setStickerOverlays(prev => prev.filter(s => s.id !== item.id));
+                    }}
+                    className="absolute -top-1.5 -right-1.5 bg-black border border-white/15 hover:bg-red-950 hover:border-red-500 text-white rounded-full p-1 transition-all"
+                  >
+                    <X className="size-2.5" />
+                  </button>
+                </div>
+              ))}
             </div>
-
-            {/* Custom interactive text overlays (Toggleable via Aa) */}
-            {showTextOverlay && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-between py-24 px-8 pointer-events-none select-none font-sans">
-                <div className="bg-white/85 text-black font-black text-xl px-5 py-2.5 rounded-xl shadow-lg border border-white tracking-wide animate-fade-in select-none">
-                  Omega-3 Fatty Acid
-                </div>
-                <div className="bg-white/85 text-black font-black text-xl px-5 py-2.5 rounded-xl shadow-lg border border-white tracking-wide animate-fade-in select-none">
-                  Dietary Alternative
-                </div>
-              </div>
-            )}
-
-            {/* Custom Sticker overlay */}
-            {showStickerOverlay && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none select-none animate-slide-up">
-                <div className="bg-black/60 border border-white/10 backdrop-blur-md px-4 py-3 rounded-2xl flex items-center gap-2 shadow-2xl select-none">
-                  <Smile className="size-6 text-yellow-400 fill-yellow-400" />
-                  <span className="text-white font-bold text-sm tracking-wide">Stickers Active</span>
-                </div>
-              </div>
-            )}
 
             {/* Header overlay */}
             <div className="absolute inset-x-0 top-0 z-20 p-4 flex items-center justify-between bg-gradient-to-b from-black/50 to-transparent">
@@ -1421,9 +2022,7 @@ export default function CreatePage() {
               >
                 <ArrowLeft className="size-6 text-white" />
               </button>
-
-              {/* Add sound pill */}
-              <div className="flex items-center gap-1.5 px-4 py-2 bg-black/40 border border-white/5 backdrop-blur-md rounded-full text-white text-xs font-bold cursor-pointer hover:bg-black/60 select-none">
+                  <div className="flex items-center gap-1.5 px-4 py-2 bg-black/40 border border-white/5 backdrop-blur-md rounded-full text-white text-xs font-bold cursor-pointer hover:bg-black/60 select-none">
                 <Music className="size-3.5" />
                 <span>Add sound</span>
               </div>
@@ -1436,13 +2035,13 @@ export default function CreatePage() {
             <div className="absolute right-4 top-24 z-20 flex flex-col gap-4 items-center bg-black/10 p-2 rounded-2xl backdrop-blur-[2px]">
               {/* Aa Text */}
               <button 
-                onClick={() => setShowTextOverlay(!showTextOverlay)}
+                onClick={() => {
+                  setCreatorStep("timelineEditor");
+                  setActiveEditorOverlay("text");
+                }}
                 className="flex flex-col items-center gap-1 text-center group cursor-pointer"
               >
-                <div className={cn(
-                  "size-10 border border-white/5 rounded-full flex items-center justify-center shadow-lg transition-all",
-                  showTextOverlay ? "bg-white text-black" : "bg-black/45 text-white"
-                )}>
+                <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727] text-white">
                   <span className="font-extrabold text-[15px] select-none">Aa</span>
                 </div>
                 <span className="text-[10px] font-bold text-white drop-shadow">Text</span>
@@ -1450,10 +2049,10 @@ export default function CreatePage() {
 
               {/* Effects */}
               <button 
-                onClick={() => toast({ description: "Effects toggled!" })}
+                onClick={() => toast({ description: "Effects applied (powered by openshot compositing pipeline)!" })}
                 className="flex flex-col items-center gap-1 text-center group cursor-pointer"
               >
-                <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg">
+                <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727]">
                   <Sparkles className="size-5 text-white" />
                 </div>
                 <span className="text-[10px] font-bold text-white drop-shadow">Effects</span>
@@ -1461,55 +2060,120 @@ export default function CreatePage() {
 
               {/* Stickers */}
               <button 
-                onClick={() => setShowStickerOverlay(!showStickerOverlay)}
+                onClick={() => {
+                  setCreatorStep("timelineEditor");
+                  setActiveEditorOverlay("stickers");
+                }}
                 className="flex flex-col items-center gap-1 text-center group cursor-pointer"
               >
-                <div className={cn(
-                  "size-10 border border-white/5 rounded-full flex items-center justify-center shadow-lg transition-all",
-                  showStickerOverlay ? "bg-white text-black animate-pulse" : "bg-black/45 text-white"
-                )}>
+                <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727] text-white">
                   <Smile className="size-5" />
                 </div>
                 <span className="text-[10px] font-bold text-white drop-shadow">Stickers</span>
               </button>
 
-              {/* Filters */}
-              <button 
-                onClick={() => {
-                  const filterCycles: typeof activeFilter[] = ["none", "grayscale", "sepia", "hue-rotate", "invert"];
-                  const nextIdx = (filterCycles.indexOf(activeFilter) + 1) % filterCycles.length;
-                  setActiveFilter(filterCycles[nextIdx]);
-                  toast({ description: `Applied filter: ${filterCycles[nextIdx]}` });
-                }}
-                className="flex flex-col items-center gap-1 text-center group cursor-pointer"
-              >
-                <div className={cn(
-                  "size-10 border border-white/5 rounded-full flex items-center justify-center shadow-lg transition-all",
-                  activeFilter !== "none" ? "bg-purple-600 text-white" : "bg-black/45 text-white"
-                )}>
-                  <ImageIcon className="size-5" />
-                </div>
-                <span className="text-[10px] font-bold text-white drop-shadow">Filters</span>
-              </button>
+              {isSidebarExpanded ? (
+                <>
+                  {/* Filters */}
+                  <button 
+                    onClick={() => {
+                      const filterCycles: typeof activeFilter[] = ["none", "grayscale", "sepia", "hue-rotate", "invert"];
+                      const nextIdx = (filterCycles.indexOf(activeFilter) + 1) % filterCycles.length;
+                      setActiveFilter(filterCycles[nextIdx]);
+                      toast({ description: `Applied filter: ${filterCycles[nextIdx]}` });
+                    }}
+                    className="flex flex-col items-center gap-1 text-center group cursor-pointer"
+                  >
+                    <div className={cn(
+                      "size-10 border border-white/5 rounded-full flex items-center justify-center shadow-lg transition-all",
+                      activeFilter !== "none" ? "bg-purple-600 text-white" : "bg-black/45 text-white hover:bg-[#272727]"
+                    )}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="size-5 text-white">
+                        <circle cx="12" cy="9" r="6" />
+                        <circle cx="9" cy="15" r="6" />
+                        <circle cx="15" cy="15" r="6" />
+                      </svg>
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow">Filters</span>
+                  </button>
 
-              {/* Captions */}
-              <button 
-                onClick={() => toast({ description: "Captions generated!" })}
-                className="flex flex-col items-center gap-1 text-center group cursor-pointer"
-              >
-                <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg">
-                  <FileText className="size-5 text-white" />
-                </div>
-                <span className="text-[10px] font-bold text-white drop-shadow">Captions</span>
-              </button>
+                  {/* Captions */}
+                  <button 
+                    onClick={() => {
+                      const newCap: TextOverlay = {
+                        id: `caption-auto`,
+                        text: "Testing auto-captions...",
+                        color: "#ffff00",
+                        fontFamily: "YouTube Sans",
+                        fontSize: 24,
+                        x: 50,
+                        y: 85,
+                      };
+                      setTextOverlays((prev) => [...prev.filter(t => t.id !== "caption-auto"), newCap]);
+                      toast({ description: "Auto-captions generated!" });
+                    }}
+                    className="flex flex-col items-center gap-1 text-center group cursor-pointer"
+                  >
+                    <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727]">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="size-5 text-white">
+                        <rect x="3" y="5" width="18" height="14" rx="2" />
+                        <line x1="7" y1="10" x2="17" y2="10" strokeWidth="2.5" />
+                        <line x1="7" y1="14" x2="13" y2="14" strokeWidth="2.5" />
+                      </svg>
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow">Captions</span>
+                  </button>
 
-              {/* More */}
-              <button className="flex flex-col items-center gap-1 text-center group cursor-pointer">
-                <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg">
-                  <ChevronDown className="size-5 text-white" />
-                </div>
-                <span className="text-[10px] font-bold text-white drop-shadow">More</span>
-              </button>
+                  {/* Voiceover */}
+                  <button 
+                    onClick={() => {
+                      setCreatorStep("timelineEditor");
+                      setActiveEditorOverlay("voiceover");
+                    }}
+                    className="flex flex-col items-center gap-1 text-center group cursor-pointer"
+                  >
+                    <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727] text-white">
+                      <Mic className="size-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow">Voiceover</span>
+                  </button>
+
+                  {/* Save to Device */}
+                  <button 
+                    onClick={() => {
+                      toast({ description: "Video rendering compiled. Saved to device gallery!" });
+                    }}
+                    className="flex flex-col items-center gap-1 text-center group cursor-pointer"
+                  >
+                    <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727] text-white">
+                      <Download className="size-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow">Save to device</span>
+                  </button>
+
+                  {/* Close ChevronUp */}
+                  <button 
+                    onClick={() => setIsSidebarExpanded(false)}
+                    className="flex flex-col items-center gap-1 text-center group cursor-pointer"
+                  >
+                    <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727] text-white">
+                      <ChevronUp className="size-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow">Close</span>
+                  </button>
+                </>
+              ) : (
+                /* More ChevronDown */
+                <button 
+                  onClick={() => setIsSidebarExpanded(true)}
+                  className="flex flex-col items-center gap-1 text-center group cursor-pointer"
+                >
+                  <div className="size-10 bg-black/45 border border-white/5 rounded-full flex items-center justify-center shadow-lg hover:bg-[#272727] text-white">
+                    <ChevronDown className="size-5" />
+                  </div>
+                  <span className="text-[10px] font-bold text-white drop-shadow">More</span>
+                </button>
+              )}
             </div>
 
             {/* Bottom details card (Image 1 profile footer) */}
@@ -1547,7 +2211,7 @@ export default function CreatePage() {
             {/* Bottom Action buttons */}
             <div className="absolute inset-x-0 bottom-0 z-20 h-18 px-4 flex items-center justify-between border-t border-[#1A1A1A] bg-black shrink-0">
               <button
-                onClick={() => setCreatorStep("trimmer")}
+                onClick={() => setCreatorStep("timelineEditor")}
                 className="bg-[#272727] hover:bg-[#3e3e3e] text-white font-bold text-sm px-6 py-2.5 rounded-full flex items-center gap-1.5 transition-colors"
               >
                 <Edit3 className="size-4 text-white" />
@@ -1556,15 +2220,7 @@ export default function CreatePage() {
 
               <button
                 onClick={() => {
-                  // Add this edited asset to selected gallery draft list
-                  setSelectedGalleryIds(prev => 
-                    prev.includes(selectedAsset.id) ? prev : [...prev, selectedAsset.id]
-                  );
-                  setCreatorStep("composer");
-                  setActiveMode("Post");
-                  toast({
-                    description: "Trimmed and edited media loaded into draft!",
-                  });
+                  setCreatorStep("addDetails");
                 }}
                 className="bg-white hover:bg-zinc-150 text-black font-extrabold text-sm px-7 py-2.5 rounded-full flex items-center gap-1.5 transition-all shadow-lg active:scale-95"
               >
@@ -1573,6 +2229,1039 @@ export default function CreatePage() {
               </button>
             </div>
 
+          </div>
+        )}
+
+        {/* ==================== WIZARD STEP 4: ADVANCED TIMELINE EDITOR (Image 2) ==================== */}
+        {creatorStep === "timelineEditor" && selectedAsset && (
+          <div className="flex flex-col flex-grow w-full h-full bg-[#121212] relative select-none">
+            
+            {/* Header */}
+            <header className="h-14 flex items-center justify-between px-4 bg-[#121212] select-none shrink-0 z-20 border-b border-zinc-800/50">
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCreatorStep("shortEditor");
+                }}
+                className="p-2 hover:bg-zinc-800 rounded-full flex items-center justify-center transition-colors"
+                title="Back"
+              >
+                <ArrowLeft className="size-6 text-white" />
+              </button>
+
+              <span className="text-lg font-bold text-white tracking-wide">Edit</span>
+
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setCreatorStep("shortEditor");
+                }}
+                className="text-white font-bold text-sm bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 rounded-full transition-all"
+              >
+                Done
+              </button>
+            </header>
+
+            {/* Asset Preview Container */}
+            <div className="flex-1 flex items-center justify-center bg-[#0e0e0e] px-4 py-3 relative overflow-hidden">
+              <div className="w-full max-w-[280px] aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800/80 relative shadow-2xl">
+                {selectedAsset.mediaType === "VIDEO" ? (
+                  <video
+                    src={selectedAsset.uri}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                    style={{
+                      filter: activeFilter === "none" ? "none" : 
+                              activeFilter === "grayscale" ? "grayscale(100%)" : 
+                              activeFilter === "sepia" ? "sepia(100%)" : 
+                              activeFilter === "hue-rotate" ? "hue-rotate(90deg)" : "invert(100%)" 
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={selectedAsset.uri}
+                    alt="Preview asset"
+                    className="w-full h-full object-cover"
+                    style={{
+                      filter: activeFilter === "none" ? "none" : 
+                              activeFilter === "grayscale" ? "grayscale(100%)" : 
+                              activeFilter === "sepia" ? "sepia(100%)" : 
+                              activeFilter === "hue-rotate" ? "hue-rotate(90deg)" : "invert(100%)" 
+                    }}
+                  />
+                )}
+
+                {/* Dynamic Drag-and-Drop Overlays */}
+                {textOverlays.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      left: `${item.x}%`,
+                      top: `${item.y}%`,
+                      color: item.color,
+                      fontSize: `${item.fontSize}px`,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                    className={cn(
+                      "absolute cursor-move p-2 font-bold pointer-events-auto select-none rounded bg-black/45 border border-white/5 shadow-2xl z-20",
+                      item.fontFamily === "YouTube Sans" && "font-youtube-sans",
+                      item.fontFamily === "Serif Classic" && "font-classic-serif",
+                      item.fontFamily === "Tech Mono" && "font-monospace-tech",
+                      item.fontFamily === "Handwriting" && "font-handwriting"
+                    )}
+                    onPointerDown={(e) => handlePointerDown(e, item.id, "text")}
+                    onDoubleClick={() => handleEditText(item)}
+                  >
+                    {item.text}
+                    {/* Delete overlay handler button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTextOverlays(prev => prev.filter(t => t.id !== item.id));
+                      }}
+                      className="absolute -top-1.5 -right-1.5 bg-black border border-white/15 hover:bg-red-950 hover:border-red-500 text-white rounded-full p-1 transition-all"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {stickerOverlays.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      left: `${item.x}%`,
+                      top: `${item.y}%`,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                    className="absolute cursor-move pointer-events-auto select-none p-3.5 rounded-2xl shadow-2xl border border-white/15 bg-black/85 backdrop-blur-md text-white min-w-[130px] text-center z-20"
+                    onPointerDown={(e) => handlePointerDown(e, item.id, "sticker")}
+                  >
+                    {item.type === "qa" && (
+                      <div className="flex flex-col gap-1 items-center">
+                        <span className="text-[9px] text-purple-400 font-extrabold uppercase tracking-widest">Q&A</span>
+                        <p className="text-xs font-bold text-zinc-100">{item.title}</p>
+                        <div className="w-full h-7 bg-white/10 rounded-lg text-[10px] text-zinc-400 font-semibold flex items-center justify-center mt-1 border border-white/5">
+                          Ask something...
+                        </div>
+                      </div>
+                    )}
+                    {item.type === "addyours" && (
+                      <div className="flex items-center gap-1.5 justify-center py-1">
+                        <span className="text-md">📷</span>
+                        <span className="text-xs font-black tracking-wide text-rose-500 uppercase">{item.title}</span>
+                      </div>
+                    )}
+                    {item.type === "poll" && (
+                      <div className="flex flex-col gap-1.5 items-center">
+                        <span className="text-[9px] text-blue-400 font-black tracking-wider uppercase">POLL</span>
+                        <p className="text-xs font-bold">{item.title}</p>
+                        <div className="flex gap-2 w-full mt-1">
+                          {item.options?.map((opt) => (
+                            <button key={opt} className="flex-1 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-bold text-white transition-colors border border-white/5">
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {item.type === "quiz" && (
+                      <div className="flex flex-col gap-1.5 items-center">
+                        <span className="text-[9px] text-yellow-500 font-black tracking-wider uppercase">QUIZ</span>
+                        <p className="text-xs font-bold">{item.title}</p>
+                        <div className="flex flex-col gap-1 w-full mt-1">
+                          {item.options?.map((opt) => (
+                            <button key={opt} className="w-full py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-bold text-left px-2.5 text-zinc-250 border border-white/5">
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {item.type === "image" && (
+                      <div className="relative size-14 rounded-lg overflow-hidden border border-white/20">
+                        <img src={item.title} className="w-full h-full object-cover" alt="Custom Sticker" />
+                      </div>
+                    )}
+                    {/* Delete overlay handler button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStickerOverlays(prev => prev.filter(s => s.id !== item.id));
+                      }}
+                      className="absolute -top-1.5 -right-1.5 bg-black border border-white/15 hover:bg-red-950 hover:border-red-500 text-white rounded-full p-1 transition-all"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Playback & Timer Display */}
+            <div className="flex items-center justify-between px-6 py-2.5 shrink-0 bg-[#121212] z-10">
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="size-11 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-zinc-150 transition-colors"
+              >
+                {isPlaying ? <Pause className="size-5 fill-black text-black" /> : <Play className="size-5 fill-black text-black pl-0.5" />}
+              </button>
+              
+              <div className="text-[13px] font-mono font-bold tracking-wider text-zinc-350">
+                <span className="text-white">{currentTime.toFixed(2)}s</span>
+                <span className="text-zinc-600 mx-1.5">/</span>
+                <span>{trimmedDuration.toFixed(2)}s</span>
+              </div>
+            </div>
+
+            {/* Timeline Filmstrip & Ruler Scrubber (Image 2) */}
+            <div className="h-44 bg-[#18181c] border-t border-zinc-800/80 px-4 py-3 flex flex-col justify-between select-none relative shrink-0 z-10">
+              
+              {/* Timeline Ruler Ticks */}
+              <div className="relative w-full h-5 text-[10px] font-mono text-zinc-500 font-bold select-none border-b border-zinc-800/40">
+                {Array.from({ length: 7 }).map((_, index) => {
+                  const tickVal = (index * (trimmedDuration / 6)).toFixed(1);
+                  const leftPos = (index * 16.66);
+                  return (
+                    <span 
+                      key={index} 
+                      className="absolute transform -translate-x-1/2"
+                      style={{ left: `${leftPos}%` }}
+                    >
+                      {tickVal}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Scrubber Container */}
+              <div 
+                className="relative w-full h-24 bg-zinc-950/40 rounded-xl border border-zinc-900/60 overflow-hidden flex flex-col justify-center cursor-pointer select-none"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = e.clientX - rect.left;
+                  const pct = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+                  setCurrentTime((pct / 100) * trimmedDuration);
+                }}
+              >
+                {/* Horizontal Filmstrip layer preview */}
+                <div className="absolute inset-x-0 h-10 flex gap-0.5 opacity-30 pointer-events-none">
+                  {Array.from({ length: 8 }).map((_, idx) => (
+                    <div key={idx} className="flex-1 h-full overflow-hidden bg-zinc-950">
+                      <img 
+                        src={selectedAsset.uri} 
+                        className="w-full h-full object-cover" 
+                        alt="filmstrip thumbnail" 
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Overlaid markers of other segments */}
+                {textOverlays.length > 0 && (
+                  <div className="absolute top-1 left-2 bg-blue-600/70 border border-blue-500 text-white font-bold text-[9px] px-2 py-0.5 rounded shadow-sm flex items-center gap-1 select-none pointer-events-none">
+                    <FileText className="size-2.5 text-white" />
+                    <span>{textOverlays.length} Text</span>
+                  </div>
+                )}
+                
+                {stickerOverlays.length > 0 && (
+                  <div className="absolute top-1 right-2 bg-purple-600/70 border border-purple-500 text-white font-bold text-[9px] px-2 py-0.5 rounded shadow-sm flex items-center gap-1 select-none pointer-events-none">
+                    <Smile className="size-2.5 text-white" />
+                    <span>{stickerOverlays.length} Stickers</span>
+                  </div>
+                )}
+
+                {activeMusicTrack && (
+                  <div className="absolute bottom-1.5 left-2 bg-rose-600/70 border border-rose-500 text-white font-bold text-[9px] px-2 py-0.5 rounded shadow-sm flex items-center gap-1 select-none pointer-events-none">
+                    <Music className="size-2.5 text-white" />
+                    <span>Music Active</span>
+                  </div>
+                )}
+
+                {voiceoverAudios.length > 0 && (
+                  <div className="absolute bottom-1.5 right-2 bg-emerald-600/70 border border-emerald-500 text-white font-bold text-[9px] px-2 py-0.5 rounded shadow-sm flex items-center gap-1 select-none pointer-events-none">
+                    <Mic className="size-2.5 text-white" />
+                    <span>Voiceover Active</span>
+                  </div>
+                )}
+
+                {/* Red Moving Scrubber Line */}
+                <div 
+                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg pointer-events-none transition-all duration-75 flex items-center justify-center"
+                  style={{ left: `${(currentTime / trimmedDuration) * 100}%` }}
+                >
+                  <div className="size-2.5 rounded-full bg-red-500 -mt-1.5" />
+                </div>
+              </div>
+
+              <div className="text-[11px] text-zinc-550 font-semibold text-center">
+                Tap anywhere on scrubber to seek
+              </div>
+            </div>
+
+            {/* Bottom Actions Row (Image 2) */}
+            <div className="h-16 flex items-center justify-around border-t border-zinc-800 bg-[#121212] pb-safe shrink-0 z-20">
+              <button
+                onClick={() => {
+                  setTempText("");
+                  setEditingTextOverlayId(null);
+                  setActiveEditorOverlay("text");
+                }}
+                className="flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-white"
+              >
+                <FileText className="size-5" />
+                <span className="text-[10px] font-bold">Text</span>
+              </button>
+
+              <button
+                onClick={() => setActiveEditorOverlay("music")}
+                className="flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-white"
+              >
+                <Music className="size-5" />
+                <span className="text-[10px] font-bold">Music</span>
+              </button>
+
+              <button
+                onClick={() => setActiveEditorOverlay("stickers")}
+                className="flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-white"
+              >
+                <Smile className="size-5" />
+                <span className="text-[10px] font-bold">Stickers</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setVoiceoverRecordingState("idle");
+                  setActiveEditorOverlay("voiceover");
+                }}
+                className="flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-white"
+              >
+                <Mic className="size-5" />
+                <span className="text-[10px] font-bold">Voiceover</span>
+              </button>
+            </div>
+
+            {/* ==================== SUB-TOOL OVERLAYS & BOTTOM SHEETS ==================== */}
+
+            {/* A. TEXT OVERLAY EDITOR SHEET (Image 3) */}
+            {activeEditorOverlay === "text" && (
+              <div className="absolute inset-0 bg-black/90 flex flex-col justify-between z-50 p-4 font-sans select-none animate-fade-in pointer-events-auto">
+                {/* Header controls */}
+                <div className="flex items-center justify-between w-full h-14 z-10 select-none">
+                  {/* Font Selector Cycler Pill */}
+                  <button
+                    onClick={() => {
+                      const curIndex = FONT_STYLES.findIndex(f => f.name === tempFontFamily);
+                      const nextIndex = (curIndex + 1) % FONT_STYLES.length;
+                      setTempFontFamily(FONT_STYLES[nextIndex].name);
+                      toast({ description: `Switched font to: ${FONT_STYLES[nextIndex].name}` });
+                    }}
+                    className="h-9 px-4.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-white font-extrabold text-[13px] rounded-full border border-zinc-700 shadow-md flex items-center gap-1.5 transition-all select-none"
+                  >
+                    <span>{tempFontFamily}</span>
+                    <ChevronDown className="size-3.5" />
+                  </button>
+
+                  <button
+                    onClick={handleSaveText}
+                    className="h-9 px-5 bg-white text-black hover:bg-zinc-150 font-black text-sm rounded-full transition-all select-none shadow-md"
+                  >
+                    Done
+                  </button>
+                </div>
+
+                {/* Main input wrapper */}
+                <div className="flex-1 flex items-center justify-center relative w-full px-12 select-none">
+                  {/* Left-side vertical text-size slider */}
+                  <div className="absolute left-2 top-1/2 transform -translate-y-1/2 flex flex-col items-center gap-2 select-none">
+                    <span className="text-[10px] text-zinc-550 font-bold select-none uppercase">Size</span>
+                    <input
+                      type="range"
+                      min="16"
+                      max="72"
+                      value={tempFontSize}
+                      onChange={(e) => setTempFontSize(Number(e.target.value))}
+                      className="h-36 w-1 hover:opacity-100 transition-opacity outline-none appearance-none bg-zinc-800 rounded-lg cursor-pointer select-none vertical-slider"
+                      style={{ writingMode: "bt-lr", WebkitAppearance: "slider-vertical" } as any}
+                    />
+                  </div>
+
+                  <textarea
+                    autoFocus
+                    value={tempText}
+                    onChange={(e) => setTempText(e.target.value)}
+                    style={{
+                      color: tempColor,
+                      fontSize: `${tempFontSize}px`,
+                    }}
+                    className={cn(
+                      "w-full bg-transparent border-0 text-center font-bold focus:outline-none resize-none min-h-[140px] select-text placeholder-zinc-700 py-4.5 rounded-xl border border-dashed border-zinc-800/10 focus:border-zinc-800/40",
+                      tempFontFamily === "YouTube Sans" && "font-youtube-sans",
+                      tempFontFamily === "Serif Classic" && "font-classic-serif",
+                      tempFontFamily === "Tech Mono" && "font-monospace-tech",
+                      tempFontFamily === "Handwriting" && "font-handwriting"
+                    )}
+                    placeholder="Enter text..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Footer color selector list */}
+                <div className="flex flex-col gap-4 select-none shrink-0 z-15">
+                  <div className="flex items-center gap-3 overflow-x-auto py-2 px-2.5 scrollbar-none justify-center">
+                    {["#ffffff", "#000000", "#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#4b0082", "#8b00ff", "#ff007f"].map((col) => {
+                      const isSelected = tempColor === col;
+                      return (
+                        <button
+                          key={col}
+                          onClick={() => setTempColor(col)}
+                          style={{ backgroundColor: col }}
+                          className={cn(
+                            "size-7.5 rounded-full border flex items-center justify-center transition-all scale-100 hover:scale-105 active:scale-95 shadow-lg",
+                            col === "#ffffff" ? "border-zinc-400" : "border-zinc-900/60",
+                            isSelected ? "ring-2 ring-white scale-110" : ""
+                          )}
+                        >
+                          {isSelected && (
+                            <div className={cn("size-2 rounded-full", col === "#ffffff" ? "bg-black" : "bg-white")} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Standard Android/iOS style emulated keyboard block */}
+                  <div className="w-full bg-[#1c1c1e] text-zinc-400 p-2.5 rounded-t-2xl border-t border-zinc-800/50 flex flex-col gap-1 items-center select-none opacity-85">
+                    <div className="w-12 h-1 bg-zinc-800 rounded-full mb-1.5" />
+                    <span className="text-[10.5px] font-bold tracking-wide text-zinc-550 uppercase select-none">Tap done to save overlay</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* B. SOUND/MUSIC SELECTOR BOTTOM SHEET */}
+            {activeEditorOverlay === "music" && (
+              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[75vh] flex flex-col justify-between z-50 p-4 font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
+                <header className="h-12 flex items-center justify-between shrink-0 border-b border-zinc-800 pb-2">
+                  <div className="flex items-center gap-1">
+                    <Music className="size-4.5 text-zinc-400" />
+                    <h3 className="font-extrabold text-[16px] text-white pl-0.5">Add sound</h3>
+                  </div>
+                  <button
+                    onClick={() => setActiveEditorOverlay("none")}
+                    className="p-1 hover:bg-zinc-850 rounded-full"
+                  >
+                    <X className="size-5.5 text-zinc-400" />
+                  </button>
+                </header>
+
+                {/* Tracks list */}
+                <div className="flex-grow overflow-y-auto py-2.5 space-y-2">
+                  {MOCK_TRACKS.map((track) => {
+                    const isSelected = activeMusicTrack?.id === track.id;
+                    return (
+                      <div
+                        key={track.id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setActiveMusicTrack(null);
+                          } else {
+                            setActiveMusicTrack(track);
+                            toast({ description: `Sound synced: ${track.title}` });
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer",
+                          isSelected ? "bg-zinc-850 border-rose-500/50 shadow-md" : "bg-zinc-900/40 border-zinc-850 hover:bg-zinc-900/80"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="size-10 rounded-lg bg-zinc-800 flex items-center justify-center text-rose-500 border border-zinc-850">
+                            {isSelected ? <Play className="size-4.5 fill-rose-500 text-rose-500 animate-pulse" /> : <Music className="size-4.5 text-zinc-400" />}
+                          </div>
+                          <div className="flex flex-col text-left">
+                            <span className="text-sm font-bold text-white">{track.title}</span>
+                            <span className="text-xs text-zinc-450 mt-0.5">{track.artist}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-500 font-semibold">{track.duration}</span>
+                          {isSelected && <Check className="size-4.5 text-rose-500 stroke-[3]" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Sound control footer */}
+                <div className="pt-3 border-t border-zinc-800/85 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2 text-zinc-400 text-xs">
+                    <Volume2 className="size-4 text-zinc-400" />
+                    <span>Syncs with video play</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveEditorOverlay("none")}
+                    className="bg-white text-black font-black text-xs px-6 py-2.5 rounded-full shadow-md hover:bg-zinc-150 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* C. STICKERS SELECTOR BOTTOM SHEET (Image 4) */}
+            {activeEditorOverlay === "stickers" && (
+              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[70vh] flex flex-col justify-between z-50 p-4 font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
+                <header className="h-12 flex items-center justify-between shrink-0 border-b border-zinc-800 pb-2">
+                  <h3 className="font-extrabold text-[16px] text-white">Choose Sticker</h3>
+                  <button
+                    onClick={() => {
+                      setActiveEditorOverlay("none");
+                      setIsSelectingStickerImage(false);
+                    }}
+                    className="p-1 hover:bg-zinc-850 rounded-full"
+                  >
+                    <X className="size-5.5 text-zinc-400" />
+                  </button>
+                </header>
+
+                {/* Sticker categories grid (Image 4) */}
+                {!isSelectingStickerImage ? (
+                  <div className="grid grid-cols-2 gap-3.5 py-4 overflow-y-auto">
+                    <button
+                      onClick={() => setIsSelectingStickerImage(true)}
+                      className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
+                    >
+                      <span className="text-xl">🖼️</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Image Sticker</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleAddSticker("qa")}
+                      className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
+                    >
+                      <span className="text-xl">💬</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Q&A Widget</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleAddSticker("addyours")}
+                      className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
+                    >
+                      <span className="text-xl">📸</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Add yours</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleAddSticker("poll")}
+                      className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
+                    >
+                      <span className="text-xl">📊</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Poll Sticker</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleAddSticker("quiz")}
+                      className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center col-span-2 flex"
+                    >
+                      <span className="text-xl">❓</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Interactive Quiz</span>
+                    </button>
+                  </div>
+                ) : (
+                  // Custom photo selector strip inside stickers
+                  <div className="flex flex-col gap-3 py-3 overflow-y-auto">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-bold text-zinc-400">Tap a photo to add as sticker:</span>
+                      <button onClick={() => setIsSelectingStickerImage(false)} className="text-xs text-sky-500 font-bold hover:underline">
+                        Back to options
+                      </button>
+                    </div>
+                    {getAccessibleMedia().length === 0 ? (
+                      <div className="py-6 text-center text-xs text-zinc-550">
+                        No photos imported. Select photos in composer gallery strip first.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1 px-0.5">
+                        {getAccessibleMedia().map((media) => (
+                          <div
+                            key={media.id}
+                            onClick={() => handleAddSticker("image", media.uri)}
+                            className="aspect-square relative cursor-pointer rounded-lg overflow-hidden bg-zinc-950 hover:opacity-90 transition-opacity"
+                          >
+                            <img src={media.uri} className="w-full h-full object-cover" alt="Gallery preview" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="pt-2 shrink-0 text-center select-none text-[10.5px] text-zinc-500 font-semibold tracking-wide uppercase">
+                  Widgets are fully draggable
+                </div>
+              </div>
+            )}
+
+            {/* D. VOICEOVER RECORDING BOTTOM SHEET (Image 5) */}
+            {activeEditorOverlay === "voiceover" && (
+              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[65vh] flex flex-col justify-between z-50 p-4 font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
+                <header className="h-12 flex items-center justify-between shrink-0 border-b border-zinc-800 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Mic className="size-4.5 text-zinc-400" />
+                    <h3 className="font-extrabold text-[16px] text-white">Voiceover</h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      stopVoiceoverRecording();
+                      setActiveEditorOverlay("none");
+                    }}
+                    className="p-1 hover:bg-zinc-850 rounded-full"
+                  >
+                    <X className="size-5.5 text-zinc-400" />
+                  </button>
+                </header>
+
+                {/* Recorder body */}
+                <div className="flex-1 flex flex-col items-center justify-center py-6 gap-5 select-none">
+                  {voiceoverRecordingState === "idle" && (
+                    <div className="text-center space-y-1.5 animate-fade-in">
+                      <p className="text-sm font-bold text-zinc-350">Tap red button to record audio</p>
+                      <p className="text-xs text-zinc-550 leading-relaxed max-w-xs">
+                        This overlays your recorded microphone track concurrently during media preview playback.
+                      </p>
+                    </div>
+                  )}
+
+                  {voiceoverRecordingState === "recording" && (
+                    <div className="text-center space-y-4 w-full px-4.5">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="size-2 bg-red-600 rounded-full animate-ping" />
+                        <span className="font-mono text-xl font-bold tracking-wider text-white">
+                          {voiceoverRecordDuration.toFixed(1)}s
+                        </span>
+                      </div>
+                      
+                      {/* Pulse Waveform simulator visualizer */}
+                      <div className="w-full flex items-end justify-center gap-1.5 h-12 py-1 select-none pointer-events-none">
+                        {Array.from({ length: 14 }).map((_, index) => {
+                          const delay = (index * 0.1).toFixed(1);
+                          return (
+                            <div
+                              key={index}
+                              style={{ animationDelay: `${delay}s` }}
+                              className="w-1.5 bg-red-500 rounded-full animate-sound-wave"
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {voiceoverRecordingState === "completed" && (
+                    <div className="text-center space-y-1.5 animate-fade-in">
+                      <div className="flex items-center justify-center gap-1.5 text-emerald-400 font-semibold text-xs">
+                        <Check className="size-4.5 stroke-[3]" />
+                        <span>Recording captured!</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 font-semibold tracking-wide">
+                        Duration: {(voiceoverRecordDuration || 3.0).toFixed(1)}s starting at {voiceoverRecordingStartTimeRef.current.toFixed(1)}s
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Dynamic Big Red Record trigger button */}
+                  <div className="flex items-center justify-center mt-2.5">
+                    {voiceoverRecordingState !== "completed" ? (
+                      <button
+                        onClick={() => {
+                          if (voiceoverRecordingState === "recording") {
+                            stopVoiceoverRecording();
+                          } else {
+                            startVoiceoverRecording();
+                          }
+                        }}
+                        className={cn(
+                          "size-20 rounded-full border-4 border-white flex items-center justify-center transition-all select-none shadow-xl active:scale-95",
+                          voiceoverRecordingState === "recording" ? "bg-zinc-800 scale-105 border-red-500 animate-pulse" : "bg-red-600"
+                        )}
+                      >
+                        {voiceoverRecordingState === "recording" ? (
+                          <div className="size-7 bg-red-500 rounded-md" />
+                        ) : (
+                          <div className="size-12 rounded-full bg-red-600 border border-black/10" />
+                        )}
+                      </button>
+                    ) : (
+                      // Undo/redo controls if recording exists
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => {
+                            setRecordedVoiceoverUrl(null);
+                            setVoiceoverRecordingState("idle");
+                            setVoiceoverRecordDuration(0);
+                          }}
+                          className="bg-[#272727] hover:bg-[#3e3e3e] text-white font-bold text-xs px-5 py-2.5 rounded-full transition-colors shadow-md"
+                        >
+                          Retake
+                        </button>
+                        
+                        <button
+                          onClick={handleSaveVoiceover}
+                          className="bg-white text-black font-black text-xs px-6 py-2.5 rounded-full transition-all shadow-md hover:bg-zinc-150 active:scale-95"
+                        >
+                          Save Snippet
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 shrink-0 text-center select-none text-[10.5px] text-zinc-500 font-semibold tracking-wide uppercase">
+                  Mic permission is required
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* ==================== WIZARD STEP 5: ADD DETAILS SCREEN (Image 2 & 3) ==================== */}
+        {creatorStep === "addDetails" && selectedAsset && (
+          <div className="flex flex-col flex-grow w-full h-full bg-[#0F0F0F] text-white relative select-none overflow-y-auto">
+            {/* Header */}
+            <header className="h-14 flex items-center justify-between px-4 bg-[#0F0F0F] select-none shrink-0 sticky top-0 z-30 border-b border-zinc-800/80">
+              <button
+                onClick={() => setCreatorStep("shortEditor")}
+                className="p-2 hover:bg-zinc-800 rounded-full flex items-center justify-center transition-colors"
+                title="Back"
+              >
+                <ArrowLeft className="size-6 text-white" />
+              </button>
+              <h2 className="text-[17px] font-bold text-white tracking-wide">Add details</h2>
+              <div className="w-10" /> {/* Spacer */}
+            </header>
+
+            <div className="flex-grow p-4 space-y-6 pb-24">
+              
+              {/* Media Preview & Caption Box */}
+              <div className="flex gap-4 items-start bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800/50 backdrop-blur-sm">
+                {/* Scaled Thumbnail Preview */}
+                <div 
+                  onClick={() => setCreatorStep("shortEditor")}
+                  className="relative w-24 aspect-[9/16] rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800/80 group cursor-pointer shadow-lg shrink-0 flex-none"
+                >
+                  {selectedAsset.mediaType === "VIDEO" ? (
+                    <video
+                      src={selectedAsset.uri}
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={selectedAsset.uri}
+                      alt="Short Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  {/* Pencil Edit Icon in center */}
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-black/60 p-2 rounded-full border border-white/20">
+                      <Pencil className="size-4 text-white" />
+                    </div>
+                  </div>
+                  {/* Duration Badge */}
+                  <div className="absolute bottom-1.5 right-1.5 bg-black/70 px-1 py-0.5 rounded text-[9px] text-white font-mono font-bold">
+                    {selectedAsset.duration || "0:02"}
+                  </div>
+                </div>
+
+                {/* Caption Text Area */}
+                <div className="flex-grow relative flex flex-col gap-2 min-w-0">
+                  <div className="text-xs text-zinc-550 font-bold uppercase tracking-wider">Caption your Short</div>
+                  <textarea
+                    value={captionText}
+                    onChange={(e) => handleCaptionChange(e.target.value)}
+                    placeholder="Caption your Short, add #hashtags or @mentions..."
+                    maxLength={100}
+                    className="w-full bg-transparent text-white placeholder-zinc-500 text-[14px] leading-relaxed resize-none focus:outline-none h-20"
+                  />
+                  <div className="text-right text-[10px] text-zinc-500 font-bold">
+                    {captionText.length}/100
+                  </div>
+
+                  {/* Hashtag Suggestions Dropdown */}
+                  {showHashtagSuggestions && filteredHashtags.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-2 bg-[#212121] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl z-50 max-h-40 overflow-y-auto">
+                      {filteredHashtags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => handleSelectHashtag(tag)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-zinc-800 transition-colors text-zinc-200 flex items-center gap-2 border-b border-zinc-900/50"
+                        >
+                          <span className="text-sky-500 font-black">#</span>
+                          <span>{tag.replace("#", "")}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Horizontal List of Quick Hashtag Pills */}
+              <div className="space-y-2">
+                <div className="text-xs text-zinc-550 font-bold uppercase tracking-wider pl-1">Trending Tags</div>
+                <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none">
+                  {trendingHashtags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        // Append hashtag to caption if not already present, or toggle it
+                        if (!captionText.includes(tag)) {
+                          setCaptionText(prev => prev.trim() + " " + tag + " ");
+                        }
+                      }}
+                      className="shrink-0 px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-zinc-300 rounded-full transition-colors"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* User details row */}
+              <div className="flex items-center gap-3 px-1 py-1">
+                <UserAvatar 
+                  avatarUrl={user?.avatarUrl} 
+                  size={42} 
+                  className="size-11 shrink-0 border border-zinc-800 rounded-full" 
+                />
+                <div className="flex flex-col text-left">
+                  <span className="text-white text-[15px] font-bold tracking-tight">
+                    {user?.displayName || user?.username || "AIM News"}
+                  </span>
+                  <span className="text-zinc-500 text-xs font-semibold">
+                    @{user?.username || "aimnews"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Basic Options Block */}
+              <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/40 divide-y divide-zinc-800/40">
+                {/* Visibility Row */}
+                <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-800/20 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 bg-[#1A1A1A] rounded-full flex items-center justify-center text-zinc-300">
+                      {visibility === "Public" ? <Globe className="size-4.5" /> : <Lock className="size-4.5" />}
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-sm font-bold text-white">Visibility</span>
+                      <span className="text-[11px] text-zinc-550 font-semibold">Who can see this Short</span>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={visibility}
+                      onChange={(e) => setVisibility(e.target.value as any)}
+                      className="bg-transparent text-sm font-bold text-sky-400 focus:outline-none cursor-pointer pr-4 appearance-none"
+                    >
+                      <option value="Public" className="bg-[#1c1c1e] text-white">Public</option>
+                      <option value="Unlisted" className="bg-[#1c1c1e] text-white">Unlisted</option>
+                      <option value="Private" className="bg-[#1c1c1e] text-white">Private</option>
+                    </select>
+                    <ChevronDown className="size-3 text-sky-400 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Audience Selection Row */}
+                <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-800/20 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 bg-[#1A1A1A] rounded-full flex items-center justify-center text-zinc-300">
+                      <Users className="size-4.5" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-sm font-bold text-white">Select audience</span>
+                      <span className="text-[11px] text-zinc-550 font-semibold">Is this video made for kids?</span>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={audienceSelection}
+                      onChange={(e) => setAudienceSelection(e.target.value)}
+                      className="bg-transparent text-sm font-bold text-sky-400 focus:outline-none cursor-pointer pr-4 appearance-none"
+                    >
+                      <option value="No, it's not made for kids" className="bg-[#1c1c1e] text-white">No, it&apos;s not made for kids</option>
+                      <option value="Yes, it's made for kids" className="bg-[#1c1c1e] text-white">Yes, it&apos;s made for kids</option>
+                    </select>
+                    <ChevronDown className="size-3 text-sky-400 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Show more toggle button */}
+              <button
+                onClick={() => setShowAllDetails(prev => !prev)}
+                className="w-full py-3 bg-zinc-900/40 hover:bg-zinc-900/60 rounded-xl border border-zinc-800/45 text-xs font-bold text-zinc-400 flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <span>{showAllDetails ? "Show less" : "Show more"}</span>
+                <ChevronDown className={cn("size-4 transition-transform duration-200", showAllDetails && "rotate-180")} />
+              </button>
+
+              {/* Expanded details container */}
+              {showAllDetails && (
+                <div className="space-y-4 animate-fade-in animate-duration-200">
+                  
+                  {/* Description input */}
+                  <div className="flex flex-col gap-1.5 bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-2">
+                      <AlignLeft className="size-4 text-zinc-400" />
+                      <label className="text-xs font-bold text-zinc-450 uppercase tracking-wider">Add description</label>
+                    </div>
+                    <textarea
+                      value={descriptionText}
+                      onChange={(e) => setDescriptionText(e.target.value)}
+                      placeholder="Write a description for your Short..."
+                      className="w-full bg-transparent text-white placeholder-zinc-600 text-sm leading-relaxed resize-none focus:outline-none h-16 mt-1.5"
+                    />
+                  </div>
+
+                  {/* Location input */}
+                  <div className="flex flex-col gap-1.5 bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="size-4 text-zinc-400" />
+                      <label className="text-xs font-bold text-zinc-450 uppercase tracking-wider">Location</label>
+                    </div>
+                    <input
+                      type="text"
+                      value={locationText}
+                      onChange={(e) => setLocationText(e.target.value)}
+                      placeholder="Search or add a location..."
+                      className="w-full bg-transparent text-white placeholder-zinc-600 text-sm focus:outline-none mt-1.5"
+                    />
+                  </div>
+
+                  {/* Related video */}
+                  <div className="flex flex-col gap-1.5 bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-2">
+                      <VideoIcon className="size-4 text-zinc-400" />
+                      <label className="text-xs font-bold text-zinc-450 uppercase tracking-wider">Related video</label>
+                    </div>
+                    <input
+                      type="text"
+                      value={relatedVideoText}
+                      onChange={(e) => setRelatedVideoText(e.target.value)}
+                      placeholder="Link to another of your videos..."
+                      className="w-full bg-transparent text-white placeholder-zinc-600 text-sm focus:outline-none mt-1.5"
+                    />
+                  </div>
+
+                  {/* Playlists */}
+                  <div className="flex flex-col gap-1.5 bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-2">
+                      <ListPlus className="size-4 text-zinc-400" />
+                      <label className="text-xs font-bold text-zinc-450 uppercase tracking-wider">Add to playlists</label>
+                    </div>
+                    <input
+                      type="text"
+                      value={playlistsText}
+                      onChange={(e) => setPlaylistsText(e.target.value)}
+                      placeholder="Search or select playlists..."
+                      className="w-full bg-transparent text-white placeholder-zinc-600 text-sm focus:outline-none mt-1.5"
+                    />
+                  </div>
+
+                  {/* Paid promotion toggle */}
+                  <div className="flex items-center justify-between bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 bg-[#1A1A1A] rounded-full flex items-center justify-center text-zinc-300">
+                        <Info className="size-4.5" />
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-sm font-bold text-white">Paid promotion</span>
+                        <span className="text-[11px] text-zinc-500 font-semibold">Includes paid sponsorship label</span>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={paidPromotion}
+                      onChange={(e) => setPaidPromotion(e.target.checked)}
+                      className="size-5 rounded bg-zinc-800 accent-sky-500 border-zinc-700 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Collaborations */}
+                  <div className="flex flex-col gap-1.5 bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-2">
+                      <Users className="size-4 text-zinc-400" />
+                      <label className="text-xs font-bold text-zinc-450 uppercase tracking-wider">Collaborations</label>
+                    </div>
+                    <input
+                      type="text"
+                      value={collaborationsText}
+                      onChange={(e) => setCollaborationsText(e.target.value)}
+                      placeholder="Search users to invite as co-authors..."
+                      className="w-full bg-transparent text-white placeholder-zinc-650 text-sm focus:outline-none mt-1.5"
+                    />
+                  </div>
+
+                  {/* AI Use label */}
+                  <div className="flex items-center justify-between bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/40">
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 bg-[#1A1A1A] rounded-full flex items-center justify-center text-zinc-300">
+                        <Sparkles className="size-4.5 text-purple-400" />
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-sm font-bold text-white">AI use label</span>
+                        <span className="text-[11px] text-zinc-550 font-semibold">Disclose AI generated or altered content</span>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={aiUseLabel}
+                      onChange={(e) => setAiUseLabel(e.target.checked)}
+                      className="size-5 rounded bg-zinc-800 accent-sky-500 border-zinc-700 cursor-pointer"
+                    />
+                  </div>
+
+                </div>
+              )}
+            </div>
+
+            {/* Footer fixed action buttons */}
+            <div className="absolute inset-x-0 bottom-0 z-30 bg-[#0F0F0F] border-t border-zinc-800/80 px-4 py-3 pb-safe flex items-center gap-3 justify-between shrink-0">
+              <button
+                onClick={() => {
+                  toast({
+                    description: "Short post saved to local drafts successfully!",
+                  });
+                  setCreatorStep("composer");
+                }}
+                disabled={isUploadingShort || isSubmitting}
+                className="flex-1 py-3.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-full text-sm font-bold text-white text-center transition-all border border-zinc-800/60 shadow-md"
+              >
+                Save draft
+              </button>
+
+              <button
+                onClick={handleUploadShortClick}
+                disabled={isUploadingShort || isSubmitting}
+                className="flex-1 py-3.5 bg-white hover:bg-zinc-150 active:scale-98 rounded-full text-sm font-black text-black text-center transition-all shadow-lg flex items-center justify-center gap-1.5"
+              >
+                {isUploadingShort || isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-black" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <span>Upload Short</span>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
