@@ -54,6 +54,8 @@ import {
   Zap,
   ZapOff,
   HeartOff,
+  UserCheck,
+  AtSign,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
@@ -1772,7 +1774,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   };
 
   // If sub-view is active, render it directly full screen
-  if (activePanel !== "none" && activePanel !== "draft-recovery") {
+  if (activePanel !== "none" && activePanel !== "draft-recovery" && activePanel !== "audience") {
     return (
       <div 
         ref={containerRef}
@@ -2187,6 +2189,74 @@ export default function PostEditor({ onClose }: PostEditorProps) {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audience selector bottom sheet */}
+      {activePanel === "audience" && (
+        <div 
+          className="absolute inset-0 bg-black/60 z-[120] flex flex-col justify-end pointer-events-auto select-none"
+          onClick={() => setActivePanel("none")}
+        >
+          <div 
+            className="bg-[#0A0A0A] rounded-t-3xl border-t border-[#1A1A1A] animate-slide-up w-full max-w-[680px] mx-auto overflow-hidden pb-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Slide Indicator Line */}
+            <div className="flex justify-center py-3">
+              <div className="w-12 h-1 bg-zinc-800 rounded-full" />
+            </div>
+
+            {/* Title & Description */}
+            <div className="px-6 pb-4 flex flex-col text-left">
+              <h4 className="font-bold text-[20px] text-white">Who can reply?</h4>
+              <p className="text-[14px] text-[#A1A1AA] mt-1.5 leading-normal">
+                Pick who can reply to this post. Keep in mind that anyone mentioned can always reply.
+              </p>
+            </div>
+
+            {/* List options */}
+            <div className="flex flex-col">
+              {(["PUBLIC", "FOLLOWERS", "MENTIONED_ONLY"] as const).map((aud) => {
+                const isSel = audience === aud;
+                
+                let label = "Everyone";
+                let Icon = Globe;
+                
+                if (aud === "FOLLOWERS") {
+                  label = "Accounts you follow";
+                  Icon = UserCheck;
+                } else if (aud === "MENTIONED_ONLY") {
+                  label = "Only accounts you mention";
+                  Icon = AtSign;
+                }
+
+                return (
+                  <button
+                    key={aud}
+                    onClick={() => {
+                      setAudience(aud);
+                      setActivePanel("none");
+                      toast({ description: `Audience updated to ${label.toLowerCase()}` });
+                    }}
+                    className="w-full flex items-center gap-4 py-4 px-6 hover:bg-white/[0.03] transition-colors text-left"
+                  >
+                    <div className="relative shrink-0">
+                      <div className="size-11 rounded-full bg-[#1D9BF0] flex items-center justify-center text-white">
+                        <Icon className="size-5.5" strokeWidth={2.2} />
+                      </div>
+                      {isSel && (
+                        <div className="absolute -bottom-0.5 -right-0.5 size-4.5 bg-[#00BA7C] rounded-full border border-[#0A0A0A] flex items-center justify-center">
+                          <Check className="size-2.5 text-white" strokeWidth={4} />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-white text-[16px] font-bold">{label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
