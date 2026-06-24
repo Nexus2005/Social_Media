@@ -64,6 +64,7 @@ export default function ReelCard({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [overlayIcon, setOverlayIcon] = useState<"play" | "pause" | null>(null);
@@ -464,6 +465,10 @@ export default function ReelCard({
     }
 
     if (e.detail === 2) {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
       // Double click -> Like
       if (!likeData.isLikedByUser) {
         toggleLike();
@@ -473,20 +478,43 @@ export default function ReelCard({
       setTimeout(() => {
         setTapHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
       }, 800);
-    } else {
-      // Single click -> Toggle hotspots visibility (auto-hide after 4 seconds)
-      setShowHotspots((prev) => {
-        const next = !prev;
-        if (next) {
-          if (hotspotTimeoutRef.current) clearTimeout(hotspotTimeoutRef.current);
-          hotspotTimeoutRef.current = setTimeout(() => {
-            setShowHotspots(false);
-          }, 4000);
+    } else if (e.detail === 1) {
+      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = setTimeout(() => {
+        clickTimeoutRef.current = null;
+        
+        // Single click -> Toggle Play/Pause
+        const video = videoRef.current;
+        if (!video) return;
+        if (video.paused) {
+          video.play()
+            .then(() => {
+              setIsPlaying(true);
+              setOverlayIcon("play");
+              setTimeout(() => setOverlayIcon(null), 800);
+            })
+            .catch((err) => console.error(err));
         } else {
-          if (hotspotTimeoutRef.current) clearTimeout(hotspotTimeoutRef.current);
+          video.pause();
+          setIsPlaying(false);
+          setOverlayIcon("pause");
+          setTimeout(() => setOverlayIcon(null), 800);
         }
-        return next;
-      });
+
+        // Toggle hotspots visibility (auto-hide after 4 seconds)
+        setShowHotspots((prev) => {
+          const next = !prev;
+          if (next) {
+            if (hotspotTimeoutRef.current) clearTimeout(hotspotTimeoutRef.current);
+            hotspotTimeoutRef.current = setTimeout(() => {
+              setShowHotspots(false);
+            }, 4000);
+          } else {
+            if (hotspotTimeoutRef.current) clearTimeout(hotspotTimeoutRef.current);
+          }
+          return next;
+        });
+      }, 250); // 250ms is standard double-click delay threshold
     }
   };
 
