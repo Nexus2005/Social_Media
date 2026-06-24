@@ -104,7 +104,7 @@ export default function FollowButton({
           mutate();
         }}
         className={cn(
-          "h-8 px-4 flex items-center justify-center rounded-full text-xs font-bold transition-all active:scale-95 shrink-0 border-0",
+          "h-12 px-6 flex items-center justify-center rounded-full text-sm font-bold transition-all active:scale-95 shrink-0 border-0",
           data.isFollowedByUser
             ? "bg-[#262626] hover:bg-zinc-800 text-white"
             : "bg-[#0095f6] hover:bg-[#1877f2] text-white"

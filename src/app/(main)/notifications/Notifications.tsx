@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Settings, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startOfDay, subDays, isAfter } from "date-fns";
 import kyInstance from "@/lib/ky";
 import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
@@ -31,6 +32,7 @@ function NotificationSkeleton() {
 }
 
 export default function Notifications() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("All");
   const [sessionUnreadIds, setSessionUnreadIds] = useState<Set<string>>(new Set());
   const [hasInitializedUnread, setHasInitializedUnread] = useState(false);
@@ -162,19 +164,28 @@ export default function Notifications() {
     return (
       <div className="flex flex-col min-h-screen bg-black">
         {/* Sticky Header */}
-        <header className="sticky top-0 z-30 flex h-[56px] w-full items-center justify-between border-b border-neutral-900 bg-black px-4 shrink-0">
-          <h1 className="text-lg font-bold text-white select-none">Notifications</h1>
+        <header className="sticky top-0 z-30 flex h-[64px] w-full items-center justify-between border-b border-neutral-900 bg-black px-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.back()}
+              className="sm:hidden p-2 text-zinc-400 hover:text-white transition-colors flex items-center justify-center"
+              title="Back"
+            >
+              <ArrowLeft className="size-6" />
+            </button>
+            <h1 className="text-xl font-bold text-white select-none">Notifications</h1>
+          </div>
           <Link href="/settings" className="p-2 text-zinc-400 hover:text-white transition-colors">
-            <Settings className="size-6" />
+            <Settings className="size-7" />
           </Link>
         </header>
 
         {/* Filter Chips */}
-        <div className="sticky top-[56px] z-20 bg-black border-b border-neutral-900/50 py-1.5 px-4 flex items-center gap-2 overflow-x-auto scrollbar-none select-none shrink-0">
+        <div className="sticky top-[64px] z-20 bg-black border-b border-neutral-900/50 py-1.5 px-4 flex items-center gap-2 overflow-x-auto scrollbar-none select-none shrink-0">
           {FILTERS.map((filter) => (
             <div
               key={filter}
-              className="h-8 px-4 rounded-full text-xs font-semibold bg-zinc-900 text-zinc-700 shrink-0 flex items-center justify-center"
+              className="h-10 px-5 rounded-full text-sm font-semibold bg-zinc-900 text-zinc-700 shrink-0 flex items-center justify-center"
             >
               {filter}
             </div>
@@ -230,15 +241,24 @@ export default function Notifications() {
   return (
     <div className="flex flex-col min-h-screen bg-black">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-30 flex h-[56px] w-full items-center justify-between border-b border-neutral-900 bg-black px-4 shrink-0">
-        <h1 className="text-lg font-bold text-white select-none">Notifications</h1>
+      <header className="sticky top-0 z-30 flex h-[64px] w-full items-center justify-between border-b border-neutral-900 bg-black px-4 shrink-0">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.back()}
+            className="sm:hidden p-2 text-zinc-400 hover:text-white transition-colors flex items-center justify-center"
+            title="Back"
+          >
+            <ArrowLeft className="size-6" />
+          </button>
+          <h1 className="text-xl font-bold text-white select-none">Notifications</h1>
+        </div>
         <Link href="/settings" className="p-2 text-zinc-400 hover:text-white transition-colors" title="Settings">
-          <Settings className="size-6" />
+          <Settings className="size-7" />
         </Link>
       </header>
 
       {/* Filter Chips */}
-      <div className="sticky top-[56px] z-20 bg-black border-b border-neutral-900/50 py-1.5 px-4 flex items-center gap-2 overflow-x-auto scrollbar-none select-none shrink-0">
+      <div className="sticky top-[64px] z-20 bg-black border-b border-neutral-900/50 py-1.5 px-4 flex items-center gap-2 overflow-x-auto scrollbar-none select-none shrink-0">
         {FILTERS.map((filter) => {
           const isActive = activeFilter === filter;
           return (
@@ -246,7 +266,7 @@ export default function Notifications() {
               key={filter}
               onClick={() => setActiveFilter(filter)}
               className={cn(
-                "h-8 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border-0 flex items-center justify-center shrink-0",
+                "h-10 px-5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors border-0 flex items-center justify-center shrink-0",
                 isActive
                   ? "bg-white text-black"
                   : "bg-zinc-900 hover:bg-zinc-800 text-zinc-400"

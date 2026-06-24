@@ -109,45 +109,45 @@ export default function Notification({ notification, isUnread }: NotificationPro
   const renderThumbnailWithBadge = (imageUrl: string | undefined, badgeType: "like" | "comment" | "repost" | "quote" | "mention" | "share" | "save") => {
     const badges: Record<string, React.ReactNode> = {
       like: (
-        <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <Heart className="size-2 text-white fill-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-red-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <Heart className="size-3.5 text-white fill-white" />
         </div>
       ),
       comment: (
-        <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <MessageCircle className="size-2 text-white fill-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-blue-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <MessageCircle className="size-3.5 text-white fill-white" />
         </div>
       ),
       repost: (
-        <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <Repeat2 className="size-2 text-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-green-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <Repeat2 className="size-3.5 text-white" />
         </div>
       ),
       quote: (
-        <div className="absolute -bottom-1 -right-1 bg-purple-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <MessageSquareQuote className="size-2 text-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-purple-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <MessageSquareQuote className="size-3.5 text-white" />
         </div>
       ),
       mention: (
-        <div className="absolute -bottom-1 -right-1 bg-orange-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <AtSign className="size-2 text-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-orange-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <AtSign className="size-3.5 text-white" />
         </div>
       ),
       share: (
-        <div className="absolute -bottom-1 -right-1 bg-sky-500 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <Repeat2 className="size-2 text-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-sky-500 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <Repeat2 className="size-3.5 text-white" />
         </div>
       ),
       save: (
-        <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-0.5 border border-black shadow-sm flex items-center justify-center">
-          <Bookmark className="size-2 text-white fill-white" />
+        <div className="absolute -bottom-1.5 -right-1.5 bg-purple-600 rounded-full p-1 border-2 border-black shadow-sm flex items-center justify-center">
+          <Bookmark className="size-3.5 text-white fill-white" />
         </div>
       ),
     };
 
     if (imageUrl) {
       return (
-        <Link href={href} className="relative size-11 rounded-md overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 block hover:opacity-90 transition-opacity">
+        <Link href={href} className="relative w-[76px] h-[76px] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 block hover:opacity-90 transition-opacity">
           <img src={imageUrl} className="object-cover w-full h-full" alt="Thumbnail" />
           {badges[badgeType]}
         </Link>
@@ -155,7 +155,7 @@ export default function Notification({ notification, isUnread }: NotificationPro
     }
 
     return (
-      <Link href={href} className="relative size-11 rounded-md bg-[#121212] border border-zinc-800 flex items-center justify-center p-1 text-[8px] text-zinc-400 overflow-hidden line-clamp-3 select-none leading-tight shrink-0 block hover:bg-zinc-900 transition-colors">
+      <Link href={href} className="relative w-[76px] h-[76px] rounded-xl bg-[#121212] border border-zinc-800 flex items-center justify-center p-2 text-[12px] text-zinc-400 overflow-hidden line-clamp-3 select-none leading-tight shrink-0 block hover:bg-zinc-900 transition-colors">
         {notification.post?.content || ""}
         {badges[badgeType]}
       </Link>
@@ -200,20 +200,20 @@ export default function Notification({ notification, isUnread }: NotificationPro
       case "SECURITY_ALERT":
       case "PASSWORD_CHANGED":
         return (
-          <div className="size-11 rounded-md bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
-            <Shield className="size-5 text-red-400" />
+          <div className="w-[76px] h-[76px] rounded-xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
+            <Shield className="size-9 text-red-400" />
           </div>
         );
       case "VERIFICATION_APPROVED":
         return (
-          <div className="size-11 rounded-md bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
-            <CheckCircle className="size-5 text-blue-400" />
+          <div className="w-[76px] h-[76px] rounded-xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
+            <CheckCircle className="size-9 text-blue-400" />
           </div>
         );
       case "SYSTEM":
         return (
-          <div className="size-11 rounded-md bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
-            <Bell className="size-5 text-zinc-400" />
+          <div className="w-[76px] h-[76px] rounded-xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-400 shrink-0">
+            <Bell className="size-9 text-zinc-400" />
           </div>
         );
       default:
@@ -222,28 +222,28 @@ export default function Notification({ notification, isUnread }: NotificationPro
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-zinc-900/30 transition-colors bg-black w-full min-h-[64px] max-h-[72px] relative select-none">
+    <div className="flex items-center justify-between gap-5 px-4 py-4 hover:bg-zinc-900/30 transition-colors bg-black w-full min-h-[110px] relative select-none">
       {/* Unread indicator dot */}
       {isUnread && (
-        <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2 h-2 bg-[#0095f6] rounded-full" />
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-[#0095f6] rounded-full" />
       )}
 
       {/* Main navigation click triggers */}
-      <Link href={href} className={cn("flex items-center gap-3 flex-grow min-w-0", isUnread && "pl-2")}>
+      <Link href={href} className={cn("flex items-center gap-5 flex-grow min-w-0", isUnread && "pl-4")}>
         <div className="shrink-0">
-          <UserAvatar avatarUrl={notification.issuer.avatarUrl} size={44} className="w-[44px] h-[44px]" />
+          <UserAvatar avatarUrl={notification.issuer.avatarUrl} size={76} className="w-[76px] h-[76px]" />
         </div>
         <div className="flex flex-col justify-center min-w-0">
-          <p className="text-[13px] text-white leading-tight break-words">
+          <p className="text-[17px] text-white leading-tight break-words">
             <span className="font-semibold text-white hover:underline">{notification.issuer.username}</span>{" "}
             <span className="text-zinc-300">{messageText}</span>{" "}
-            <span className="text-zinc-500 font-medium shrink-0 ml-1 whitespace-nowrap">{formatTimeShort(notification.createdAt)}</span>
+            <span className="text-zinc-500 font-medium shrink-0 ml-2 whitespace-nowrap text-[14px]">{formatTimeShort(notification.createdAt)}</span>
           </p>
         </div>
       </Link>
 
       {/* Right side interactive button or post thumbnail */}
-      <div className="shrink-0 flex items-center justify-end min-w-[44px]">
+      <div className="shrink-0 flex items-center justify-end min-w-[80px]">
         {renderActionArea()}
       </div>
     </div>
