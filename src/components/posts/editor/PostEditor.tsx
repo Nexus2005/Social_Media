@@ -490,7 +490,11 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         cameraStream.getTracks().forEach((track) => track.stop());
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: cameraFacingMode, width: 720, height: 1280 },
+        video: {
+          facingMode: cameraFacingMode,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: cameraMode !== "CAPTURE"
       });
       setCameraStream(stream);
@@ -526,31 +530,8 @@ export default function PostEditor({ onClose }: PostEditorProps) {
     }
 
     if (!cameraStream) {
-      // Mock capture fallback when no physical camera is active
-      if (cameraMode === "CAPTURE") {
-        try {
-          const res = await fetch("https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&auto=format&fit=crop&q=80");
-          const blob = await res.blob();
-          const file = new File([blob], `mock_camera_${Date.now()}.jpg`, { type: "image/jpeg" });
-          const previewUrl = URL.createObjectURL(blob);
-          const newAtt: Attachment = { file, previewUrl, isUploading: true };
-          setAttachments((prev) => [...prev, newAtt]);
-          setActivePanel("none");
-
-          const uploaded = await UploadService.uploadPostAttachment(file);
-          setAttachments((prev) =>
-            prev.map((a) => (a.previewUrl === previewUrl ? { ...a, mediaId: uploaded.mediaId, isUploading: false } : a))
-          );
-        } catch (e) {
-          console.error(e);
-        }
-      } else if (cameraMode === "VIDEO") {
-        toast({ description: "Mock video capture added to preview." });
-        setActivePanel("none");
-      } else if (cameraMode === "LIVE") {
-        toast({ description: "Mock live stream ended." });
-        setActivePanel("none");
-      }
+      // No camera stream available — inform user to grant permission
+      toast({ variant: "destructive", description: "Camera is not available. Please grant camera permission and try again." });
       return;
     }
 
@@ -1403,16 +1384,19 @@ export default function PostEditor({ onClose }: PostEditorProps) {
               autoPlay 
               playsInline 
               muted 
-              className="absolute inset-0 w-full h-full object-cover z-0 bg-neutral-950"
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover z-0 bg-neutral-950",
+                cameraFacingMode === "user" && "scale-x-[-1]"
+              )}
             />
 
             {/* Hardware inactive visual indicator fallback */}
             {!cameraStream && (
-              <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center text-zinc-650 z-0 p-4 text-center">
+              <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-0 p-4 text-center">
                 <Camera className="size-12 text-zinc-800 animate-pulse mb-3" />
-                <span className="text-xs text-zinc-500 uppercase tracking-widest font-extrabold text-white">Camera Hardware Inactive</span>
-                <span className="text-[11px] text-zinc-650 mt-1.5 max-w-[280px]">
-                  Webcam is offline or permission is blocked. Shutter will capture Unsplash mock photography.
+                <span className="text-xs text-zinc-500 uppercase tracking-widest font-extrabold">Camera Initializing...</span>
+                <span className="text-[11px] text-zinc-500 mt-1.5 max-w-[280px]">
+                  Waiting for camera access. Please allow camera permission if prompted.
                 </span>
               </div>
             )}
