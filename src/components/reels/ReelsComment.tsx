@@ -5,6 +5,7 @@ import { formatRelativeDate } from "@/lib/utils";
 import Link from "next/link";
 import UserAvatar from "../UserAvatar";
 import UserTooltip from "../UserTooltip";
+import { useStoryViewer } from "../StoryViewerProvider";
 import CommentMoreButton from "../comments/CommentMoreButton";
 import Linkify from "../Linkify";
 import { useState } from "react";
@@ -24,6 +25,12 @@ interface ReelsCommentProps {
 export default function ReelsComment({ comment, postUserId }: ReelsCommentProps) {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
+  const { showStory, groupedStories } = useStoryViewer();
+
+  const hasActiveStory = groupedStories.some(
+    (item) => item.user.id === comment.user.id && item.stories.length > 0
+  );
+
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
 
@@ -49,8 +56,25 @@ export default function ReelsComment({ comment, postUserId }: ReelsCommentProps)
       <div className="flex gap-3">
         {/* Left: User Avatar */}
         <UserTooltip user={comment.user}>
-          <Link href={`/users/${comment.user.username}`} className="shrink-0">
-            <UserAvatar avatarUrl={comment.user.avatarUrl} size={36} />
+          <Link
+            href={`/users/${comment.user.username}`}
+            className="shrink-0"
+            onClick={(e) => {
+              if (hasActiveStory) {
+                e.preventDefault();
+                showStory(comment.user.id);
+              }
+            }}
+          >
+            {hasActiveStory ? (
+              <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
+                <div className="rounded-full p-[1px] bg-[#000000]">
+                  <UserAvatar avatarUrl={comment.user.avatarUrl} size={36} />
+                </div>
+              </div>
+            ) : (
+              <UserAvatar avatarUrl={comment.user.avatarUrl} size={36} />
+            )}
           </Link>
         </UserTooltip>
 

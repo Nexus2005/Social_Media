@@ -23,6 +23,7 @@ import Comments from "../comments/Comments";
 import Linkify from "../Linkify";
 import UserAvatar from "../UserAvatar";
 import UserTooltip from "../UserTooltip";
+import { useStoryViewer } from "../StoryViewerProvider";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import BookmarkButton from "./BookmarkButton";
 import LikeButton from "./LikeButton";
@@ -80,11 +81,7 @@ export default function Post({ post }: PostProps) {
     staleTime: 60 * 1000,
   });
 
-  const { data: groupedStories = [] } = useQuery<any[]>({
-    queryKey: ["stories"],
-    queryFn: () => kyInstance.get("/api/stories").json<any[]>(),
-    staleTime: 60 * 1000,
-  });
+  const { showStory, groupedStories } = useStoryViewer();
 
   const hasActiveStory = groupedStories.some(
     (item) => item.user.id === post.user.id && item.stories.length > 0
@@ -201,7 +198,16 @@ export default function Post({ post }: PostProps) {
       <div className="flex justify-between gap-3 px-1">
         <div className="flex flex-wrap gap-3">
           <UserTooltip user={post.user}>
-            <Link href={`/users/${post.user.username}`} className="flex-shrink-0">
+            <Link
+              href={`/users/${post.user.username}`}
+              className="flex-shrink-0"
+              onClick={(e) => {
+                if (hasActiveStory) {
+                  e.preventDefault();
+                  showStory(post.user.id);
+                }
+              }}
+            >
               {hasActiveStory ? (
                 <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
                   <div className="rounded-full p-[1.5px] bg-[#000000]">

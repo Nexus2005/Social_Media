@@ -6,6 +6,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import FollowButton from "@/components/FollowButton";
 import kyInstance from "@/lib/ky";
+import { useStoryViewer } from "@/components/StoryViewerProvider";
 import { BookmarkInfo, FollowerInfo, LikeInfo, PostData } from "@/lib/types";
 import { QueryKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -55,6 +56,11 @@ export default function ReelCard({
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { showStory, groupedStories } = useStoryViewer();
+
+  const hasActiveStory = groupedStories.some(
+    (item) => item.user.id === post.user.id && item.stories.length > 0
+  );
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -698,8 +704,25 @@ export default function ReelCard({
 
               {/* 2. Creator Profile & Understated Follow */}
               <div className="flex items-center gap-2.5">
-                <Link href={`/users/${post.user.username}`} className="flex-shrink-0">
-                  <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover" />
+                <Link
+                  href={`/users/${post.user.username}`}
+                  className="flex-shrink-0"
+                  onClick={(e) => {
+                    if (hasActiveStory) {
+                      e.preventDefault();
+                      showStory(post.user.id);
+                    }
+                  }}
+                >
+                  {hasActiveStory ? (
+                    <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
+                      <div className="rounded-full p-[1.5px] bg-[#000000]">
+                        <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover" />
+                      </div>
+                    </div>
+                  ) : (
+                    <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover" />
+                  )}
                 </Link>
                 <div className="flex items-center gap-2">
                   <Link href={`/users/${post.user.username}`} className="font-semibold text-[15px] hover:underline truncate max-w-[150px] text-white">

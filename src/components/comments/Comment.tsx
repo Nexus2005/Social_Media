@@ -5,6 +5,7 @@ import { formatRelativeDate } from "@/lib/utils";
 import Link from "next/link";
 import UserAvatar from "../UserAvatar";
 import UserTooltip from "../UserTooltip";
+import { useStoryViewer } from "../StoryViewerProvider";
 import CommentMoreButton from "./CommentMoreButton";
 import Linkify from "../Linkify";
 import { useState } from "react";
@@ -22,6 +23,12 @@ interface CommentProps {
 export default function Comment({ comment, postUserId }: CommentProps) {
   const { user } = useSession();
   const queryClient = useQueryClient();
+  const { showStory, groupedStories } = useStoryViewer();
+
+  const hasActiveStory = groupedStories.some(
+    (item) => item.user.id === comment.user.id && item.stories.length > 0
+  );
+
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,8 +74,25 @@ export default function Comment({ comment, postUserId }: CommentProps) {
     <div className="group/comment py-3">
       <div className="flex gap-3">
         <UserTooltip user={comment.user}>
-          <Link href={`/users/${comment.user.username}`} className="shrink-0">
-            <UserAvatar avatarUrl={comment.user.avatarUrl} size={36} />
+          <Link
+            href={`/users/${comment.user.username}`}
+            className="shrink-0"
+            onClick={(e) => {
+              if (hasActiveStory) {
+                e.preventDefault();
+                showStory(comment.user.id);
+              }
+            }}
+          >
+            {hasActiveStory ? (
+              <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
+                <div className="rounded-full p-[1px] bg-[#000000]">
+                  <UserAvatar avatarUrl={comment.user.avatarUrl} size={36} />
+                </div>
+              </div>
+            ) : (
+              <UserAvatar avatarUrl={comment.user.avatarUrl} size={36} />
+            )}
           </Link>
         </UserTooltip>
         <div className="flex-1 space-y-1 min-w-0">
