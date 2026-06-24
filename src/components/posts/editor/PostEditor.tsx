@@ -1855,7 +1855,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-black scrollbar-none select-text">
         {/* Side-by-Side Avatar + Textarea Layout */}
         <div className="flex gap-3 items-start w-full">
-          <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-black border border-[#1A1A1A] shrink-0 mt-1 select-none" />
+          <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-black border border-[#1A1A1A] shrink-0 select-none" />
           <div className="flex-grow flex flex-col min-w-0">
             <textarea
               value={threads[0].text}
@@ -1868,10 +1868,12 @@ export default function PostEditor({ onClose }: PostEditorProps) {
               placeholder={
                 postType === "article" 
                   ? "Title of your article...\n\nStart writing here..." 
-                  : "What's happening?"
+                  : postType === "poll"
+                    ? "Ask a question..."
+                    : "What's happening?"
               }
               className={cn(
-                "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 p-0 font-normal leading-relaxed min-h-[120px] text-[18px] placeholder-zinc-500"
+                "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 p-0 pt-[6px] font-normal leading-relaxed min-h-[120px] text-[18px] placeholder-zinc-500"
               )}
               rows={4}
             />
@@ -1895,48 +1897,90 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
         {/* Poll Inputs */}
         {postType === "poll" && (
-          <div className="ml-[52px] space-y-4 pt-2 max-w-[460px] animate-slide-up select-none bg-[#0A0A0A] border border-[#1A1A1A] p-4 rounded-xl">
+          <div className="relative ml-[52px] space-y-4 pt-2.5 max-w-[460px] animate-slide-up select-none bg-black border border-zinc-800 p-4.5 rounded-2xl">
+            {/* Remove Poll Close Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setPostType("normal");
+                setPollOptions(["", ""]);
+              }}
+              className="absolute top-3 right-3 text-zinc-400 hover:text-white p-1 rounded-full hover:bg-zinc-900 transition-all z-10"
+              title="Remove poll"
+            >
+              <X className="size-4.5" strokeWidth={2} />
+            </button>
+
             <div className="flex flex-col gap-3">
-              {pollOptions.map((option, oIdx) => (
-                <div key={oIdx} className="relative flex items-center border-b border-[#1A1A1A] py-1">
-                  <input
-                    type="text"
-                    placeholder={`Choice ${oIdx + 1}`}
-                    maxLength={25}
-                    value={option}
-                    onChange={(e) => {
-                      const list = [...pollOptions];
-                      list[oIdx] = e.target.value;
-                      setPollOptions(list);
-                    }}
-                    className="w-full bg-transparent border-none outline-none py-2 text-sm text-white placeholder-[#71717A] focus:ring-0"
-                  />
-                  {pollOptions.length > 2 && (
+              {pollOptions.map((option, oIdx) => {
+                const showDelete = pollOptions.length > 2;
+                const showAdd = oIdx === pollOptions.length - 1 && pollOptions.length < 4;
+
+                return (
+                  <div key={oIdx} className="flex items-center gap-2">
+                    {/* Image Icon Button on Left */}
                     <button
-                      onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== oIdx))}
-                      className="absolute right-1 text-[#A1A1AA] hover:text-white p-1"
+                      type="button"
+                      onClick={() => {
+                        toast({ description: "Image choices for polls are coming soon!" });
+                      }}
+                      className="size-11 shrink-0 border border-zinc-800 rounded-xl bg-black flex items-center justify-center text-zinc-400 hover:bg-zinc-900 transition-colors active:scale-95"
+                      title="Add choice image"
                     >
-                      <X className="size-4" strokeWidth={1.75} />
+                      <ImageIcon className="size-5" />
                     </button>
-                  )}
-                </div>
-              ))}
+
+                    {/* Input Field Container */}
+                    <div className="flex-grow border border-zinc-800 focus-within:border-sky-500 rounded-xl px-3 py-0.5 bg-black flex items-center gap-2 transition-all">
+                      <input
+                        type="text"
+                        placeholder={`Choice ${oIdx + 1}`}
+                        maxLength={25}
+                        value={option}
+                        onChange={(e) => {
+                          const list = [...pollOptions];
+                          list[oIdx] = e.target.value;
+                          setPollOptions(list);
+                        }}
+                        className="flex-grow bg-transparent border-none outline-none py-2 text-sm text-white placeholder-zinc-650 focus:ring-0"
+                      />
+                      {/* Character Counter */}
+                      <span className="text-[11px] text-zinc-500 select-none">
+                        {25 - option.length}
+                      </span>
+                    </div>
+
+                    {/* Actions on Right */}
+                    <div className="size-9 shrink-0 flex items-center justify-center">
+                      {showAdd ? (
+                        <button
+                          type="button"
+                          onClick={() => setPollOptions([...pollOptions, ""])}
+                          className="text-sky-500 hover:text-sky-400 p-1.5 rounded-full hover:bg-zinc-900 transition-colors font-bold text-lg leading-none"
+                          title="Add choice"
+                        >
+                          +
+                        </button>
+                      ) : showDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== oIdx))}
+                          className="text-zinc-500 hover:text-white p-1.5 rounded-full hover:bg-zinc-900 transition-colors"
+                          title="Remove choice"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="flex items-center justify-between text-xs pt-1">
-              {pollOptions.length < 4 ? (
-                <button
-                  onClick={() => setPollOptions([...pollOptions, ""])}
-                  className="text-white font-semibold hover:opacity-85"
-                >
-                  + Add Choice
-                </button>
-              ) : (
-                <div />
-              )}
-              
-              <div className="flex items-center gap-1.5 text-[#A1A1AA]">
-                <span>Duration:</span>
+            {/* Poll Length Select */}
+            <div className="flex flex-col gap-1 text-xs pt-2 border-t border-zinc-900 mt-2 select-none">
+              <span className="text-zinc-500 font-medium">Poll length</span>
+              <div className="flex items-center gap-1.5 text-sky-500 font-bold cursor-pointer hover:opacity-85">
                 <select
                   value={`${pollDays}d`}
                   onChange={(e) => {
@@ -1945,11 +1989,11 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                     else if (val === "3d") { setPollDays(3); setPollHours(0); }
                     else if (val === "7d") { setPollDays(7); setPollHours(0); }
                   }}
-                  className="bg-transparent border-none text-white text-xs font-bold focus:ring-0 outline-none cursor-pointer"
+                  className="bg-transparent border-none text-sky-500 text-sm font-bold focus:ring-0 p-0 outline-none cursor-pointer"
                 >
-                  <option value="1d" className="bg-black">1 Day</option>
-                  <option value="3d" className="bg-black">3 Days</option>
-                  <option value="7d" className="bg-black">7 Days</option>
+                  <option value="1d" className="bg-black text-white">1 day</option>
+                  <option value="3d" className="bg-black text-white">3 days</option>
+                  <option value="7d" className="bg-black text-white">7 days</option>
                 </select>
               </div>
             </div>
