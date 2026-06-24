@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, ChevronDown, Check, Camera, Loader2, Image as ImageIcon, Lock } from "lucide-react";
+import { X, ChevronDown, Check, Camera, Loader2, Image as ImageIcon, Lock, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Curated high-fidelity Unsplash mock images for gallery folders
@@ -46,6 +46,11 @@ const FOLDER_IMAGES: Record<string, string[]> = {
   ]
 };
 
+interface GalleryItem {
+  url: string;
+  file?: File; // Present for user-loaded files
+}
+
 interface GalleryPickerProps {
   onClose: () => void;
   onSelectImages: (files: File[]) => void;
@@ -54,12 +59,26 @@ interface GalleryPickerProps {
 
 export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }: GalleryPickerProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  
+  // Real active user folders state
+  const [userFolders, setUserFolders] = useState<Record<string, GalleryItem[]>>({});
   const [activeFolder, setActiveFolder] = useState<string>("Recents");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+  
+  // Multi selection states
+  const [selectedItems, setSelectedItems] = useState<GalleryItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const directoryInputRef = useRef<HTMLInputElement>(null);
+
+  // Set webkitdirectory attribute safely on mount
+  useEffect(() => {
+    if (directoryInputRef.current) {
+      directoryInputRef.current.setAttribute("webkitdirectory", "true");
+      directoryInputRef.current.setAttribute("directory", "");
+    }
+  }, []);
 
   // Check stored permission on mount
   useEffect(() => {
@@ -76,18 +95,24 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
     setHasPermission(true);
   };
 
-  const handleToggleSelect = (url: string) => {
-    if (selectedUrls.includes(url)) {
-      setSelectedUrls(selectedUrls.filter((u) => u !== url));
+  const handleToggleSelect = (item: GalleryItem) => {
+    const isSel = selectedItems.some((s) => s.url === item.url);
+    if (isSel) {
+      setSelectedItems(selectedItems.filter((s) => s.url !== item.url));
     } else {
-      if (selectedUrls.length >= 10) return; // limits
-      setSelectedUrls([...selectedUrls, url]);
+      if (selectedItems.length >= 10) return; // Maximum upload limit
+      setSelectedItems([...selectedItems, item]);
     }
   };
 
   const handleSelectFromDeviceClick = () => {
     setIsDropdownOpen(false);
     fileInputRef.current?.click();
+  };
+
+  const handleImportFolderClick = () => {
+    setIsDropdownOpen(false);
+    directoryInputRef.current?.click();
   };
 
   const handleDeviceFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,8 +123,54 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
     }
   };
 
+  const handleDirectoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const grouped: Record<string, GalleryItem[]> = {};
+
+    files.forEach((file) => {
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
+
+      // Group by folder names parsed from relative path
+      const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split("/") : [];
+      let folderName = "Recents";
+      if (pathParts.length > 2) {
+        folderName = pathParts[pathParts.length - 2];
+      } else if (pathParts.length === 2) {
+        folderName = pathParts[0];
+      }
+
+      const item: GalleryItem = {
+        url: URL.createObjectURL(file),
+        file
+      };
+
+      if (!grouped[folderName]) {
+        grouped[folderName] = [];
+      }
+      grouped[folderName].push(item);
+    });
+
+    const totalFound = Object.values(grouped).reduce((acc, curr) => acc + curr.length, 0);
+    if (totalFound === 0) {
+      alert("No image or video files found in the selected folder.");
+      return;
+    }
+
+    // Update state to use imported local directory folders instead of mock folders
+    setUserFolders(grouped);
+    setSelectedItems([]); // reset selections
+    
+    // Default to the first found folder
+    const firstFolder = Object.keys(grouped)[0];
+    if (firstFolder) {
+      setActiveFolder(firstFolder);
+    }
+  };
+
   const handleDone = async () => {
-    if (selectedUrls.length === 0) {
+    if (selectedItems.length === 0) {
       onClose();
       return;
     }
@@ -108,24 +179,29 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
       setIsProcessing(true);
       const files: File[] = [];
 
-      // Download each selected Unsplash URL and convert to File
-      for (let i = 0; i < selectedUrls.length; i++) {
-        const url = selectedUrls[i];
-        const res = await fetch(url);
-        const blob = await res.blob();
-        const extension = url.includes(".gif") ? "gif" : "jpg";
-        const file = new File(
-          [blob],
-          `gallery_${Date.now()}_${i}.${extension}`,
-          { type: blob.type || "image/jpeg" }
-        );
-        files.push(file);
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        if (item.file) {
+          // Real imported file object
+          files.push(item.file);
+        } else {
+          // Fetch and upload mock Unsplash urls
+          const res = await fetch(item.url);
+          const blob = await res.blob();
+          const extension = item.url.includes(".gif") ? "gif" : "jpg";
+          const file = new File(
+            [blob],
+            `gallery_${Date.now()}_${i}.${extension}`,
+            { type: blob.type || "image/jpeg" }
+          );
+          files.push(file);
+        }
       }
 
       onSelectImages(files);
       onClose();
     } catch (e) {
-      console.error("Failed to download selected gallery assets", e);
+      console.error("Failed to process selected gallery assets", e);
     } finally {
       setIsProcessing(false);
     }
@@ -144,16 +220,14 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
   if (!hasPermission) {
     return (
       <div className="flex-grow flex flex-col justify-between bg-black text-white p-6 select-none font-sans h-full">
-        {/* Header */}
         <div className="flex justify-between items-center py-2 flex-shrink-0">
           <button onClick={onClose} className="p-2 hover:bg-[#121212] rounded-full text-zinc-400 hover:text-white">
             <X className="size-6" />
           </button>
           <span className="font-bold text-[17px]">Gallery Access</span>
-          <div className="w-10" /> {/* Spacer */}
+          <div className="w-10" />
         </div>
 
-        {/* Content */}
         <div className="flex-grow flex flex-col justify-center items-center text-center px-4 max-w-[400px] mx-auto space-y-6">
           <div className="size-20 rounded-full bg-zinc-900 flex items-center justify-center text-white border border-zinc-800 shadow-md">
             <Lock className="size-10 text-zinc-300" strokeWidth={1.5} />
@@ -166,7 +240,6 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-col gap-2.5 pb-6 flex-shrink-0 w-full max-w-[360px] mx-auto">
           <button
             onClick={handleGrantPermission}
@@ -185,8 +258,15 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
     );
   }
 
-  // 2. High-Fidelity Photo Library Picker Grid
-  const images = FOLDER_IMAGES[activeFolder] || [];
+  // 2. Load Gallery Items: real userFolders if imported, else mock FOLDER_IMAGES
+  const hasUserFolders = Object.keys(userFolders).length > 0;
+  
+  let currentImages: GalleryItem[] = [];
+  if (hasUserFolders) {
+    currentImages = userFolders[activeFolder] || [];
+  } else {
+    currentImages = (FOLDER_IMAGES[activeFolder] || []).map((url) => ({ url }));
+  }
 
   return (
     <div className="flex-grow flex flex-col bg-black text-white select-none font-sans h-full relative">
@@ -200,11 +280,19 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
         onChange={handleDeviceFilesChange}
       />
 
+      {/* Hidden file input for native webkitdirectory folder import option */}
+      <input
+        type="file"
+        ref={directoryInputRef}
+        className="sr-only hidden"
+        onChange={handleDirectoryChange}
+      />
+
       {/* Processing overlay */}
       {isProcessing && (
         <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
           <Loader2 className="size-6 animate-spin text-white" />
-          <span className="text-sm font-semibold tracking-wide">Downloading photo assets...</span>
+          <span className="text-sm font-semibold tracking-wide">Processing local gallery assets...</span>
         </div>
       )}
 
@@ -237,8 +325,11 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
                 onClick={() => setIsDropdownOpen(false)}
               />
               {/* Dropdown Options Box */}
-              <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-zinc-950 border border-zinc-800 rounded-2xl p-1.5 w-48 shadow-2xl z-40 animate-fade-in flex flex-col">
-                {Object.keys(FOLDER_IMAGES).map((folder) => (
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-zinc-950 border border-zinc-800 rounded-2xl p-1.5 w-56 shadow-2xl z-40 animate-fade-in flex flex-col">
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider px-3.5 py-1.5">Folders</span>
+                
+                {/* List Folders (user folders if imported, else fallback mocks) */}
+                {(hasUserFolders ? Object.keys(userFolders) : Object.keys(FOLDER_IMAGES)).map((folder) => (
                   <button
                     key={folder}
                     type="button"
@@ -247,21 +338,34 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
                       setIsDropdownOpen(false);
                     }}
                     className={cn(
-                      "w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-zinc-900/60",
+                      "w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-zinc-900/60 truncate",
                       activeFolder === folder ? "text-white bg-zinc-900" : "text-zinc-400 hover:text-white"
                     )}
                   >
                     {folder}
                   </button>
                 ))}
-                <div className="h-[1px] bg-zinc-850 my-1" />
+                
+                <div className="h-[1px] bg-zinc-850 my-1.5" />
+
+                {/* Import actual folder option */}
+                <button
+                  type="button"
+                  onClick={handleImportFolderClick}
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors hover:bg-zinc-900/60 flex items-center gap-2"
+                >
+                  <FolderOpen className="size-4 shrink-0" />
+                  <span>Import local folder...</span>
+                </button>
+
+                {/* Select files directly option */}
                 <button
                   type="button"
                   onClick={handleSelectFromDeviceClick}
-                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold text-sky-400 hover:text-sky-300 transition-colors hover:bg-zinc-900/60 flex items-center gap-2"
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors hover:bg-zinc-900/60 flex items-center gap-2"
                 >
                   <ImageIcon className="size-4 shrink-0" />
-                  <span>Choose from device</span>
+                  <span>Choose device files</span>
                 </button>
               </div>
             </>
@@ -273,7 +377,7 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
           onClick={handleDone}
           className={cn(
             "text-[15px] font-bold transition-all px-3 py-1 rounded-full",
-            selectedUrls.length > 0
+            selectedItems.length > 0
               ? "text-black bg-white hover:bg-zinc-200"
               : "text-zinc-500 cursor-not-allowed pointer-events-none"
           )}
@@ -281,6 +385,19 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
           Done
         </button>
       </div>
+
+      {/* Demo gallery warning info banner if mock photos are showing */}
+      {!hasUserFolders && (
+        <div className="bg-[#121212] px-4 py-2 border-b border-[#1A1A1A] flex justify-between items-center animate-fade-in flex-shrink-0">
+          <span className="text-[12px] text-zinc-400">Viewing demo gallery. Tap import to load folder.</span>
+          <button
+            onClick={handleImportFolderClick}
+            className="text-[11px] font-extrabold text-emerald-400 hover:text-emerald-300 uppercase tracking-wider shrink-0"
+          >
+            Import
+          </button>
+        </div>
+      )}
 
       {/* 3-Column Image Grid */}
       <div className="flex-1 overflow-y-auto scrollbar-none p-1.5">
@@ -297,18 +414,19 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
           </div>
 
           {/* Photo library items */}
-          {images.map((url, idx) => {
-            const isSel = selectedUrls.includes(url);
-            const selIdx = selectedUrls.indexOf(url) + 1;
+          {currentImages.map((item, idx) => {
+            const isSel = selectedItems.some((s) => s.url === item.url);
+            const selectedMatchIndex = selectedItems.findIndex((s) => s.url === item.url);
+            const selIdx = selectedMatchIndex + 1;
 
             return (
               <div
                 key={idx}
-                onClick={() => handleToggleSelect(url)}
+                onClick={() => handleToggleSelect(item)}
                 className="aspect-square rounded-xl overflow-hidden relative cursor-pointer group border border-zinc-900 bg-zinc-950 active:scale-95 transition-all"
               >
                 <img
-                  src={url}
+                  src={item.url}
                   className={cn(
                     "w-full h-full object-cover transition-all duration-300",
                     isSel ? "scale-95 brightness-[0.65]" : "group-hover:scale-105"

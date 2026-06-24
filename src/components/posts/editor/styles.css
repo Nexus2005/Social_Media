@@ -9,3 +9,12 @@
 .tiptap.ProseMirror {
   outline: none;
 }
+
+@keyframes shutterFlash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.animate-fade-out {
+  animation: shutterFlash 0.25s ease-out forwards;
+}

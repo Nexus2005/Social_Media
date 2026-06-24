@@ -49,6 +49,11 @@ import {
   Trash2,
   X,
   Image as ImageIcon,
+  MessageSquare,
+  RefreshCw,
+  Zap,
+  ZapOff,
+  HeartOff,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
@@ -263,9 +268,14 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   // Camera settings
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraFacingMode, setCameraFacingMode] = useState<"user" | "environment">("user");
-  const [cameraMode, setCameraMode] = useState<"Photo" | "Video" | "Story" | "Reel">("Photo");
+  const [cameraMode, setCameraMode] = useState<"VIDEO" | "CAPTURE" | "LIVE">("CAPTURE");
   const [isCameraRecording, setIsCameraRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [cameraRepliesRestriction, setCameraRepliesRestriction] = useState<"Everyone" | "Verified accounts" | "Accounts I follow" | "My subscribers" | "No one">("Everyone");
+  const [cameraLikesEnabled, setCameraLikesEnabled] = useState(true);
+  const [cameraFlashEnabled, setCameraFlashEnabled] = useState(false);
+  const [cameraDropdownOpen, setCameraDropdownOpen] = useState(false);
+  const [isFlashing, setIsFlashing] = useState(false);
 
   // Translation dropdown Coming Soon languages
   const [videoTranslateTarget, setVideoTranslateTarget] = useState("English");
@@ -467,7 +477,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: cameraFacingMode, width: 720, height: 1280 },
-        audio: cameraMode !== "Photo"
+        audio: cameraMode !== "CAPTURE"
       });
       setCameraStream(stream);
       if (videoRef.current) {
@@ -475,7 +485,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       }
     } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", description: "Could not open camera. Please grant camera permissions." });
+      // Suppress error message if simply in desktop browser testing fallback
     }
   };
 
@@ -496,9 +506,41 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   }, [activePanel, cameraFacingMode, cameraMode]);
 
   const handleCapture = async () => {
-    if (!cameraStream) return;
+    if (cameraMode === "CAPTURE") {
+      setIsFlashing(true);
+      setTimeout(() => setIsFlashing(false), 150);
+    }
 
-    if (cameraMode === "Photo") {
+    if (!cameraStream) {
+      // Mock capture fallback when no physical camera is active
+      if (cameraMode === "CAPTURE") {
+        try {
+          const res = await fetch("https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&auto=format&fit=crop&q=80");
+          const blob = await res.blob();
+          const file = new File([blob], `mock_camera_${Date.now()}.jpg`, { type: "image/jpeg" });
+          const previewUrl = URL.createObjectURL(blob);
+          const newAtt: Attachment = { file, previewUrl, isUploading: true };
+          setAttachments((prev) => [...prev, newAtt]);
+          setActivePanel("none");
+
+          const uploaded = await UploadService.uploadPostAttachment(file);
+          setAttachments((prev) =>
+            prev.map((a) => (a.previewUrl === previewUrl ? { ...a, mediaId: uploaded.mediaId, isUploading: false } : a))
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      } else if (cameraMode === "VIDEO") {
+        toast({ description: "Mock video capture added to preview." });
+        setActivePanel("none");
+      } else if (cameraMode === "LIVE") {
+        toast({ description: "Mock live stream ended." });
+        setActivePanel("none");
+      }
+      return;
+    }
+
+    if (cameraMode === "CAPTURE") {
       if (videoRef.current) {
         const canvas = document.createElement("canvas");
         canvas.width = videoRef.current.videoWidth || 720;
@@ -1335,75 +1377,220 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         );
       case "camera":
         return (
-          <div className="flex flex-col h-full bg-black text-white relative">
-            <div className="flex justify-between items-center px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0 z-10">
-              <button 
-                onClick={() => setActivePanel("none")} 
-                className="p-2 hover:bg-[#121212] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center"
-              >
-                <IconBack />
-              </button>
-              <span className="font-bold text-[16px]">Camera Capture</span>
-              <button 
-                onClick={triggerDemoCapture}
-                className="bg-[#121212] hover:bg-[#1c1c1e] text-[#A1A1AA] border border-[#27272A] font-bold rounded-full px-3.5 py-1 text-xs"
-              >
-                Demo Capture
-              </button>
-            </div>
+          <div className="flex flex-col h-full bg-black text-white relative overflow-hidden select-none">
+            {/* Shutter White Flash Animation Overlay */}
+            {isFlashing && (
+              <div className="absolute inset-0 bg-white z-[100] animate-fade-out pointer-events-none" />
+            )}
 
-            <div className="flex-1 bg-black flex flex-col justify-center items-center p-4 relative min-h-[300px]">
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full max-w-[400px] aspect-[9/16] rounded-2xl object-cover bg-neutral-900 border border-[#27272A]"
-              />
-              
-              {isCameraRecording && (
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-600/90 text-white font-bold text-xs px-3 py-1.5 rounded-full flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 bg-white rounded-full animate-ping" />
-                  <span>Recording: {recordingSeconds}s</span>
+            {/* Full-Screen Video Backdrop */}
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              className="absolute inset-0 w-full h-full object-cover z-0 bg-neutral-950"
+            />
+
+            {/* Hardware inactive visual indicator fallback */}
+            {!cameraStream && (
+              <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center text-zinc-650 z-0 p-4 text-center">
+                <Camera className="size-12 text-zinc-800 animate-pulse mb-3" />
+                <span className="text-xs text-zinc-500 uppercase tracking-widest font-extrabold text-white">Camera Hardware Inactive</span>
+                <span className="text-[11px] text-zinc-650 mt-1.5 max-w-[280px]">
+                  Webcam is offline or permission is blocked. Shutter will capture Unsplash mock photography.
+                </span>
+              </div>
+            )}
+
+            {/* Live Streaming Mock Dashboard Overlay */}
+            {cameraMode === "LIVE" && (
+              <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-end p-4">
+                {/* Top Badge */}
+                <div className="absolute top-20 left-4 flex items-center gap-2">
+                  <span className="bg-red-650 text-white font-black text-[10px] tracking-widest px-2.5 py-0.5 rounded uppercase animate-pulse">
+                    LIVE
+                  </span>
+                  <span className="bg-black/50 text-[11px] text-white px-2 py-0.5 rounded backdrop-blur-sm">
+                    👁 1.2K
+                  </span>
                 </div>
-              )}
-            </div>
 
-            {/* Camera settings and captures */}
-            <div className="p-6 bg-black border-t border-[#27272A] space-y-4 flex flex-col items-center">
-              <div className="flex bg-[#121212] p-1 rounded-full text-xs font-semibold gap-1 mb-2">
-                {(["Photo", "Video"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setCameraMode(mode)}
-                    className={cn(
-                      "px-4 py-1.5 rounded-full transition-all capitalize",
-                      cameraMode === mode ? "bg-white text-black font-bold" : "text-[#A1A1AA]"
-                    )}
-                  >
-                    {mode}
-                  </button>
-                ))}
+                {/* Mock Comments Scroll View */}
+                <div className="w-full max-w-[280px] space-y-2 mb-28">
+                  {[
+                    { user: "alex_influencer", text: "Wow this live capture UI looks insane! 🔥" },
+                    { user: "dev_dude", text: "Is this simulated? Extremely professional!" },
+                    { user: "cartly_fan", text: "Next level design right here 🚀" }
+                  ].map((chat, cIdx) => (
+                    <div key={cIdx} className="bg-black/45 backdrop-blur-sm rounded-xl px-3 py-1.5 text-xs text-white border border-zinc-900/30">
+                      <span className="font-extrabold text-sky-400">@{chat.user}</span>
+                      <span className="ml-1.5 text-zinc-200">{chat.text}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
 
-              <div className="flex items-center gap-6">
+            {/* Interaction Controls Overlay (Top Header & Bottom Bar) */}
+            <div className="absolute inset-0 flex flex-col justify-between p-4 z-20 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none">
+              
+              {/* 1. Header controls (ArrowLeft, Comments, Likes, Flash, Rotate) */}
+              <div className="flex justify-between items-center w-full pt-2 flex-shrink-0 pointer-events-auto relative">
+                {/* Back Button */}
                 <button
-                  onClick={() => setCameraFacingMode(cameraFacingMode === "user" ? "environment" : "user")}
-                  className="p-3 bg-[#121212] hover:bg-[#1c1c1e] rounded-full border border-[#27272A] text-white"
+                  type="button"
+                  onClick={() => setActivePanel("none")}
+                  className="size-10 rounded-full bg-black/40 hover:bg-black/60 border border-zinc-800/30 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-all cursor-pointer"
+                  title="Close Camera"
                 >
-                  <IconSettings size={20} />
+                  <ArrowLeft className="size-5" strokeWidth={2.25} />
                 </button>
-                
-                <button
-                  onClick={handleCapture}
-                  className={cn(
-                    "size-20 rounded-full border-4 border-white flex items-center justify-center transition-all p-1 active:scale-95",
-                    cameraMode === "Video" ? (isCameraRecording ? "bg-red-600 animate-pulse border-red-500" : "bg-red-500") : "bg-white"
-                  )}
-                />
 
-                <div className="w-11 h-11" /> {/* Spacer spacer */}
+                {/* Top Right Controls Grid */}
+                <div className="flex items-center gap-2">
+                  {/* Comments Restriction Settings */}
+                  <button
+                    type="button"
+                    onClick={() => setCameraDropdownOpen(!cameraDropdownOpen)}
+                    className={cn(
+                      "size-10 rounded-full border border-zinc-800/30 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-all cursor-pointer",
+                      cameraRepliesRestriction !== "Everyone" ? "bg-sky-500/80 border-sky-500" : "bg-black/40 hover:bg-black/60"
+                    )}
+                    title="Who can comment"
+                  >
+                    <MessageSquare className="size-4.5" strokeWidth={2} />
+                  </button>
+
+                  {/* Likes Toggle Settings */}
+                  <button
+                    type="button"
+                    onClick={() => setCameraLikesEnabled(!cameraLikesEnabled)}
+                    className={cn(
+                      "size-10 rounded-full border border-zinc-800/30 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-all cursor-pointer",
+                      cameraLikesEnabled ? "bg-black/40 hover:bg-black/60" : "bg-red-950/60 border-red-900 text-red-400"
+                    )}
+                    title={cameraLikesEnabled ? "Likes Visible" : "Likes Hidden"}
+                  >
+                    {cameraLikesEnabled ? (
+                      <Heart className="size-4.5" strokeWidth={2} />
+                    ) : (
+                      <HeartOff className="size-4.5" strokeWidth={2} />
+                    )}
+                  </button>
+
+                  {/* Flash Toggle Settings */}
+                  <button
+                    type="button"
+                    onClick={() => setCameraFlashEnabled(!cameraFlashEnabled)}
+                    className={cn(
+                      "size-10 rounded-full border border-zinc-800/30 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-all cursor-pointer",
+                      cameraFlashEnabled ? "bg-amber-500/80 border-amber-500 text-amber-950" : "bg-black/40 hover:bg-black/60"
+                    )}
+                    title={cameraFlashEnabled ? "Flash Enabled" : "Flash Disabled"}
+                  >
+                    {cameraFlashEnabled ? (
+                      <Zap className="size-4.5" strokeWidth={2} />
+                    ) : (
+                      <ZapOff className="size-4.5" strokeWidth={2} />
+                    )}
+                  </button>
+
+                  {/* Flip Camera Facing Mode */}
+                  <button
+                    type="button"
+                    onClick={() => setCameraFacingMode(cameraFacingMode === "user" ? "environment" : "user")}
+                    className="size-10 rounded-full bg-black/40 hover:bg-black/60 border border-zinc-800/30 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-all cursor-pointer"
+                    title="Flip Camera"
+                  >
+                    <RefreshCw className="size-4.5" strokeWidth={2} />
+                  </button>
+                </div>
+
+                {/* Dropdown comments restriction options */}
+                {cameraDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30 pointer-events-auto" onClick={() => setCameraDropdownOpen(false)} />
+                    <div className="absolute top-14 right-0 bg-zinc-950 border border-zinc-850 rounded-2xl p-1.5 w-52 shadow-2xl z-40 animate-fade-in flex flex-col pointer-events-auto">
+                      <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider px-3.5 py-2">Who can comment</span>
+                      {(["Everyone", "Verified accounts", "Accounts I follow", "My subscribers", "No one"] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setCameraRepliesRestriction(opt);
+                            setCameraDropdownOpen(false);
+                            toast({ description: `Comments set to: ${opt}` });
+                          }}
+                          className={cn(
+                            "w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-zinc-900/60 flex items-center justify-between",
+                            cameraRepliesRestriction === opt ? "text-white bg-zinc-900" : "text-zinc-400 hover:text-white"
+                          )}
+                        >
+                          <span>{opt}</span>
+                          {cameraRepliesRestriction === opt && <Check className="size-4 text-sky-400 shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* 2. Bottom Capturing controls (Shutter button & Mode slider) */}
+              <div className="w-full flex flex-col items-center space-y-4 pb-2 flex-shrink-0 pointer-events-auto">
+                
+                {/* Recording banner if active */}
+                {isCameraRecording && (
+                  <div className="bg-red-650 text-white font-bold text-xs px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-lg animate-pulse mb-1">
+                    <span className="size-2 bg-white rounded-full animate-ping" />
+                    <span>Recording: {recordingSeconds}s</span>
+                  </div>
+                )}
+
+                {/* Large Shutter Button */}
+                <div className="flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={handleCapture}
+                    className="size-20 rounded-full border-4 border-white flex items-center justify-center p-1 bg-transparent active:scale-95 transition-all shadow-xl cursor-pointer"
+                  >
+                    <div
+                      className={cn(
+                        "size-14 rounded-full transition-all duration-300",
+                        cameraMode === "VIDEO"
+                          ? (isCameraRecording ? "bg-red-600 animate-pulse scale-90 rounded-md" : "bg-red-600")
+                          : cameraMode === "LIVE"
+                          ? "bg-red-600 animate-pulse border-2 border-white"
+                          : "bg-white"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {/* Bottom Mode Picker Bar (Pill selector active mode) */}
+                <div className="flex items-center gap-1.5 bg-black/35 backdrop-blur-sm border border-zinc-900/40 rounded-full p-1 max-w-xs mx-auto shadow-md">
+                  {(["VIDEO", "CAPTURE", "LIVE"] as const).map((mode) => {
+                    const isSel = cameraMode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setCameraMode(mode)}
+                        className={cn(
+                          "px-4 py-1.5 rounded-full text-xs font-black tracking-widest transition-all select-none uppercase",
+                          isSel
+                            ? "border border-white bg-black/60 text-white shadow-sm scale-105"
+                            : "text-zinc-500 hover:text-zinc-300 bg-transparent"
+                        )}
+                      >
+                        {mode}
+                      </button>
+                    );
+                  })}
+                </div>
+
+              </div>
+
             </div>
           </div>
         );
