@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useSession } from "@/app/(main)/SessionProvider";
 import UserAvatar from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import FollowButton from "@/components/FollowButton";
 import kyInstance from "@/lib/ky";
 import { BookmarkInfo, FollowerInfo, LikeInfo, PostData } from "@/lib/types";
@@ -29,6 +30,7 @@ import ReelsCommentDialog from "./ReelsCommentDialog";
 import RepostButton from "@/components/posts/RepostButton";
 import { useToast } from "../ui/use-toast";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ReelCardProps {
   post: PostData;
@@ -58,7 +60,7 @@ export default function ReelCard({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [overlayIcon, setOverlayIcon] = useState<"play" | "pause" | null>(null);
-  const [showHeartPulse, setShowHeartPulse] = useState(false);
+  const [tapHearts, setTapHearts] = useState<{ id: number }[]>([]);
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -289,6 +291,18 @@ export default function ReelCard({
     return 6;
   };
 
+  const formattedDate = useMemo(() => {
+    const d = new Date(post.createdAt);
+    const currentYear = new Date().getFullYear();
+    const postYear = d.getFullYear();
+    const month = d.toLocaleDateString("en-US", { month: "long" });
+    const day = d.getDate();
+    if (postYear === currentYear) {
+      return `${day} ${month}`;
+    }
+    return `${day} ${month} ${postYear}`;
+  }, [post.createdAt]);
+
   const selectedProduct = useMemo(() => {
     if (!detectedProducts || detectedProducts.length === 0) return null;
     return detectedProducts.find((p) => p.id === selectedProductId) || detectedProducts[0];
@@ -439,8 +453,11 @@ export default function ReelCard({
       if (!likeData.isLikedByUser) {
         toggleLike();
       }
-      setShowHeartPulse(true);
-      setTimeout(() => setShowHeartPulse(false), 800);
+      const newHeart = { id: Date.now() };
+      setTapHearts((prev) => [...prev, newHeart]);
+      setTimeout(() => {
+        setTapHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
+      }, 800);
     } else {
       // Single click -> Toggle hotspots visibility (auto-hide after 4 seconds)
       setShowHotspots((prev) => {
@@ -600,26 +617,6 @@ export default function ReelCard({
             {isMuted ? <VolumeX className="size-4.5" /> : <Volume2 className="size-4.5" />}
           </button>
 
-          {/* Shopping Bag Overlay on Media (Bottom Right) */}
-          {!isImmersive && hasAttachedProducts && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (videoRef.current && !videoRef.current.paused) {
-                  videoRef.current.pause();
-                  setIsPlaying(false);
-                }
-                setDrawerHeightState("min");
-                setIsShoppingDrawerOpen(true);
-              }}
-              className="absolute bottom-6 right-4 z-30 flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/85 text-white h-9 px-3 rounded-full text-xs font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 pointer-events-auto"
-              title="Shop Look"
-            >
-              <ShoppingBag className="size-4 text-white" />
-              <span>{detectedProducts.length}</span>
-            </button>
-          )}
-
           {/* Central Play/Pause Pulse Icon Overlay */}
           {overlayIcon && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none z-20">
@@ -634,11 +631,30 @@ export default function ReelCard({
           )}
 
           {/* Double-click Heart Animation Pulse */}
-          {showHeartPulse && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none z-20">
-              <Heart className="size-20 fill-red-500 text-red-500 animate-reels-heart" />
-            </div>
-          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-transparent pointer-events-none z-50">
+            <AnimatePresence>
+              {tapHearts.map((heart) => (
+                <motion.div
+                  key={heart.id}
+                  initial={{ scale: 0, opacity: 0, y: 0 }}
+                  animate={{
+                    scale: [0, 1.2, 1, 1],
+                    opacity: [0, 1, 1, 0],
+                    y: [0, 0, -15, -40],
+                  }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 0.8,
+                    ease: [0.175, 0.885, 0.32, 1.1],
+                    times: [0, 0.25, 0.75, 1],
+                  }}
+                  className="absolute pointer-events-none text-red-500 drop-shadow-[0_10px_25px_rgba(239,68,68,0.4)]"
+                >
+                  <Heart className="size-24 fill-red-500 text-red-500" strokeWidth={1.5} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
 
           {/* Center play state hint overlay */}
           {!isPlaying && !overlayIcon && (
@@ -685,7 +701,7 @@ export default function ReelCard({
                     {post.user.username}
                   </Link>
                   {post.user.verified && (
-                    <span className="text-[#0095f6] text-[12px] font-bold shrink-0" title="Verified Creator">☑</span>
+                    <VerifiedBadge size={14} className="shrink-0" />
                   )}
                   {post.user.id !== loggedInUser.id && (
                     <>
@@ -697,21 +713,19 @@ export default function ReelCard({
               </div>
 
               {/* 3. Caption */}
-              <div className="text-xs text-white/90 max-w-[280px]">
-                <p className={cn("leading-relaxed", !isCaptionExpanded && "line-clamp-2")}>
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCaptionExpanded((prev) => !prev);
+                }}
+                className="text-[13px] text-white/95 max-w-[285px] cursor-pointer select-none pointer-events-auto flex flex-col text-start gap-1"
+              >
+                <p className={cn("leading-relaxed transition-all duration-300", isCaptionExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-1 truncate")}>
                   {post.content}
                 </p>
-                {post.content.length > 80 && !isCaptionExpanded && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsCaptionExpanded(true);
-                    }}
-                    className="text-white/60 font-semibold hover:underline mt-1"
-                  >
-                    more
-                  </button>
-                )}
+                <span className="text-[11px] text-zinc-400 font-semibold tracking-wide">
+                  {formattedDate}
+                </span>
               </div>
 
               {/* 4. Music Track Marquee */}
@@ -728,7 +742,7 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className={cn("absolute right-3 bottom-24 z-20 flex flex-col items-center gap-4 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
+          <div className={cn("absolute right-2 bottom-20 z-20 flex flex-col items-center gap-2 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
             {/* Like */}
             <div className="flex flex-col items-center">
               <button
@@ -736,12 +750,12 @@ export default function ReelCard({
                   e.stopPropagation();
                   toggleLike();
                 }}
-                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Like"
               >
-                <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.75} />
+                <Heart className={cn("size-6.5 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.5} />
               </button>
-              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
+              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {likeData.likes.toLocaleString()}
               </span>
             </div>
@@ -753,12 +767,12 @@ export default function ReelCard({
                   e.stopPropagation();
                   setIsCommentsOpen(true);
                 }}
-                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Comments"
               >
-                <MessageCircle className="size-7" strokeWidth={1.75} />
+                <MessageCircle className="size-6.5" strokeWidth={1.5} />
               </button>
-              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
+              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {post._count.comments.toLocaleString()}
               </span>
             </div>
@@ -773,12 +787,12 @@ export default function ReelCard({
                   e.stopPropagation();
                   handleShareClick();
                 }}
-                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Copy Link"
               >
-                <Send className="size-7" strokeWidth={1.75} />
+                <Send className="size-6.5" strokeWidth={1.5} />
               </button>
-              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Share</span>
+              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Share</span>
             </div>
 
             {/* Save */}
@@ -788,35 +802,28 @@ export default function ReelCard({
                   e.stopPropagation();
                   toggleBookmark();
                 }}
-                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Save"
               >
-                <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.75} />
+                <Bookmark className={cn("size-6.5", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.5} />
               </button>
-              <span className="text-[12px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Save</span>
+              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Save</span>
             </div>
 
-            {/* Shop */}
-            {hasAttachedProducts && (
-              <div className="flex flex-col items-center">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (videoRef.current && !videoRef.current.paused) {
-                      videoRef.current.pause();
-                      setIsPlaying(false);
-                    }
-                    setDrawerHeightState("min");
-                    setIsShoppingDrawerOpen(true);
-                  }}
-                  className="h-12 w-12 flex items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md hover:scale-105 active:scale-95 transition-all"
-                  title="Shop Look"
-                >
-                  <ShoppingBag className="size-6 text-white" strokeWidth={1.75} />
-                </button>
-                <span className="text-[12px] font-semibold text-white mt-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">Shop</span>
-              </div>
-            )}
+            {/* Options Menu (Three Dots) */}
+            <div className="flex flex-col items-center">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOptionsOpen(true);
+                }}
+                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                title="Options"
+              >
+                <MoreHorizontal className="size-6.5" strokeWidth={1.5} />
+              </button>
+              <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">More</span>
+            </div>
           </div>
 
           {/* Backdrop dimming overlay (Mobile bottom sheet only: lg:hidden) */}
@@ -914,17 +921,17 @@ export default function ReelCard({
         </div>
 
         {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
-        <div className={cn("hidden md:flex flex-col items-center gap-4 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
+        <div className={cn("hidden md:flex flex-col items-center gap-2.5 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
           {/* Like */}
           <div className="flex flex-col items-center">
             <button
               onClick={() => toggleLike()}
-              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+              className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Like"
             >
-              <Heart className={cn("size-7 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.75} />
+              <Heart className={cn("size-6.5 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.5} />
             </button>
-            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">
+            <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {likeData.likes.toLocaleString()}
             </span>
           </div>
@@ -933,12 +940,12 @@ export default function ReelCard({
           <div className="flex flex-col items-center">
             <button
               onClick={() => setIsCommentsOpen(true)}
-              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+              className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Comments"
             >
-              <MessageCircle className="size-7" strokeWidth={1.75} />
+              <MessageCircle className="size-6.5" strokeWidth={1.5} />
             </button>
-            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">
+            <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {post._count.comments.toLocaleString()}
             </span>
           </div>
@@ -950,45 +957,37 @@ export default function ReelCard({
           <div className="flex flex-col items-center">
             <button
               onClick={handleShareClick}
-              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+              className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Copy Link"
             >
-              <Send className="size-7" strokeWidth={1.75} />
+              <Send className="size-6.5" strokeWidth={1.5} />
             </button>
-            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">Share</span>
+            <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Share</span>
           </div>
 
           {/* Save */}
           <div className="flex flex-col items-center">
             <button
               onClick={() => toggleBookmark()}
-              className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+              className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Save"
             >
-              <Bookmark className={cn("size-7", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.75} />
+              <Bookmark className={cn("size-6.5", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.5} />
             </button>
-            <span className="text-[12px] font-semibold text-zinc-300 mt-0.5">Save</span>
+            <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Save</span>
           </div>
 
-          {/* Shop */}
-          {hasAttachedProducts && (
-            <div className="flex flex-col items-center">
-              <button
-                onClick={() => {
-                  if (videoRef.current && !videoRef.current.paused) {
-                    videoRef.current.pause();
-                    setIsPlaying(false);
-                  }
-                  setIsShoppingDrawerOpen(true);
-                }}
-                className="h-12 w-12 flex items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md hover:scale-105 active:scale-95 transition-all"
-                title="Shop Look"
-              >
-                <ShoppingBag className="size-6 text-white" strokeWidth={1.75} />
-              </button>
-              <span className="text-[12px] font-semibold text-zinc-300 mt-1">Shop</span>
-            </div>
-          )}
+          {/* Options Menu (Three Dots) */}
+          <div className="flex flex-col items-center">
+            <button
+              onClick={() => setIsOptionsOpen(true)}
+              className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+              title="Options"
+            >
+              <MoreHorizontal className="size-6.5" strokeWidth={1.5} />
+            </button>
+            <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">More</span>
+          </div>
         </div>
 
         {/* 4. Desktop Right Side Panel Drawer (hidden lg:flex, absolute right-0 top-0, translates horizontally) */}

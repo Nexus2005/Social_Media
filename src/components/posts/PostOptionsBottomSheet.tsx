@@ -25,6 +25,7 @@ import { PostData, BookmarkInfo } from "@/lib/types";
 import { useToast } from "../ui/use-toast";
 import { useSession } from "@/app/(main)/SessionProvider";
 import StandardDrawer from "../ui/StandardDrawer";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import QuotePostDialog from "./QuotePostDialog";
 import DeletePostDialog from "./DeletePostDialog";
 
@@ -369,7 +370,7 @@ export default function PostOptionsBottomSheet({
                   <span className="font-bold text-[17px] text-white flex items-center justify-center gap-1">
                     {post.user.displayName}
                     {post.user.verified && (
-                      <span className="text-[#0095f6] text-[14px]">☑</span>
+                      <VerifiedBadge size={14} className="ml-1" />
                     )}
                   </span>
                   <span className="text-sm text-zinc-400">@{post.user.username}</span>

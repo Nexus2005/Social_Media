@@ -23,6 +23,7 @@ import Comments from "../comments/Comments";
 import Linkify from "../Linkify";
 import UserAvatar from "../UserAvatar";
 import UserTooltip from "../UserTooltip";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import BookmarkButton from "./BookmarkButton";
 import LikeButton from "./LikeButton";
 import PostMoreButton from "./PostMoreButton";
@@ -223,7 +224,7 @@ export default function Post({ post }: PostProps) {
                 >
                   <span>{post.user.username}</span>
                   {post.user.verified && (
-                    <span className="text-[#0095f6] font-bold text-[13px]" title="Verified Creator">☑</span>
+                    <VerifiedBadge size={14} className="shrink-0" />
                   )}
                 </Link>
               </UserTooltip>
@@ -381,7 +382,7 @@ export default function Post({ post }: PostProps) {
               <span className="font-semibold text-neutral-200 flex items-center gap-0.5">
                 <span>{post.quotedPost.user.displayName}</span>
                 {post.quotedPost.user.verified && (
-                  <span className="text-primary font-bold text-[10px]" title="Verified Creator">☑</span>
+                  <VerifiedBadge size={11} className="shrink-0" />
                 )}
               </span>
               <span className="text-neutral-500">@{post.quotedPost.user.username}</span>

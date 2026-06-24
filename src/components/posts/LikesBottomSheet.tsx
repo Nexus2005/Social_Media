@@ -6,6 +6,7 @@ import kyInstance from "@/lib/ky";
 import { Search, Loader2 } from "lucide-react";
 import Link from "next/link";
 import UserAvatar from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import FollowButton from "@/components/FollowButton";
 import StandardDrawer from "@/components/ui/StandardDrawer";
 
@@ -79,7 +80,7 @@ export default function LikesBottomSheet({
                           {item.displayName || item.username}
                         </span>
                         {item.verified && (
-                          <span className="text-[#0095f6] text-[12px] font-bold shrink-0" title="Verified Creator">☑</span>
+                          <VerifiedBadge size={14} className="shrink-0" />
                         )}
                       </div>
                       <span className="text-[14px] text-zinc-400 truncate">@{item.username}</span>

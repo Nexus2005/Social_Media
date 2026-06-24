@@ -3,6 +3,7 @@
 import { useSession } from "@/app/(main)/SessionProvider";
 import FollowButton from "@/components/FollowButton";
 import UserAvatar from "@/components/UserAvatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { FollowerInfo, UserData } from "@/lib/types";
 import { formatNumber } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -101,7 +102,7 @@ export default function ProfileLayoutClient({
             {user.username}
           </span>
           {user.verified && (
-            <span className="text-[#0095f6] text-[13px] font-bold shrink-0" title="Verified Creator">☑</span>
+            <VerifiedBadge size={14} className="shrink-0" />
           )}
         </div>
 
@@ -157,7 +158,7 @@ export default function ProfileLayoutClient({
               {user.displayName}
             </h1>
             {user.verified && (
-              <span className="text-[#0095f6] text-[15px] font-bold shrink-0" title="Verified Creator">☑</span>
+              <VerifiedBadge size={15} className="shrink-0" />
             )}
           </div>
           <p className="text-[14px] text-zinc-400 font-normal">@{user.username}</p>
