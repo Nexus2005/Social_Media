@@ -27,6 +27,8 @@ import {
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
 import ReelsCommentDialog from "./ReelsCommentDialog";
+import { LikeIcon, CommentIcon, RepostIcon, ShareIcon, SaveIcon } from "./ReelsIcons";
+import ReelsShareDialog from "./ReelsShareDialog";
 import RepostButton from "@/components/posts/RepostButton";
 import { useToast } from "../ui/use-toast";
 import { cn } from "@/lib/utils";
@@ -64,6 +66,7 @@ export default function ReelCard({
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
 
   // Shoppable products overlay states
@@ -483,11 +486,7 @@ export default function ReelCard({
   };
 
   const handleShareClick = () => {
-    const postUrl = `${window.location.origin}/posts/${post.id}`;
-    navigator.clipboard.writeText(postUrl);
-    toast({
-      description: "Spot link copied to clipboard.",
-    });
+    setIsShareOpen(true);
   };
 
   const followerInfo: FollowerInfo = {
@@ -760,7 +759,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Like"
               >
-                <Heart className={cn("size-6.5 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.5} />
+                <LikeIcon className={cn("size-6.5 transition-colors duration-200 text-white", likeData.isLikedByUser && "text-[#ff3040] fill-[#ff3040]")} />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {likeData.likes.toLocaleString()}
@@ -777,7 +776,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Comments"
               >
-                <MessageCircle className="size-6.5" strokeWidth={1.5} />
+                <CommentIcon className="size-6.5 text-white transition-colors duration-200" />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {post._count.comments.toLocaleString()}
@@ -795,9 +794,9 @@ export default function ReelCard({
                   handleShareClick();
                 }}
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
-                title="Copy Link"
+                title="Share Reel"
               >
-                <Send className="size-6.5" strokeWidth={1.5} />
+                <ShareIcon className="size-6.5 text-white transition-colors duration-200" />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Share</span>
             </div>
@@ -812,7 +811,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Save"
               >
-                <Bookmark className={cn("size-6.5", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.5} />
+                <SaveIcon className={cn("size-6.5 transition-colors duration-200 text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Save</span>
             </div>
@@ -936,7 +935,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Like"
             >
-              <Heart className={cn("size-6.5 transition-colors", likeData.isLikedByUser && "fill-red-500 text-red-500")} strokeWidth={1.5} />
+              <LikeIcon className={cn("size-6.5 transition-colors duration-200 text-black dark:text-white", likeData.isLikedByUser && "text-[#ff3040] fill-[#ff3040]")} />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {likeData.likes.toLocaleString()}
@@ -950,7 +949,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Comments"
             >
-              <MessageCircle className="size-6.5" strokeWidth={1.5} />
+              <CommentIcon className="size-6.5 text-black dark:text-white transition-colors duration-200" />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {post._count.comments.toLocaleString()}
@@ -965,9 +964,9 @@ export default function ReelCard({
             <button
               onClick={handleShareClick}
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
-              title="Copy Link"
+              title="Share Reel"
             >
-              <Send className="size-6.5" strokeWidth={1.5} />
+              <ShareIcon className="size-6.5 text-black dark:text-white transition-colors duration-200" />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Share</span>
           </div>
@@ -979,7 +978,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Save"
             >
-              <Bookmark className={cn("size-6.5", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.5} />
+              <SaveIcon className={cn("size-6.5 transition-colors duration-200 text-black dark:text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Save</span>
           </div>
@@ -1084,6 +1083,15 @@ export default function ReelCard({
           post={post}
           open={isCommentsOpen}
           onOpenChange={setIsCommentsOpen}
+        />
+      )}
+
+      {/* Reels Share Bottom Sheet Dialog */}
+      {isShareOpen && (
+        <ReelsShareDialog
+          post={post}
+          open={isShareOpen}
+          onOpenChange={setIsShareOpen}
         />
       )}
     </div>
