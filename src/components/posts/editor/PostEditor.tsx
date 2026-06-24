@@ -214,6 +214,12 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
   const [isProcessingAndSubmitting, setIsProcessingAndSubmitting] = useState(false);
 
+  const getAudienceLabel = () => {
+    if (audience === "FOLLOWERS") return "People you follow can reply";
+    if (audience === "MENTIONED_ONLY") return "Only people you mention can reply";
+    return "Everyone can reply";
+  };
+
   // Auto-Save mechanism (debounced threads text & metadata changes)
   useEffect(() => {
     const hasContent = threads.some(t => t.text.trim().length > 0) || attachments.length > 0;
@@ -1553,41 +1559,21 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
       {/* Main Composer View */}
       {/* Header Row */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0 select-none">
         <button 
           type="button" 
           onClick={handleCloseAttempt} 
-          className="text-white hover:opacity-85 py-2 text-[16px] font-semibold"
+          className="text-zinc-400 hover:text-white p-1 rounded-full hover:bg-zinc-900 transition-colors"
+          title="Cancel"
         >
-          Cancel
+          <X className="size-6" />
         </button>
-
-        {/* Post type selector tabs */}
-        <div className="flex bg-[#0A0A0A] border border-[#1A1A1A] p-0.5 rounded-full text-xs font-semibold gap-1">
-          {(["normal", "thread", "poll", "article"] as const).map((type) => (
-            <button
-              key={type}
-              onClick={() => {
-                setPostType(type);
-                if (type === "thread" && threads.length === 1) {
-                  setThreads([{ id: "1", text: "" }, { id: "2", text: "" }]);
-                }
-              }}
-              className={cn(
-                "px-3 py-1.5 rounded-full capitalize transition-all duration-150",
-                postType === type ? "bg-white text-black font-bold" : "text-[#A1A1AA]"
-              )}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
 
         <LoadingButton
           onClick={handlePublish}
           loading={mutation.isPending || isProcessingAndSubmitting}
           disabled={(!threads[0].text.trim() && attachments.length === 0) || isUploading || isOverLimit}
-          className="rounded-full bg-white hover:bg-zinc-200 text-black font-semibold px-6 py-2 text-sm disabled:opacity-40 disabled:pointer-events-none"
+          className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-black px-6 py-1.5 text-[14px] disabled:opacity-50 disabled:pointer-events-none transition-all"
         >
           {postType === "thread" ? "Post Thread" : "Post"}
         </LoadingButton>
@@ -1606,57 +1592,34 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
       {/* Scrolling Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-black scrollbar-none select-text">
-        {/* Profile Row */}
-        <div className="flex items-center gap-3 select-none">
-          <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-black border border-[#1A1A1A]" />
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm text-white">{user.displayName}</span>
-            <span className="text-xs text-[#A1A1AA]">@{user.username}</span>
+        {/* Side-by-Side Avatar + Textarea Layout */}
+        <div className="flex gap-3 items-start w-full">
+          <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-black border border-[#1A1A1A] shrink-0 mt-1 select-none" />
+          <div className="flex-grow flex flex-col min-w-0">
+            <textarea
+              value={threads[0].text}
+              onChange={(e) => {
+                const updated = [...threads];
+                updated[0].text = e.target.value;
+                setThreads(updated);
+              }}
+              onInput={handleTextareaInput}
+              placeholder={
+                postType === "article" 
+                  ? "Title of your article...\n\nStart writing here..." 
+                  : "What's happening?"
+              }
+              className={cn(
+                "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 p-0 font-normal leading-relaxed min-h-[120px] text-[18px] placeholder-zinc-500"
+              )}
+              rows={4}
+            />
           </div>
-        </div>
-
-        {/* Textarea */}
-        <textarea
-          value={threads[0].text}
-          onChange={(e) => {
-            const updated = [...threads];
-            updated[0].text = e.target.value;
-            setThreads(updated);
-          }}
-          onInput={handleTextareaInput}
-          placeholder={
-            postType === "article" 
-              ? "Title of your article...\n\nStart writing here..." 
-              : "What&apos;s happening?"
-          }
-          className={cn(
-            "w-full bg-transparent border-none outline-none resize-none text-white focus:ring-0 p-0 font-normal leading-relaxed min-h-[120px] text-lg placeholder-[#71717A]"
-          )}
-          rows={4}
-        />
-
-        {/* Character Count for normal posts */}
-        {postType !== "article" && charCount > 0 && (
-          <div className="flex justify-end items-center gap-1.5 text-xs text-[#A1A1AA] font-mono select-none">
-            <span>{charCount}/{charLimit}</span>
-          </div>
-        )}
-
-        {/* Audience Row */}
-        <div 
-          onClick={() => setActivePanel("audience")}
-          className="flex items-center justify-between border-y border-[#1A1A1A] py-3 cursor-pointer select-none"
-        >
-          <div className="flex items-center gap-2.5 text-sm text-[#A1A1AA]">
-            <Globe className="size-5 text-[#A1A1AA]" strokeWidth={1.75} />
-            <span>Everyone can reply</span>
-          </div>
-          <span className="text-xs text-[#71717A] capitalize">{audience.toLowerCase()}</span>
         </div>
 
         {/* Selected Location Indicator */}
         {selectedLocation && (
-          <div className="flex justify-start select-none">
+          <div className="pl-[52px] flex justify-start select-none">
             <span className="flex items-center gap-2 text-xs bg-[#0A0A0A] border border-[#1A1A1A] text-white rounded-full py-1.5 px-3">
               <span>📍 {selectedLocation.name}</span>
               <button 
@@ -1671,7 +1634,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
         {/* Poll Inputs */}
         {postType === "poll" && (
-          <div className="space-y-4 pt-2 max-w-[460px] animate-slide-up select-none bg-[#0A0A0A] border border-[#1A1A1A] p-4 rounded-xl">
+          <div className="ml-[52px] space-y-4 pt-2 max-w-[460px] animate-slide-up select-none bg-[#0A0A0A] border border-[#1A1A1A] p-4 rounded-xl">
             <div className="flex flex-col gap-3">
               {pollOptions.map((option, oIdx) => (
                 <div key={oIdx} className="relative flex items-center border-b border-[#1A1A1A] py-1">
@@ -1732,140 +1695,206 @@ export default function PostEditor({ onClose }: PostEditorProps) {
           </div>
         )}
 
-        {/* Media Preview Grid */}
-        {attachments.length > 0 && (
-          <div className="space-y-1.5">
-            <span className="text-[12px] font-semibold text-[#A1A1AA] uppercase tracking-wider block px-1 select-none">Media</span>
-            <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none items-center">
-              {attachments.map((item, idx) => {
-                const isVideoFile = item.file.type.startsWith("video");
-                const hasAltText = !!mediaAltTexts[item.file.name];
-                
-                return (
-                  <div 
-                    key={idx} 
-                    className="relative size-24 rounded-xl overflow-hidden shrink-0 border border-[#1A1A1A] bg-[#0A0A0A] flex items-center justify-center group"
-                  >
-                    {isVideoFile ? (
-                      <video src={item.previewUrl} className="w-full h-full object-cover" muted />
-                    ) : (
-                      <img src={item.previewUrl || ""} className="w-full h-full object-cover" alt="preview" />
-                    )}
+        {/* Media Preview Row (Horizontal scroll) */}
+        <div className="pl-[52px] w-full">
+          <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none items-center">
+            {/* 1. Camera Button */}
+            <button
+              type="button"
+              onClick={() => setActivePanel("camera")}
+              className="size-20 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex items-center justify-center text-primary hover:text-primary/95 transition-colors shrink-0 cursor-pointer"
+              title="Open Camera"
+            >
+              <Camera className="size-6 text-primary" strokeWidth={2} />
+            </button>
 
-                    {isVideoFile && (
-                      <span className="absolute bottom-1.5 right-2 bg-black/70 text-[10px] text-white px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5">
-                        <Video className="size-3" />
-                      </span>
-                    )}
+            {/* 2. Attachments Previews */}
+            {attachments.map((item, idx) => {
+              const isVideoFile = item.file.type.startsWith("video");
+              const hasAltText = !!mediaAltTexts[item.file.name];
+              
+              return (
+                <div 
+                  key={idx} 
+                  className="relative size-20 rounded-2xl overflow-hidden shrink-0 border border-zinc-800 bg-zinc-900/40 flex items-center justify-center group"
+                >
+                  {isVideoFile ? (
+                    <video src={item.previewUrl} className="w-full h-full object-cover" muted />
+                  ) : (
+                    <img src={item.previewUrl || ""} className="w-full h-full object-cover" alt="preview" />
+                  )}
 
-                    {hasAltText && (
-                      <span className="absolute bottom-1.5 left-2 bg-white text-[8px] text-black px-1.5 py-0.5 rounded-full font-bold">
-                        ALT
-                      </span>
-                    )}
+                  {isVideoFile && (
+                    <span className="absolute bottom-1.5 right-2 bg-black/70 text-[10px] text-white px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5">
+                      <Video className="size-3" />
+                    </span>
+                  )}
 
-                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveMediaIndex(idx);
-                          setActivePanel("media-edit");
-                        }}
-                        className="text-[10px] font-semibold text-black bg-white px-2.5 py-1 rounded-full hover:bg-neutral-200"
-                      >
-                        Edit
-                      </button>
-                    </div>
+                  {hasAltText && (
+                    <span className="absolute bottom-1.5 left-2 bg-white text-[8px] text-black px-1.5 py-0.5 rounded-full font-bold">
+                      ALT
+                    </span>
+                  )}
 
+                  <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeAttachment(item.file.name);
+                        setActiveMediaIndex(idx);
+                        setActivePanel("media-edit");
                       }}
-                      className="absolute right-1.5 top-1.5 bg-black/80 text-white rounded-full p-1 min-w-[24px] min-h-[24px] flex items-center justify-center hover:bg-black"
+                      className="text-[10px] font-semibold text-black bg-white px-2 py-0.5 rounded-full hover:bg-neutral-200"
                     >
-                      <X className="size-3" strokeWidth={1.75} />
+                      Edit
                     </button>
                   </div>
-                );
-              })}
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="size-24 rounded-xl border border-dashed border-[#1A1A1A] bg-[#0A0A0A] flex flex-col items-center justify-center text-[#A1A1AA] hover:text-white hover:border-[#71717A] transition-all shrink-0 cursor-pointer"
-              >
-                <span className="text-[20px] font-bold mb-0.5">+</span>
-                <span className="text-[10px] font-semibold">Add</span>
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeAttachment(item.file.name);
+                    }}
+                    className="absolute right-1.5 top-1.5 bg-black/80 text-white rounded-full p-1 min-w-[20px] min-h-[20px] flex items-center justify-center hover:bg-black"
+                  >
+                    <X className="size-2.5" strokeWidth={2} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
+
+        {/* Audience / Who Can Reply Selector */}
+        <div className="pl-[52px] select-none">
+          <button
+            type="button"
+            onClick={() => setActivePanel("audience")}
+            className="flex items-center gap-2 text-[14px] font-bold text-primary hover:opacity-85 transition-opacity"
+          >
+            <Globe className="size-4.5 text-primary" strokeWidth={2} />
+            <span>{getAudienceLabel()}</span>
+          </button>
+        </div>
       </div>
 
       {/* Sticky Action Toolbar */}
-      <div className="sticky bottom-0 bg-black border-t border-[#1A1A1A] px-4 py-2 flex justify-between items-center flex-shrink-0 z-30 pointer-events-auto">
-        <div className="flex items-center gap-1.5 w-full justify-between select-none">
+      <div className="sticky bottom-0 bg-black border-t border-zinc-900 px-4 py-2 flex justify-between items-center flex-shrink-0 z-30 pointer-events-auto select-none">
+        <div className="flex items-center justify-between w-full">
+          {/* Left Side Toolbar Icons */}
           <div className="flex items-center gap-1">
+            {/* Gallery Button */}
             <button
-              onClick={() => setActivePanel("camera")}
-              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
-              title="Camera"
-            >
-              <Camera className="size-5 text-white" strokeWidth={1.75} />
-            </button>
-
-            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Gallery"
             >
-              <ImageIcon className="size-5 text-white" strokeWidth={1.75} />
+              <ImageIcon className="size-[22px] text-primary" strokeWidth={2} />
             </button>
 
+            {/* GIF Button */}
             <button
+              type="button"
               onClick={() => setActivePanel("gif")}
-              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="GIF"
             >
-              <IconGif />
+              <IconGif className="text-primary size-[22px]" />
             </button>
 
+            {/* Poll Button */}
             <button
+              type="button"
               onClick={() => {
-                setPostType("poll");
-                if (pollOptions.length === 0) setPollOptions(["", ""]);
+                const nextType = postType === "poll" ? "normal" : "poll";
+                setPostType(nextType);
+                if (nextType === "poll" && pollOptions.length === 0) {
+                  setPollOptions(["", ""]);
+                }
               }}
               className={cn(
-                "p-3 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]",
-                postType === "poll" ? "text-white opacity-100" : "text-white opacity-70 hover:opacity-100"
+                "p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer",
+                postType === "poll" ? "bg-zinc-900 text-primary" : "text-primary hover:bg-zinc-900"
               )}
               title="Poll"
             >
-              <IconPoll />
+              <IconPoll className="text-primary size-[22px]" />
             </button>
 
+            {/* Location Button */}
             <button
+              type="button"
               onClick={() => setActivePanel("location")}
-              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Location"
             >
-              <IconLocation />
+              <IconLocation className="text-primary size-[22px]" />
             </button>
 
+            {/* Schedule/Calendar Button */}
             <button
+              type="button"
               onClick={() => setActivePanel("schedule")}
-              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
+              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Schedule"
             >
-              <Calendar className="size-5 text-white" strokeWidth={1.75} />
+              <Calendar className="size-[22px] text-primary" strokeWidth={2} />
             </button>
 
+            {/* Advanced Settings Button */}
             <button
+              type="button"
               onClick={() => setActivePanel("settings")}
-              className="p-3 text-white opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center min-w-[44px] min-h-[44px]"
-              title="Settings"
+              className="p-2.5 text-primary hover:bg-zinc-900 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+              title="Advanced Settings"
             >
-              <Settings className="size-5 text-white" strokeWidth={1.75} />
+              <Settings className="size-[22px] text-primary" strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* Right Side Actions (Character limit circular progress & Thread Plus Button) */}
+          <div className="flex items-center gap-3">
+            {charCount > 0 && (
+              <div className="relative size-6 flex items-center justify-center">
+                <svg className="size-5 transform -rotate-90">
+                  <circle
+                    cx="10"
+                    cy="10"
+                    r="8"
+                    className="stroke-zinc-800"
+                    strokeWidth="2"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx="10"
+                    cy="10"
+                    r="8"
+                    className={cn(
+                      "transition-all duration-200",
+                      percentage >= 100 ? "stroke-red-500" : percentage >= 90 ? "stroke-amber-500" : "stroke-primary"
+                    )}
+                    strokeWidth="2"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 8}
+                    strokeDashoffset={2 * Math.PI * 8 * (1 - percentage / 100)}
+                  />
+                </svg>
+              </div>
+            )}
+
+            {/* Separator line between circle and plus if character count exists */}
+            {charCount > 0 && <div className="h-5 w-[1px] bg-zinc-800" />}
+
+            {/* Plus Button for adding threads */}
+            <button
+              type="button"
+              onClick={handleAddThreadNode}
+              className="p-1 text-primary hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-800 rounded-full transition-all flex items-center justify-center cursor-pointer"
+              title="Add thread post"
+            >
+              <span className="text-lg font-bold px-1.5 leading-none">+</span>
             </button>
           </div>
         </div>
