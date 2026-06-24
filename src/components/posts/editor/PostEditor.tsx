@@ -154,6 +154,38 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const mediaRecorderRef = useRef<any>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
+
+  const containerRef = (node: HTMLDivElement | null) => {
+    setContainerEl(node);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport || !containerEl) return;
+
+    const handleResize = () => {
+      const visualViewport = window.visualViewport;
+      if (!visualViewport || !containerEl) return;
+
+      if (window.innerWidth < 640) {
+        containerEl.style.height = `${visualViewport.height}px`;
+        containerEl.style.maxHeight = `${visualViewport.height}px`;
+        containerEl.style.minHeight = `${visualViewport.height}px`;
+      } else {
+        containerEl.style.height = "";
+        containerEl.style.maxHeight = "";
+        containerEl.style.minHeight = "";
+      }
+    };
+
+    const visualViewport = window.visualViewport;
+    visualViewport.addEventListener("resize", handleResize);
+    handleResize();
+
+    return () => {
+      visualViewport.removeEventListener("resize", handleResize);
+    };
+  }, [containerEl]);
 
   // Lock document scroll on mobile to prevent layout shifting on input focus
   useEffect(() => {
@@ -1759,6 +1791,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   if (activePanel !== "none" && activePanel !== "draft-recovery") {
     return (
       <div 
+        ref={containerRef}
         className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
       >
         {(isProcessingAndSubmitting || mutation.isPending) && (
@@ -1774,6 +1807,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
   return (
     <div 
+      ref={containerRef}
       className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
     >
       <input 
