@@ -154,24 +154,6 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   const mediaRecorderRef = useRef<any>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
-  const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 0);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
-
-    const handleResize = () => {
-      if (window.visualViewport) {
-        setViewportHeight(window.visualViewport.height);
-      }
-    };
-
-    window.visualViewport.addEventListener("resize", handleResize);
-    handleResize();
-
-    return () => {
-      window.visualViewport?.removeEventListener("resize", handleResize);
-    };
-  }, []);
 
   // Lock document scroll on mobile to prevent layout shifting on input focus
   useEffect(() => {
@@ -1777,12 +1759,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   if (activePanel !== "none" && activePanel !== "draft-recovery") {
     return (
       <div 
-        className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
-        style={{
-          height: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "auto",
-          maxHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none",
-          minHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none"
-        }}
+        className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
       >
         {(isProcessingAndSubmitting || mutation.isPending) && (
           <div className="absolute inset-0 bg-[#000000]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
@@ -1797,12 +1774,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
   return (
     <div 
-      className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
-      style={{
-        height: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "auto",
-        maxHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none",
-        minHeight: typeof window !== "undefined" && window.innerWidth < 640 ? `${viewportHeight}px` : "none"
-      }}
+      className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
     >
       <input 
         type="file"
