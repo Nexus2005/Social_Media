@@ -226,15 +226,15 @@ const MessageBubbleContainer = React.memo(({
       )}
 
       {!isOutgoing && channel.data?.isGroup === true && (
-        <div className="flex shrink-0 w-8 items-end justify-center mb-1">
+        <div className="flex shrink-0 w-10 items-end justify-center mb-1">
           {isLastInGroup ? (
             <UserAvatar 
               avatarUrl={message.user?.image as string | undefined} 
-              size={32} 
-              className="size-8 border rounded-full shrink-0" 
+              size={40} 
+              className="size-9 sm:size-10 border rounded-full shrink-0" 
             />
           ) : (
-            <div className="size-8 w-8 shrink-0" />
+            <div className="size-9 sm:size-10 w-9 sm:w-10 shrink-0" />
           )}
         </div>
       )}
@@ -272,7 +272,7 @@ const MessageBubbleContainer = React.memo(({
             }
           }
         }}
-        className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
+        className={`relative max-w-[80%] px-4.5 py-2.5 sm:px-5 sm:py-3 text-[15px] sm:text-base shadow-sm cursor-pointer select-none transition-all duration-300 ${
           isOutgoing
             ? isStoryReply
               ? `${message.id === highlightedMessageId ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 ring-2 ring-zinc-500/30" : isSelected ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 ring-2 ring-zinc-500/20" : "bg-gradient-to-tr from-pink-500/95 to-purple-600/95"} text-white ${
@@ -288,7 +288,7 @@ const MessageBubbleContainer = React.memo(({
             : `${message.id === highlightedMessageId ? "bg-card dark:bg-zinc-900 ring-2 ring-zinc-500/25 border-zinc-300 dark:border-zinc-700" : isSelected ? "bg-zinc-100 dark:bg-zinc-900/80 border-zinc-200 dark:border-zinc-800" : "bg-card border border-zinc-200 dark:border-zinc-800/60"} text-foreground ${
                 getBubbleCorners(false, position)
               }`
-        } ${isFirstInGroup ? "mt-3" : "mt-0.5"} ${
+        } ${isFirstInGroup ? "mt-4" : "mt-1.5"} ${
           message.id === highlightedMessageId || isSelected ? "scale-[1.03] shadow-md" : ""
         }`}
       >
@@ -400,7 +400,7 @@ const MessageBubbleContainer = React.memo(({
 
         {/* Message Text content */}
         {message.text && (
-          <p className="whitespace-pre-wrap break-words pr-14 text-[16px] leading-[22px]">{message.text}</p>
+          <p className="whitespace-pre-wrap break-words pr-14 text-[17px] sm:text-[19px] leading-[24px] sm:leading-[26px]">{message.text}</p>
         )}
 
         {/* Floating Metadata (Time and status checks) */}
@@ -1221,8 +1221,8 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : (
-        <div className="flex h-14 items-center justify-between border-b bg-card/50 px-3 z-10 shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="flex h-16 sm:h-[74px] items-center justify-between border-b bg-card/50 px-4 z-10 shrink-0">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => {
                 setActiveChannel(null);
@@ -1231,18 +1231,18 @@ export default function ChatChannel() {
               className="rounded-full p-1.5 hover:bg-muted md:hidden"
               type="button"
             >
-              <ArrowLeft className="size-5" />
+              <ArrowLeft className="size-6" />
             </button>
             
             {/* Avatar details */}
             <div
-              className="flex items-center gap-2.5 cursor-pointer hover:opacity-85"
+              className="flex items-center gap-3 cursor-pointer hover:opacity-85"
               onClick={() => setProfileOverlayChannel(channel)}
             >
-              <UserAvatar avatarUrl={avatarUrl as string | undefined} size={40} className="size-10 border" />
+              <UserAvatar avatarUrl={avatarUrl as string | undefined} size={48} className="size-11 sm:size-12 border" />
               <div className="flex flex-col text-start leading-tight">
-                <span className="text-[18px] font-semibold text-foreground">{displayName}</span>
-                <span className="text-[13px] text-zinc-400 dark:text-zinc-500">
+                <span className="text-[19px] sm:text-[21px] font-bold text-foreground">{displayName}</span>
+                <span className="text-sm sm:text-[15px] text-zinc-400 dark:text-zinc-500">
                   {typingState || (isOnline ? "online" : "offline")}
                 </span>
               </div>
@@ -1250,14 +1250,14 @@ export default function ChatChannel() {
           </div>
 
           {/* Ellipsis Actions menu */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleMute}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
               title={isMuted ? "Unmute" : "Mute"}
               type="button"
             >
-              {isMuted ? <VolumeX className="size-5 text-red-500" /> : <Volume2 className="size-5" />}
+              {isMuted ? <VolumeX className="size-6 text-red-500" /> : <Volume2 className="size-6" />}
             </button>
             <button
               onClick={handlePin}
@@ -1265,14 +1265,14 @@ export default function ChatChannel() {
               title={isPinned ? "Unpin" : "Pin"}
               type="button"
             >
-              <Pin className={`size-5 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
+              <Pin className={`size-6 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
             </button>
             <button
               onClick={() => setProfileOverlayChannel(channel)}
               className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
               type="button"
             >
-              <MoreVertical className="size-5" />
+              <MoreVertical className="size-6" />
             </button>
           </div>
         </div>
@@ -1485,9 +1485,9 @@ export default function ChatChannel() {
 
       {/* Input Message Composer Bar (WhatsApp style) */}
       <div className="flex flex-col bg-transparent relative z-25">
-        <div className="flex items-end gap-2 p-3 bg-transparent select-none max-w-full">
+        <div className="flex items-end gap-3 p-3 bg-transparent select-none max-w-full">
           {/* The Main Input Pill */}
-          <div className="flex-1 flex items-end bg-[#f0f2f5] dark:bg-[#202c33] rounded-[24px] px-3 py-1.5 min-w-0 transition-all border border-transparent shadow-sm">
+          <div className="flex-1 flex items-end bg-[#f0f2f5] dark:bg-[#202c33] rounded-[28px] px-4.5 py-2.5 sm:px-5 sm:py-3 min-w-0 transition-all border border-transparent shadow-sm">
             {/* Sticker/Emoji drawer toggle */}
             <button
               onClick={() => {
@@ -1499,7 +1499,7 @@ export default function ChatChannel() {
               }`}
               type="button"
             >
-              <Smile className="size-6 shrink-0" />
+              <Smile className="size-7 shrink-0" />
             </button>
 
             {/* Attachment Paperclip toggle */}
@@ -1511,7 +1511,7 @@ export default function ChatChannel() {
               className="rounded-full p-1.5 text-muted-foreground hover:text-foreground shrink-0"
               type="button"
             >
-              <Paperclip className="size-6 shrink-0" />
+              <Paperclip className="size-7 shrink-0" />
             </button>
 
             {/* Expanding input text editor */}
@@ -1522,7 +1522,7 @@ export default function ChatChannel() {
               onChange={handleInputChange}
               rows={1}
               style={{ maxHeight: "120px" }}
-              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-[16px] md:text-[17px] text-foreground placeholder:text-muted-foreground outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
+              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-[17px] sm:text-[18px] text-foreground placeholder:text-muted-foreground outline-none border-none focus:ring-0 h-10 min-h-[40px] sm:h-11 sm:min-h-[44px] scrollbar-none"
             />
 
             {/* Camera / Media Quick attachment trigger */}
@@ -1534,20 +1534,20 @@ export default function ChatChannel() {
               className="rounded-full p-1.5 text-muted-foreground hover:text-foreground shrink-0"
               type="button"
             >
-              <ImageIcon className="size-6 shrink-0" />
+              <ImageIcon className="size-7 shrink-0" />
             </button>
           </div>
 
           {/* Detached FAB Action button */}
           <button
             onClick={inputText.trim() ? handleSendMessage : undefined}
-            className="size-12 rounded-full bg-[#00a884] text-white flex items-center justify-center shadow-md hover:bg-[#008f72] active:scale-95 transition-all shrink-0 cursor-pointer"
+            className="size-13 sm:size-14 rounded-full bg-[#00a884] text-white flex items-center justify-center shadow-md hover:bg-[#008f72] active:scale-95 transition-all shrink-0 cursor-pointer"
             type="button"
           >
             {inputText.trim() ? (
-              <Send className="size-5 fill-white text-white ml-0.5" />
+              <Send className="size-6 fill-white text-white ml-0.5" />
             ) : (
-              <Mic className="size-5 text-white" />
+              <Mic className="size-6 text-white" />
             )}
           </button>
         </div>

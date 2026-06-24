@@ -86,7 +86,7 @@ export default function ChatSidebar() {
   const chatClient = useChat();
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
-  const { showStory, groupedStories: storiesData = [] } = useStoryViewer();
+  const { showStory } = useStoryViewer();
   
   const {
     activeChannel,
@@ -436,12 +436,12 @@ export default function ChatSidebar() {
     }).length;
   }, [activeChatList]);
 
-  // Horizontal Quick Access List (Stories + Instants + Frequent Chat users)
+  // Horizontal Instants Scrollbar List (ONLY Instants)
   const horizontalUsers = useMemo(() => {
     if (!loggedInUser) return [];
     const usersMap = new Map<string, any>();
     
-    // 1. Add other users who have active Instants (disappearing snaps)
+    // Add other users who have active Instants (disappearing snaps)
     instantsData.forEach((item) => {
       if (item.user.id !== loggedInUser.id) {
         usersMap.set(item.user.id, {
@@ -450,56 +450,15 @@ export default function ChatSidebar() {
           displayName: item.user.displayName,
           avatarUrl: item.user.avatarUrl,
           hasInstant: true,
-          hasStory: false,
-        });
-      }
-    });
-
-    // 2. Add other users who have active Stories
-    storiesData.forEach((item) => {
-      if (item.user.id !== loggedInUser.id) {
-        const existing = usersMap.get(item.user.id);
-        if (existing) {
-          existing.hasStory = true;
-        } else {
-          usersMap.set(item.user.id, {
-            id: item.user.id,
-            username: item.user.username,
-            displayName: item.user.displayName,
-            avatarUrl: item.user.avatarUrl,
-            hasInstant: false,
-            hasStory: true,
-          });
-        }
-      }
-    });
-    
-    // 3. Add users from recent channels next
-    channels.forEach((channel) => {
-      const members = Object.values(channel.state.members || {});
-      const otherMember = members.find((m) => m.user?.id !== loggedInUser.id)?.user;
-      if (otherMember && !usersMap.has(otherMember.id)) {
-        usersMap.set(otherMember.id, {
-          id: otherMember.id,
-          username: otherMember.username,
-          displayName: otherMember.name || otherMember.username,
-          avatarUrl: otherMember.image,
-          hasInstant: false,
-          hasStory: false,
         });
       }
     });
     
     return Array.from(usersMap.values());
-  }, [instantsData, storiesData, channels, loggedInUser]);
-
-  const loggedInUserHasStory = useMemo(() => {
-    if (!loggedInUser) return false;
-    return storiesData.some((item) => item.user.id === loggedInUser.id);
-  }, [storiesData, loggedInUser]);
+  }, [instantsData, loggedInUser]);
 
   const handleHorizontalUserClick = async (user: any) => {
-    // 1. If has active Instant, view it
+    // If has active Instant, view it
     if (user.hasInstant) {
       const record = instantsData.find((item) => item.user.id === user.id);
       if (record) {
@@ -507,30 +466,6 @@ export default function ChatSidebar() {
         setViewerSnaps(record.instants);
         setViewerOpen(true);
       }
-      return;
-    }
-
-    // 2. If has active Story, view it
-    if (user.hasStory) {
-      const idx = storiesData.findIndex((item) => item.user.id === user.id);
-      if (idx !== -1) {
-        // story viewer is mounted globally, open story index
-        showStory(user.id);
-      }
-      return;
-    }
-
-    // 3. Otherwise, open DM
-    if (!chatClient || !loggedInUser) return;
-    try {
-      const channel = chatClient.channel("messaging", {
-        members: [loggedInUser.id, user.id],
-      });
-      await channel.watch();
-      setActiveChannel(channel);
-      setMobileView("chat");
-    } catch (error) {
-      console.error("Failed to start chat from horizontal bar:", error);
     }
   };
 
@@ -739,8 +674,6 @@ export default function ChatSidebar() {
                         });
                         setViewerSnaps(myActiveInstants);
                         setViewerOpen(true);
-                      } else if (loggedInUserHasStory) {
-                        showStory(loggedInUser.id);
                       } else {
                         setCameraOpen(true);
                       }
@@ -751,8 +684,6 @@ export default function ChatSidebar() {
                       className={`rounded-full p-[2.5px] ${
                         loggedInUserHasInstant
                           ? "bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" // Instants (Cyan) Ring
-                          : loggedInUserHasStory
-                          ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]" // Story Ring
                           : "bg-zinc-800"
                       }`}
                     >
@@ -772,7 +703,7 @@ export default function ChatSidebar() {
                         </div>
                       </div>
                     </div>
-                    {!loggedInUserHasInstant && !loggedInUserHasStory && (
+                    {!loggedInUserHasInstant && (
                       <div className="absolute bottom-0 right-0 bg-[#7c3aed] text-white rounded-full size-[20px] sm:size-[24px] flex items-center justify-center border-2 border-black">
                         <Plus className="size-3 sm:size-4 stroke-[3px]" />
                       </div>
@@ -783,7 +714,7 @@ export default function ChatSidebar() {
                   </span>
                 </div>
 
-                {/* OTHER ACTIVE USERS / STORIES / INSTANTS */}
+                {/* OTHER ACTIVE USERS (INSTANTS ONLY) */}
                 {horizontalUsers.map((user) => (
                   <div
                     key={user.id}
@@ -791,13 +722,7 @@ export default function ChatSidebar() {
                     className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer select-none active:scale-95 transition-transform"
                   >
                     <div
-                      className={`rounded-full p-[2.5px] ${
-                        user.hasInstant
-                          ? "bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" // Snap active (Cyan)
-                          : user.hasStory
-                          ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]" // Story active
-                          : "bg-zinc-800/40"
-                      }`}
+                      className={`rounded-full p-[2.5px] bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]`}
                     >
                       <div className="bg-black p-[2px] rounded-full">
                         <div className="relative w-14 h-14 sm:w-[68px] sm:h-[68px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
