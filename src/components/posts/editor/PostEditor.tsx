@@ -2211,41 +2211,33 @@ export default function PostEditor({ onClose }: PostEditorProps) {
 
             {/* Title & Description */}
             <div className="px-6 pb-4 flex flex-col text-left">
-              <h4 className="font-bold text-[20px] text-white">Who can reply?</h4>
-              <p className="text-[14px] text-[#A1A1AA] mt-1.5 leading-normal">
-                Pick who can reply to this post. Keep in mind that anyone mentioned can always reply.
-              </p>
+              <h4 className="font-bold text-[20px] text-white">Who can see this?</h4>
             </div>
 
             {/* List options */}
             <div className="flex flex-col">
-              {(["PUBLIC", "FOLLOWERS", "MENTIONED_ONLY"] as const).map((aud) => {
-                const isSel = audience === aud;
-                
-                let label = "Everyone";
-                let Icon = Globe;
-                
-                if (aud === "FOLLOWERS") {
-                  label = "Accounts you follow";
-                  Icon = UserCheck;
-                } else if (aud === "MENTIONED_ONLY") {
-                  label = "Only accounts you mention";
-                  Icon = AtSign;
-                }
+              {[
+                { id: "PUBLIC", title: "Everyone", desc: "Anyone on or off Cartly can view", icon: IconEveryone },
+                { id: "FOLLOWERS", title: "Followers", desc: "Only followers can see this", icon: Users },
+                { id: "CLOSE_FRIENDS", title: "Close Friends", desc: "Share only with VIP list", icon: Heart },
+                { id: "PRIVATE", title: "Only Me", desc: "Private post viewable only by you", icon: Lock }
+              ].map((opt) => {
+                const isSel = audience === opt.id;
+                const IconComponent = opt.icon;
 
                 return (
                   <button
-                    key={aud}
+                    key={opt.id}
                     onClick={() => {
-                      setAudience(aud);
+                      setAudience(opt.id);
                       setActivePanel("none");
-                      toast({ description: `Audience updated to ${label.toLowerCase()}` });
+                      toast({ description: `Audience updated to ${opt.title.toLowerCase()}` });
                     }}
                     className="w-full flex items-center gap-4 py-4 px-6 hover:bg-white/[0.03] transition-colors text-left"
                   >
                     <div className="relative shrink-0">
                       <div className="size-11 rounded-full bg-[#1D9BF0] flex items-center justify-center text-white">
-                        <Icon className="size-5.5" strokeWidth={2.2} />
+                        <IconComponent size={22} className="size-5.5" />
                       </div>
                       {isSel && (
                         <div className="absolute -bottom-0.5 -right-0.5 size-4.5 bg-[#00BA7C] rounded-full border border-[#0A0A0A] flex items-center justify-center">
@@ -2253,7 +2245,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
                         </div>
                       )}
                     </div>
-                    <span className="text-white text-[16px] font-bold">{label}</span>
+                    <div className="flex flex-col">
+                      <span className="text-white text-[16px] font-bold">{opt.title}</span>
+                      <span className="text-zinc-400 text-xs mt-0.5">{opt.desc}</span>
+                    </div>
                   </button>
                 );
               })}
