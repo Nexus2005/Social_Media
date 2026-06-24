@@ -45,6 +45,8 @@ const MOCK_VIDEOS: MediaAsset[] = [
   { id: "v-12", uri: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:16" },
 ];
 
+const COMBINED_LOCAL_MEDIA = [...INITIAL_MOCK_MEDIA, ...MOCK_VIDEOS];
+
 const SIMULATED_COMMENTS = [
   "Wow, nice stream!",
   "Great to see you live, AIM News!",
@@ -71,12 +73,20 @@ export default function CreatePage() {
 
   // Post mode states
   const [postText, setPostText] = useState("");
-  const [mediaList, setMediaList] = useState<MediaAsset[]>(INITIAL_MOCK_MEDIA);
-  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Media upload hook from project setup
+  // Emulated Photo Permissions & Local Gallery states
+  const [galleryPermission, setGalleryPermission] = useState<"prompt" | "all" | "limited" | "denied">("prompt");
+  const [limitedAccessibleIds, setLimitedAccessibleIds] = useState<string[]>([]);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showLimitedAccessSelector, setShowLimitedAccessSelector] = useState(false);
+  
+  // Gallery view overlay states
+  const [showGalleryView, setShowGalleryView] = useState(false);
+  const [selectedGalleryIds, setSelectedGalleryIds] = useState<string[]>([]);
+
+  // Media upload hook from project setup (used for native camera file selections)
   const {
     startUpload,
     attachments,
@@ -176,25 +186,25 @@ export default function CreatePage() {
 
   const toggleMute = () => {
     setIsMuted((prev) => {
-      const next = !prev;
+      const text = !prev;
       if (streamRef.current) {
         streamRef.current.getAudioTracks().forEach((track) => {
-          track.enabled = !next;
+          track.enabled = !text;
         });
       }
-      return next;
+      return text;
     });
   };
 
   const toggleHideVideo = () => {
     setIsVideoHidden((prev) => {
-      const next = !prev;
+      const text = !prev;
       if (streamRef.current) {
         streamRef.current.getVideoTracks().forEach((track) => {
-          track.enabled = !next;
+          track.enabled = !text;
         });
       }
-      return next;
+      return text;
     });
   };
 
@@ -202,7 +212,27 @@ export default function CreatePage() {
     router.back();
   };
 
-  // Handle files chosen from system dialog
+  // Gallery opening logic checking permissions
+  const openGallery = () => {
+    if (galleryPermission === "prompt") {
+      setShowPermissionModal(true);
+    } else {
+      setShowGalleryView(true);
+    }
+  };
+
+  // Helper to filter media according to permissions
+  const getAccessibleMedia = () => {
+    if (galleryPermission === "all") {
+      return COMBINED_LOCAL_MEDIA;
+    }
+    if (galleryPermission === "limited") {
+      return COMBINED_LOCAL_MEDIA.filter(item => limitedAccessibleIds.includes(item.id));
+    }
+    return []; // Denied or prompt
+  };
+
+  // Handle files chosen from native system dialog (fallback upload system)
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -214,61 +244,22 @@ export default function CreatePage() {
     fileInputRef.current?.click();
   };
 
-  // Convert external image URL to File so it can be uploaded to backend
-  const uploadMockImage = async (url: string, filename: string): Promise<string> => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
-      
-      // Upload using custom Form Data /api/upload
-      const formData = new FormData();
-      formData.append("endpoint", "attachment");
-      formData.append("files", file);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      return data[0]?.serverData?.mediaId || "";
-    } catch (e) {
-      console.error("Error converting/uploading mock image:", e);
-      throw e;
-    }
-  };
-
-  // Publish Post Handler
+  // Publish Post Handler (Strictly does not upload gallery items)
   const handlePublish = async () => {
-    if (!postText.trim() && !selectedMediaId && attachments.length === 0) return;
+    if (!postText.trim() && selectedGalleryIds.length === 0 && attachments.length === 0) return;
 
     setIsSubmitting(true);
     try {
       let finalMediaIds: string[] = [];
 
-      // 1. Check if user selected their own uploaded attachments
+      // Only upload actual files that were explicitly selected via the camera import (attachments)
       if (attachments.length > 0) {
         finalMediaIds = attachments.map(a => a.mediaId).filter(Boolean) as string[];
-      } 
-      // 2. Check if user selected one of the mock recent media assets
-      else if (selectedMediaId) {
-        const mockItem = mediaList.find(m => m.id === selectedMediaId);
-        if (mockItem) {
-          if (mockItem.id.startsWith("mock-") || mockItem.id.startsWith("v-")) {
-            // Convert to real backend uploaded file so it persists in the feed database
-            toast({
-              description: "Processing selected attachment...",
-            });
-            const mediaId = await uploadMockImage(mockItem.uri, `media_${mockItem.id}.jpg`);
-            if (mediaId) finalMediaIds.push(mediaId);
-          } else {
-            // Already uploaded
-            finalMediaIds.push(mockItem.id);
-          }
-        }
       }
+
+      // We DO NOT upload selectedGalleryIds (local media picker) to match user rules:
+      // "Do not upload images. Do not upload files one by one. Do not send images to any backend."
+      // So finalMediaIds stays empty for local gallery items.
 
       await submitMutation.mutateAsync({
         content: postText,
@@ -278,7 +269,7 @@ export default function CreatePage() {
 
       // Clear states and redirect
       setPostText("");
-      setSelectedMediaId(null);
+      setSelectedGalleryIds([]);
       resetUploads();
       router.push("/");
     } catch (err) {
@@ -323,18 +314,11 @@ export default function CreatePage() {
   // Capture actual camera frame as attachment and switch to Post mode
   const captureWebcamSnapAndSwitch = () => {
     if (!videoRef.current || !streamRef.current) {
-      // Fallback: Attach a nice placeholder mock asset
-      const newMockId = `short-${Date.now()}`;
-      const newMock: MediaAsset = {
-        id: newMockId,
-        uri: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=60",
-        mediaType: "VIDEO",
-      };
-      setMediaList(prev => [newMock, ...prev]);
-      setSelectedMediaId(newMockId);
+      // Fallback: select mock item
+      setSelectedGalleryIds(["v-1"]);
       setActiveMode("Post");
       toast({
-        description: "Recorded video successfully attached!",
+        description: "Mock video attached to post draft!",
       });
       return;
     }
@@ -361,7 +345,6 @@ export default function CreatePage() {
       }
     } catch (e) {
       console.error(e);
-      // Fallback
       setActiveMode("Post");
     }
   };
@@ -392,21 +375,12 @@ export default function CreatePage() {
     });
   };
 
-  // Video Mode: select video and attach to post
+  // Video Mode dropdown select
   const handleSelectVideoFromGrid = (video: MediaAsset) => {
-    // Attach video directly and switch to Post mode
-    const newAssetId = `video-${Date.now()}`;
-    const newAsset: MediaAsset = {
-      id: newAssetId,
-      uri: video.uri,
-      mediaType: "VIDEO",
-      duration: video.duration,
-    };
-    setMediaList(prev => [newAsset, ...prev]);
-    setSelectedMediaId(newAssetId);
+    setSelectedGalleryIds([video.id]);
     setActiveMode("Post");
     toast({
-      description: `Attached video (${video.duration}) to post`,
+      description: `Attached video draft (${video.duration})`,
     });
   };
 
@@ -428,7 +402,7 @@ export default function CreatePage() {
         }
       `}</style>
 
-      {/* Hidden file input for file uploading */}
+      {/* Hidden file input for file uploading (used only for native camera fallback) */}
       <input
         type="file"
         multiple
@@ -460,10 +434,10 @@ export default function CreatePage() {
               
               <button 
                 onClick={handlePublish}
-                disabled={isSubmitting || isUploading || (!postText.trim() && !selectedMediaId && attachments.length === 0)}
+                disabled={isSubmitting || isUploading || (!postText.trim() && selectedGalleryIds.length === 0 && attachments.length === 0)}
                 className={cn(
                   "px-[18px] py-1.5 rounded-full font-bold text-sm transition-all select-none",
-                  (!postText.trim() && !selectedMediaId && attachments.length === 0) || isSubmitting || isUploading
+                  (!postText.trim() && selectedGalleryIds.length === 0 && attachments.length === 0) || isSubmitting || isUploading
                     ? "bg-[#272727] text-[#71717A] cursor-not-allowed opacity-50"
                     : "bg-[#272727] text-white hover:bg-[#3f3f3f]"
                 )}
@@ -518,7 +492,46 @@ export default function CreatePage() {
               />
             </div>
 
-            {/* Attachments preview container if uploading user's own media */}
+            {/* Selected Gallery Items Draft List (strictly local - zero upload requests) */}
+            {selectedGalleryIds.length > 0 && (
+              <div className="px-5 py-3 border-t border-[#1A1A1A]/40 bg-black select-none shrink-0">
+                <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1">
+                  {selectedGalleryIds.map((id) => {
+                    const media = COMBINED_LOCAL_MEDIA.find(m => m.id === id);
+                    if (!media) return null;
+                    return (
+                      <div 
+                        key={id} 
+                        className="relative w-28 h-28 rounded-xl overflow-hidden border border-zinc-800 shrink-0"
+                      >
+                        <img 
+                          src={media.uri} 
+                          className="w-full h-full object-cover" 
+                          alt="Draft attachment" 
+                        />
+                        {media.mediaType === "VIDEO" && (
+                          <div className="absolute bottom-1.5 right-1.5 bg-black/60 px-1 py-0.5 rounded text-[9px] text-white flex items-center gap-0.5 font-semibold">
+                            <Play className="size-2 fill-white text-white" />
+                            <span>{media.duration || "0:05"}</span>
+                          </div>
+                        )}
+                        {/* Remove item button */}
+                        <button
+                          onClick={() => {
+                            setSelectedGalleryIds(prev => prev.filter(gid => gid !== id));
+                          }}
+                          className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-all"
+                        >
+                          <X className="size-3.5 stroke-[2.5]" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Attachments preview container if importing via native camera */}
             {attachments.length > 0 && (
               <div className="px-4 py-2 flex flex-wrap gap-2.5">
                 {attachments.map((att, idx) => (
@@ -546,47 +559,75 @@ export default function CreatePage() {
               {/* Gallery Media Strip */}
               <div className="h-[96px] py-1 bg-black flex items-center gap-2 overflow-x-auto scrollbar-none px-4 select-none">
                 
-                {/* System camera/import item inside the strip */}
+                {/* Dash camera button: opens the custom gallery browser overlay */}
                 <button 
-                  onClick={triggerFileSelect}
+                  onClick={openGallery}
                   className="w-20 h-20 shrink-0 bg-[#1A1A1A] hover:bg-[#2A2A2A] rounded-[8px] flex flex-col items-center justify-center transition-colors border border-dashed border-zinc-800"
-                  title="Camera/Import"
+                  title="Open Gallery"
                 >
                   <Camera className="size-5 text-white/80" />
                 </button>
 
-                {mediaList.map((asset) => {
-                  const isSelected = selectedMediaId === asset.id;
-                  return (
-                    <div
-                      key={asset.id}
-                      onClick={() => setSelectedMediaId(isSelected ? null : asset.id)}
-                      className={cn(
-                        "w-20 h-20 shrink-0 rounded-[8px] overflow-hidden relative cursor-pointer select-none transition-all",
-                        isSelected ? "ring-2 ring-white scale-95" : "opacity-90 hover:opacity-100"
-                      )}
+                {galleryPermission === "denied" ? (
+                  <div className="flex-1 flex items-center justify-between px-3 text-xs text-zinc-400">
+                    <span>Photos access denied.</span>
+                    <button 
+                      onClick={() => setShowPermissionModal(true)} 
+                      className="text-sky-500 font-bold hover:underline"
                     >
-                      <img
-                        src={asset.uri}
-                        alt="Gallery item"
-                        className="w-full h-full object-cover select-none pointer-events-none"
-                      />
-                      {asset.mediaType === "VIDEO" && (
-                        <div className="absolute bottom-1 right-1 bg-black/70 px-1 py-0.5 rounded text-[9px] text-white flex items-center gap-0.5">
-                          <Play className="size-2 fill-white text-white" />
-                          <span>{asset.duration || "0:05"}</span>
-                        </div>
-                      )}
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-black/25 flex items-center justify-center select-none">
-                          <div className="bg-white rounded-full p-1 text-black">
-                            <Check className="size-3.5 stroke-[3]" />
+                      Grant Access
+                    </button>
+                  </div>
+                ) : galleryPermission === "prompt" ? (
+                  <div className="flex-1 flex items-center justify-between px-3 text-xs text-zinc-400">
+                    <span>Access photos to select media.</span>
+                    <button 
+                      onClick={() => setShowPermissionModal(true)} 
+                      className="text-sky-500 font-bold hover:underline"
+                    >
+                      Allow Access
+                    </button>
+                  </div>
+                ) : (
+                  getAccessibleMedia().map((asset) => {
+                    const isSelected = selectedGalleryIds.includes(asset.id);
+                    return (
+                      <div
+                        key={asset.id}
+                        onClick={() => {
+                          setSelectedGalleryIds(prev => 
+                            prev.includes(asset.id) 
+                              ? prev.filter(id => id !== asset.id)
+                              : [...prev, asset.id]
+                          );
+                        }}
+                        className={cn(
+                          "w-20 h-20 shrink-0 rounded-[8px] overflow-hidden relative cursor-pointer select-none transition-all",
+                          isSelected ? "ring-2 ring-white scale-95" : "opacity-90 hover:opacity-100"
+                        )}
+                      >
+                        <img
+                          src={asset.uri}
+                          alt="Gallery item"
+                          className="w-full h-full object-cover select-none pointer-events-none"
+                        />
+                        {asset.mediaType === "VIDEO" && (
+                          <div className="absolute bottom-1 right-1 bg-black/70 px-1 py-0.5 rounded text-[9px] text-white flex items-center gap-0.5">
+                            <Play className="size-2 fill-white text-white" />
+                            <span>{asset.duration || "0:05"}</span>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-black/25 flex items-center justify-center select-none">
+                            <div className="bg-white rounded-full p-1 text-black">
+                              <Check className="size-3.5 stroke-[3]" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               {/* Bottom actions row */}
@@ -608,10 +649,10 @@ export default function CreatePage() {
                   </svg>
                 </button>
 
-                {/* Inactive Image Item */}
+                {/* Inactive Image Item (Opens the custom gallery picker overlay) */}
                 <button 
                   className="p-2 text-zinc-400 opacity-60 hover:opacity-85 flex items-center justify-center transition-all select-none cursor-pointer"
-                  onClick={triggerFileSelect}
+                  onClick={openGallery}
                   title="Image"
                 >
                   <ImageIcon className="size-[22px]" />
@@ -803,16 +844,16 @@ export default function CreatePage() {
             {/* Bottom Section controls */}
             <div className="absolute inset-x-0 bottom-2 z-10 px-6 pb-4 flex items-center justify-between">
               
-              {/* Gallery preview icon */}
+              {/* Gallery preview icon (denoted by arrow in image) -> opens custom Gallery browser */}
               <button 
-                onClick={triggerFileSelect}
+                onClick={openGallery}
                 className="flex flex-col items-center gap-1"
               >
                 <div className="size-12 rounded-lg overflow-hidden border-2 border-white/80 bg-zinc-900 shadow-md">
                   <img 
-                    src={mediaList[0]?.uri || "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=100"} 
-                    className="w-full h-full object-cover" 
-                    alt="Gallery first item"
+                    src={COMBINED_LOCAL_MEDIA[0]?.uri} 
+                    className="w-full h-full object-cover animate-fade-in" 
+                    alt="Gallery icon"
                   />
                 </div>
                 <span className="text-[11px] font-bold text-white tracking-wide">Add</span>
@@ -842,7 +883,7 @@ export default function CreatePage() {
           </div>
         )}
 
-        {/* ==================== 4. LIVE MODE ==================== */}
+        {/* ==================== 5. LIVE MODE ==================== */}
         {activeMode === "Live" && (
           <div className="flex flex-col flex-grow w-full h-full relative overflow-hidden bg-black">
             {/* Live camera stream */}
@@ -970,7 +1011,7 @@ export default function CreatePage() {
                   </button>
                 </div>
 
-                {/* Big white Next button */}
+                {/* Big Next button */}
                 <button
                   onClick={handleLiveNext}
                   className="w-full bg-white text-black font-bold text-[16px] py-3.5 rounded-full shadow-lg hover:bg-zinc-150 transition-all select-none text-center block"
@@ -1032,6 +1073,269 @@ export default function CreatePage() {
         </div>
 
       </div>
+
+      {/* ==================== PHOTO PERMISSIONS & GALLERY VIEW OVERLAYS ==================== */}
+
+      {/* 1. iOS-style Permission Modal Overlay */}
+      {showPermissionModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] animate-fade-in p-4">
+          <div className="bg-[#1c1c1e] text-white rounded-[14px] w-full max-w-[280px] text-center font-sans overflow-hidden shadow-2xl border border-zinc-800">
+            <div className="px-4.5 pt-5 pb-3.5 border-b border-[#3a3a3c]">
+              <h3 className="font-semibold text-[17px] leading-tight text-white px-2">
+                &quot;Next Social&quot; Would Like to Access Your Photos
+              </h3>
+              <p className="text-[13px] text-zinc-400 mt-2 leading-tight px-1">
+                This app needs access to your photos and videos to let you choose files for posts and short videos.
+              </p>
+            </div>
+            <div className="flex flex-col">
+              <button
+                onClick={() => {
+                  setShowPermissionModal(false);
+                  setShowLimitedAccessSelector(true);
+                }}
+                className="text-[#007aff] text-[17px] font-normal py-3 border-b border-[#3a3a3c] hover:bg-white/5 active:bg-white/10 transition-colors w-full text-center"
+              >
+                Select Photos...
+              </button>
+              <button
+                onClick={() => {
+                  setGalleryPermission("all");
+                  setShowPermissionModal(false);
+                  setShowGalleryView(true);
+                }}
+                className="text-[#007aff] text-[17px] font-semibold py-3 border-b border-[#3a3a3c] hover:bg-white/5 active:bg-white/10 transition-colors w-full text-center"
+              >
+                Allow Access to All Photos
+              </button>
+              <button
+                onClick={() => {
+                  setGalleryPermission("denied");
+                  setShowPermissionModal(false);
+                  setShowGalleryView(true);
+                }}
+                className="text-[#007aff] text-[17px] font-normal py-3 hover:bg-white/5 active:bg-white/10 transition-colors w-full text-center"
+              >
+                Don&apos;t Allow
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Limited Photos Access Selector dialog */}
+      {showLimitedAccessSelector && (
+        <div className="fixed inset-0 bg-[#121212] z-[9999] flex flex-col justify-between select-none">
+          {/* Header */}
+          <header className="h-14 flex items-center justify-between px-4 border-b border-zinc-800 bg-[#121212] shrink-0">
+            <button
+              onClick={() => {
+                setShowLimitedAccessSelector(false);
+                setShowPermissionModal(true);
+              }}
+              className="text-zinc-400 hover:text-white font-semibold text-sm"
+            >
+              Cancel
+            </button>
+            <span className="text-white font-bold text-[16px]">Select Photos</span>
+            <button
+              onClick={() => {
+                setGalleryPermission("limited");
+                setShowLimitedAccessSelector(false);
+                setShowGalleryView(true);
+              }}
+              className="text-sky-500 hover:text-sky-400 font-bold text-sm"
+            >
+              Done
+            </button>
+          </header>
+
+          {/* Media Grid of all items */}
+          <div className="flex-grow overflow-y-auto grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none bg-[#121212]">
+            {COMBINED_LOCAL_MEDIA.map((item) => {
+              const isChecked = limitedAccessibleIds.includes(item.id);
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    setLimitedAccessibleIds(prev =>
+                      prev.includes(item.id)
+                        ? prev.filter(id => id !== item.id)
+                        : [...prev, item.id]
+                    );
+                  }}
+                  className="aspect-square relative cursor-pointer bg-zinc-950 overflow-hidden"
+                >
+                  <img
+                    src={item.uri}
+                    alt="Grid thumbnail"
+                    className="w-full h-full object-cover"
+                  />
+                  {item.mediaType === "VIDEO" && (
+                    <div className="absolute bottom-1 right-1 bg-black/60 px-1 py-0.5 rounded text-[9px] text-white">
+                      {item.duration || "0:05"}
+                    </div>
+                  )}
+                  
+                  {/* Circle check badge in top right */}
+                  <div className="absolute top-2 right-2 flex items-center justify-center">
+                    <div className={cn(
+                      "size-5.5 rounded-full border border-white flex items-center justify-center transition-all",
+                      isChecked ? "bg-sky-500 border-sky-500" : "bg-black/25"
+                    )}>
+                      {isChecked && <Check className="size-3.5 stroke-[3.5] text-white" />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Full-page Gallery Browser View Overlay (Image 1) */}
+      {showGalleryView && (
+        <div className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between select-none animate-slide-up">
+          {/* Header */}
+          <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-10 shrink-0 border-b border-[#1A1A1A]">
+            <div className="flex items-center gap-1.5 cursor-pointer">
+              <span className="text-lg font-bold text-white pl-1">Gallery</span>
+              <ChevronDown className="size-5 text-white" />
+            </div>
+
+            <button 
+              onClick={() => setShowGalleryView(false)}
+              className="p-2 hover:bg-[#272727] rounded-full transition-colors flex items-center justify-center"
+              title="Close"
+            >
+              <X className="size-6 text-white" />
+            </button>
+          </header>
+
+          {/* Grid/Browser Content Area */}
+          <div className="flex-grow overflow-y-auto flex flex-col bg-black">
+            
+            {/* Quick Actions Row */}
+            {galleryPermission !== "denied" && (
+              <div className="grid grid-cols-2 gap-3 px-4 py-4 shrink-0">
+                <button 
+                  onClick={() => {
+                    setShowGalleryView(false);
+                    setActiveMode("Short");
+                  }}
+                  className="bg-[#1A1A1A] hover:bg-[#272727] active:scale-98 rounded-xl flex flex-col items-center justify-center py-4 px-3 gap-2.5 transition-all text-center"
+                >
+                  <div className="relative">
+                    <VideoIcon className="size-6 text-white" />
+                    <Sparkles className="size-3.5 text-purple-400 absolute -top-1 -right-1" />
+                  </div>
+                  <span className="text-sm font-semibold text-white">Create video</span>
+                </button>
+
+                <button 
+                  onClick={() => toast({ description: "Search feature coming soon!" })}
+                  className="bg-[#1A1A1A] hover:bg-[#272727] active:scale-98 rounded-xl flex flex-col items-center justify-center py-4 px-3 gap-2.5 transition-all text-center"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="size-6 text-white">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <span className="text-sm font-semibold text-white">Search YouTube</span>
+                </button>
+              </div>
+            )}
+
+            {/* Grid display */}
+            {galleryPermission === "denied" ? (
+              <div className="flex-grow flex flex-col items-center justify-center px-6 text-center gap-4">
+                <div className="size-16 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 border border-zinc-800">
+                  <VideoOff className="size-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h4 className="font-bold text-white text-md">Access to Photos Denied</h4>
+                  <p className="text-xs text-zinc-400 max-w-xs">
+                    Allow access to your device&apos;s photos and videos in order to select and attach media files.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPermissionModal(true)}
+                  className="bg-white text-black font-bold text-xs px-5 py-2.5 rounded-full hover:bg-zinc-150 transition-colors shadow-lg"
+                >
+                  Grant Photos Access
+                </button>
+              </div>
+            ) : (
+              <div className="flex-grow grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none bg-black">
+                {getAccessibleMedia().map((item) => {
+                  const isSelected = selectedGalleryIds.includes(item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedGalleryIds(prev =>
+                          prev.includes(item.id)
+                            ? prev.filter(id => id !== item.id)
+                            : [...prev, item.id]
+                        );
+                      }}
+                      className="aspect-square relative cursor-pointer select-none bg-zinc-950 overflow-hidden"
+                    >
+                      <img
+                        src={item.uri}
+                        alt="Grid thumbnail"
+                        className="w-full h-full object-cover"
+                      />
+                      {item.mediaType === "VIDEO" && (
+                        <div className="absolute bottom-1 right-1 bg-black/60 px-1 py-0.5 rounded text-[10px] text-white font-semibold">
+                          {item.duration || "0:05"}
+                        </div>
+                      )}
+                      
+                      {/* Checkbox badge circle */}
+                      <div className="absolute top-2 right-2 flex items-center justify-center">
+                        <div className={cn(
+                          "size-5.5 rounded-full border border-white flex items-center justify-center transition-all",
+                          isSelected ? "bg-white border-white text-black" : "bg-black/25"
+                        )}>
+                          {isSelected && <Check className="size-3.5 stroke-[3.5]" />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Actions Row */}
+          {galleryPermission !== "denied" && (
+            <div className="h-18 px-4 flex items-center justify-between border-t border-[#1A1A1A] bg-black shrink-0">
+              <button
+                onClick={() => toast({ description: "AI editing features coming soon!" })}
+                className="bg-[#272727] hover:bg-[#3e3e3e] text-white font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-1.5 transition-colors"
+              >
+                <Sparkles className="size-4 text-purple-400" />
+                <span>Edit with AI</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowGalleryView(false);
+                  setActiveMode("Post");
+                  toast({
+                    description: `Attached ${selectedGalleryIds.length} item(s) to post draft`,
+                  });
+                }}
+                className="bg-white hover:bg-zinc-150 text-black font-extrabold text-sm px-6 py-2.5 rounded-full flex items-center gap-1 transition-colors"
+              >
+                <span>Next</span>
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
