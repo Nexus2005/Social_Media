@@ -25,6 +25,7 @@ export default function InstantCameraModal({
 
   // Snapped states
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+  const capturedBlobRef = useRef<Blob | null>(null);
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
   
   // Undo/Send countdown states
@@ -96,6 +97,7 @@ export default function InstantCameraModal({
       (blob) => {
         if (blob) {
           setCapturedBlob(blob);
+          capturedBlobRef.current = blob;
           setCapturedDataUrl(canvas.toDataURL("image/webp", 0.8));
           stopCamera(); // Turn off camera during preview
           
@@ -129,6 +131,7 @@ export default function InstantCameraModal({
       clearInterval(timerRef.current);
     }
     setCapturedBlob(null);
+    capturedBlobRef.current = null;
     setCapturedDataUrl(null);
     setCountdown(null);
     setSending(false);
@@ -144,7 +147,7 @@ export default function InstantCameraModal({
   // Upload Snap
   const handleUpload = async () => {
     // Check if there is a blob to upload
-    const blobToUpload = capturedBlob;
+    const blobToUpload = capturedBlobRef.current;
     if (!blobToUpload) return;
 
     setSending(true);
@@ -183,6 +186,11 @@ export default function InstantCameraModal({
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+    setCapturedBlob(null);
+    capturedBlobRef.current = null;
+    setCapturedDataUrl(null);
+    setCountdown(null);
+    setSending(false);
     stopCamera();
     onClose();
   };
@@ -215,7 +223,7 @@ export default function InstantCameraModal({
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover scale-x-[-1]"
+                className="w-full h-full object-cover"
               />
               {!cameraActive && (
                 <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
@@ -229,7 +237,7 @@ export default function InstantCameraModal({
               <img
                 src={capturedDataUrl}
                 alt="Snapped frame"
-                className="w-full h-full object-cover scale-x-[-1]"
+                className="w-full h-full object-cover"
               />
               
               {/* Countdown / Sending overlay */}
