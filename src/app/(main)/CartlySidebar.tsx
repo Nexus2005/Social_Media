@@ -44,7 +44,6 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { ENABLE_YOUTUBE_CREATION_FLOW } from "@/lib/featureFlags";
 
 // Custom fast-loading SpotsIcon SVG component matching the user's logo design
 export function SpotsIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -162,8 +161,8 @@ export default function CartlySidebar({
     {
       icon: (props: any) => <PlusSquare {...props} />,
       label: "Create",
-      href: ENABLE_YOUTUBE_CREATION_FLOW ? "/create-youtube-post" : "/create",
-      active: pathname === "/create" || pathname === "/create-youtube-post",
+      href: "/create",
+      active: pathname === "/create",
     },
     {
       icon: (props: any) => <UserAvatar avatarUrl={user.avatarUrl} size={24} {...props} />,
@@ -173,7 +172,7 @@ export default function CartlySidebar({
     },
   ];
 
-  if (pathname === "/create" || pathname === "/create-youtube-post") return null;
+  if (pathname === "/create") return null;
 
   const isReels = pathname === "/reels";
 
