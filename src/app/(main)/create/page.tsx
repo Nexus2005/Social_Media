@@ -12,7 +12,7 @@ import {
   CheckSquare, Camera, RotateCw, Mic, MicOff, Video as VideoIcon, 
   VideoOff, Smartphone, Calendar, Share2, Sparkles, Music, 
   Play, Loader2, Pencil, Trash2, Check, ArrowRight, Clock, AlignLeft,
-  ArrowLeft, Edit3, Smile, FileText, CheckCircle2
+  ArrowLeft, Edit3, Smile, FileText, CheckCircle2, Lock, AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,30 +23,8 @@ interface MediaAsset {
   duration?: string;
 }
 
-const INITIAL_MOCK_MEDIA: MediaAsset[] = [
-  { id: "mock-1", uri: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=300&auto=format&fit=crop&q=60", mediaType: "IMAGE" },
-  { id: "mock-2", uri: "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=300&auto=format&fit=crop&q=60", mediaType: "IMAGE" },
-  { id: "mock-3", uri: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=300&auto=format&fit=crop&q=60", mediaType: "IMAGE" },
-  { id: "mock-4", uri: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=300&auto=format&fit=crop&q=60", mediaType: "IMAGE" },
-  { id: "mock-5", uri: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&auto=format&fit=crop&q=60", mediaType: "IMAGE" },
-];
-
-const MOCK_VIDEOS: MediaAsset[] = [
-  { id: "v-1", uri: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:14" },
-  { id: "v-2", uri: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:08" },
-  { id: "v-3", uri: "https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:10" },
-  { id: "v-4", uri: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:09" },
-  { id: "v-5", uri: "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:03" },
-  { id: "v-6", uri: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:05" },
-  { id: "v-7", uri: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:07" },
-  { id: "v-8", uri: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:13" },
-  { id: "v-9", uri: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:11" },
-  { id: "v-10", uri: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:27" },
-  { id: "v-11", uri: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:07" },
-  { id: "v-12", uri: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=400&auto=format&fit=crop&q=60", mediaType: "VIDEO", duration: "0:16" },
-];
-
-const COMBINED_LOCAL_MEDIA = [...INITIAL_MOCK_MEDIA, ...MOCK_VIDEOS];
+// Persistent session cache to query real local media files chosen via the browser
+let sessionGalleryAssets: MediaAsset[] = [];
 
 const SIMULATED_COMMENTS = [
   "Wow, nice stream!",
@@ -67,10 +45,7 @@ export default function CreatePage() {
   const { toast } = useToast();
   const submitMutation = useSubmitPostMutation();
 
-  // Navigation steps state machine
-  // "composer" -> main creation interface
-  // "trimmer" -> trimming & predefined lengths overlay
-  // "shortEditor" -> right control panel editor overlay
+  // Wizard state machine
   const [creatorStep, setCreatorStep] = useState<"composer" | "trimmer" | "shortEditor">("composer");
   
   // Trimmer states
@@ -93,7 +68,11 @@ export default function CreatePage() {
   // Post mode states
   const [postText, setPostText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const permissionInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Real local media gallery list loaded dynamically from device database/file chooser
+  const [galleryAssets, setGalleryAssets] = useState<MediaAsset[]>([]);
 
   // Emulated Photo Permissions & Local Gallery states
   const [galleryPermission, setGalleryPermission] = useState<"prompt" | "all" | "limited" | "denied">("prompt");
@@ -155,6 +134,30 @@ export default function CreatePage() {
       stopCamera();
     }
   }, [activeMode, facingMode, creatorStep]);
+
+  // Load assets on mount / permission state change (checks native bridge or session cache)
+  useEffect(() => {
+    const loadAssets = async () => {
+      // 1. Check for injected Android MediaStore bridge
+      if (typeof window !== "undefined" && (window as any).AndroidMediaStoreBridge) {
+        try {
+          const nativeData = await (window as any).AndroidMediaStoreBridge.queryMedia();
+          const parsed = JSON.parse(nativeData) as MediaAsset[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setGalleryAssets(parsed);
+            return;
+          }
+        } catch (e) {
+          console.error("Native MediaStore bridge query failed:", e);
+        }
+      }
+      
+      // 2. Otherwise load session-stored media assets
+      setGalleryAssets(sessionGalleryAssets);
+    };
+
+    loadAssets();
+  }, [galleryPermission]);
 
   const startCamera = async () => {
     try {
@@ -240,15 +243,47 @@ export default function CreatePage() {
     }
   };
 
-  // Helper to filter media according to permissions
+  // Helper to filter media according to permissions (displays actual local files only)
   const getAccessibleMedia = () => {
     if (galleryPermission === "all") {
-      return COMBINED_LOCAL_MEDIA;
+      return galleryAssets;
     }
     if (galleryPermission === "limited") {
-      return COMBINED_LOCAL_MEDIA.filter(item => limitedAccessibleIds.includes(item.id));
+      return galleryAssets.filter(item => limitedAccessibleIds.includes(item.id));
     }
     return []; // Denied or prompt
+  };
+
+  // Handle files selected via the native-looking permissions file input triggers
+  const handlePermissionFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const newAssets: MediaAsset[] = files
+      .filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"))
+      .map((file) => ({
+        id: `local-${Date.now()}-${Math.random()}`,
+        uri: URL.createObjectURL(file),
+        mediaType: file.type.startsWith("video/") ? ("VIDEO" as const) : ("IMAGE" as const),
+        duration: file.type.startsWith("video/") ? "0:05" : undefined,
+      }));
+
+    if (newAssets.length === 0) return;
+
+    // Append to global cache and set component state
+    sessionGalleryAssets = [...newAssets, ...sessionGalleryAssets];
+    setGalleryAssets(sessionGalleryAssets);
+
+    if (showLimitedAccessSelector) {
+      setLimitedAccessibleIds((prev) => [...prev, ...newAssets.map(a => a.id)]);
+      setGalleryPermission("limited");
+      setShowLimitedAccessSelector(false);
+    } else {
+      setGalleryPermission("all");
+    }
+
+    setShowGalleryView(true);
+    e.target.value = "";
   };
 
   // Handle files chosen from native system dialog (fallback upload system)
@@ -330,10 +365,14 @@ export default function CreatePage() {
   // Capture actual camera frame as attachment and switch to Post mode
   const captureWebcamSnapAndSwitch = () => {
     if (!videoRef.current || !streamRef.current) {
-      // Fallback: select mock item
-      const asset = COMBINED_LOCAL_MEDIA[0];
-      setSelectedAsset(asset);
-      setCreatorStep("trimmer");
+      // Fallback: select first gallery asset if any
+      const assets = getAccessibleMedia();
+      if (assets.length > 0) {
+        setSelectedAsset(assets[0]);
+        setCreatorStep("trimmer");
+      } else {
+        toast({ description: "Please load photos via gallery to capture snaps!" });
+      }
       return;
     }
 
@@ -361,8 +400,11 @@ export default function CreatePage() {
       }
     } catch (e) {
       console.error(e);
-      setSelectedAsset(COMBINED_LOCAL_MEDIA[0]);
-      setCreatorStep("trimmer");
+      const assets = getAccessibleMedia();
+      if (assets.length > 0) {
+        setSelectedAsset(assets[0]);
+        setCreatorStep("trimmer");
+      }
     }
   };
 
@@ -494,13 +536,23 @@ export default function CreatePage() {
         }
       `}</style>
 
-      {/* Hidden file input for file uploading (used only for native camera fallback) */}
+      {/* Hidden file input for native camera file selections */}
       <input
         type="file"
         multiple
         accept="image/*,video/*"
         ref={fileInputRef}
         onChange={handleFilesSelected}
+        className="hidden"
+      />
+
+      {/* Hidden file input for emulated photos permissions browser selector */}
+      <input 
+        type="file"
+        multiple
+        accept="image/*,video/*"
+        ref={permissionInputRef}
+        onChange={handlePermissionFilesSelected}
         className="hidden"
       />
 
@@ -593,7 +645,7 @@ export default function CreatePage() {
                   <div className="px-5 py-3 border-t border-[#1A1A1A]/40 bg-black select-none shrink-0">
                     <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1">
                       {selectedGalleryIds.map((id) => {
-                        const media = COMBINED_LOCAL_MEDIA.find(m => m.id === id);
+                        const media = galleryAssets.find(m => m.id === id);
                         if (!media) return null;
                         return (
                           <div 
@@ -808,25 +860,65 @@ export default function CreatePage() {
                   </button>
                 </header>
 
-                {/* Video Grid */}
-                <div className="flex-grow overflow-y-auto grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none">
-                  {MOCK_VIDEOS.map((vid) => (
-                    <div
-                      key={vid.id}
-                      onClick={() => handleSelectVideoFromGrid(vid)}
-                      className="aspect-square relative group cursor-pointer select-none bg-zinc-950 overflow-hidden"
-                    >
-                      <img
-                        src={vid.uri}
-                        alt="Video thumbnail"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-all"
-                      />
-                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
-                      <div className="absolute bottom-1.5 right-1.5 bg-black/60 px-1 py-0.5 rounded text-[10px] text-white font-bold tracking-wider">
-                        {vid.duration}
+                {/* Video Grid display */}
+                <div className="flex-grow overflow-y-auto flex flex-col bg-black">
+                  {galleryPermission === "denied" || galleryPermission === "prompt" ? (
+                    <div className="flex-grow flex flex-col items-center justify-center px-6 text-center gap-4 py-12">
+                      <div className="size-16 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 border border-zinc-800">
+                        <VideoIcon className="size-8 animate-pulse text-zinc-400" />
                       </div>
+                      <div className="space-y-1.5">
+                        <h4 className="font-bold text-white text-md">Access to Videos Required</h4>
+                        <p className="text-xs text-zinc-400 max-w-xs">
+                          Allow access to your device&apos;s photos and videos in order to select and edit video files.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowPermissionModal(true)}
+                        className="bg-white text-black font-bold text-xs px-5 py-2.5 rounded-full hover:bg-zinc-150 transition-colors shadow-lg"
+                      >
+                        Grant Access
+                      </button>
                     </div>
-                  ))}
+                  ) : getAccessibleMedia().filter(item => item.mediaType === "VIDEO").length === 0 ? (
+                    <div className="flex-grow flex flex-col items-center justify-center px-6 text-center gap-4 py-12">
+                      <div className="size-16 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 border border-zinc-800">
+                        <VideoIcon className="size-8 text-zinc-400" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="font-bold text-white text-md">No Videos Found</h4>
+                        <p className="text-xs text-zinc-400 max-w-xs">
+                          No local video files have been imported. Click below to choose video files from your device.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => permissionInputRef.current?.click()}
+                        className="bg-white text-black font-bold text-xs px-5 py-2.5 rounded-full hover:bg-zinc-150 transition-colors shadow-lg"
+                      >
+                        Select Videos
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none">
+                      {getAccessibleMedia().filter(item => item.mediaType === "VIDEO").map((vid) => (
+                        <div
+                          key={vid.id}
+                          onClick={() => handleSelectVideoFromGrid(vid)}
+                          className="aspect-square relative group cursor-pointer select-none bg-zinc-950 overflow-hidden"
+                        >
+                          <img
+                            src={vid.uri}
+                            alt="Video thumbnail"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-all"
+                          />
+                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                          <div className="absolute bottom-1.5 right-1.5 bg-black/60 px-1 py-0.5 rounded text-[10px] text-white font-bold tracking-wider">
+                            {vid.duration || "0:05"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -929,13 +1021,14 @@ export default function CreatePage() {
 
                 {/* Bottom Section controls */}
                 <div className="absolute inset-x-0 bottom-2 z-10 px-6 pb-4 flex items-center justify-between">
+                  {/* Gallery add button trigger */}
                   <button 
                     onClick={openGallery}
                     className="flex flex-col items-center gap-1"
                   >
                     <div className="size-12 rounded-lg overflow-hidden border-2 border-white/80 bg-zinc-900 shadow-md">
                       <img 
-                        src={COMBINED_LOCAL_MEDIA[0]?.uri} 
+                        src={galleryAssets.length > 0 ? galleryAssets[0].uri : "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23555'%20stroke-width%3D'2'%3E%3Crect%20x%3D'3'%20y%3D'3'%20width%3D'18'%20height%3D'18'%20rx%3D'2'%20ry%3D'2'%2F%3E%3Ccircle%20cx%3D'8.5'%20cy%3D'8.5'%20r%3D'1.5'%2F%3E%3Cpolyline%20points%3D'21%2015%2016%2010%205%2021'%2F%3E%3C%2Fsvg%3E"} 
                         className="w-full h-full object-cover animate-fade-in" 
                         alt="Gallery icon"
                       />
@@ -1504,6 +1597,9 @@ export default function CreatePage() {
                 onClick={() => {
                   setShowPermissionModal(false);
                   setShowLimitedAccessSelector(true);
+                  setTimeout(() => {
+                    permissionInputRef.current?.click();
+                  }, 100);
                 }}
                 className="text-[#007aff] text-[17px] font-normal py-3 border-b border-[#3a3a3c] hover:bg-white/5 active:bg-white/10 transition-colors w-full text-center"
               >
@@ -1514,6 +1610,9 @@ export default function CreatePage() {
                   setGalleryPermission("all");
                   setShowPermissionModal(false);
                   setShowGalleryView(true);
+                  setTimeout(() => {
+                    permissionInputRef.current?.click();
+                  }, 100);
                 }}
                 className="text-[#007aff] text-[17px] font-semibold py-3 border-b border-[#3a3a3c] hover:bg-white/5 active:bg-white/10 transition-colors w-full text-center"
               >
@@ -1563,7 +1662,7 @@ export default function CreatePage() {
 
           {/* Media Grid of all items */}
           <div className="flex-grow overflow-y-auto grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none bg-[#121212]">
-            {COMBINED_LOCAL_MEDIA.map((item) => {
+            {galleryAssets.map((item) => {
               const isChecked = limitedAccessibleIds.includes(item.id);
               return (
                 <div
@@ -1656,6 +1755,20 @@ export default function CreatePage() {
               </div>
             )}
 
+            {/* Limited access additional selection trigger */}
+            {galleryPermission === "limited" && (
+              <div className="px-4 shrink-0">
+                <button 
+                  onClick={() => {
+                    setShowLimitedAccessSelector(true);
+                  }}
+                  className="w-full bg-[#1A1A1A] hover:bg-[#272727] text-sky-500 font-bold text-xs py-3 rounded-xl border border-dashed border-zinc-800 text-center mb-3 transition-colors"
+                >
+                  + Manage photo access (Add more photos)
+                </button>
+              </div>
+            )}
+
             {/* Grid display */}
             {galleryPermission === "denied" ? (
               <div className="flex-grow flex flex-col items-center justify-center px-6 text-center gap-4">
@@ -1737,7 +1850,7 @@ export default function CreatePage() {
                   }
                   // Transition to step 2: Trimming view
                   const firstId = selectedGalleryIds[0];
-                  const asset = COMBINED_LOCAL_MEDIA.find(m => m.id === firstId) || COMBINED_LOCAL_MEDIA[0];
+                  const asset = galleryAssets.find(m => m.id === firstId) || galleryAssets[0];
                   setSelectedAsset(asset);
                   setShowGalleryView(false);
                   setCreatorStep("trimmer");
