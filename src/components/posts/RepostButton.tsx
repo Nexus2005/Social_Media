@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import QuotePostDialog from "./QuotePostDialog";
-import { RepostIcon } from "@/components/reels/ReelsIcons";
 import { motion } from "framer-motion";
 
 interface RepostButtonProps {
@@ -100,11 +99,12 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
                 className="h-10 w-10 flex items-center justify-center text-white"
                 title="Repost"
               >
-                <RepostIcon
+                <Repeat2
                   className={cn(
                     "w-7 h-7 transition-colors",
                     data.isRepostedByUser && "text-green-500"
                   )}
+                  strokeWidth={1.75}
                 />
               </motion.button>
               <span className={cn(

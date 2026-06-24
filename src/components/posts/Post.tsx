@@ -35,6 +35,7 @@ import { formatDistanceToNow } from "date-fns";
 import MediaViewer from "./MediaViewer";
 import RepostButton from "./RepostButton";
 import CollectionSelector from "./CollectionSelector";
+import ShareDialog from "./ShareDialog";
 import LikesBottomSheet from "./LikesBottomSheet";
 import PostViewTracker from "./PostViewTracker";
 import { useQuery } from "@tanstack/react-query";
@@ -59,6 +60,7 @@ export default function Post({ post }: PostProps) {
   const { toast } = useToast();
   const [showComments, setShowComments] = useState(false);
   const [isNotInterested, setIsNotInterested] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   const { data: followerData } = useFollowerInfo(post.user.id, {
     followers: post.user._count.followers,
@@ -154,11 +156,7 @@ export default function Post({ post }: PostProps) {
   };
 
   const handleShare = () => {
-    const url = `${window.location.origin}/posts/${post.id}`;
-    navigator.clipboard.writeText(url);
-    toast({
-      description: "Post link copied to clipboard.",
-    });
+    setIsShareOpen(true);
   };
 
   const imageUrls = post.attachments.filter(a => a.mediaType === "IMAGE").map(a => a.url);
@@ -435,6 +433,15 @@ export default function Post({ post }: PostProps) {
         open={showLikesSheet}
         onClose={() => setShowLikesSheet(false)}
       />
+
+      {/* Universal Share Bottom Sheet Dialog */}
+      {isShareOpen && (
+        <ShareDialog
+          post={post}
+          open={isShareOpen}
+          onOpenChange={setIsShareOpen}
+        />
+      )}
     </article>
   );
 }

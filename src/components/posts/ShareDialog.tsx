@@ -7,13 +7,13 @@ import { useEffect, useState, useMemo } from "react";
 import { PostData } from "@/lib/types";
 import { useToast } from "../ui/use-toast";
 
-interface ReelsShareDialogProps {
+interface ShareDialogProps {
   post: PostData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShareDialogProps) {
+export default function ShareDialog({ post, open, onOpenChange }: ShareDialogProps) {
   const { user: loggedInUser } = useSession();
   const chatClient = useChat();
   const { toast } = useToast();
@@ -22,6 +22,10 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
   const [contactedUsers, setContactedUsers] = useState<any[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const isReel = post.attachments.some((att) => att.mediaType === "VIDEO");
+  const postTypeLabel = isReel ? "Reel" : "post";
+  const postTypeLabelCapitalized = isReel ? "Reel" : "Post";
 
   // Fetch active contacts when dialog is open
   useEffect(() => {
@@ -69,12 +73,12 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
       
       const postUrl = `${window.location.origin}/posts/${post.id}`;
       await channel.sendMessage({
-        text: `Sent a Reel: ${postUrl}`,
+        text: `Sent a ${postTypeLabel}: ${postUrl}`,
         attachments: [
           {
-            type: "reel-share",
+            type: isReel ? "reel-share" : "post-share",
             postId: post.id,
-            mediaUrl: post.attachments.find((att) => att.mediaType === "VIDEO")?.url || "",
+            mediaUrl: post.attachments[0]?.url || "",
             username: post.user.username,
           }
         ]
@@ -85,7 +89,7 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
       });
       onOpenChange(false);
     } catch (err) {
-      console.error("Failed to share reel:", err);
+      console.error("Failed to share post:", err);
       toast({
         variant: "destructive",
         description: "Failed to send message.",
@@ -98,7 +102,7 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({
-      description: "Reel link copied to clipboard.",
+      description: `${postTypeLabelCapitalized} link copied to clipboard.`,
     });
     setTimeout(() => {
       setCopied(false);
@@ -109,7 +113,7 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
   const handleAddToStory = async () => {
     try {
       toast({
-        description: "Reel added to your stories!",
+        description: `${postTypeLabelCapitalized} added to your stories!`,
       });
       onOpenChange(false);
     } catch (err) {
@@ -118,19 +122,19 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
   };
 
   const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`Check out @${post.user.username}'s Reel on Next Social!`);
+    const text = encodeURIComponent(`Check out @${post.user.username}'s ${postTypeLabel} on Next Social!`);
     const url = encodeURIComponent(`${window.location.origin}/posts/${post.id}`);
     window.open(`https://api.whatsapp.com/send?text=${text}%20${url}`, "_blank");
   };
 
   const handleXShare = () => {
-    const text = encodeURIComponent(`Check out @${post.user.username}'s Reel on Next Social!`);
+    const text = encodeURIComponent(`Check out @${post.user.username}'s ${postTypeLabel} on Next Social!`);
     const url = encodeURIComponent(`${window.location.origin}/posts/${post.id}`);
     window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, "_blank");
   };
 
   const handleSmsShare = () => {
-    const text = encodeURIComponent(`Check out @${post.user.username}'s Reel: ${window.location.origin}/posts/${post.id}`);
+    const text = encodeURIComponent(`Check out @${post.user.username}'s ${postTypeLabel}: ${window.location.origin}/posts/${post.id}`);
     window.open(`sms:?&body=${text}`, "_blank");
   };
 
@@ -138,18 +142,18 @@ export default function ReelsShareDialog({ post, open, onOpenChange }: ReelsShar
 
   return (
     <div 
-      className="absolute inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl transition-all duration-75 ease-out"
+      className="fixed inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl transition-all duration-75 ease-out"
       onClick={() => onOpenChange(false)}
     >
       {/* Sheet Content Card */}
       <div 
-        className="bg-[#121212] border-t border-zinc-800 rounded-t-3xl max-h-[80%] p-4.5 flex flex-col gap-4 animate-slide-up"
+        className="bg-[#121212] border-t border-zinc-800 rounded-t-3xl max-h-[80%] p-4.5 flex flex-col gap-4 animate-slide-up md:max-w-md md:mx-auto md:w-full"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
         <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
 
-        {/* Header section (perfect title centering and absolute close button) */}
+        {/* Header section */}
         <div className="relative px-5 py-3 border-b border-zinc-900 flex items-center justify-center flex-shrink-0">
           <span className="font-black text-white text-[17px] tracking-wide">Share</span>
           <button 

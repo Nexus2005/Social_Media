@@ -27,9 +27,8 @@ import {
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
 import ReelsCommentDialog from "./ReelsCommentDialog";
-import ReelsShareDialog from "./ReelsShareDialog";
+import ShareDialog from "@/components/posts/ShareDialog";
 import RepostButton from "@/components/posts/RepostButton";
-import { LikeIcon, CommentIcon, ShareIcon, SaveIcon } from "./ReelsIcons";
 import { useToast } from "../ui/use-toast";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -748,7 +747,7 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className={cn("absolute right-4 mr-1 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
+          <div className={cn("absolute right-2 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
             {/* Like */}
             <div className="flex flex-col items-center">
               <motion.button
@@ -761,7 +760,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center text-white"
                 title="Like"
               >
-                <LikeIcon isLiked={likeData.isLikedByUser} className="w-7 h-7 text-white" />
+                <Heart className={cn("w-7 h-7 transition-colors duration-200 text-white", likeData.isLikedByUser && "text-red-500 fill-red-500")} strokeWidth={1.5} />
               </motion.button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {likeData.likes.toLocaleString()}
@@ -780,7 +779,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center text-white"
                 title="Comments"
               >
-                <CommentIcon className="w-7 h-7 text-white" />
+                <MessageCircle className="w-7 h-7 text-white transition-colors duration-200" strokeWidth={1.5} />
               </motion.button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {post._count.comments.toLocaleString()}
@@ -802,7 +801,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center text-white"
                 title="Share Reel"
               >
-                <ShareIcon className="w-7 h-7 text-white" />
+                <Send className="w-7 h-7 text-white transition-colors duration-200" strokeWidth={1.5} />
               </motion.button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Share</span>
             </div>
@@ -819,7 +818,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center text-white"
                 title="Save"
               >
-                <SaveIcon isBookmarked={bookmarkData.isBookmarkedByUser} className="w-7 h-7 text-white" />
+                <Bookmark className={cn("w-7 h-7 transition-colors duration-200 text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.5} />
               </motion.button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Save</span>
             </div>
@@ -947,7 +946,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center text-white"
               title="Like"
             >
-              <LikeIcon isLiked={likeData.isLikedByUser} className="w-7 h-7 text-black dark:text-white animate-in" />
+              <Heart className={cn("w-7 h-7 transition-colors duration-200 text-black dark:text-white", likeData.isLikedByUser && "text-red-500 fill-red-500")} strokeWidth={1.5} />
             </motion.button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {likeData.likes.toLocaleString()}
@@ -963,7 +962,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center text-white"
               title="Comments"
             >
-              <CommentIcon className="w-7 h-7 text-black dark:text-white" />
+              <MessageCircle className="w-7 h-7 text-black dark:text-white transition-colors duration-200" strokeWidth={1.5} />
             </motion.button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {post._count.comments.toLocaleString()}
@@ -982,7 +981,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center text-white"
               title="Share Reel"
             >
-              <ShareIcon className="w-7 h-7 text-black dark:text-white" />
+              <Send className="w-7 h-7 text-black dark:text-white transition-colors duration-200" strokeWidth={1.5} />
             </motion.button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Share</span>
           </div>
@@ -996,7 +995,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center text-white"
               title="Save"
             >
-              <SaveIcon isBookmarked={bookmarkData.isBookmarkedByUser} className="w-7 h-7 text-black dark:text-white" />
+              <Bookmark className={cn("w-7 h-7 transition-colors duration-200 text-black dark:text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} strokeWidth={1.5} />
             </motion.button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Save</span>
           </div>
@@ -1108,7 +1107,7 @@ export default function ReelCard({
 
       {/* Reels Share Bottom Sheet Dialog */}
       {isShareOpen && (
-        <ReelsShareDialog
+        <ShareDialog
           post={post}
           open={isShareOpen}
           onOpenChange={setIsShareOpen}
