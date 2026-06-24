@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SpotsIcon } from "./CartlySidebar";
 import ProfileMenuDrawer from "./users/[username]/ProfileMenuDrawer";
+import { ENABLE_YOUTUBE_CREATION_FLOW } from "@/lib/featureFlags";
 
 interface MobileNavigationProps {
   initialNotificationsCount: number;
@@ -53,7 +54,7 @@ export default function MobileNavigation({
     refetchInterval: 60 * 1000,
   });
 
-  if (pathname === "/create") return null;
+  if (pathname === "/create" || pathname === "/create-youtube-post") return null;
 
   const isHome = pathname === "/";
   const isProfile = pathname.startsWith("/users/") && !pathname.includes("/followers") && !pathname.includes("/following");
@@ -138,7 +139,7 @@ export default function MobileNavigation({
               <div className="flex items-center gap-1">
                 {/* Create/Add */}
                 <Link
-                  href="/create"
+                  href={ENABLE_YOUTUBE_CREATION_FLOW ? "/create-youtube-post" : "/create"}
                   className="flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
                   title="Create Post"
                 >
@@ -196,13 +197,13 @@ export default function MobileNavigation({
           />
         </Link>
         <Link
-          href="/create"
+          href={ENABLE_YOUTUBE_CREATION_FLOW ? "/create-youtube-post" : "/create"}
           className="flex h-11 w-11 items-center justify-center transition-colors"
         >
           <PlusSquare
-            className={pathname === "/create" ? "size-[26px]" : "size-6"}
-            stroke={pathname === "/create" ? "white" : "#71717A"}
-            strokeWidth={pathname === "/create" ? 2.25 : 1.75}
+            className={pathname === "/create" || pathname === "/create-youtube-post" ? "size-[26px]" : "size-6"}
+            stroke={pathname === "/create" || pathname === "/create-youtube-post" ? "white" : "#71717A"}
+            strokeWidth={pathname === "/create" || pathname === "/create-youtube-post" ? 2.25 : 1.75}
           />
         </Link>
         <Link
