@@ -748,7 +748,7 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className={cn("absolute right-2 bottom-20 z-20 flex flex-col items-center gap-2 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
+          <div className={cn("absolute right-2 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
             {/* Like */}
             <div className="flex flex-col items-center">
               <button
@@ -759,7 +759,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Like"
               >
-                <LikeIcon className={cn("size-6.5 transition-colors duration-200 text-white", likeData.isLikedByUser && "text-[#ff3040] fill-[#ff3040]")} />
+                <LikeIcon className={cn("w-7 h-7 transition-colors duration-200 text-white", likeData.isLikedByUser && "text-[#ff3040] fill-[#ff3040]")} />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {likeData.likes.toLocaleString()}
@@ -776,7 +776,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Comments"
               >
-                <CommentIcon className="size-6.5 text-white transition-colors duration-200" />
+                <CommentIcon className="w-7 h-7 text-white transition-colors duration-200" />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">
                 {post._count.comments.toLocaleString()}
@@ -796,7 +796,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Share Reel"
               >
-                <ShareIcon className="size-6.5 text-white transition-colors duration-200" />
+                <ShareIcon className="w-7 h-7 text-white transition-colors duration-200" />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Share</span>
             </div>
@@ -811,7 +811,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Save"
               >
-                <SaveIcon className={cn("size-6.5 transition-colors duration-200 text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} />
+                <SaveIcon className={cn("w-7 h-7 transition-colors duration-200 text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">Save</span>
             </div>
@@ -826,7 +826,7 @@ export default function ReelCard({
                 className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Options"
               >
-                <MoreHorizontal className="size-6.5" strokeWidth={1.5} />
+                <MoreHorizontal className="w-7 h-7" strokeWidth={1.5} />
               </button>
               <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mt-0.5">More</span>
             </div>
@@ -927,7 +927,7 @@ export default function ReelCard({
         </div>
 
         {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
-        <div className={cn("hidden md:flex flex-col items-center gap-2.5 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
+        <div className={cn("hidden md:flex flex-col items-center justify-center gap-5 w-16 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
           {/* Like */}
           <div className="flex flex-col items-center">
             <button
@@ -935,7 +935,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Like"
             >
-              <LikeIcon className={cn("size-6.5 transition-colors duration-200 text-black dark:text-white", likeData.isLikedByUser && "text-[#ff3040] fill-[#ff3040]")} />
+              <LikeIcon className={cn("w-7 h-7 transition-colors duration-200 text-black dark:text-white", likeData.isLikedByUser && "text-[#ff3040] fill-[#ff3040]")} />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {likeData.likes.toLocaleString()}
@@ -949,7 +949,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Comments"
             >
-              <CommentIcon className="size-6.5 text-black dark:text-white transition-colors duration-200" />
+              <CommentIcon className="w-7 h-7 text-black dark:text-white transition-colors duration-200" />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">
               {post._count.comments.toLocaleString()}
@@ -966,7 +966,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Share Reel"
             >
-              <ShareIcon className="size-6.5 text-black dark:text-white transition-colors duration-200" />
+              <ShareIcon className="w-7 h-7 text-black dark:text-white transition-colors duration-200" />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Share</span>
           </div>
@@ -978,7 +978,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Save"
             >
-              <SaveIcon className={cn("size-6.5 transition-colors duration-200 text-black dark:text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} />
+              <SaveIcon className={cn("w-7 h-7 transition-colors duration-200 text-black dark:text-white", bookmarkData.isBookmarkedByUser && "fill-white text-white")} />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">Save</span>
           </div>
@@ -990,7 +990,7 @@ export default function ReelCard({
               className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
               title="Options"
             >
-              <MoreHorizontal className="size-6.5" strokeWidth={1.5} />
+              <MoreHorizontal className="w-7 h-7" strokeWidth={1.5} />
             </button>
             <span className="text-[11px] font-semibold text-zinc-300 mt-0.5">More</span>
           </div>

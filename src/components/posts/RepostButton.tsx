@@ -93,19 +93,19 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
           <DropdownMenuTrigger asChild>
             <div className="flex flex-col items-center">
               <button
-                className="h-12 w-12 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
+                className="h-10 w-10 flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-white"
                 title="Repost"
               >
                 <Repeat2
                   className={cn(
-                    "size-7 transition-colors",
+                    "w-7 h-7 transition-colors",
                     data.isRepostedByUser && "text-green-500"
                   )}
                   strokeWidth={1.75}
                 />
               </button>
               <span className={cn(
-                "text-[12px] font-semibold mt-0.5",
+                "text-[11px] font-semibold mt-0.5",
                 isDesktop ? "text-zinc-300" : "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
               )}>
                 {data.reposts > 0 ? data.reposts.toLocaleString() : "Repost"}

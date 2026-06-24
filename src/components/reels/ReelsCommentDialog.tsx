@@ -21,7 +21,7 @@ export default function ReelsCommentDialog({
         <DialogHeader className="px-6 py-4 border-b border-zinc-900/60 flex-shrink-0">
           <DialogTitle className="text-center font-black text-white text-base">Comments</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-4 scrollbar-none">
+        <div className="flex flex-col flex-grow overflow-hidden">
           <ReelsComments post={post} />
         </div>
       </DialogContent>

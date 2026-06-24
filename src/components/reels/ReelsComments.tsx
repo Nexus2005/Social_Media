@@ -42,34 +42,40 @@ export default function ReelsComments({ post }: ReelsCommentsProps) {
   }
 
   return (
-    <div className="space-y-4 flex flex-col h-full select-none bg-[#090909]">
-      <ReelsCommentInput post={post} />
-      
-      {hasNextPage && (
-        <Button
-          variant="link"
-          className="mx-auto block text-xs font-semibold text-zinc-400 hover:text-white"
-          disabled={isFetching}
-          onClick={() => fetchNextPage()}
-        >
-          Load previous comments
-        </Button>
-      )}
+    <div className="flex flex-col h-full select-none bg-[#090909] overflow-hidden">
+      {/* Scrollable list container */}
+      <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-none">
+        {hasNextPage && (
+          <Button
+            variant="link"
+            className="mx-auto block text-xs font-semibold text-zinc-400 hover:text-white"
+            disabled={isFetching}
+            onClick={() => fetchNextPage()}
+          >
+            Load previous comments
+          </Button>
+        )}
 
-      {status === "pending" && <Loader2 className="mx-auto animate-spin text-zinc-650" />}
-      {status === "success" && !comments.length && (
-        <p className="text-center text-xs text-zinc-550 py-8">No comments yet.</p>
-      )}
-      {status === "error" && (
-        <p className="text-center text-xs text-destructive py-8">
-          An error occurred while loading comments.
-        </p>
-      )}
+        {status === "pending" && <Loader2 className="mx-auto animate-spin text-zinc-650" />}
+        {status === "success" && !comments.length && (
+          <p className="text-center text-xs text-zinc-550 py-8">No comments yet.</p>
+        )}
+        {status === "error" && (
+          <p className="text-center text-xs text-destructive py-8">
+            An error occurred while loading comments.
+          </p>
+        )}
 
-      <div className="divide-y divide-zinc-900/40 overflow-y-auto pr-1">
-        {comments.map((comment) => (
-          <ReelsComment key={comment.id} comment={comment} postUserId={post.user.id} />
-        ))}
+        <div className="divide-y divide-zinc-900/40">
+          {comments.map((comment) => (
+            <ReelsComment key={comment.id} comment={comment} postUserId={post.user.id} />
+          ))}
+        </div>
+      </div>
+
+      {/* Input container strictly pinned at bottom */}
+      <div className="border-t border-zinc-900/60 p-4 bg-[#090909] shrink-0">
+        <ReelsCommentInput post={post} />
       </div>
     </div>
   );
