@@ -60,6 +60,7 @@ export default function StoryViewer({
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [copied, setCopied] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [viewportOffsetTop, setViewportOffsetTop] = useState(0);
   const [stageHeight, setStageHeight] = useState<string>("100%");
   const [isMobile, setIsMobile] = useState(false);
 
@@ -208,6 +209,7 @@ export default function StoryViewer({
       if (viewport) {
         const offset = window.innerHeight - viewport.height;
         setKeyboardHeight(offset > 80 ? offset : 0);
+        setViewportOffsetTop(viewport.offsetTop || 0);
         window.scrollTo(0, 0);
       }
     };
@@ -240,6 +242,41 @@ export default function StoryViewer({
 
     window.visualViewport?.addEventListener("resize", handleResize);
     return () => window.visualViewport?.removeEventListener("resize", handleResize);
+  }, [open]);
+
+  // Lock body/html scroll when story viewer is open
+  useEffect(() => {
+    if (!open) return;
+
+    const originalBodyStyles = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      height: document.body.style.height,
+      width: document.body.style.width,
+      top: document.body.style.top,
+    };
+    const originalHtmlStyles = {
+      overflow: document.documentElement.style.overflow,
+      position: document.documentElement.style.position,
+      height: document.documentElement.style.height,
+      width: document.documentElement.style.width,
+    };
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.height = "100%";
+    document.body.style.width = "100%";
+    document.body.style.top = "0";
+
+    document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.position = "fixed";
+    document.documentElement.style.height = "100%";
+    document.documentElement.style.width = "100%";
+
+    return () => {
+      Object.assign(document.body.style, originalBodyStyles);
+      Object.assign(document.documentElement.style, originalHtmlStyles);
+    };
   }, [open]);
 
   // Prevent window scroll offset when story is active/focused
@@ -467,7 +504,7 @@ export default function StoryViewer({
   };
 
   return (
-    <div className="fixed inset-0 h-[100dvh] z-50 flex items-center justify-center bg-neutral-950/95 backdrop-blur-sm select-none overflow-hidden">
+    <div className="fixed inset-0 w-screen h-screen h-[100dvh] z-50 flex items-center justify-center bg-neutral-950/95 backdrop-blur-sm select-none overflow-hidden">
       {/* Background click to close */}
       <div className="absolute inset-0 cursor-default" onClick={onClose} />
 
@@ -490,102 +527,111 @@ export default function StoryViewer({
         style={{ height: isMobile ? stageHeight : undefined }}
         className="relative w-full max-w-[420px] h-[100dvh] sm:h-[90vh] sm:max-h-[760px] bg-black sm:rounded-xl overflow-hidden flex items-center justify-center z-10 shadow-2xl"
       >
-        {/* Progress Bar Indicators at the top */}
-        <div className="absolute top-3 left-3 right-3 flex gap-1 z-50 pointer-events-none">
-          {currentUserStories.stories.map((s, idx) => {
-            let width = "0%";
-            if (idx < storyIndex) width = "100%";
-            else if (idx === storyIndex) width = `${progress}%`;
+        {/* Pinned Top Container (Header & Progress Bars) */}
+        <div 
+          style={{ transform: `translateY(${viewportOffsetTop}px)` }}
+          className="absolute top-0 left-0 w-full z-50 transition-transform duration-75 ease-out pointer-events-none"
+        >
+          {/* Progress Bar Indicators at the top */}
+          <div className="absolute top-3 left-3 right-3 flex gap-1 pointer-events-none">
+            {currentUserStories.stories.map((s, idx) => {
+              let width = "0%";
+              if (idx < storyIndex) width = "100%";
+              else if (idx === storyIndex) width = `${progress}%`;
 
-            return (
-              <div
-                key={s.id}
-                className="h-[2px] flex-grow bg-white/30 rounded-full overflow-hidden"
-              >
+              return (
                 <div
-                  className="h-full bg-white transition-all duration-75 ease-linear"
-                  style={{ width }}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Top Header Overlay */}
-        <div className="absolute top-0 left-0 w-full p-4 pt-7 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-50">
-          <div className="flex items-center gap-2.5">
-            <div className="relative size-8 rounded-full overflow-hidden border border-white/20">
-              {currentUserStories.user.avatarUrl ? (
-                <Image
-                  src={currentUserStories.user.avatarUrl}
-                  alt={currentUserStories.user.username}
-                  fill
-                  sizes="32px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-neutral-700 flex items-center justify-center font-bold text-xs uppercase">
-                  {currentUserStories.user.username[0]}
+                  key={s.id}
+                  className="h-[2px] flex-grow bg-white/30 rounded-full overflow-hidden"
+                >
+                  <div
+                    className="h-full bg-white transition-all duration-75 ease-linear"
+                    style={{ width }}
+                  />
                 </div>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold text-[13px] leading-tight drop-shadow">
-                {currentUserStories.user.username}
-              </span>
-              <span className="text-[10px] text-white/70 leading-none drop-shadow">
-                {formatRelativeDate(new Date(currentStory.createdAt))}
-              </span>
-            </div>
+              );
+            })}
           </div>
 
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {/* Play/Pause Button */}
-            <button
-              onClick={togglePause}
-              className="text-white hover:text-white/80 p-1 rounded-full transition-colors"
-            >
-              {isPaused ? <Play className="size-4 fill-white" /> : <Pause className="size-4 fill-white" />}
-            </button>
+          {/* Top Header Overlay */}
+          <div className="w-full p-4 pt-7 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white pointer-events-auto">
+            <div className="flex items-center gap-2.5">
+              <div className="relative size-8 rounded-full overflow-hidden border border-white/20">
+                {currentUserStories.user.avatarUrl ? (
+                  <Image
+                    src={currentUserStories.user.avatarUrl}
+                    alt={currentUserStories.user.username}
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-neutral-700 flex items-center justify-center font-bold text-xs uppercase">
+                    {currentUserStories.user.username[0]}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="font-semibold text-[13px] leading-tight drop-shadow">
+                  {currentUserStories.user.username}
+                </span>
+                <span className="text-[10px] text-white/70 leading-none drop-shadow">
+                  {formatRelativeDate(new Date(currentStory.createdAt))}
+                </span>
+              </div>
+            </div>
 
-            {/* Mute Button */}
-            {currentStory.mediaType === "VIDEO" && (
+            <div className="flex items-center gap-2">
+              {/* Play/Pause Button */}
               <button
-                onClick={toggleMute}
-                className="text-white hover:text-white/80 p-1 rounded-full transition-colors"
+                onClick={togglePause}
+                className="text-white hover:text-white/80 p-1 rounded-full transition-colors cursor-pointer"
               >
-                {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                {isPaused ? <Play className="size-4 fill-white" /> : <Pause className="size-4 fill-white" />}
               </button>
-            )}
 
-            {/* Options Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsPaused(true);
-                setShowOptionsSheet(true);
-              }}
-              className="text-white hover:text-white/80 p-1.5 rounded-full transition-colors"
-              title="More options"
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
+              {/* Mute Button */}
+              {currentStory.mediaType === "VIDEO" && (
+                <button
+                  onClick={toggleMute}
+                  className="text-white hover:text-white/80 p-1 rounded-full transition-colors cursor-pointer"
+                >
+                  {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                </button>
+              )}
 
-            {/* Close Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="text-white hover:text-white/80 p-1 rounded-full transition-colors"
-            >
-              <X className="size-5" />
-            </button>
+              {/* Options Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPaused(true);
+                  setShowOptionsSheet(true);
+                }}
+                className="text-white hover:text-white/80 p-1.5 rounded-full transition-colors cursor-pointer"
+                title="More options"
+              >
+                <MoreHorizontal className="size-5" />
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="text-white hover:text-white/80 p-1 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Media Render (Image or Video) */}
-        <div className="w-full h-full flex items-center justify-center">
+        <div 
+          style={{ transform: `translateY(${viewportOffsetTop}px)` }}
+          className="w-full h-full flex items-center justify-center transition-transform duration-75 ease-out"
+        >
           {currentStory.mediaType === "IMAGE" ? (
             <div className="relative w-full h-full">
               <Image
@@ -614,8 +660,11 @@ export default function StoryViewer({
         {/* Instant Emojis reactions panel (Instagram-style overlay) */}
         {showEmojis && (
           <div 
-            className="absolute inset-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-end p-4 pointer-events-auto"
-            style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight + 64}px` : "80px" }}
+            className="absolute left-0 right-0 z-30 bg-black/45 backdrop-blur-[6px] flex flex-col justify-center items-center pointer-events-auto transition-all duration-75 ease-out"
+            style={{ 
+              top: `${viewportOffsetTop}px`,
+              height: window.visualViewport ? `${window.visualViewport.height}px` : "100%"
+            }}
             onClick={() => {
               setShowEmojis(false);
               setIsPaused(false);
@@ -624,7 +673,7 @@ export default function StoryViewer({
           >
             {/* Emojis Grid (Centered) */}
             <div 
-              className="flex-1 flex flex-col items-center justify-center gap-6 pb-12 animate-slide-up"
+              className="flex flex-col items-center justify-center gap-6 animate-slide-up"
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.preventDefault()}
             >
@@ -645,8 +694,8 @@ export default function StoryViewer({
 
         {/* Bottom Reply/Action Bar (Instagram-style Pill Input + Right Actions) */}
         <div 
-          className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3 pointer-events-auto transition-all duration-200"
-          style={{ bottom: keyboardHeight > 0 ? `${keyboardHeight + 12}px` : "16px" }}
+          className="absolute bottom-4 left-4 right-4 z-40 flex items-center gap-3 pointer-events-auto transition-transform duration-75 ease-out"
+          style={{ transform: `translateY(${viewportOffsetTop - keyboardHeight}px)` }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Send Message Input Pill */}
@@ -669,7 +718,7 @@ export default function StoryViewer({
                   handleSendMessage(inputText);
                 }
               }}
-              className="w-full min-w-0 bg-transparent text-white text-sm outline-none placeholder:text-white/60 pr-2 clip-path"
+              className="w-full min-w-0 bg-transparent text-white text-[16px] md:text-sm outline-none placeholder:text-white/60 pr-2 clip-path"
             />
             {inputText.trim() && (
               <button 
@@ -723,7 +772,11 @@ export default function StoryViewer({
         {/* Share Bottom Sheet drawer */}
         {showShareSheet && (
           <div 
-            className="absolute inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl"
+            className="absolute left-0 right-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl transition-all duration-75 ease-out"
+            style={{
+              top: `${viewportOffsetTop}px`,
+              height: window.visualViewport ? `${window.visualViewport.height}px` : "100%"
+            }}
             onClick={() => {
               setShowShareSheet(false);
               setIsPaused(false);
@@ -758,7 +811,7 @@ export default function StoryViewer({
                   placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#262626] border border-transparent rounded-xl py-2 pl-10 pr-4 text-[14px] text-white placeholder:text-zinc-550 outline-none focus:border-zinc-700"
+                  className="w-full bg-[#262626] border border-transparent rounded-xl py-2 pl-10 pr-4 text-[16px] md:text-[14px] text-white placeholder:text-zinc-550 outline-none focus:border-zinc-700"
                 />
               </div>
 
@@ -859,7 +912,11 @@ export default function StoryViewer({
         {/* Report / Mute Options Bottom Sheet */}
         {showOptionsSheet && (
           <div 
-            className="absolute inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto"
+            className="absolute left-0 right-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto transition-all duration-75 ease-out"
+            style={{
+              top: `${viewportOffsetTop}px`,
+              height: window.visualViewport ? `${window.visualViewport.height}px` : "100%"
+            }}
             onClick={() => {
               setShowOptionsSheet(false);
               setIsPaused(false);
