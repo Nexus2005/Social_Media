@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
+import GalleryPicker from "./GalleryPicker";
 import "./styles.css";
 
 const filterPresets = [
@@ -124,7 +125,8 @@ type PanelType =
   | "collab" 
   | "settings" 
   | "alt-text"
-  | "draft-recovery";
+  | "draft-recovery"
+  | "gallery";
 
 export default function PostEditor({ onClose }: PostEditorProps) {
   const { user } = useSession();
@@ -1569,6 +1571,16 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             </div>
           </div>
         );
+      case "gallery":
+        return (
+          <GalleryPicker
+            onClose={() => setActivePanel("none")}
+            onSelectImages={(files) => {
+              startUpload(files);
+            }}
+            onOpenCamera={() => setActivePanel("camera")}
+          />
+        );
       default:
         return null;
     }
@@ -1769,7 +1781,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
       {/* Pinned Bottom Area (stays above bottom toolbar, outside the scrollable view) */}
       <div className="flex flex-col bg-black border-t border-zinc-900 pb-3 pt-2 gap-3 flex-shrink-0 select-none">
         {/* Media Preview Row (Horizontal scroll) */}
-        <div className="pl-[52px] w-full">
+        <div className="pl-4 sm:pl-[52px] w-full">
           <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none items-center">
             {/* 1. Camera Button */}
             <button
@@ -1840,7 +1852,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
         </div>
 
         {/* Audience / Who Can Reply Selector */}
-        <div className="pl-[52px] select-none">
+        <div className="pl-4 sm:pl-[52px] select-none">
           <button
             type="button"
             onClick={() => setActivePanel("audience")}
@@ -1860,7 +1872,7 @@ export default function PostEditor({ onClose }: PostEditorProps) {
             {/* Gallery Button */}
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setActivePanel("gallery")}
               className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900/60 rounded-full transition-colors flex items-center justify-center cursor-pointer group"
               title="Gallery"
             >
