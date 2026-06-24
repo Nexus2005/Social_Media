@@ -140,13 +140,22 @@ export default function ProfileLayoutClient({
           )}
         </div>
 
-        {/* 2. Avatar with 50% overlap */}
-        <div className="px-4 md:px-6 relative -mt-[50px] sm:-mt-[60px] md:-mt-[60px] flex justify-between items-end z-10">
+        {/* 2. Avatar with 50% overlap and Stats Row next to it */}
+        <div className="px-4 md:px-6 relative -mt-[50px] sm:-mt-[60px] md:-mt-[60px] flex justify-between items-end gap-4 z-10 w-full">
           <div className="shrink-0 rounded-full border-4 border-black bg-black">
             <UserAvatar
               avatarUrl={user.avatarUrl}
               size={120}
               className="w-[96px] h-[96px] sm:w-[120px] sm:h-[120px] rounded-full object-cover border border-zinc-800 bg-zinc-900"
+            />
+          </div>
+          <div className="flex-1 max-w-[280px] sm:max-w-[340px] mb-2 sm:mb-4 select-none">
+            <ProfileFollowsInfo
+              userId={user.id}
+              username={user.username}
+              initialFollowerState={followerInfo}
+              initialFollowingCount={user._count.following}
+              postsCount={user._count.posts}
             />
           </div>
         </div>
@@ -161,13 +170,15 @@ export default function ProfileLayoutClient({
               <VerifiedBadge size={15} className="shrink-0" />
             )}
           </div>
-          <p className="text-[14px] text-zinc-400 font-normal">@{user.username}</p>
-
-          {user.professionalCategory && (
-            <p className="text-[13px] text-zinc-400 font-medium bg-zinc-900 border border-zinc-800/60 px-2 py-0.5 rounded-full w-fit">
-              {user.professionalCategory}
-            </p>
-          )}
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-[14px] text-zinc-400 font-normal">@{user.username}</p>
+            {user.professionalCategory && (
+              <span className="text-[12px] text-zinc-400 font-medium bg-zinc-900 border border-zinc-800/60 px-2 py-0.5 rounded-full shrink-0">
+                {user.professionalCategory}
+              </span>
+            )}
+          </div>
 
           {user.bio && (
             <p className="text-[15px] text-zinc-200 whitespace-pre-line break-words leading-relaxed pt-1 max-w-[500px]">
@@ -210,17 +221,6 @@ export default function ProfileLayoutClient({
             <MutualsLink userId={user.id} />
           </div>
         )}
-
-        {/* 5. Stats Row (posts, followers, following) */}
-        <div className="px-4 md:px-6 pt-4 select-none">
-          <ProfileFollowsInfo
-            userId={user.id}
-            username={user.username}
-            initialFollowerState={followerInfo}
-            initialFollowingCount={user._count.following}
-            postsCount={user._count.posts}
-          />
-        </div>
 
         {/* 6 & 7. Actions & Professional Dashboard */}
         <div className="px-4 md:px-6 pt-4 pb-4 border-b border-[#1A1A1A] space-y-2 select-none">
