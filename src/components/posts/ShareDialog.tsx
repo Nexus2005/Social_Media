@@ -4,6 +4,7 @@ import { useSession } from "@/app/(main)/SessionProvider";
 import { useChat } from "@/app/(main)/ChatProvider";
 import { Search, X, Loader2, Check } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { PostData } from "@/lib/types";
 import { useToast } from "../ui/use-toast";
 
@@ -23,9 +24,90 @@ export default function ShareDialog({ post, open, onOpenChange }: ShareDialogPro
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 0);
+  const [viewportOffsetTop, setViewportOffsetTop] = useState(0);
+
   const isReel = post.attachments.some((att) => att.mediaType === "VIDEO");
   const postTypeLabel = isReel ? "Reel" : "post";
   const postTypeLabelCapitalized = isReel ? "Reel" : "Post";
+
+  // Track visual viewport to adjust overlay container top/height on soft keyboard resize
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window === "undefined") return;
+
+    const handleResize = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+
+      // Force scroll offset back to 0 to prevent browser scroll-shifting
+      window.scrollTo(0, 0);
+
+      setViewportHeight(vv.height);
+      setViewportOffsetTop(vv.offsetTop || 0);
+    };
+
+    const handleWindowScroll = () => {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleResize);
+      window.visualViewport.addEventListener("scroll", handleResize);
+      handleResize();
+    }
+
+    return () => {
+      window.removeEventListener("scroll", handleWindowScroll);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleResize);
+        window.visualViewport.removeEventListener("scroll", handleResize);
+      }
+    };
+  }, []);
+
+  // Lock body scroll and add class when open
+  useEffect(() => {
+    if (!open) return;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyHeight = document.body.style.height;
+    const originalBodyWidth = document.body.style.width;
+
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalHtmlPosition = document.documentElement.style.position;
+    const originalHtmlHeight = document.documentElement.style.height;
+    const originalHtmlWidth = document.documentElement.style.width;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.height = "100%";
+    document.body.style.width = "100%";
+    document.body.classList.add("share-dialog-active");
+
+    document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.position = "fixed";
+    document.documentElement.style.height = "100%";
+    document.documentElement.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.height = originalBodyHeight;
+      document.body.style.width = originalBodyWidth;
+      document.body.classList.remove("share-dialog-active");
+
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.documentElement.style.position = originalHtmlPosition;
+      document.documentElement.style.height = originalHtmlHeight;
+      document.documentElement.style.width = originalHtmlWidth;
+    };
+  }, [open]);
 
   // Fetch active contacts when dialog is open
   useEffect(() => {
@@ -138,11 +220,15 @@ export default function ShareDialog({ post, open, onOpenChange }: ShareDialogPro
     window.open(`sms:?&body=${text}`, "_blank");
   };
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl transition-all duration-75 ease-out"
+      className="absolute inset-x-0 bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl transition-all duration-75 ease-out z-[100]"
+      style={{
+        top: `${viewportOffsetTop}px`,
+        height: `${viewportHeight}px`,
+      }}
       onClick={() => onOpenChange(false)}
     >
       {/* Sheet Content Card */}
@@ -266,6 +352,7 @@ export default function ShareDialog({ post, open, onOpenChange }: ShareDialogPro
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

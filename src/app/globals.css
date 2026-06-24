@@ -352,8 +352,11 @@ body[data-commerce-immersive="true"] nav.fixed {
   display: none !important;
 }
 
-/* Hide fixed bottom navigation when chat is active on mobile size */
-body.chat-active nav.fixed.bottom-0 {
+/* Hide fixed bottom navigation when chat, comments, share, or custom drawer is active on mobile size */
+body.chat-active nav.fixed.bottom-0,
+body.comment-dialog-active nav.fixed.bottom-0,
+body.share-dialog-active nav.fixed.bottom-0,
+body.drawer-active nav.fixed.bottom-0 {
   display: none !important;
 }
 

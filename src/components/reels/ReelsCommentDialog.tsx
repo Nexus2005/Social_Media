@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import ReelsComments from "./ReelsComments";
 import { PostData } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,9 @@ export default function ReelsCommentDialog({
   onOpenChange,
 }: ReelsCommentDialogProps) {
   const [active, setActive] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 0);
+  const [viewportOffsetTop, setViewportOffsetTop] = useState(0);
 
   // Handle sliding entry transition
   useEffect(() => {
@@ -35,23 +38,42 @@ export default function ReelsCommentDialog({
     }, 300); // Matches transition-all duration-300
   };
 
-  // Track visual viewport to adjust bottom sheet height on soft keyboard resize
+  // Track visual viewport to adjust bottom sheet position/height on soft keyboard resize
   useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
+    setMounted(true);
+    if (typeof window === "undefined") return;
 
     const handleResize = () => {
       const vv = window.visualViewport;
       if (!vv) return;
-      // Calculate keyboard height as difference between window height and visual viewport height
-      const heightDiff = window.innerHeight - vv.height;
-      setKeyboardHeight(Math.max(0, heightDiff));
+
+      // Force scroll offset back to 0 to prevent browser scroll-shifting
+      window.scrollTo(0, 0);
+
+      setViewportHeight(vv.height);
+      setViewportOffsetTop(vv.offsetTop || 0);
     };
 
-    window.visualViewport.addEventListener("resize", handleResize);
-    handleResize();
+    const handleWindowScroll = () => {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleResize);
+      window.visualViewport.addEventListener("scroll", handleResize);
+      handleResize();
+    }
 
     return () => {
-      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleWindowScroll);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleResize);
+        window.visualViewport.removeEventListener("scroll", handleResize);
+      }
     };
   }, []);
 
@@ -71,6 +93,7 @@ export default function ReelsCommentDialog({
     document.body.style.position = "fixed";
     document.body.style.height = "100%";
     document.body.style.width = "100%";
+    document.body.classList.add("comment-dialog-active");
 
     document.documentElement.style.overflow = "hidden";
     document.documentElement.style.position = "fixed";
@@ -82,6 +105,7 @@ export default function ReelsCommentDialog({
       document.body.style.position = originalBodyPosition;
       document.body.style.height = originalBodyHeight;
       document.body.style.width = originalBodyWidth;
+      document.body.classList.remove("comment-dialog-active");
 
       document.documentElement.style.overflow = originalHtmlOverflow;
       document.documentElement.style.position = originalHtmlPosition;
@@ -90,12 +114,14 @@ export default function ReelsCommentDialog({
     };
   }, []);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* Backdrop overlay */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/60 backdrop-blur-sm z-45 transition-opacity duration-300",
+          "fixed inset-0 bg-black/60 backdrop-blur-sm z-[95] transition-opacity duration-300",
           active ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={handleClose}
@@ -104,13 +130,12 @@ export default function ReelsCommentDialog({
       {/* Sheet Container */}
       <div
         className={cn(
-          "fixed left-0 right-0 z-50 w-full bg-zinc-950 rounded-t-[16px] border-t border-zinc-800/80 shadow-2xl flex flex-col overflow-hidden text-white transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] md:max-w-md md:left-1/2 md:-translate-x-1/2",
+          "absolute left-0 right-0 z-[100] w-full bg-zinc-950 rounded-t-[16px] border-t border-zinc-800/80 shadow-2xl flex flex-col overflow-hidden text-white transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] md:max-w-md md:left-1/2 md:-translate-x-1/2",
           active ? "translate-y-0" : "translate-y-full"
         )}
         style={{
-          top: "40dvh",
-          bottom: `${keyboardHeight}px`,
-          height: `calc(60dvh - ${keyboardHeight}px)`,
+          top: `${viewportOffsetTop + 0.4 * viewportHeight}px`,
+          height: `${0.6 * viewportHeight}px`,
         }}
       >
         {/* Custom Header with close button */}
@@ -133,6 +158,7 @@ export default function ReelsCommentDialog({
           <ReelsComments post={post} />
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
