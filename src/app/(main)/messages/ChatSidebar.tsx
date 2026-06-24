@@ -890,10 +890,15 @@ export default function ChatSidebar() {
       </div>
 
       {/* Compose Dialog overlay */}
-      {showNewChatDialog && (
+      {showNewChatDialog && chatClient && (
         <NewChatDialog
           onOpenChange={setShowNewChatDialog}
           onChatCreated={() => setShowNewChatDialog(false)}
+          chatClient={chatClient}
+          onChannelCreated={(channel) => {
+            setActiveChannel(channel);
+            setMobileView("chat");
+          }}
         />
       )}
 

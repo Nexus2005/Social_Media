@@ -121,7 +121,7 @@ function FloatingChatWrapper() {
                 ChannelPreviewCustom={ChannelPreviewCustom}
               />
               
-              {/* New Chat Dialogue Overlay - rendered inside the same StreamChat provider context */}
+              {/* New Chat Dialogue Overlay */}
               {showNewChat && (
                 <NewChatDialog
                   onOpenChange={setShowNewChat}
@@ -129,6 +129,7 @@ function FloatingChatWrapper() {
                     setShowNewChat(false);
                     setView("chat");
                   }}
+                  chatClient={chatClient}
                 />
               )}
             </StreamChat>

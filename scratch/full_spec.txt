@@ -1,0 +1,255 @@
+<USER_REQUEST>
+first push the current verison to github and then cretea the implemntation plan# CARTLY MESSAGING V1 — TELEGRAM ANDROID UI PARITY (STRICT IMPLEMENTATION)
+
+## OBJECTIVE
+
+Build Cartly Messaging to match Telegram Android as closely as possible in:
+
+- Layout
+- Navigation
+- Message interactions
+- Attachment flow
+- Profile screens
+- Search behavior
+- Animations
+- Spacing
+- Typography hierarchy
+- Message grouping
+- File sharing experience
+
+DO NOT redesign.
+
+DO NOT "take inspiration".
+
+DO NOT create a custom messaging UI.
+
+The goal is Telegram Android level familiarity.
+
+If a Telegram user opens Cartly Messages, it should feel instantly familiar.
+
+---
+
+# CORE RULE
+
+Telegram UX = Benchmark
+
+Use Telegram Android for:
+
+- Chat List
+- Chat Screen
+- Contact Profile
+- Media Viewer
+- Attachment Picker
+- Sticker Picker
+- Message Bubbles
+- Search
+- Message Actions
+- Chat Settings
+
+Only replace Telegram branding with Cartly branding.
+
+---
+
+# ARCHITECTURE
+
+Messaging System:
+
+- One-to-One Chats
+- Group Chats
+- Channel Chats (future ready)
+- Voice Messages
+- Video Messages
+- Images
+- Videos
+- Files
+- Contacts
+- Locations
+- Stickers
+- GIFs
+- Reactions
+
+Real-time messaging required.
+
+Messages must appear instantly without refresh.
+
+---
+
+# SCREEN 1
+
+CHAT LIST
+
+Route:
+
+/messages
+
+---
+
+HEADER
+
+Height:
+
+56px
+
+Structure:
+
+Left:
+Cartly
+
+Right:
+Search Icon
+Overflow Menu
+
+Typography:
+
+Same hierarchy as Telegram Android.
+
+---
+
+SEARCH BAR
+
+Directly below header.
+
+Full width.
+
+Rounded.
+
+Same height as Telegram.
+
+Placeholder:
+
+Search Chats
+
+---
+
+ARCHIVED CHATS
+
+First item.
+
+Collapsible.
+
+Same behavior as Telegram.
+
+Unread badge supported.
+
+---
+
+CHAT ROW
+
+Structure:
+
+Avatar
+
+Name
+
+Last Message
+
+Timestamp
+
+Unread Count
+
+Mute Badge
+
+Delivered State
+
+Seen State
+
+---
+
+AVATAR
+
+56px
+
+Circular
+
+Online indicator supported.
+
+---
+
+LAST MESSAGE
+
+Must support:
+
+Text
+
+Photo
+
+<truncated 7148 bytes>
+sage bubbles, chat rows, search bars, menus, profile cards, and media grids must match Telegram density.
+
+---
+
+# TYPOGRAPHY RULES
+
+Do not use oversized text.
+
+Do not use undersized text.
+
+Match Telegram hierarchy:
+
+- Chat Name
+- Last Message
+- Timestamp
+- Status
+- Section Headers
+- Settings Labels
+
+Use proper font weights.
+
+Avoid excessive bold text.
+
+---
+
+# COMPONENT CONSISTENCY
+
+Every button must use the same:
+
+- Radius
+- Height
+- Hover behavior
+- Active behavior
+- Pressed state
+
+Every bottom sheet must use the same:
+
+- Animation
+- Handle
+- Padding
+- Corner radius
+
+Every popup menu must use the same:
+
+- Width
+- Item height
+- Icon alignment
+- Typography
+
+---
+
+# PRODUCTION READINESS
+
+Before marking complete:
+
+- No placeholder icons
+- No emoji shortcuts
+- No temporary UI
+- No mock data layouts
+- No unfinished states
+- No visual inconsistencies
+
+The final result should feel indistinguishable from a mature messaging application used by millions of users daily.
+```
+
+This will prevent Antigravity from inserting the random emoji-heavy UI patterns that many AI builders generate and push it toward a Telegram-quality production interface.
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-23T19:40:48+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\Omkar Ahirrao\Desktop\Next Social\nextjs-15-social-media-app\src\app\api\products\similar\route.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\Omkar Ahirrao\Desktop\Next Social\nextjs-15-social-media-app\src\app\api\admin\backfill-videos\route.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\Omkar Ahirrao\Desktop\Next Social\nextjs-15-social-media-app\src\lib\workers\videoProductWorker.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\Omkar Ahirrao\Desktop\Next Social\nextjs-15-social-media-app\resize-icons.js (LANGUAGE_JAVASCRIPT)
+- c:\Users\Omkar Ahirrao\Desktop\Next Social\nextjs-15-social-media-app\src\app\api\users\[userId]\followers\list\route.ts (LANGUAGE_TYPESCRIPT)
+</ADDITIONAL_METADATA>

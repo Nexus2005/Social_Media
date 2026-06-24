@@ -12,21 +12,26 @@ import useDebounce from "@/hooks/useDebounce";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Loader2, SearchIcon, X, Users, Megaphone } from "lucide-react";
 import { useState } from "react";
-import { UserResponse } from "stream-chat";
-import { DefaultStreamChatGenerics, useChatContext } from "stream-chat-react";
+import { StreamChat, UserResponse } from "stream-chat";
+import { DefaultStreamChatGenerics } from "stream-chat-react";
 import { useSession } from "../SessionProvider";
 import { cn } from "@/lib/utils";
 
 interface NewChatDialogProps {
   onOpenChange: (open: boolean) => void;
   onChatCreated: () => void;
+  /** The StreamChat client instance to use for creating channels */
+  chatClient: StreamChat;
+  /** Called when a channel is created; use to set active channel in parent state */
+  onChannelCreated?: (channel: any) => void;
 }
 
 export default function NewChatDialog({
   onOpenChange,
   onChatCreated,
+  chatClient: client,
+  onChannelCreated,
 }: NewChatDialogProps) {
-  const { client, setActiveChannel } = useChatContext();
 
   const { toast } = useToast();
 
@@ -76,7 +81,9 @@ export default function NewChatDialog({
       return channel;
     },
     onSuccess: (channel) => {
-      setActiveChannel(channel);
+      if (onChannelCreated) {
+        onChannelCreated(channel);
+      }
       onChatCreated();
     },
     onError(error) {
