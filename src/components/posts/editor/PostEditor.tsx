@@ -116,6 +116,7 @@ interface ThreadNode {
 
 interface PostEditorProps {
   onClose?: () => void;
+  className?: string;
 }
 
 type PanelType = 
@@ -135,7 +136,7 @@ type PanelType =
   | "draft-recovery"
   | "gallery";
 
-export default function PostEditor({ onClose }: PostEditorProps) {
+export default function PostEditor({ onClose, className }: PostEditorProps) {
   const { user } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1794,7 +1795,10 @@ export default function PostEditor({ onClose }: PostEditorProps) {
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
+      className={cn(
+        className ? className : "fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0",
+        "w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
+      )}
     >
       <input 
         type="file"

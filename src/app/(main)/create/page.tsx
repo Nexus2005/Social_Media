@@ -173,7 +173,7 @@ export default function CreatePage() {
   const voiceoverChunksRef = useRef<Blob[]>([]);
 
   // Bottom selector modes
-  const modes = ["Video", "Short", "Live", "Post"] as const;
+  const modes = ["Post", "Short", "Video", "Live"] as const;
   type CreatorMode = typeof modes[number];
   const [activeMode, setActiveMode] = useState<CreatorMode>("Post");
 
@@ -1151,7 +1151,7 @@ export default function CreatePage() {
             {/* 1.1 POST MODE */}
             {activeMode === "Post" && (
               <div className="flex flex-col flex-grow w-full h-full relative">
-                <PostEditor onClose={handleClose} />
+                <PostEditor onClose={handleClose} className="relative inset-auto z-0 h-full min-h-0 max-h-none sm:max-h-none rounded-none border-none" />
               </div>
             )}
             {/* 1.2 VIDEO MODE */}
