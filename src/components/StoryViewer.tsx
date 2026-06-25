@@ -1123,7 +1123,7 @@ export default function StoryViewer({
                           onClick={() => handleShareToUser(contact)}
                           className="flex flex-col items-center text-center gap-1.5 group w-full max-w-[90px] transition-transform active:scale-95"
                         >
-                          <div className="relative size-16.5 rounded-full bg-zinc-800 border border-zinc-800 shrink-0 shadow-md">
+                          <div className="relative size-12 rounded-full bg-[#2a87d0] border border-zinc-800 shrink-0 shadow-md flex items-center justify-center">
                             {contact.image || contact.avatarUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img 
@@ -1132,14 +1132,14 @@ export default function StoryViewer({
                                 className="w-full h-full object-cover rounded-full" 
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center font-bold text-[20px] uppercase text-zinc-300 rounded-full">
+                              <span className="font-bold text-[16px] uppercase text-white select-none">
                                 {avatarText}
-                              </div>
+                              </span>
                             )}
                             
                             {/* Online Status Dot */}
                             {isUserOnline && (
-                              <span className="absolute bottom-0.5 right-0.5 size-3.5 bg-green-500 border-2 border-[#121212] rounded-full" />
+                              <span className="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-[#121212] rounded-full shadow-sm" />
                             )}
                           </div>
                           
