@@ -1,17 +1,44 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Play, Pause, Heart, Send, Share2, Search, Copy, Check, Loader2, MessageSquare, MoreHorizontal } from "lucide-react";
+import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Play, Pause, Heart, Send, Share2, Search, Copy, Check, Loader2, MessageSquare, MoreHorizontal, Eye } from "lucide-react";
 import { formatRelativeDate } from "@/lib/utils";
 import Image from "next/image";
 import { useSession } from "@/app/(main)/SessionProvider";
 import { useChat } from "@/app/(main)/ChatProvider";
+import kyInstance from "@/lib/ky";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface StoryViewData {
+  id: string;
+  viewedAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+}
+
+interface StoryLikeData {
+  id: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+}
 
 interface Story {
   id: string;
   mediaUrl: string;
   mediaType: "IMAGE" | "VIDEO";
   createdAt: string;
+  isLiked?: boolean;
+  views?: StoryViewData[];
+  likes?: StoryLikeData[];
 }
 
 interface UserStories {
@@ -40,6 +67,8 @@ export default function StoryViewer({
   const { user: loggedInUser } = useSession();
   const chatClient = useChat();
 
+  const queryClient = useQueryClient();
+
   const [userIndex, setUserIndex] = useState(initialUserIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -51,8 +80,10 @@ export default function StoryViewer({
   const [showEmojis, setShowEmojis] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
+  const [showViewsDrawer, setShowViewsDrawer] = useState(false);
   const [floatingHearts, setFloatingHearts] = useState<Array<{ id: number; left: number; rotate: number; drift: number }>>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [likedState, setLikedState] = useState<Record<string, boolean>>({});
 
   // Sharing states
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,16 +102,28 @@ export default function StoryViewer({
   const currentUserStories = groupedStories[userIndex];
   const currentStory = currentUserStories?.stories[storyIndex];
 
-  // Reset states when switching users
+  const isCurrentlyLiked = likedState[currentStory?.id] ?? currentStory?.isLiked ?? false;
+
+  // Sync like state when story changes
   useEffect(() => {
-    setStoryIndex(0);
+    if (currentStory) {
+      setLikedState((prev) => ({
+        ...prev,
+        [currentStory.id]: currentStory.isLiked ?? false,
+      }));
+    }
+  }, [currentStory?.id, currentStory?.isLiked]);
+
+  // Reset states when switching stories
+  useEffect(() => {
     setProgress(0);
     setIsPaused(false);
     setInputText("");
     setShowEmojis(false);
     setShowShareSheet(false);
     setShowOptionsSheet(false);
-  }, [userIndex]);
+    setShowViewsDrawer(false);
+  }, [userIndex, storyIndex]);
 
   // Handle story transition logic
   const handleNext = useCallback(() => {
@@ -115,7 +158,7 @@ export default function StoryViewer({
 
   // Progress Bar Animation Loop
   useEffect(() => {
-    if (!open || !currentStory || isPaused || showEmojis || showShareSheet) {
+    if (!open || !currentStory || isPaused || showEmojis || showShareSheet || showViewsDrawer) {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       return;
     }
@@ -163,7 +206,7 @@ export default function StoryViewer({
   useEffect(() => {
     const video = videoRef.current;
     if (video && currentStory?.mediaType === "VIDEO") {
-      const shouldPlay = !isPaused && !showEmojis && !showShareSheet;
+      const shouldPlay = !isPaused && !showEmojis && !showShareSheet && !showViewsDrawer;
       if (shouldPlay) {
         video.play().catch((err) => {
           console.error("Autoplay failed:", err);
@@ -292,6 +335,21 @@ export default function StoryViewer({
       window.removeEventListener("scroll", handleScroll);
     };
   }, [open]);
+
+  // Record view on mount / story change if not own story
+  useEffect(() => {
+    if (!open || !currentStory || !currentUserStories) return;
+    if (currentUserStories.user.id === loggedInUser.id) return;
+
+    const recordView = async () => {
+      try {
+        await kyInstance.post(`/api/stories/${currentStory.id}/view`);
+      } catch (err) {
+        console.error("Failed to record story view:", err);
+      }
+    };
+    recordView();
+  }, [open, currentStory?.id, currentUserStories?.user?.id, loggedInUser.id]);
 
   // Fetch active contacts when share drawer is opened
   useEffect(() => {
@@ -426,10 +484,12 @@ export default function StoryViewer({
     }
   };
 
-  // Flying hearts spawner
-  const handleLikeClick = (e: React.MouseEvent) => {
+  // Flying hearts spawner & database update
+  const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+    if (!currentStory) return;
+
+    // Trigger floating heart
     const newHeart = {
       id: Date.now() + Math.random(),
       left: Math.random() * 40 - 20, 
@@ -442,6 +502,68 @@ export default function StoryViewer({
     setTimeout(() => {
       setFloatingHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
     }, 1500);
+
+    const wasLiked = isCurrentlyLiked;
+    const newLiked = !wasLiked;
+
+    // Optimistically update local state
+    setLikedState((prev) => ({
+      ...prev,
+      [currentStory.id]: newLiked,
+    }));
+
+    try {
+      const response = await kyInstance.post(`/api/stories/${currentStory.id}/like`).json<{ liked: boolean }>();
+      
+      // Update cache
+      queryClient.setQueryData<UserStories[]>(["stories"], (old) => {
+        if (!old) return old;
+        return old.map((userStories) => {
+          return {
+            ...userStories,
+            stories: userStories.stories.map((story) => {
+              if (story.id === currentStory.id) {
+                let updatedLikes = story.likes || [];
+                if (response.liked) {
+                  const alreadyLiked = updatedLikes.some((l) => l.user.id === loggedInUser.id);
+                  if (!alreadyLiked) {
+                    updatedLikes = [
+                      ...updatedLikes,
+                      {
+                        id: "temp-" + Date.now(),
+                        createdAt: new Date().toISOString(),
+                        user: {
+                          id: loggedInUser.id,
+                          username: loggedInUser.username,
+                          displayName: loggedInUser.displayName,
+                          avatarUrl: loggedInUser.avatarUrl,
+                        },
+                      },
+                    ];
+                  }
+                } else {
+                  updatedLikes = updatedLikes.filter((l) => l.user.id !== loggedInUser.id);
+                }
+
+                return {
+                  ...story,
+                  isLiked: response.liked,
+                  likes: updatedLikes,
+                };
+              }
+              return story;
+            }),
+          };
+        });
+      });
+    } catch (err) {
+      console.error("Failed to toggle story like:", err);
+      // Revert optimistic update
+      setLikedState((prev) => ({
+        ...prev,
+        [currentStory.id]: wasLiked,
+      }));
+    }
   };
 
   const handleMuteUser = () => {
@@ -581,6 +703,24 @@ export default function StoryViewer({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Eye (Views) Button for Own Stories */}
+              {currentUserStories.user.id === loggedInUser.id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPaused(true);
+                    setShowViewsDrawer(true);
+                  }}
+                  className="text-white hover:text-white/80 p-1 rounded-full transition-colors cursor-pointer flex items-center justify-center gap-1 shrink-0 mr-1"
+                  title="View statistics"
+                >
+                  <Eye className="size-5 hover:opacity-85 transition-opacity" />
+                  <span className="text-[12px] font-semibold">
+                    {currentStory.views?.length || 0}
+                  </span>
+                </button>
+              )}
+
               {/* Play/Pause Button */}
               <button
                 onClick={togglePause}
@@ -654,6 +794,99 @@ export default function StoryViewer({
             />
           )}
         </div>
+
+        {/* Views & Likes Bottom Sheet drawer */}
+        {showViewsDrawer && currentUserStories.user.id === loggedInUser.id && (
+          <div 
+            className="absolute left-0 right-0 z-[60] bg-black/60 flex flex-col justify-end pointer-events-auto shadow-2xl transition-all duration-75 ease-out"
+            style={{
+              top: `${viewportOffsetTop}px`,
+              height: window.visualViewport ? `${window.visualViewport.height}px` : "100%"
+            }}
+            onClick={() => {
+              setShowViewsDrawer(false);
+              setIsPaused(false);
+            }}
+          >
+            {/* Sheet Content Card */}
+            <div 
+              className="bg-[#121212] border-t border-zinc-800 rounded-t-3xl max-h-[60%] p-4.5 flex flex-col gap-4 animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Handle bar */}
+              <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
+              
+              <div className="relative flex items-center justify-between px-1 mt-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-[16px]">Viewers</span>
+                  <span className="bg-zinc-800 text-zinc-400 text-xs font-semibold px-2 py-0.5 rounded-full">
+                    {currentStory.views?.length || 0}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowViewsDrawer(false);
+                    setIsPaused(false);
+                  }}
+                  className="text-zinc-400 hover:text-white"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Viewers List */}
+              <div className="flex-grow overflow-y-auto max-h-[300px] min-h-[150px] scrollbar-none px-1 space-y-4">
+                {currentStory.views && currentStory.views.length > 0 ? (
+                  currentStory.views.map((view) => {
+                    const viewer = view.user;
+                    const liked = currentStory.likes?.some((l) => l.user.id === viewer.id);
+                    return (
+                      <div key={view.id} className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-3">
+                          <div className="relative size-10 rounded-full overflow-hidden bg-neutral-800 border border-zinc-800 shrink-0">
+                            {viewer.avatarUrl ? (
+                              <Image 
+                                src={viewer.avatarUrl} 
+                                alt={viewer.username} 
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center font-bold text-sm uppercase text-zinc-300">
+                                {viewer.username[0]}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-semibold text-white">
+                              {viewer.displayName || viewer.username}
+                            </span>
+                            <span className="text-[11px] text-zinc-500">
+                              @{viewer.username} • {formatRelativeDate(new Date(view.viewedAt))}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Heart icon if they liked it */}
+                        {liked && (
+                          <div className="flex items-center justify-center w-8 h-8 mr-1 shrink-0">
+                            <Heart className="size-5 text-red-500 fill-red-500 animate-pulse-once" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex h-32 flex-col items-center justify-center text-center text-xs text-zinc-500 gap-2">
+                    <Eye className="size-8 stroke-[1.5px]" />
+                    <span>No views yet</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Instant Emojis reactions panel (Instagram-style overlay) */}
         {showEmojis && (
@@ -745,10 +978,17 @@ export default function StoryViewer({
               
               <button
                 onClick={handleLikeClick}
-                className="text-white hover:scale-110 active:scale-95 transition-transform flex items-center justify-center w-full h-full"
+                className={`hover:scale-110 active:scale-95 transition-transform flex items-center justify-center w-full h-full ${
+                  isCurrentlyLiked ? "text-red-500" : "text-white"
+                }`}
                 title="Like Story"
               >
-                <Heart className="size-6 hover:text-red-500 hover:fill-red-500 transition-colors" strokeWidth={2} />
+                <Heart 
+                  className={`size-6 transition-colors ${
+                    isCurrentlyLiked ? "fill-red-500 text-red-500 animate-pulse-once" : "hover:text-red-500 hover:fill-red-500"
+                  }`} 
+                  strokeWidth={2} 
+                />
               </button>
             </div>
 

@@ -44,6 +44,8 @@ model User {
   collections           SavedCollection[]
   sessions              Session[]
   stories               Story[]
+  storyViews            StoryView[]
+  storyLikes            StoryLike[]
   closeFriends          CloseFriend[]       @relation("UserCloseFriends")
   designatedAsCloseFriend CloseFriend[]     @relation("FriendCloseFriends")
   sentInstants          Instant[]           @relation("SentInstants")
@@ -236,6 +238,8 @@ model Story {
   mediaType MediaType
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views     StoryView[]
+  likes     StoryLike[]
 
   @@index([userId])
   @@index([createdAt])
@@ -952,6 +956,30 @@ model CommentReport {
   post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("comment_reports")
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String   @map("story_id")
+  userId    String   @map("user_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@map("story_views")
+}
+
+model StoryLike {
+  id        String   @id @default(cuid())
+  storyId   String   @map("story_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@map("story_likes")
 }
 
 

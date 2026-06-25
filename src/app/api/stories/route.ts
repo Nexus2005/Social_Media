@@ -40,6 +40,36 @@ export async function GET(req: Request) {
             avatarUrl: true,
           },
         },
+        views: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+          orderBy: {
+            viewedAt: "desc",
+          },
+        },
+        likes: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
       },
       orderBy: {
         createdAt: "asc",
@@ -57,11 +87,28 @@ export async function GET(req: Request) {
           stories: [],
         });
       }
+
+      const isOwnStory = userId === loggedInUser.id;
+
       groupedStoriesMap.get(userId)!.stories.push({
         id: story.id,
         mediaUrl: story.mediaUrl,
         mediaType: story.mediaType,
         createdAt: story.createdAt,
+        views: isOwnStory
+          ? story.views.map((v) => ({
+              id: v.id,
+              viewedAt: v.viewedAt,
+              user: v.user,
+            }))
+          : undefined,
+        likes: isOwnStory
+          ? story.likes.map((l) => ({
+              id: l.id,
+              createdAt: l.createdAt,
+              user: l.user,
+            }))
+          : undefined,
       });
     }
 

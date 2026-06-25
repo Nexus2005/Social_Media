@@ -190,7 +190,7 @@ body.chat-active .main-content-wrapper {
   padding-bottom: 0 !important;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 767px) {
   body.chat-active {
     position: fixed;
     width: 100%;

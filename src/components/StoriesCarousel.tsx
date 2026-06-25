@@ -162,18 +162,16 @@ export default function StoriesCarousel() {
             </div>
 
             {/* Blue Plus Icon Overlay */}
-            {!loggedInUserStories && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent opening viewer
-                  setCreateStoryOpen(true);
-                }}
-                className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-instagram-darkBg text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
-                title="Add Story"
-              >
-                <Plus className="size-3.5 stroke-[3px]" />
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent opening viewer
+                setCreateStoryOpen(true);
+              }}
+              className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-instagram-darkBg text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
+              title="Add Story"
+            >
+              <Plus className="size-3.5 stroke-[3px]" />
+            </button>
           </div>
           <span className="text-[12px] font-medium text-instagram-lightText dark:text-instagram-darkText w-[76px] text-center truncate">
             Your story

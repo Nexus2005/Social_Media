@@ -16,6 +16,7 @@ import ProfileHeaderActions from "./ProfileHeaderActions";
 import ProfileFollowsInfo from "./ProfileFollowsInfo";
 import MutualsLink from "./MutualsLink";
 import ProfileMenuDrawer from "./ProfileMenuDrawer";
+import ShareProfileDialog from "@/components/posts/ShareProfileDialog";
 import useFollowerInfo from "@/hooks/useFollowerInfo";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -32,6 +33,7 @@ export default function ProfileLayoutClient({
   const { toast } = useToast();
   const [scrollY, setScrollY] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -248,13 +250,7 @@ export default function ProfileLayoutClient({
                     Message
                   </button>
                   <button
-                    onClick={() => {
-                      const profileUrl = `${window.location.origin}/users/${user.username}`;
-                      navigator.clipboard.writeText(profileUrl);
-                      toast({
-                        description: "Profile link copied to clipboard!",
-                      });
-                    }}
+                    onClick={() => setShowShareDialog(true)}
                     className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors flex items-center justify-center border border-[#363636] shrink-0"
                   >
                     Share Profile
@@ -288,6 +284,17 @@ export default function ProfileLayoutClient({
         onClose={() => setIsMenuOpen(false)}
         isOwner={isOwner}
         username={user.username}
+      />
+
+      <ShareProfileDialog
+        profile={{
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+        }}
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
       />
     </div>
   );

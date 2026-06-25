@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -359,7 +359,7 @@ const MessageBubbleContainer = React.memo(({
           <img
             src={message.attachments.find((a: any) => a.type === "giphy")?.image_url}
             alt="GIF"
-            className="max-h-40 rounded object-cover my-1 cursor-pointer"
+            className="max-h-64 rounded-xl object-cover my-1 cursor-pointer border-[0.5px] border-zinc-800/40"
             onClick={() => setMediaViewerState({
               attachments: [{ url: message.attachments!.find((a: any) => a.type === "giphy")!.image_url!, type: "image" }],
               initialIndex: 0
@@ -373,12 +373,37 @@ const MessageBubbleContainer = React.memo(({
           <img
             src={message.attachments.find((a: any) => a.type === "image")?.asset_url}
             alt="Image Attachment"
-            className="max-h-48 rounded object-cover my-1 cursor-pointer"
+            className="max-h-64 rounded-xl object-cover my-1 cursor-pointer border-[0.5px] border-zinc-800/40"
             onClick={() => setMediaViewerState({
               attachments: [{ url: message.attachments!.find((a: any) => a.type === "image")!.asset_url!, type: "image" }],
               initialIndex: 0
             })}
           />
+        ) : null}
+
+        {/* Standard Video Rendering */}
+        {message.attachments?.some((a: any) => a.type === "video") ? (
+          <div 
+            className="relative max-h-64 rounded-xl overflow-hidden my-1 cursor-pointer border-[0.5px] border-zinc-800/40 bg-zinc-950/80 group/video shrink-0"
+            onClick={() => setMediaViewerState({
+              attachments: [{ url: message.attachments!.find((a: any) => a.type === "video")!.asset_url!, type: "video" }],
+              initialIndex: 0
+            })}
+          >
+            <video
+              src={message.attachments.find((a: any) => a.type === "video")?.asset_url}
+              className="max-h-64 object-cover rounded-xl"
+              preload="metadata"
+              playsInline
+              muted
+            />
+            {/* Play Overlay Icon */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/video:bg-black/30 transition-colors">
+              <div className="size-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shadow-lg transform group-hover/video:scale-105 transition-transform">
+                <Play className="size-6 fill-white ml-0.5" />
+              </div>
+            </div>
+          </div>
         ) : null}
 
         {/* Message Text content */}
@@ -1513,7 +1538,7 @@ export default function ChatChannel() {
       )}
 
       {/* Input Message Composer Bar (Social Commerce Theme) */}
-      <div className="flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25">
+      <div className="flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25 shrink-0">
         <div className="flex items-center gap-2.5 p-3 select-none max-w-full">
           {/* Circular plus button on the left */}
           <button
@@ -1831,7 +1856,7 @@ function ShareCardAttachment({
 
   if (shareType === "PRODUCT") {
     return (
-      <div className="w-[280px] rounded-[18px] overflow-hidden border border-zinc-800 bg-[#18181b] shadow-lg flex flex-col relative select-none">
+      <div className="w-[310px] rounded-[18px] overflow-hidden border-[0.5px] border-zinc-800/40 bg-[#18181b] shadow-lg flex flex-col relative select-none">
         {image_url ? (
           <div className="relative aspect-square w-full overflow-hidden bg-zinc-900">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1903,7 +1928,7 @@ function ShareCardAttachment({
       href={deepLink}
       target="_blank"
       rel="noreferrer"
-      className="flex flex-col rounded-xl overflow-hidden border border-zinc-800 bg-[#1c1c1e] my-1 max-w-xs shadow-sm hover:shadow-md transition-shadow shrink-0"
+      className="flex flex-col rounded-xl overflow-hidden border-[0.5px] border-zinc-800/40 bg-[#1c1c1e] my-1 max-w-xs shadow-sm hover:shadow-md transition-shadow shrink-0"
     >
       {image_url ? (
         <div className="relative aspect-video w-full overflow-hidden bg-zinc-900">
@@ -1911,7 +1936,7 @@ function ShareCardAttachment({
           <img src={image_url} alt={title} className="w-full h-full object-cover" />
           {shareType === "REEL" && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <Film className="size-8 text-white drop-shadow" />
+              <Film className="size-12 text-white drop-shadow" />
             </div>
           )}
         </div>
