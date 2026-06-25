@@ -815,6 +815,104 @@ const getFriendlyDate = (dateStr: string) => {
   }
 };
 
+const playToneSynth = (toneName: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    
+    if (toneName === "No sound") return;
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const now = ctx.currentTime;
+    
+    if (toneName === "beak" || toneName === "Default") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else if (toneName === "bulb one") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554, now + 0.1);
+      osc.frequency.setValueAtTime(659, now + 0.2);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } else if (toneName === "cough") {
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(150, now);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } else if (toneName === "croak") {
+      osc.type = "square";
+      osc.frequency.setValueAtTime(100, now);
+      osc.frequency.setValueAtTime(90, now + 0.08);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } else if (toneName === "cuckoo") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.setValueAtTime(480, now + 0.2);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.38);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } else if (toneName === "doub") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(900, now);
+      osc.frequency.setValueAtTime(900, now + 0.08);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+      osc.start(now);
+      osc.stop(now + 0.15);
+      
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(1100, now + 0.08);
+      gain2.gain.setValueAtTime(0, now);
+      gain2.gain.setValueAtTime(0.25, now + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.18);
+    } else if (toneName === "flap") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(523.25, now);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    }
+  } catch (e) {
+    console.warn("AudioContext init error:", e);
+  }
+};
+
 export default function ChatChannel() {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
@@ -834,6 +932,7 @@ export default function ChatChannel() {
 
   const parentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const chatClient = useChat();
 
@@ -869,6 +968,69 @@ export default function ChatChannel() {
   const [popupNotificationsVal, setPopupNotificationsVal] = useState("Disabled");
   const [lightColorVal, setLightColorVal] = useState("#0095f6");
 
+  // New configuration controllers
+  const [showSoundPage, setShowSoundPage] = useState(false);
+  const [showVibrateModal, setShowVibrateModal] = useState(false);
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [showSmartSheet, setShowSmartSheet] = useState(false);
+
+  const [selectedSound, setSelectedSound] = useState("Default");
+  const [vibrateVal, setVibrateVal] = useState("Default");
+  const [smartTimes, setSmartTimes] = useState("2 times");
+  const [smartMinutes, setSmartMinutes] = useState("3 minutes");
+
+  const [tempSmartTimes, setTempSmartTimes] = useState("2 times");
+  const [tempSmartMinutes, setTempSmartMinutes] = useState("3 minutes");
+
+  const timesScrollRef = useRef<HTMLDivElement>(null);
+  const minutesScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showSmartSheet) {
+      setTempSmartTimes(smartTimes);
+      setTempSmartMinutes(smartMinutes);
+      
+      setTimeout(() => {
+        if (timesScrollRef.current) {
+          const timesList = Array.from({ length: 10 }, (_, i) => `${i + 1} time${i > 0 ? "s" : ""}`);
+          const idx = timesList.indexOf(smartTimes);
+          if (idx !== -1) {
+            timesScrollRef.current.scrollTop = idx * 44;
+          }
+        }
+        if (minutesScrollRef.current) {
+          const minutesList = [
+            "1 minute", "2 minutes", "3 minutes", "4 minutes", "5 minutes",
+            "10 minutes", "15 minutes", "30 minutes", "60 minutes"
+          ];
+          const idx = minutesList.indexOf(smartMinutes);
+          if (idx !== -1) {
+            minutesScrollRef.current.scrollTop = idx * 44;
+          }
+        }
+      }, 100);
+    }
+  }, [showSmartSheet, smartTimes, smartMinutes]);
+
+  // Load preferences from localStorage on channel change
+  useEffect(() => {
+    if (channel?.id) {
+      setShowPreviews(localStorage.getItem("show-previews-" + channel.id) !== "false");
+      setSelectedSound(localStorage.getItem("sound-" + channel.id) || "Default");
+      setVibrateVal(localStorage.getItem("vibrate-" + channel.id) || "Default");
+      
+      const st = localStorage.getItem("smart-times-" + channel.id) || "2 times";
+      const sm = localStorage.getItem("smart-minutes-" + channel.id) || "3 minutes";
+      setSmartTimes(st);
+      setSmartMinutes(sm);
+      setSmartNotificationsVal(`${st.split(" ")[0]} / ${sm}`);
+
+      setPriorityVal(localStorage.getItem("priority-" + channel.id) || "Same as in Settings");
+      setPopupNotificationsVal(localStorage.getItem("popup-" + channel.id) || "Disabled");
+      setLightColorVal(localStorage.getItem("light-color-" + channel.id) || "#0095f6");
+    }
+  }, [channel?.id]);
+
   // Jump highlights & unread lock states
   const [initialFirstUnreadId, setInitialFirstUnreadId] = useState<string | null>(null);
   const [initialUnreadCount, setInitialUnreadCount] = useState<number>(0);
@@ -893,6 +1055,24 @@ export default function ChatChannel() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && channel) {
+      const soundName = file.name.slice(0, 20) + (file.name.length > 20 ? "..." : "");
+      setSelectedSound(soundName);
+      localStorage.setItem("sound-" + channel.id, soundName);
+      toast({ description: `Uploaded notification sound: ${soundName}` });
+      
+      try {
+        const audio = new Audio(URL.createObjectURL(file));
+        audio.volume = 0.5;
+        audio.play().catch(err => console.log("Failed custom audio playback:", err));
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+  };
 
   // Reset selected message when switching channels
   useEffect(() => {
@@ -2755,7 +2935,11 @@ export default function ChatChannel() {
                             <div className="flex items-center justify-between px-4 py-3.5">
                               <span className="text-sm text-zinc-200">Show Message Previews</span>
                               <button
-                                onClick={() => setShowPreviews(!showPreviews)}
+                                onClick={() => {
+                                  const next = !showPreviews;
+                                  setShowPreviews(next);
+                                  localStorage.setItem("show-previews-" + channel.id, next ? "true" : "false");
+                                }}
                                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                                   showPreviews ? "bg-[#0095f6]" : "bg-zinc-700"
                                 }`}
@@ -2769,25 +2953,37 @@ export default function ChatChannel() {
                             </div>
 
                             {/* Sound */}
-                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                            <div
+                              onClick={() => setShowSoundPage(true)}
+                              className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20"
+                            >
                               <span className="text-sm text-zinc-200">Sound</span>
-                              <span className="text-sm text-[#0095f6]">Default</span>
+                              <span className="text-sm text-[#0095f6]">{selectedSound}</span>
                             </div>
 
                             {/* Vibrate */}
-                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                            <div
+                              onClick={() => setShowVibrateModal(true)}
+                              className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20"
+                            >
                               <span className="text-sm text-zinc-200">Vibrate</span>
-                              <span className="text-sm text-[#0095f6]">Default</span>
+                              <span className="text-sm text-[#0095f6]">{vibrateVal}</span>
                             </div>
 
                             {/* Smart Notifications */}
-                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                            <div
+                              onClick={() => setShowSmartSheet(true)}
+                              className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20"
+                            >
                               <span className="text-sm text-zinc-200">Smart Notifications</span>
                               <span className="text-sm text-[#0095f6] font-semibold">{smartNotificationsVal}</span>
                             </div>
 
                             {/* Priority */}
-                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                            <div
+                              onClick={() => setShowPriorityModal(true)}
+                              className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20"
+                            >
                               <span className="text-sm text-zinc-200">Priority</span>
                               <span className="text-sm text-[#0095f6]">{priorityVal}</span>
                             </div>
@@ -2804,7 +3000,10 @@ export default function ChatChannel() {
                           <div className="bg-[#1c1c1e] rounded-xl mx-4 overflow-hidden border border-zinc-800/20 divide-y divide-zinc-850">
                             {/* Enabled */}
                             <button
-                              onClick={() => setPopupNotificationsVal("Enabled")}
+                              onClick={() => {
+                                setPopupNotificationsVal("Enabled");
+                                localStorage.setItem("popup-" + channel.id, "Enabled");
+                              }}
                               className="flex items-center justify-between px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors"
                             >
                               <span className="text-sm text-zinc-200">Enabled</span>
@@ -2817,7 +3016,10 @@ export default function ChatChannel() {
 
                             {/* Disabled */}
                             <button
-                              onClick={() => setPopupNotificationsVal("Disabled")}
+                              onClick={() => {
+                                setPopupNotificationsVal("Disabled");
+                                localStorage.setItem("popup-" + channel.id, "Disabled");
+                              }}
                               className="flex items-center justify-between px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors"
                             >
                               <span className="text-sm text-zinc-200">Disabled</span>
@@ -2854,7 +3056,22 @@ export default function ChatChannel() {
                           <button
                             onClick={() => {
                               setShowPreviews(true);
+                              setSelectedSound("Default");
+                              setVibrateVal("Default");
+                              setSmartTimes("2 times");
+                              setSmartMinutes("3 minutes");
+                              setSmartNotificationsVal("2 / 3 minutes");
+                              setPriorityVal("Same as in Settings");
                               setPopupNotificationsVal("Disabled");
+                              setLightColorVal("#0095f6");
+                              localStorage.removeItem("show-previews-" + channel.id);
+                              localStorage.removeItem("sound-" + channel.id);
+                              localStorage.removeItem("vibrate-" + channel.id);
+                              localStorage.removeItem("smart-times-" + channel.id);
+                              localStorage.removeItem("smart-minutes-" + channel.id);
+                              localStorage.removeItem("priority-" + channel.id);
+                              localStorage.removeItem("popup-" + channel.id);
+                              localStorage.removeItem("light-color-" + channel.id);
                               toast({ description: "Settings reset to default." });
                               setShowCustomNotificationsPage(false);
                             }}
@@ -2865,6 +3082,411 @@ export default function ChatChannel() {
                         </div>
                       </div>
                     </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Custom Notification Sound sub-page */}
+                <AnimatePresence>
+                  {showSoundPage && (
+                    <motion.div
+                      initial={{ x: "100%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: "100%" }}
+                      transition={{ type: "spring", stiffness: 350, damping: 35 }}
+                      className="fixed inset-0 z-[80] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                    >
+                      {/* Header panel */}
+                      <div className="flex h-14 items-center gap-3 px-4 shrink-0 border-b border-zinc-800/40">
+                        <button
+                          onClick={() => setShowSoundPage(false)}
+                          className="rounded-full p-1.5 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                        >
+                          <ArrowLeft className="size-6" />
+                        </button>
+                        <div className="size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
+                          {(displayName || "G").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col text-start leading-tight">
+                          <span className="text-sm font-semibold text-white truncate max-w-[200px]">{displayName}</span>
+                          <span className="text-[11px] text-zinc-400">Notification Sound</span>
+                        </div>
+                      </div>
+
+                      {/* Sound Options List */}
+                      <div className="flex-1 py-4 overflow-y-auto space-y-6">
+                        {/* Hidden Audio File Input */}
+                        <input
+                          type="file"
+                          ref={audioInputRef}
+                          onChange={handleAudioUpload}
+                          accept="audio/*"
+                          className="hidden"
+                        />
+
+                        {/* Section 1: Telegram Tones */}
+                        <div>
+                          <span className="text-[#0095f6] text-[11px] font-bold uppercase tracking-wider mb-2 block px-4">Telegram Tones</span>
+                          
+                          <div className="bg-[#1c1c1e] rounded-xl mx-4 overflow-hidden border border-zinc-800/20 divide-y divide-zinc-850">
+                            {/* Upload sound row */}
+                            <button
+                              onClick={() => audioInputRef.current?.click()}
+                              className="flex items-center gap-3 px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors text-[#0095f6] font-semibold text-sm"
+                            >
+                              <Plus className="size-4 shrink-0" />
+                              <span>Upload sound</span>
+                            </button>
+
+                            {/* If custom sound is uploaded and selected, display it here */}
+                            {selectedSound && ![
+                              "Default",
+                              "beak",
+                              "bulb one",
+                              "cough",
+                              "croak",
+                              "cuckoo",
+                              "doub",
+                              "flap",
+                              "gargle",
+                              "guiro",
+                              "hum",
+                              "lonba",
+                              "No sound"
+                            ].includes(selectedSound) && (
+                              <button
+                                onClick={() => {
+                                  setSelectedSound(selectedSound);
+                                  if (channel) {
+                                    localStorage.setItem("sound-" + channel.id, selectedSound);
+                                  }
+                                }}
+                                className="flex items-center justify-between px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors"
+                              >
+                                <span className="text-sm text-zinc-200">{selectedSound}</span>
+                                <div className="size-5 rounded-full border-2 flex items-center justify-center border-[#0095f6] bg-[#0095f6]">
+                                  <Check className="size-3 text-white stroke-[3px]" />
+                                </div>
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-zinc-500 text-xs px-4 mt-2 block leading-normal">
+                            You can upload custom notification sounds from your internal storage.
+                          </span>
+                        </div>
+
+                        {/* Section 2: System Tones */}
+                        <div>
+                          <span className="text-[#0095f6] text-[11px] font-bold uppercase tracking-wider mb-2 block px-4">System Tones</span>
+                          
+                          <div className="bg-[#1c1c1e] rounded-xl mx-4 overflow-hidden border border-zinc-800/20 divide-y divide-zinc-850">
+                            {[
+                              "Default",
+                              "beak",
+                              "bulb one",
+                              "cough",
+                              "croak",
+                              "cuckoo",
+                              "doub",
+                              "flap",
+                              "gargle",
+                              "guiro",
+                              "hum",
+                              "lonba",
+                              "No sound"
+                            ].map((tone) => {
+                              const isSelected = selectedSound === tone;
+                              return (
+                                <button
+                                  key={tone}
+                                  onClick={() => {
+                                    setSelectedSound(tone);
+                                    if (channel) {
+                                      localStorage.setItem("sound-" + channel.id, tone);
+                                    }
+                                    playToneSynth(tone);
+                                  }}
+                                  className="flex items-center justify-between px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors"
+                                >
+                                  <span className="text-sm text-zinc-200 capitalize">{tone}</span>
+                                  <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                    isSelected ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-700 bg-transparent"
+                                  }`}>
+                                    {isSelected && <Check className="size-3 text-white stroke-[3px]" />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Smart Notifications Frequency bottom sheet */}
+                <AnimatePresence>
+                  {showSmartSheet && (
+                    <div className="fixed inset-0 z-[80] overflow-hidden flex flex-col justify-end">
+                      {/* Sheet Backdrop */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowSmartSheet(false)}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-[1px]"
+                      />
+                      {/* Sheet Body */}
+                      <motion.div
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                        className="relative z-50 bg-[#1c222b] border-t border-[#262626] rounded-t-3xl pb-8 pt-4 px-6 flex flex-col items-start max-w-md mx-auto w-full select-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Drag Handle */}
+                        <div className="w-12 h-1 bg-zinc-750 rounded-full mb-4 shrink-0 self-center" />
+
+                        {/* Title */}
+                        <h4 className="text-[17px] font-bold text-white text-left self-start mt-2">Notification frequency</h4>
+
+                        {/* Dual Scroll Columns Picker */}
+                        <div className="relative w-full h-[200px] my-4 flex items-center justify-center overflow-hidden">
+                          {/* Selection indicator border */}
+                          <div className="absolute left-0 right-0 top-[78px] h-[44px] border-y-2 border-[#0095f6] pointer-events-none" />
+
+                          {/* Left Column: Times Picker */}
+                          <div className="w-[45%] h-full relative overflow-hidden flex flex-col">
+                            <div
+                              ref={timesScrollRef}
+                              onScroll={(e) => {
+                                const container = e.currentTarget;
+                                const scrollTop = container.scrollTop;
+                                const idx = Math.round(scrollTop / 44);
+                                const timesList = Array.from({ length: 10 }, (_, i) => `${i + 1} time${i > 0 ? "s" : ""}`);
+                                if (idx >= 0 && idx < timesList.length) {
+                                  setTempSmartTimes(timesList[idx]);
+                                }
+                              }}
+                              className="w-full h-full overflow-y-auto snap-y snap-mandatory scrollbar-none flex flex-col py-[78px] text-center"
+                            >
+                              {Array.from({ length: 10 }, (_, i) => `${i + 1} time${i > 0 ? "s" : ""}`).map((t) => {
+                                const isSelected = tempSmartTimes === t;
+                                return (
+                                  <div
+                                    key={t}
+                                    onClick={(e) => {
+                                      setTempSmartTimes(t);
+                                      const timesList = Array.from({ length: 10 }, (_, i) => `${i + 1} time${i > 0 ? "s" : ""}`);
+                                      const idx = timesList.indexOf(t);
+                                      e.currentTarget.parentElement?.scrollTo({
+                                        top: idx * 44,
+                                        behavior: "smooth"
+                                      });
+                                    }}
+                                    className={`snap-center h-[44px] flex-shrink-0 flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                                      isSelected ? "text-white font-bold text-base scale-105" : "text-zinc-500 text-sm opacity-55"
+                                    }`}
+                                  >
+                                    {t}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Center transition word: "in" */}
+                          <div className="w-[10%] h-[44px] flex items-center justify-center text-zinc-400 text-sm font-semibold pointer-events-none">
+                            in
+                          </div>
+
+                          {/* Right Column: Minutes Picker */}
+                          <div className="w-[45%] h-full relative overflow-hidden flex flex-col">
+                            <div
+                              ref={minutesScrollRef}
+                              onScroll={(e) => {
+                                const container = e.currentTarget;
+                                const scrollTop = container.scrollTop;
+                                const idx = Math.round(scrollTop / 44);
+                                const minutesList = [
+                                  "1 minute", "2 minutes", "3 minutes", "4 minutes", "5 minutes",
+                                  "10 minutes", "15 minutes", "30 minutes", "60 minutes"
+                                ];
+                                if (idx >= 0 && idx < minutesList.length) {
+                                  setTempSmartMinutes(minutesList[idx]);
+                                }
+                              }}
+                              className="w-full h-full overflow-y-auto snap-y snap-mandatory scrollbar-none flex flex-col py-[78px] text-center"
+                            >
+                              {[
+                                "1 minute", "2 minutes", "3 minutes", "4 minutes", "5 minutes",
+                                "10 minutes", "15 minutes", "30 minutes", "60 minutes"
+                              ].map((m) => {
+                                const isSelected = tempSmartMinutes === m;
+                                return (
+                                  <div
+                                    key={m}
+                                    onClick={(e) => {
+                                      setTempSmartMinutes(m);
+                                      const minutesList = [
+                                        "1 minute", "2 minutes", "3 minutes", "4 minutes", "5 minutes",
+                                        "10 minutes", "15 minutes", "30 minutes", "60 minutes"
+                                      ];
+                                      const idx = minutesList.indexOf(m);
+                                      e.currentTarget.parentElement?.scrollTo({
+                                        top: idx * 44,
+                                        behavior: "smooth"
+                                      });
+                                    }}
+                                    className={`snap-center h-[44px] flex-shrink-0 flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                                      isSelected ? "text-white font-bold text-base scale-105" : "text-zinc-500 text-sm opacity-55"
+                                    }`}
+                                  >
+                                    {m}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Confirm Button */}
+                        <button
+                          onClick={() => {
+                            setSmartTimes(tempSmartTimes);
+                            setSmartMinutes(tempSmartMinutes);
+                            const displayVal = `${tempSmartTimes.split(" ")[0]} / ${tempSmartMinutes}`;
+                            setSmartNotificationsVal(displayVal);
+                            if (channel) {
+                              localStorage.setItem("smart-times-" + channel.id, tempSmartTimes);
+                              localStorage.setItem("smart-minutes-" + channel.id, tempSmartMinutes);
+                            }
+                            setShowSmartSheet(false);
+                          }}
+                          className="w-full py-3.5 bg-[#0095f6] hover:bg-[#1a9bf0] rounded-xl text-center font-bold text-white text-[15px] transition-colors shadow-md mt-2"
+                        >
+                          Confirm
+                        </button>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
+
+                {/* Vibrate Modal */}
+                <AnimatePresence>
+                  {showVibrateModal && (
+                    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowVibrateModal(false)}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-[1px]"
+                      />
+                      <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 280 }}
+                        className="relative z-50 bg-[#1c222b] border border-[#262626] rounded-[24px] max-w-xs w-full p-5 flex flex-col gap-4 text-start shadow-2xl"
+                      >
+                        <h4 className="text-[17px] font-bold text-white">Vibrate</h4>
+                        
+                        <div className="flex flex-col gap-1">
+                          {["Default", "Short", "Long", "Disabled"].map((opt) => {
+                            const isSelected = vibrateVal === opt;
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => {
+                                  setVibrateVal(opt);
+                                  if (channel) {
+                                    localStorage.setItem("vibrate-" + channel.id, opt);
+                                  }
+                                  setShowVibrateModal(false);
+                                }}
+                                className="flex items-center gap-3 py-2.5 w-full text-start hover:bg-zinc-800/30 rounded-lg transition-colors"
+                              >
+                                <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                  isSelected ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-700 bg-transparent"
+                                }`}>
+                                  {isSelected && <Check className="size-3 text-white stroke-[3px]" />}
+                                </div>
+                                <span className="text-sm font-medium text-zinc-200">{opt}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex justify-end mt-2">
+                          <button
+                            onClick={() => setShowVibrateModal(false)}
+                            className="text-[#0095f6] text-[15px] font-bold hover:underline px-2 py-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
+
+                {/* Priority Modal */}
+                <AnimatePresence>
+                  {showPriorityModal && (
+                    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowPriorityModal(false)}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-[1px]"
+                      />
+                      <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 280 }}
+                        className="relative z-50 bg-[#1c222b] border border-[#262626] rounded-[24px] max-w-xs w-full p-5 flex flex-col gap-4 text-start shadow-2xl"
+                      >
+                        <h4 className="text-[17px] font-bold text-white">Priority</h4>
+                        
+                        <div className="flex flex-col gap-1">
+                          {["Same as in Settings", "Low", "Medium", "High", "Urgent"].map((opt) => {
+                            const isSelected = priorityVal === opt;
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => {
+                                  setPriorityVal(opt);
+                                  if (channel) {
+                                    localStorage.setItem("priority-" + channel.id, opt);
+                                  }
+                                  setShowPriorityModal(false);
+                                }}
+                                className="flex items-center gap-3 py-2.5 w-full text-start hover:bg-zinc-800/30 rounded-lg transition-colors"
+                              >
+                                <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                  isSelected ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-700 bg-transparent"
+                                }`}>
+                                  {isSelected && <Check className="size-3 text-white stroke-[3px]" />}
+                                </div>
+                                <span className="text-sm font-medium text-zinc-200">{opt}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex justify-end mt-2">
+                          <button
+                            onClick={() => setShowPriorityModal(false)}
+                            className="text-[#0095f6] text-[15px] font-bold hover:underline px-2 py-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
                   )}
                 </AnimatePresence>
 

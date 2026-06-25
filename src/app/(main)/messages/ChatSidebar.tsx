@@ -1173,6 +1173,18 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
     
     if (!lastMessage) return <span className="text-zinc-500 text-[15px] sm:text-[16px]">No messages</span>;
 
+    const showPreviews = typeof window !== "undefined"
+      ? localStorage.getItem("show-previews-" + channel.id) !== "false"
+      : true;
+
+    if (!showPreviews) {
+      return (
+        <span className="text-zinc-400 text-[15px] sm:text-[16px] truncate">
+          Message
+        </span>
+      );
+    }
+
     const sender = lastMessage.user?.id === loggedInUserId ? "You: " : "";
     
     // Format timestamp appended preview for unread status
