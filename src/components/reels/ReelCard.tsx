@@ -768,7 +768,17 @@ export default function ReelCard({
                 </div>
               </div>
 
-              {/* 3. Caption */}
+              {/* 3. Music Track Marquee */}
+              <div className="flex items-center gap-1.5 bg-black/35 px-2.5 py-1 rounded-full w-fit max-w-[190px] overflow-hidden text-[11px]">
+                <Music className="size-3 flex-shrink-0 animate-pulse" />
+                <div className="w-[140px] overflow-hidden whitespace-nowrap relative select-none">
+                  <span className="animate-scroll-text pl-[100%]">
+                    {post.user.displayName} · Original Audio &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {post.user.displayName} · Original Audio
+                  </span>
+                </div>
+              </div>
+
+              {/* 4. Caption */}
               <div 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -782,16 +792,6 @@ export default function ReelCard({
                 <span className="text-[11px] text-zinc-400 font-semibold tracking-wide">
                   {formattedDate}
                 </span>
-              </div>
-
-              {/* 4. Music Track Marquee */}
-              <div className="flex items-center gap-1.5 bg-black/35 px-2.5 py-1 rounded-full w-fit max-w-[190px] overflow-hidden text-[11px]">
-                <Music className="size-3 flex-shrink-0 animate-pulse" />
-                <div className="w-[140px] overflow-hidden whitespace-nowrap relative select-none">
-                  <span className="animate-scroll-text pl-[100%]">
-                    {post.user.displayName} · Original Audio &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {post.user.displayName} · Original Audio
-                  </span>
-                </div>
               </div>
 
             </div>
@@ -1129,23 +1129,25 @@ export default function ReelCard({
       </div>
 
       {/* Options Dialog Modal */}
-      {isOptionsOpen && (
-        <ReelOptionsDialog
-          post={post}
-          open={isOptionsOpen}
-          onOpenChange={setIsOptionsOpen}
-          hasProducts={hasAttachedProducts}
-          onShopProductsClick={() => {
-            setIsOptionsOpen(false);
-            if (videoRef.current && !videoRef.current.paused) {
-              videoRef.current.pause();
-              setIsPlaying(false);
-            }
-            setDrawerHeightState("min");
-            setIsShoppingDrawerOpen(true);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {isOptionsOpen && (
+          <ReelOptionsDialog
+            post={post}
+            open={isOptionsOpen}
+            onOpenChange={setIsOptionsOpen}
+            hasProducts={hasAttachedProducts}
+            onShopProductsClick={() => {
+              setIsOptionsOpen(false);
+              if (videoRef.current && !videoRef.current.paused) {
+                videoRef.current.pause();
+                setIsPlaying(false);
+              }
+              setDrawerHeightState("min");
+              setIsShoppingDrawerOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Comment Bottom Sheet Panel */}
       <CommentsBottomSheet
