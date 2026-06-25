@@ -170,6 +170,31 @@ const MessageBubbleContainer = React.memo(({
   const isStoryReply = message.attachments?.some((a: any) => a.type === "story-reply");
   const isProductShare = message.attachments?.some((a: any) => a.type === "share-card" && a.shareType === "PRODUCT");
 
+  const [gridMediaViewerPhotos, setGridMediaViewerPhotos] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (gridMediaViewerPhotos) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [gridMediaViewerPhotos]);
+
+  const imageAttachments = useMemo(() => {
+    return message.attachments?.filter((a: any) => a.type === "image") || [];
+  }, [message.attachments]);
+
+  const hasMultipleImages = imageAttachments.length > 1;
+
+  const isImageOrVideo = message.attachments?.some(
+    (a: any) => ["image", "video", "sticker", "giphy"].includes(a.type || "")
+  );
+
+  const isAttachmentOnly = isImageOrVideo && !message.text;
+
   const [dragX, setDragX] = useState(0);
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -250,6 +275,24 @@ const MessageBubbleContainer = React.memo(({
         </div>
       )}
 
+      {/* For outgoing message: render circular paper-plane forward button before message bubble */}
+      {isOutgoing && isAttachmentOnly && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setForwardingMessage(message);
+            fetchForwardChannels();
+            setShowForwardDialog(true);
+          }}
+          className="size-9 rounded-full bg-zinc-800/50 hover:bg-zinc-700/60 flex items-center justify-center text-white mr-1 active:scale-95 transition-transform self-center shrink-0 shadow-sm"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 -rotate-45 translate-x-0.5">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      )}
+
       <motion.div
         onClick={(e) => {
           if (isSelectionMode) {
@@ -283,12 +326,12 @@ const MessageBubbleContainer = React.memo(({
             }
           }
         }}
-                className={cn(
-          "relative max-w-[75%] shadow-sm cursor-pointer select-none transition-all duration-300",
-          isProductShare
-            ? "p-0 rounded-[18px] overflow-hidden"
+        className={cn(
+          "relative max-w-[75%] cursor-pointer select-none transition-all duration-300",
+          isProductShare || isAttachmentOnly
+            ? "p-0 rounded-[18px] overflow-hidden bg-transparent border-none shadow-none"
             : cn(
-                "px-3.5 py-2 text-[15px] leading-[20px]",
+                "px-3.5 py-2 text-[15px] leading-[20px] shadow-sm",
                 isOutgoing
                   ? isStoryReply
                     ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 text-white"
@@ -301,7 +344,7 @@ const MessageBubbleContainer = React.memo(({
                 getBubbleCorners(isOutgoing, position)
               ),
           isFirstInGroup ? "mt-3" : "mt-0.5",
-          message.id === highlightedMessageId || isSelected ? "scale-[1.03] shadow-md" : "",
+          message.id === highlightedMessageId || isSelected ? "scale-[1.03]" : "",
           message.latest_reactions && message.latest_reactions.length > 0 ? "mb-2 pb-3.5" : ""
         )}
       >
@@ -361,6 +404,10 @@ const MessageBubbleContainer = React.memo(({
             src={message.attachments.find((a: any) => a.type === "sticker")?.image_url}
             alt="Sticker"
             className="size-20 object-contain my-1 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setGridMediaViewerPhotos([message.attachments!.find((a: any) => a.type === "sticker")!.image_url!]);
+            }}
           />
         ) : null}
 
@@ -370,36 +417,95 @@ const MessageBubbleContainer = React.memo(({
           <img
             src={message.attachments.find((a: any) => a.type === "giphy")?.image_url}
             alt="GIF"
-            className="max-h-64 rounded-xl object-cover my-1 cursor-pointer border-[0.5px] border-zinc-800/40"
-            onClick={() => setMediaViewerState({
-              attachments: [{ url: message.attachments!.find((a: any) => a.type === "giphy")!.image_url!, type: "image" }],
-              initialIndex: 0
-            })}
+            className={cn(
+              "max-h-64 rounded-xl object-cover my-1 cursor-pointer",
+              isAttachmentOnly ? "border-none" : "border-[0.5px] border-zinc-800/40"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setGridMediaViewerPhotos([message.attachments!.find((a: any) => a.type === "giphy")!.image_url!]);
+            }}
           />
         ) : null}
 
-        {/* Standard Image Rendering */}
+        {/* Standard Image Rendering (Single or Multiple Stack) */}
         {message.attachments?.some((a: any) => a.type === "image") ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={message.attachments.find((a: any) => a.type === "image")?.asset_url}
-            alt="Image Attachment"
-            className="max-h-64 rounded-xl object-cover my-1 cursor-pointer border-[0.5px] border-zinc-800/40"
-            onClick={() => setMediaViewerState({
-              attachments: [{ url: message.attachments!.find((a: any) => a.type === "image")!.asset_url!, type: "image" }],
-              initialIndex: 0
-            })}
-          />
+          hasMultipleImages ? (
+            <div className="flex flex-col cursor-pointer select-none" onClick={(e) => {
+              e.stopPropagation();
+              setGridMediaViewerPhotos(imageAttachments.map((a: any) => a.asset_url || a.image_url).filter(Boolean));
+            }}>
+              <span className={cn(
+                "text-[12px] text-zinc-400 font-semibold mb-1.5 block select-none px-1",
+                isOutgoing ? "text-right" : "text-left"
+              )}>
+                {isOutgoing ? "You sent" : `${message.user?.name || "Sent"}`} {imageAttachments.length} photos
+              </span>
+              {/* Stack of Cards container */}
+              <div className="relative w-48 h-60 mt-1 select-none group/stack">
+                {imageAttachments.slice(0, 4).map((att: any, idx: number) => {
+                  const rotations = ["rotate-[-3deg]", "rotate-[4deg]", "rotate-[-6deg]", "rotate-[2deg]"];
+                  const hoverRotations = [
+                    "group-hover/stack:rotate-[-6deg] group-hover/stack:translate-x-[-8px] group-hover/stack:translate-y-[-4px]",
+                    "group-hover/stack:rotate-[8deg] group-hover/stack:translate-x-[8px] group-hover/stack:translate-y-[-6px]",
+                    "group-hover/stack:rotate-[-10deg] group-hover/stack:translate-x-[-14px] group-hover/stack:translate-y-[-10px]",
+                    "group-hover/stack:rotate-[4deg] group-hover/stack:translate-x-[4px] group-hover/stack:translate-y-[-2px]"
+                  ];
+                  const translates = ["translate-x-0 translate-y-0", "translate-x-2 translate-y-[-6px]", "translate-x-[-4px] translate-y-[-12px]", "translate-x-[6px] translate-y-[-18px]"];
+                  const opacities = ["opacity-100", "opacity-90", "opacity-80", "opacity-60"];
+                  const zIndexes = ["z-30", "z-25", "z-20", "z-15"];
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "absolute inset-0 rounded-2xl overflow-hidden shadow-lg border border-zinc-800/10 transition-all duration-350 ease-out origin-bottom",
+                        rotations[idx % 4],
+                        translates[idx % 4],
+                        opacities[idx % 4],
+                        zIndexes[idx % 4],
+                        hoverRotations[idx % 4]
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={att.asset_url || att.image_url}
+                        alt={`stack-${idx}`}
+                        className="w-full h-full object-cover select-none pointer-events-none"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={message.attachments.find((a: any) => a.type === "image")?.asset_url}
+              alt="Image Attachment"
+              className={cn(
+                "max-h-64 rounded-xl object-cover my-1 cursor-pointer",
+                isAttachmentOnly ? "border-none" : "border-[0.5px] border-zinc-800/40"
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                setGridMediaViewerPhotos([message.attachments!.find((a: any) => a.type === "image")!.asset_url!]);
+              }}
+            />
+          )
         ) : null}
 
         {/* Standard Video Rendering */}
         {message.attachments?.some((a: any) => a.type === "video") ? (
           <div 
-            className="relative max-h-64 rounded-xl overflow-hidden my-1 cursor-pointer border-[0.5px] border-zinc-800/40 bg-zinc-950/80 group/video shrink-0"
-            onClick={() => setMediaViewerState({
-              attachments: [{ url: message.attachments!.find((a: any) => a.type === "video")!.asset_url!, type: "video" }],
-              initialIndex: 0
-            })}
+            className={cn(
+              "relative max-h-64 rounded-xl overflow-hidden my-1 cursor-pointer bg-zinc-950/80 group/video shrink-0",
+              isAttachmentOnly ? "border-none" : "border-[0.5px] border-zinc-800/40"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setGridMediaViewerPhotos([message.attachments!.find((a: any) => a.type === "video")!.asset_url!]);
+            }}
           >
             <video
               src={message.attachments.find((a: any) => a.type === "video")?.asset_url}
@@ -424,7 +530,12 @@ const MessageBubbleContainer = React.memo(({
 
         {/* Floating Metadata (Time and status checks) */}
         {!isProductShare && (
-          <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[9px] opacity-75 shrink-0 pointer-events-none select-none">
+          <div className={cn(
+            "absolute flex items-center gap-1 text-[9px] shrink-0 pointer-events-none select-none",
+            isAttachmentOnly
+              ? "bottom-2 right-2 bg-black/45 backdrop-blur-[2px] text-white px-1.5 py-0.5 rounded-full text-[10px] z-30"
+              : "bottom-1 right-2 opacity-75 text-current"
+          )}>
             <span>
               {new Date(message.created_at || (message as any).createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -445,7 +556,7 @@ const MessageBubbleContainer = React.memo(({
                 new Date(channel.state.read[otherMember?.id || ""]?.last_read || "").getTime() >= new Date(message.created_at || "").getTime() ? (
                   <span className="text-[#38bdf8] font-bold">✓✓</span>
                 ) : (
-                  <span className="opacity-75 text-white">✓</span>
+                  <span className={cn(isAttachmentOnly ? "text-white" : "opacity-75 text-white")}>✓</span>
                 )
               )
             )}
@@ -481,6 +592,24 @@ const MessageBubbleContainer = React.memo(({
           </div>
         )}
       </motion.div>
+
+      {/* For incoming message: render circular paper-plane forward button after message bubble */}
+      {!isOutgoing && isAttachmentOnly && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setForwardingMessage(message);
+            fetchForwardChannels();
+            setShowForwardDialog(true);
+          }}
+          className="size-9 rounded-full bg-zinc-800/50 hover:bg-zinc-700/60 flex items-center justify-center text-white ml-1 active:scale-95 transition-transform self-center shrink-0 shadow-sm"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 -rotate-45 translate-x-0.5">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      )}
 
       {/* Floating Reaction Capsule + Adjacent Options Menu above/next to the bubble when selected */}
       <AnimatePresence>
@@ -624,6 +753,45 @@ const MessageBubbleContainer = React.memo(({
           </>
         )}
       </AnimatePresence>
+
+      {/* Custom Fullscreen Grid Media Viewer Modal Portal */}
+      {gridMediaViewerPhotos && createPortal(
+        <div className="fixed inset-0 bg-black/95 z-[999] flex flex-col p-6 overflow-y-auto select-none justify-center items-center animate-in fade-in duration-200" onClick={() => setGridMediaViewerPhotos(null)}>
+          {/* Close button */}
+          <button onClick={() => setGridMediaViewerPhotos(null)} className="absolute top-6 left-6 text-white hover:text-zinc-300 z-50 transition-colors p-2 rounded-lg bg-zinc-900/50 backdrop-blur-sm">
+            <X className="size-7" />
+          </button>
+          
+          <div className="w-full max-w-lg mx-auto flex flex-col justify-center animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className={cn(
+              "grid gap-4 w-full justify-center items-center",
+              gridMediaViewerPhotos.length === 1 ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-2"
+            )}>
+              {gridMediaViewerPhotos.map((url, idx) => {
+                const isVideo = url.includes(".mp4") || url.includes(".mov") || url.includes("video") || url.includes("stream-chat-uploads");
+                return isVideo ? (
+                  <video
+                    key={idx}
+                    src={url}
+                    controls
+                    autoPlay
+                    className="w-full aspect-[3/4] object-cover rounded-[20px] shadow-2xl border border-zinc-800/40 bg-black"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={idx}
+                    src={url}
+                    alt={`Fullscreen grid-${idx}`}
+                    className="w-full aspect-[3/4] object-cover rounded-[20px] shadow-2xl border border-zinc-800/40"
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 });
