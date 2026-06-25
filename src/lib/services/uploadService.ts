@@ -79,36 +79,47 @@ export class UploadService {
     onProgress?: (progress: number) => void
   ): Promise<{ mediaId: string; url: string }> {
     const processedFile = await compressImage(file);
-    const formData = new FormData();
-    formData.append("endpoint", "attachment");
-    formData.append("files", processedFile);
-
-    // Get dimensions if possible
     const dims = await this.getMediaDimensions(processedFile);
-    if (dims) {
-      formData.append(
-        "metadata",
-        JSON.stringify([
-          {
-            name: processedFile.name,
-            width: dims.width,
-            height: dims.height,
-          },
-        ])
-      );
-    }
 
-    const res = await fetchWithRetry("/api/upload", {
-      method: "POST",
-      body: formData,
+    // 1. Get presigned URL
+    const presignRes = await fetch(
+      `/api/upload?endpoint=attachment&filename=${encodeURIComponent(processedFile.name)}&contentType=${encodeURIComponent(processedFile.type)}`
+    );
+    if (!presignRes.ok) {
+      throw new Error("Failed to get upload signature");
+    }
+    const { signedUrl, publicUrl, fileKey } = await presignRes.json();
+
+    // 2. Upload file directly to Supabase Storage via PUT
+    await fetchWithRetry(signedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": processedFile.type,
+      },
+      body: processedFile,
     });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `Upload failed with status ${res.status}`);
+    if (onProgress) onProgress(50);
+
+    // 3. Register the upload in database
+    const registerRes = await fetchWithRetry("/api/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        endpoint: "attachment",
+        files: [{ name: processedFile.name, url: publicUrl, fileKey, type: processedFile.type }],
+        metadata: dims ? [{ name: processedFile.name, width: dims.width, height: dims.height }] : null,
+      }),
+    });
+
+    if (!registerRes.ok) {
+      const errData = await registerRes.json().catch(() => ({}));
+      throw new Error(errData.error || `Upload failed with status ${registerRes.status}`);
     }
 
-    const data = await res.json();
+    const data = await registerRes.json();
     if (!data || !data[0]) {
       throw new Error("Invalid response structure from upload handler");
     }
@@ -128,21 +139,44 @@ export class UploadService {
     file: File,
     onProgress?: (progress: number) => void
   ): Promise<{ storyId: string; url: string }> {
-    const formData = new FormData();
-    formData.append("endpoint", "story");
-    formData.append("files", file);
+    // 1. Get presigned URL
+    const presignRes = await fetch(
+      `/api/upload?endpoint=story&filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`
+    );
+    if (!presignRes.ok) {
+      throw new Error("Failed to get upload signature");
+    }
+    const { signedUrl, publicUrl, fileKey } = await presignRes.json();
 
-    const res = await fetchWithRetry("/api/upload", {
-      method: "POST",
-      body: formData,
+    // 2. Upload directly to Supabase Storage
+    await fetchWithRetry(signedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
     });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `Story upload failed with status ${res.status}`);
+    if (onProgress) onProgress(50);
+
+    // 3. Register story upload in database
+    const registerRes = await fetchWithRetry("/api/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        endpoint: "story",
+        files: [{ name: file.name, url: publicUrl, fileKey, type: file.type }],
+      }),
+    });
+
+    if (!registerRes.ok) {
+      const errData = await registerRes.json().catch(() => ({}));
+      throw new Error(errData.error || `Story upload failed with status ${registerRes.status}`);
     }
 
-    const data = await res.json();
+    const data = await registerRes.json();
     if (!data || !data[0]) {
       throw new Error("Invalid response from story upload");
     }
@@ -159,13 +193,16 @@ export class UploadService {
    * Registers a built-in background URL into the database Media table directly
    */
   static async uploadSystemBackground(bgUrl: string): Promise<{ mediaId: string; url: string }> {
-    const formData = new FormData();
-    formData.append("endpoint", "system-bg");
-    formData.append("bgUrl", bgUrl);
-
     const res = await fetchWithRetry("/api/upload", {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        endpoint: "system-bg",
+        bgUrl,
+        files: [],
+      }),
     });
 
     if (!res.ok) {

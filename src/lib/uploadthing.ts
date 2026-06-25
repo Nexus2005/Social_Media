@@ -22,51 +22,76 @@ export function useUploadThing(
         filesToUpload = result instanceof Promise ? await result : result;
       }
 
-      const formData = new FormData();
-      formData.append("endpoint", endpoint);
-      filesToUpload.forEach((file) => {
-        formData.append("files", file);
-      });
-      if (metadata) {
-        formData.append("metadata", JSON.stringify(metadata));
+      const uploadedFiles = [];
+      for (const file of filesToUpload) {
+        // 1. Fetch pre-signed upload URL from our API route
+        const presignRes = await fetch(
+          `/api/upload?endpoint=${endpoint}&filename=${encodeURIComponent(
+            file.name
+          )}&contentType=${encodeURIComponent(file.type)}`
+        );
+        if (!presignRes.ok) {
+          const errData = await presignRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to generate upload signature");
+        }
+        const { signedUrl, publicUrl, fileKey } = await presignRes.json();
+
+        // 2. Upload file directly to Supabase Storage via XHR to track progress
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", signedUrl, true);
+        xhr.setRequestHeader("Content-Type", file.type);
+
+        const uploadPromise = new Promise<void>((resolve, reject) => {
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable && options?.onUploadProgress) {
+              const progress = Math.round((event.loaded / event.total) * 100);
+              options.onUploadProgress(progress);
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+            } else {
+              reject(new Error(`Direct upload failed with status ${xhr.status}`));
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error("Network error during direct upload"));
+          };
+        });
+
+        xhr.send(file);
+        await uploadPromise;
+
+        uploadedFiles.push({
+          name: file.name,
+          url: publicUrl,
+          fileKey,
+          type: file.type,
+        });
       }
 
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/upload", true);
-
-      const promise = new Promise<any[]>((resolve, reject) => {
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable && options?.onUploadProgress) {
-            const progress = Math.round((event.loaded / event.total) * 100);
-            options.onUploadProgress(progress);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const res = JSON.parse(xhr.responseText);
-              resolve(res);
-            } catch (err) {
-              reject(new Error("Failed to parse response"));
-            }
-          } else {
-            try {
-              const res = JSON.parse(xhr.responseText);
-              reject(new Error(res.error || "Upload failed"));
-            } catch {
-              reject(new Error("Upload failed"));
-            }
-          }
-        };
-
-        xhr.onerror = () => {
-          reject(new Error("Network error"));
-        };
+      // 3. Register the uploaded files to save DB metadata
+      const registerRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          endpoint,
+          files: uploadedFiles,
+          metadata,
+        }),
       });
 
-      xhr.send(formData);
-      const res = await promise;
+      if (!registerRes.ok) {
+        const errData = await registerRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to register uploaded files in database");
+      }
+
+      const res = await registerRes.json();
 
       if (options?.onClientUploadComplete) {
         options.onClientUploadComplete(res);

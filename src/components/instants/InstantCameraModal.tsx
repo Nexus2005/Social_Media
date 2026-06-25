@@ -153,17 +153,40 @@ export default function InstantCameraModal({
     setSending(true);
     
     try {
-      const formData = new FormData();
-      formData.append("endpoint", "instant");
-      formData.append("audience", audience);
-      formData.append("files", blobToUpload, "instant_snap.webp");
+      const fileName = "instant_snap.webp";
+      const fileType = "image/webp";
 
-      const res = await fetch("/api/upload", {
+      // 1. Get presigned URL
+      const presignRes = await fetch(
+        `/api/upload?endpoint=instant&filename=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(fileType)}`
+      );
+      if (!presignRes.ok) throw new Error("Failed to get upload signature");
+      const { signedUrl, publicUrl, fileKey } = await presignRes.json();
+
+      // 2. Direct upload to Supabase
+      const uploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": fileType,
+        },
+        body: blobToUpload,
+      });
+      if (!uploadRes.ok) throw new Error("Direct upload failed");
+
+      // 3. Register instant snap in DB
+      const registerRes = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          endpoint: "instant",
+          audience,
+          files: [{ name: fileName, url: publicUrl, fileKey, type: fileType }],
+        }),
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!registerRes.ok) throw new Error("Register failed");
 
       toast({
         description: `Snap shared to ${audience === "CLOSE_FRIENDS" ? "Close Friends" : "Friends"}!`,
