@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Fusing the best of social discovery and connection",
     start_url: "/",
     display: "standalone",
-    background_color: "#000000",
-    theme_color: "#000000",
+    background_color: "#121212",
+    theme_color: "#121212",
     icons: [
       {
         src: "/icon-192x192.png",

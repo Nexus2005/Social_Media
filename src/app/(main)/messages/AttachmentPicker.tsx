@@ -94,7 +94,7 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-2xl bg-background p-4 shadow-xl flex flex-col"
+          className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-2xl bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl flex flex-col"
         >
           {/* Snap Drag Handle */}
           <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-zinc-300" />

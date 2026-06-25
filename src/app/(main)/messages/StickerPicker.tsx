@@ -94,7 +94,7 @@ export default function StickerPicker({ onSelectEmoji, onSelectGif, onSelectStic
   }, [activeTab]);
 
   return (
-    <div className="flex h-64 flex-col border-t bg-card select-none">
+    <div className="flex h-[calc(16rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] flex-col border-t bg-card select-none">
       {/* Search Bar for GIFs */}
       {activeTab === "gif" && (
         <div className="relative border-b px-3 py-2 flex items-center bg-muted/20">

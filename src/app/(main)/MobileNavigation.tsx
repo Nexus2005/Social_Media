@@ -68,7 +68,7 @@ export default function MobileNavigation({
     <>
       {/* Mobile Top Header */}
       {showHeader && (
-        <header className="sticky top-0 z-30 flex h-[56px] w-full items-center justify-between border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-instagram-lightBg dark:bg-instagram-darkBg px-4 sm:hidden">
+        <header className="sticky top-0 z-30 flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-1.5 w-full items-center justify-between border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-instagram-lightBg dark:bg-instagram-darkBg px-4 sm:hidden">
           {isHome ? (
             <>
               {/* Home Feed Header */}
@@ -171,54 +171,56 @@ export default function MobileNavigation({
       )}
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[56px] w-full items-center justify-around border-t border-instagram-lightBorder dark:border-instagram-darkBorder bg-instagram-lightBg/85 dark:bg-instagram-darkBg/85 backdrop-blur-md sm:hidden">
-        <Link
-          href="/"
-          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
-        >
-          <HomeIcon
-            isActive={pathname === "/"}
-          />
-        </Link>
-        <Link
-          href="/search"
-          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
-        >
-          <SearchIcon
-            className={pathname.startsWith("/search") ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
-          />
-        </Link>
-        <Link
-          href="/create"
-          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
-        >
-          <CreateIcon
-            className={pathname === "/create" ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
-          />
-        </Link>
-        <Link
-          href="/reels"
-          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
-        >
-          <ReelsIcon
-            isActive={pathname === "/reels"}
-            className={pathname === "/reels" ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
-          />
-        </Link>
-        <Link
-          href={`/users/${user.username}`}
-          className="flex h-11 w-11 items-center justify-center transition-colors"
-        >
-          <div
-            className={`rounded-full transition-all duration-200 ${
-              pathname === `/users/${user.username}`
-                ? "ring-2 ring-instagram-lightText dark:ring-instagram-darkText p-[1px]"
-                : "ring-0 p-0"
-            }`}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex flex-col justify-end border-t border-instagram-lightBorder dark:border-instagram-darkBorder bg-instagram-lightBg/85 dark:bg-instagram-darkBg/85 backdrop-blur-md sm:hidden pb-[env(safe-area-inset-bottom)]">
+        <div className="flex h-[56px] w-full items-center justify-around">
+          <Link
+            href="/"
+            className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
           >
-            <UserAvatar avatarUrl={user.avatarUrl} size={24} className="size-6" />
-          </div>
-        </Link>
+            <HomeIcon
+              isActive={pathname === "/"}
+            />
+          </Link>
+          <Link
+            href="/search"
+            className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
+          >
+            <SearchIcon
+              className={pathname.startsWith("/search") ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
+            />
+          </Link>
+          <Link
+            href="/create"
+            className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
+          >
+            <CreateIcon
+              className={pathname === "/create" ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
+            />
+          </Link>
+          <Link
+            href="/reels"
+            className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
+          >
+            <ReelsIcon
+              isActive={pathname === "/reels"}
+              className={pathname === "/reels" ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
+            />
+          </Link>
+          <Link
+            href={`/users/${user.username}`}
+            className="flex h-11 w-11 items-center justify-center transition-colors"
+          >
+            <div
+              className={`rounded-full transition-all duration-200 ${
+                pathname === `/users/${user.username}`
+                  ? "ring-2 ring-instagram-lightText dark:ring-instagram-darkText p-[1px]"
+                  : "ring-0 p-0"
+              }`}
+            >
+              <UserAvatar avatarUrl={user.avatarUrl} size={24} className="size-6" />
+            </div>
+          </Link>
+        </div>
       </nav>
 
       {/* Settings Options drawer */}

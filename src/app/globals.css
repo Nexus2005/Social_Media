@@ -227,3 +227,30 @@ body.chat-active .main-content-wrapper {
   pointer-events: none;
   animation: floatUpHeart 1.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 }
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  .mt-safe {
+    margin-top: env(safe-area-inset-top);
+  }
+}
+
+@media (max-width: 639px) {
+  .main-content-wrapper {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
+  }
+}

@@ -238,7 +238,7 @@ export default function CommentsBottomSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
-        className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#0c1017] border-t border-zinc-800/80 rounded-t-[20px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-xl md:mx-auto"
+        className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#0c1017] border-t border-zinc-800/80 rounded-t-[20px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-xl md:mx-auto pb-safe"
         style={{
           height: sheetHeight === "max" ? "93vh" : "60vh",
         }}

@@ -39,7 +39,7 @@ export default function StandardDrawer({
         {/* Drawer Content */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed bottom-0 left-0 right-0 z-[100] flex flex-col max-h-[85vh] w-full bg-[#0A0A0A] border-t border-zinc-800 rounded-t-3xl outline-none select-none overflow-hidden duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:right-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-[480px] sm:max-h-[600px] sm:rounded-2xl sm:border",
+            "fixed bottom-0 left-0 right-0 z-[100] flex flex-col max-h-[85vh] w-full bg-[#0A0A0A] border-t border-zinc-800 rounded-t-3xl outline-none select-none overflow-hidden duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:right-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-[480px] sm:max-h-[600px] sm:rounded-2xl sm:border pb-[env(safe-area-inset-bottom)] sm:pb-0",
             className
           )}
         >

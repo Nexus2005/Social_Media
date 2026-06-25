@@ -2052,7 +2052,7 @@ export default function CreatePage() {
             </div>
 
             {/* Bottom Action buttons (YouTube Short style matching) */}
-            <div className="absolute inset-x-0 bottom-0 z-20 h-20 px-6 flex items-center justify-between border-t border-zinc-900/60 bg-black/90 backdrop-blur-md shrink-0">
+            <div className="absolute inset-x-0 bottom-0 z-20 min-h-[80px] px-6 pb-safe pt-2 flex items-center justify-between border-t border-zinc-900/60 bg-black/90 backdrop-blur-md shrink-0">
               <button
                 onClick={() => setCreatorStep("timelineEditor")}
                 className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all border border-white/5 shadow-md active:scale-95 select-none"
@@ -2084,7 +2084,7 @@ export default function CreatePage() {
           <div className="flex flex-col flex-grow w-full h-full bg-[#121212] relative select-none">
             
             {/* Header */}
-            <header className="h-14 flex items-center justify-between px-4 bg-[#121212] select-none shrink-0 z-20 border-b border-zinc-800/50">
+            <header className="min-h-[56px] h-auto pt-safe pb-2 flex items-center justify-between px-4 bg-[#121212] select-none shrink-0 z-20 border-b border-zinc-800/50">
               <button
                 onClick={() => {
                   setIsPlaying(false);
@@ -2351,7 +2351,7 @@ export default function CreatePage() {
             </div>
 
             {/* Bottom Actions Row (Image 2) */}
-            <div className="h-16 flex items-center justify-around border-t border-zinc-800 bg-[#121212] pb-safe shrink-0 z-20">
+            <div className="min-h-[64px] h-auto flex items-center justify-around border-t border-zinc-800 bg-[#121212] pb-safe pt-2 shrink-0 z-20">
               <button
                 onClick={() => {
                   setTempText("");
@@ -2492,7 +2492,7 @@ export default function CreatePage() {
 
             {/* B. SOUND/MUSIC SELECTOR BOTTOM SHEET */}
             {activeEditorOverlay === "music" && (
-              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[75vh] flex flex-col justify-between z-50 p-4 font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
+              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[75vh] flex flex-col justify-between z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
                 <header className="h-12 flex items-center justify-between shrink-0 border-b border-zinc-800 pb-2">
                   <div className="flex items-center gap-1">
                     <Music className="size-4.5 text-zinc-400" />
@@ -2562,7 +2562,7 @@ export default function CreatePage() {
 
             {/* C. STICKERS SELECTOR BOTTOM SHEET (Image 4) */}
             {activeEditorOverlay === "stickers" && (
-              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[70vh] flex flex-col justify-between z-50 p-4 font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
+              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[70vh] flex flex-col justify-between z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
                 <header className="h-12 flex items-center justify-between shrink-0 border-b border-zinc-800 pb-2">
                   <h3 className="font-extrabold text-[16px] text-white">Choose Sticker</h3>
                   <button
@@ -2656,7 +2656,7 @@ export default function CreatePage() {
 
             {/* D. VOICEOVER RECORDING BOTTOM SHEET (Image 5) */}
             {activeEditorOverlay === "voiceover" && (
-              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[65vh] flex flex-col justify-between z-50 p-4 font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
+              <div className="absolute inset-x-0 bottom-0 bg-[#1c1c1e] text-white rounded-t-[20px] max-h-[65vh] flex flex-col justify-between z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] font-sans select-none border-t border-zinc-850 shadow-2xl animate-slide-up pointer-events-auto">
                 <header className="h-12 flex items-center justify-between shrink-0 border-b border-zinc-800 pb-2">
                   <div className="flex items-center gap-1.5">
                     <Mic className="size-4.5 text-zinc-400" />

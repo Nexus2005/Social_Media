@@ -1074,7 +1074,7 @@ export default function ChatChannel() {
     <div className="flex h-full w-full flex-col bg-background select-none relative">
       {/* Header Panel */}
       {selectedMessage ? (
-        <div className="flex h-14 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md">
+        <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSelectedMessage(null)}
@@ -1211,7 +1211,7 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : isSelectionMode ? (
-        <div className="flex h-14 items-center justify-between border-b bg-primary/10 px-3 z-10 animate-fade-in shrink-0">
+        <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-primary/10 px-3 z-10 animate-fade-in shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={handleExitSelectionMode}
@@ -1255,7 +1255,7 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : (
-        <div className="flex h-16 items-center justify-between bg-[#09090b] border-b border-zinc-800/60 px-4 z-10 shrink-0">
+        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-[#09090b] border-b border-zinc-800/60 px-4 z-10 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -1538,7 +1538,7 @@ export default function ChatChannel() {
       )}
 
       {/* Input Message Composer Bar (Social Commerce Theme) */}
-      <div className="flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25 shrink-0">
+      <div className={cn("flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25 shrink-0", !showStickerPicker && "pb-[env(safe-area-inset-bottom)]")}>
         <div className="flex items-center gap-2.5 p-3 select-none max-w-full">
           {/* Circular plus button on the left */}
           <button
