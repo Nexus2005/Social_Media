@@ -14,7 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Comments from "../comments/Comments";
+import CommentsBottomSheet from "../comments/CommentsBottomSheet";
 import Linkify from "../Linkify";
 import UserAvatar from "../UserAvatar";
 import UserTooltip from "../UserTooltip";
@@ -473,7 +473,11 @@ export default function Post({ post }: PostProps) {
         </div>
       )}
 
-      {showComments && <Comments post={post} />}
+      <CommentsBottomSheet
+        post={post}
+        open={showComments}
+        onOpenChange={setShowComments}
+      />
 
       {/* Media Fullscreen Viewer */}
       {mediaViewerUrls && (

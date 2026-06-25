@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
-import ReelsCommentDialog from "./ReelsCommentDialog";
+import CommentsBottomSheet from "@/components/comments/CommentsBottomSheet";
 import ShareDialog from "@/components/posts/ShareDialog";
 import RepostButton from "@/components/posts/RepostButton";
 import { useToast } from "../ui/use-toast";
@@ -1147,14 +1147,12 @@ export default function ReelCard({
         />
       )}
 
-      {/* Comment Dialog Modal */}
-      {isCommentsOpen && (
-        <ReelsCommentDialog
-          post={post}
-          open={isCommentsOpen}
-          onOpenChange={setIsCommentsOpen}
-        />
-      )}
+      {/* Comment Bottom Sheet Panel */}
+      <CommentsBottomSheet
+        post={post}
+        open={isCommentsOpen}
+        onOpenChange={setIsCommentsOpen}
+      />
 
       {/* Reels Share Bottom Sheet Dialog */}
       {isShareOpen && (
