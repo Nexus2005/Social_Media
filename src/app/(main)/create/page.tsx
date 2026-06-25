@@ -130,7 +130,8 @@ export default function CreatePage() {
   const [paidPromotion, setPaidPromotion] = useState(false);
   const [collaborationsText, setCollaborationsText] = useState("");
   const [aiUseLabel, setAiUseLabel] = useState(false);
-  const [isUploadingShort, setIsUploadingShort] = useState(false);
+  const [pendingPublishType, setPendingPublishType] = useState<"post" | "short" | null>(null);
+  const [expectedTotalAttachments, setExpectedTotalAttachments] = useState(0);
 
   // Advanced editor tracking states
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
@@ -406,39 +407,49 @@ export default function CreatePage() {
     fileInputRef.current?.click();
   };
 
-  // Publish Post Handler (Strictly does not upload gallery items)
+  // Publish Post Handler (Strictly defers gallery item uploads to publish action)
   const handlePublish = async () => {
     if (!postText.trim() && selectedGalleryIds.length === 0 && attachments.length === 0) return;
 
     setIsSubmitting(true);
     try {
-      let finalMediaIds: string[] = [];
+      if (selectedGalleryIds.length > 0) {
+        setPendingPublishType("post");
+        setExpectedTotalAttachments(attachments.length + selectedGalleryIds.length);
 
-      // Only upload actual files that were explicitly selected via the camera import (attachments)
-      if (attachments.length > 0) {
-        finalMediaIds = attachments.map(a => a.mediaId).filter(Boolean) as string[];
+        const filesToUpload: File[] = [];
+        for (const id of selectedGalleryIds) {
+          const asset = galleryAssets.find(m => m.id === id);
+          if (asset) {
+            const file = await getFileFromBlobUri(asset.uri, asset.mediaType === "VIDEO" ? `gallery_${id}.mp4` : `gallery_${id}.jpg`);
+            filesToUpload.push(file);
+          }
+        }
+        await startUpload(filesToUpload);
+      } else {
+        const finalMediaIds = attachments.map(a => a.mediaId).filter(Boolean) as string[];
+        await submitMutation.mutateAsync({
+          content: postText,
+          mediaIds: finalMediaIds,
+          audience: "public",
+        });
+
+        // Clear states and redirect
+        setPostText("");
+        setSelectedGalleryIds([]);
+        resetUploads();
+        setCreatorStep("composer");
+        router.push("/");
+        setIsSubmitting(false);
       }
-
-      await submitMutation.mutateAsync({
-        content: postText,
-        mediaIds: finalMediaIds,
-        audience: "public",
-      });
-
-      // Clear states and redirect
-      setPostText("");
-      setSelectedGalleryIds([]);
-      resetUploads();
-      setCreatorStep("composer");
-      router.push("/");
     } catch (err) {
       console.error(err);
+      setPendingPublishType(null);
+      setIsSubmitting(false);
       toast({
         variant: "destructive",
         description: "Failed to publish post. Please try again.",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -944,52 +955,81 @@ export default function CreatePage() {
     setShowHashtagSuggestions(false);
   };
 
-  // Monitor uploadthing attachments for the Short upload completion
+  const getFileFromBlobUri = async (uri: string, filename: string): Promise<File> => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new File([blob], filename, { type: blob.type });
+  };
+
+  // Monitor uploadthing attachments for the Short/Post upload completion
   useEffect(() => {
-    if (isUploadingShort && !isUploading) {
-      const uploadedAttachment = attachments.find(a => !a.isUploading && a.mediaId);
-      if (uploadedAttachment) {
-        const publishShort = async () => {
-          try {
-            await submitMutation.mutateAsync({
-              content: captionText,
-              mediaIds: [uploadedAttachment.mediaId!],
-              contentFormat: selectedAsset?.mediaType === "VIDEO" ? "SPOT" : "FEED",
-              location: locationText || null,
-              audience: visibility.toLowerCase(),
-            });
-            
-            resetUploads();
-            setIsUploadingShort(false);
-            setCaptionText("");
-            setCreatorStep("composer");
-            router.push("/");
-          } catch (err) {
-            console.error(err);
-            setIsUploadingShort(false);
-          }
-        };
-        publishShort();
-      } else {
-        // Failed or cancelled
-        setIsUploadingShort(false);
+    if (pendingPublishType && !isUploading) {
+      const allDone = attachments.every(a => !a.isUploading);
+      if (allDone) {
+        const uploadedMediaIds = attachments.map(a => a.mediaId).filter(Boolean) as string[];
+        
+        if (attachments.length === expectedTotalAttachments && attachments.every(a => !a.isUploading && a.mediaId)) {
+          const publishContent = async () => {
+            try {
+              if (pendingPublishType === "short") {
+                await submitMutation.mutateAsync({
+                  content: captionText,
+                  mediaIds: [uploadedMediaIds[0]],
+                  contentFormat: selectedAsset?.mediaType === "VIDEO" ? "SPOT" : "FEED",
+                  location: locationText || null,
+                  audience: visibility.toLowerCase(),
+                });
+                setCaptionText("");
+              } else {
+                await submitMutation.mutateAsync({
+                  content: postText,
+                  mediaIds: uploadedMediaIds,
+                  audience: "public",
+                });
+                setPostText("");
+                setSelectedGalleryIds([]);
+              }
+              
+              resetUploads();
+              setPendingPublishType(null);
+              setCreatorStep("composer");
+              router.push("/");
+            } catch (err) {
+              console.error(err);
+              resetUploads();
+              setPendingPublishType(null);
+              setIsSubmitting(false);
+              toast({
+                variant: "destructive",
+                description: "Failed to publish post. Please try again.",
+              });
+            }
+          };
+          publishContent();
+        } else {
+          // UPLOAD FAILURE WATCHPOINT: If some uploads failed/mismatched, clean up and unlock UI
+          resetUploads();
+          setPendingPublishType(null);
+          setIsSubmitting(false);
+          toast({
+            variant: "destructive",
+            description: "Failed to upload media files. Please try again.",
+          });
+        }
       }
     }
-  }, [isUploadingShort, isUploading, attachments]);
+  }, [pendingPublishType, isUploading, attachments, expectedTotalAttachments]);
 
   const handleUploadShortClick = async () => {
     if (!selectedAsset) return;
-    setIsUploadingShort(true);
+    setPendingPublishType("short");
+    setExpectedTotalAttachments(1);
     try {
-      const response = await fetch(selectedAsset.uri);
-      const blob = await response.blob();
-      const filename = selectedAsset.mediaType === "VIDEO" ? `video_${Date.now()}.mp4` : `image_${Date.now()}.jpg`;
-      const file = new File([blob], filename, { type: blob.type });
-
+      const file = await getFileFromBlobUri(selectedAsset.uri, selectedAsset.mediaType === "VIDEO" ? `video_${Date.now()}.mp4` : `image_${Date.now()}.jpg`);
       await startUpload([file]);
     } catch (e) {
       console.error("Upload error:", e);
-      setIsUploadingShort(false);
+      setPendingPublishType(null);
       toast({
         variant: "destructive",
         description: "Failed to upload media. Please try again.",
@@ -3221,7 +3261,7 @@ export default function CreatePage() {
                   });
                   setCreatorStep("composer");
                 }}
-                disabled={isUploadingShort || isSubmitting}
+                disabled={pendingPublishType !== null || isSubmitting}
                 className="flex-1 py-3.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-full text-sm font-bold text-white text-center transition-all border border-zinc-800/60 shadow-md"
               >
                 Save draft
@@ -3229,10 +3269,10 @@ export default function CreatePage() {
 
               <button
                 onClick={handleUploadShortClick}
-                disabled={isUploadingShort || isSubmitting}
+                disabled={pendingPublishType !== null || isSubmitting}
                 className="flex-1 py-3.5 bg-white hover:bg-zinc-150 active:scale-98 rounded-full text-sm font-black text-black text-center transition-all shadow-lg flex items-center justify-center gap-1.5"
               >
-                {isUploadingShort || isSubmitting ? (
+                {pendingPublishType !== null || isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin text-black" />
                     <span>Uploading...</span>
