@@ -502,7 +502,7 @@ export default function NewChatDialog({
             <X className="size-6" />
           </button>
           <span className="text-[17px] font-bold text-white">New Chat</span>
-          <button className="p-1 rounded-lg text-[#a855f7] hover:bg-zinc-900">
+          <button className="p-1 rounded-lg text-[#2a87d0] hover:bg-zinc-900">
             <UserPlus className="size-6" />
           </button>
         </div>
@@ -542,10 +542,10 @@ export default function NewChatDialog({
                 }}
                 className={cn(
                   "flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl transition-all",
-                  isGroupMode ? "bg-[#a855f7]/15 border border-[#a855f7]/30" : "bg-[#18191B] hover:bg-[#202124]"
+                  isGroupMode ? "bg-[#2a87d0]/15 border border-[#2a87d0]/30" : "bg-[#18191B] hover:bg-[#202124]"
                 )}
               >
-                <div className="size-[38px] rounded-full bg-[#8b5cf6] text-white flex items-center justify-center shrink-0">
+                <div className="size-[38px] rounded-full bg-[#2a87d0] text-white flex items-center justify-center shrink-0">
                   <Users className="size-[20px]" />
                 </div>
                 <div className="flex flex-col text-center">
@@ -607,7 +607,7 @@ export default function NewChatDialog({
             <div className="flex flex-col py-4 border-b border-zinc-950 shrink-0">
               <div className="flex justify-between items-center px-4 mb-2.5">
                 <span className="text-[14px] font-bold text-zinc-400">Contacts on Cartly</span>
-                <button onClick={() => onOpenChange(false)} className="text-[13px] font-bold text-[#a855f7] hover:underline">
+                <button onClick={() => onOpenChange(false)} className="text-[13px] font-bold text-[#2a87d0] hover:underline">
                   View all
                 </button>
               </div>
@@ -694,8 +694,8 @@ export default function NewChatDialog({
                 }}
                 className="flex-1 py-3 text-[13px] font-bold text-center border-b-2 transition-all select-none relative"
                 style={{
-                  color: activeTab === tab.id ? "#a855f7" : "#71717a",
-                  borderColor: activeTab === tab.id ? "#a855f7" : "transparent"
+                  color: activeTab === tab.id ? "#2a87d0" : "#71717a",
+                  borderColor: activeTab === tab.id ? "#2a87d0" : "transparent"
                 }}
               >
                 {tab.label}
@@ -714,7 +714,7 @@ export default function NewChatDialog({
                   ) : (
                     Object.keys(groupedContacts).map((letter) => (
                       <div key={letter} id={`letter-${letter}`} className="flex flex-col mb-4">
-                        <span className="px-4 py-1 text-xs font-bold text-[#a855f7] bg-[#111214] select-none block sticky top-[45px] z-5">
+                        <span className="px-4 py-1 text-xs font-bold text-[#2a87d0] bg-[#111214] select-none block sticky top-[45px] z-5">
                           {letter}
                         </span>
                         <div className="flex flex-col mt-1">
@@ -744,7 +744,7 @@ export default function NewChatDialog({
                                     className={cn(
                                       "size-[22px] rounded-full border flex items-center justify-center transition-all",
                                       isChecked
-                                        ? "bg-[#a855f7] border-[#a855f7] text-white"
+                                        ? "bg-[#2a87d0] border-[#2a87d0] text-white"
                                         : "border-zinc-700 bg-transparent text-transparent"
                                     )}
                                   >
@@ -762,7 +762,7 @@ export default function NewChatDialog({
 
                 {/* Right side A-Z vertical indicator */}
                 {!searchInput && (
-                  <div className="w-[28px] flex flex-col items-center justify-start py-4 bg-[#0F1012]/40 border-l border-zinc-950 shrink-0 select-none text-[9.5px] font-extrabold text-[#7c3aed] sticky top-[45px] right-0 gap-0.5 leading-none">
+                  <div className="w-[28px] flex flex-col items-center justify-start py-4 bg-[#0F1012]/40 border-l border-zinc-950 shrink-0 select-none text-[9.5px] font-extrabold text-[#2a87d0] sticky top-[45px] right-0 gap-0.5 leading-none">
                     {["#", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"].map((l) => (
                       <button
                         key={l}
@@ -801,7 +801,7 @@ export default function NewChatDialog({
                           />
                         </div>
                       ) : (
-                        <div className="size-11 rounded-full bg-[#8b5cf6] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
+                        <div className="size-11 rounded-full bg-[#2a87d0] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
                           {channel.data?.name?.[0]?.toUpperCase() || <Users className="size-5" />}
                         </div>
                       )}

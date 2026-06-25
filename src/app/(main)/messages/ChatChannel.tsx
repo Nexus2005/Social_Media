@@ -1,7 +1,8 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -122,6 +123,11 @@ interface MessageBubbleContainerProps {
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
   otherMember: any;
+  setForwardingMessage: (msg: MessageResponse | null) => void;
+  fetchForwardChannels: () => void;
+  setShowForwardDialog: (val: boolean) => void;
+  setMoreOptionsMessage: (msg: MessageResponse | null) => void;
+  setToastMessage: (msg: string | null) => void;
 }
 
 const MessageBubbleContainer = React.memo(({
@@ -151,6 +157,11 @@ const MessageBubbleContainer = React.memo(({
   isFirstInGroup,
   isLastInGroup,
   otherMember,
+  setForwardingMessage,
+  fetchForwardChannels,
+  setShowForwardDialog,
+  setMoreOptionsMessage,
+  setToastMessage,
 }: MessageBubbleContainerProps) => {
   const isOutgoing = message.user?.id === loggedInUser.id || (message as any).senderId === loggedInUser.id;
   const isQueue = "status" in message;
@@ -281,7 +292,7 @@ const MessageBubbleContainer = React.memo(({
                 isOutgoing
                   ? isStoryReply
                     ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 text-white"
-                    : "bg-[#7c3aed] text-white"
+                    : "bg-[#2a87d0] text-white"
                   : isStoryReply
                   ? "bg-zinc-900/60 dark:bg-zinc-950/65 border border-zinc-800/50 text-white"
                   : "bg-[#1c1c1e] border border-transparent text-zinc-100",
@@ -471,39 +482,146 @@ const MessageBubbleContainer = React.memo(({
         )}
       </motion.div>
 
-      {/* Floating Reaction Capsule above the bubble when selected */}
+      {/* Floating Reaction Capsule + Adjacent Options Menu above/next to the bubble when selected */}
       <AnimatePresence>
         {isSelected && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 10, x: "-50%" }}
-            animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
-            exit={{ opacity: 0, scale: 0.8, y: 10, x: "-50%" }}
-            className="absolute -top-16 left-1/2 z-50 bg-[#1f2c34] dark:bg-[#233138] border border-[#2f3b43] rounded-full px-4 py-2.5 shadow-2xl flex items-center gap-3 shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+          <>
+            {/* Reactions Bar: Center-positioned above the bubble, styled as #1e232b pill */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 10, x: "-50%" }}
+              animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, scale: 0.9, y: 10, x: "-50%" }}
+              className="absolute bottom-full mb-3.5 left-1/2 z-50 bg-[#1e232b] border border-zinc-800 rounded-full px-4 py-2 shadow-2xl flex flex-col items-center gap-1 shrink-0 min-w-[270px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-[10px] text-zinc-400 font-medium select-none">Tap and hold to super react</span>
+              <div className="flex items-center gap-3">
+                {["❤️", "😂", "😮", "😢", "😡", "👍"].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => {
+                      handleToggleReaction(message.id, emoji);
+                      setSelectedMessage(null);
+                    }}
+                    className="text-2xl hover:scale-125 active:scale-95 transition-all drop-shadow-md cursor-pointer shrink-0"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                {/* Circular plus picker button */}
+                <button
+                  onClick={() => {
+                    setShowStickerPicker(true);
+                    setSelectedMessage(null);
+                  }}
+                  className="size-7 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 font-semibold text-[14px] cursor-pointer shrink-0"
+                >
+                  +
+                </button>
+              </div>
+            </motion.div>
+
+            {/* Options List popover menu adjacent to the bubble */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 5 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 5 }}
+              className={cn(
+                "absolute z-50 w-48 rounded-2xl bg-[#1c222b] border border-[#262626] shadow-2xl p-1.5 flex flex-col gap-0.5 text-[14px] text-white",
+                isOutgoing ? "right-0 top-full mt-2" : "left-0 top-full mt-2"
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
-                key={emoji}
                 onClick={() => {
-                  handleToggleReaction(message.id, emoji);
+                  setReplyMessage(message);
                   setSelectedMessage(null);
                 }}
-                className="text-2xl hover:scale-125 active:scale-95 transition-all drop-shadow-md cursor-pointer shrink-0"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800/60 text-start w-full"
               >
-                {emoji}
+                <CornerUpLeft className="size-4 text-zinc-400" />
+                <span>Reply</span>
               </button>
-            ))}
-            {/* Circular plus picker button */}
-            <button
-              onClick={() => {
-                setShowStickerPicker(true);
-                setSelectedMessage(null);
-              }}
-              className="size-8 rounded-full bg-[#374248] hover:bg-[#465158] flex items-center justify-center text-zinc-400 font-bold text-lg cursor-pointer shrink-0"
-            >
-              +
-            </button>
-          </motion.div>
+
+              <button
+                onClick={() => {
+                  setShowStickerPicker(true);
+                  setSelectedMessage(null);
+                }}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800/60 text-start w-full"
+              >
+                <Smile className="size-4 text-zinc-400" />
+                <span>Add sticker</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setForwardingMessage(message);
+                  fetchForwardChannels();
+                  setShowForwardDialog(true);
+                  setSelectedMessage(null);
+                }}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800/60 text-start w-full"
+              >
+                <Share2 className="size-4 text-zinc-400" />
+                <span>Forward</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (message.text) {
+                    navigator.clipboard.writeText(message.text);
+                    setToastMessage("Copied to clipboard");
+                    setTimeout(() => setToastMessage(null), 2000);
+                  }
+                  setSelectedMessage(null);
+                }}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800/60 text-start w-full"
+              >
+                <Copy className="size-4 text-zinc-400" />
+                <span>Copy</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setToastMessage("Translating message...");
+                  setTimeout(() => {
+                    setToastMessage("Translated: " + (message.text || ""));
+                    setTimeout(() => setToastMessage(null), 3000);
+                  }, 1000);
+                  setSelectedMessage(null);
+                }}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800/60 text-start w-full"
+              >
+                <Globe className="size-4 text-zinc-400" />
+                <span>Translate</span>
+              </button>
+
+              {isOutgoing && (
+                <button
+                  onClick={() => {
+                    handleDeleteMessage(message.id);
+                    setSelectedMessage(null);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-500 text-start w-full font-medium"
+                >
+                  <Trash2 className="size-4 text-red-500" />
+                  <span>Unsend</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setMoreOptionsMessage(message);
+                  setSelectedMessage(null);
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-800/60 text-start w-full text-zinc-300"
+              >
+                <span className="font-medium">More</span>
+                <span className="text-[12px] text-zinc-500">&gt;</span>
+              </button>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
@@ -579,6 +697,12 @@ export default function ChatChannel() {
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<MessageResponse | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [moreOptionsMessage, setMoreOptionsMessage] = useState<MessageResponse | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Reset selected message when switching channels
   useEffect(() => {
@@ -1077,7 +1201,7 @@ export default function ChatChannel() {
   return (
     <div className="flex h-full w-full flex-col bg-[#121212] select-none relative">
       {/* Header Panel */}
-      {selectedMessage ? (
+      {selectedMessage && isSelectionMode ? (
         <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md">
           <div className="flex items-center gap-3">
             <button
@@ -1282,7 +1406,7 @@ export default function ChatChannel() {
                   {avatarUrl ? (
                     <UserAvatar avatarUrl={avatarUrl as string | undefined} size={36} className="size-9 rounded-full border-none" />
                   ) : isGroup ? (
-                    <div className="size-9 rounded-full flex items-center justify-center text-sm font-bold text-white bg-purple-600">
+                    <div className="size-9 rounded-full flex items-center justify-center text-sm font-bold text-white bg-[#2a87d0]">
                       {(displayName || "G")[0].toUpperCase()}
                     </div>
                   ) : (
@@ -1515,6 +1639,11 @@ export default function ChatChannel() {
                 isFirstInGroup={isFirstInGroup}
                 isLastInGroup={isLastInGroup}
                 otherMember={otherMember}
+                setForwardingMessage={setForwardingMessage}
+                fetchForwardChannels={fetchForwardChannels}
+                setShowForwardDialog={setShowForwardDialog}
+                setMoreOptionsMessage={setMoreOptionsMessage}
+                setToastMessage={setToastMessage}
               />
             );
           })}
@@ -1593,7 +1722,7 @@ export default function ChatChannel() {
                 setShowAttachmentPicker(false);
               }}
               className={`rounded-full p-1.5 transition-colors shrink-0 ${
-                showStickerPicker ? "text-[#7c3aed]" : "text-zinc-400 hover:text-zinc-200"
+                showStickerPicker ? "text-[#2a87d0]" : "text-zinc-400 hover:text-zinc-200"
               }`}
               type="button"
             >
@@ -1612,7 +1741,7 @@ export default function ChatChannel() {
           {/* Purple soundwave FAB / Send button */}
           <button
             onClick={inputText.trim() ? handleSendMessage : undefined}
-            className="size-10 rounded-full bg-[#7c3aed] text-white flex items-center justify-center shadow-lg hover:bg-[#6d28d9] active:scale-95 transition-all shrink-0 cursor-pointer"
+            className="size-10 rounded-full bg-[#2a87d0] text-white flex items-center justify-center shadow-lg hover:bg-[#2076b4] active:scale-95 transition-all shrink-0 cursor-pointer"
             type="button"
           >
             {inputText.trim() ? (
@@ -1831,6 +1960,76 @@ export default function ChatChannel() {
           </div>
         </div>
       )}
+
+      {mounted && (
+        createPortal(
+          <AnimatePresence>
+            {moreOptionsMessage && (
+              <div className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end">
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setMoreOptionsMessage(null)}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-[1px]"
+                />
+                {/* Drawer */}
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 250 }}
+                  className="relative z-50 bg-[#1c222b] border-t border-[#262626] rounded-t-3xl pb-8 pt-4 px-6 flex flex-col items-center gap-4 max-w-md mx-auto w-full"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Drag Handle */}
+                  <div className="w-12 h-1 bg-zinc-700 rounded-full mb-1 shrink-0" />
+                  
+                  {/* Message Time Header */}
+                  <div className="text-[15px] font-bold text-zinc-400 select-none">
+                    {new Date(moreOptionsMessage.created_at || (moreOptionsMessage as any).createdAt || Date.now()).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
+                  </div>
+
+                  {/* Options */}
+                  <div className="w-full flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        handlePinMessage(moreOptionsMessage);
+                        setMoreOptionsMessage(null);
+                      }}
+                      className="w-full py-3.5 bg-zinc-800/60 hover:bg-zinc-800 rounded-xl text-center font-bold text-white text-[15px] transition-colors"
+                    >
+                      {moreOptionsMessage.pinned ? "Unpin Message" : "Pin Message"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        handleDeleteMessage(moreOptionsMessage.id);
+                        setMoreOptionsMessage(null);
+                      }}
+                      className="w-full py-3.5 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-center font-bold text-red-500 text-[15px] transition-colors"
+                    >
+                      Delete for you
+                    </button>
+
+                    <button
+                      onClick={() => setMoreOptionsMessage(null)}
+                      className="w-full py-3.5 bg-transparent hover:bg-zinc-850 rounded-xl text-center font-bold text-zinc-400 text-[15px] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )
+      )}
     </div>
   );
 }
@@ -1901,7 +2100,7 @@ function ShareCardAttachment({
             href={deepLink}
             target="_blank"
             rel="noreferrer"
-            className="w-full py-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-center text-xs font-semibold text-white transition-colors"
+            className="w-full py-2 rounded-xl bg-[#2a87d0] hover:bg-[#2076b4] text-center text-xs font-semibold text-white transition-colors"
           >
             View Product
           </a>

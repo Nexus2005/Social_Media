@@ -1738,7 +1738,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
       case "ai":
         return (
           <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#1A1A1A] pb-3">
+            <div className="flex items-center gap-3 border-b border-[#262626] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#111111] rounded-full">
                 <ArrowLeft className="size-5" strokeWidth={1.75} />
               </button>
@@ -1763,7 +1763,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                     <button
                       key={act.key}
                       onClick={() => handleAIImprove(act.key)}
-                      className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-xl p-3.5 text-left font-semibold text-white hover:bg-[#111111] transition-colors min-h-[44px]"
+                      className="bg-[#1c1c1e] border border-[#262626] rounded-xl p-3.5 text-left font-semibold text-white hover:bg-zinc-800/40 transition-colors min-h-[44px]"
                     >
                       {act.label}
                     </button>
@@ -1775,8 +1775,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "audience":
         return (
-          <div className="flex flex-col h-full bg-black text-white">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-[#121212] text-white">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0">
               <button 
                 onClick={() => setActivePanel("none")} 
                 className="p-2 hover:bg-[#111111] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-[#A1A1AA] hover:text-white"
@@ -1798,7 +1798,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                     }}
                     className={cn(
                       "w-full flex items-center justify-between p-4 rounded-xl border transition-colors",
-                      isSel ? "bg-[#0A0A0A] border-white text-white" : "bg-[#0A0A0A] border-[#1A1A1A] text-[#A1A1AA] hover:border-[#71717A]"
+                      isSel ? "bg-[#1c1c1e] border-white text-white" : "bg-[#1c1c1e] border-[#262626] text-[#A1A1AA] hover:border-[#71717A]"
                     )}
                   >
                     <span className="text-sm font-semibold capitalize">{aud.toLowerCase().replace("_", " ")}</span>
@@ -1811,8 +1811,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "schedule":
         return (
-          <div className="flex flex-col h-full bg-black text-white">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-[#121212] text-white">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0">
               <button 
                 onClick={() => setActivePanel("none")} 
                 className="p-2 hover:bg-[#111111] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-[#A1A1AA] hover:text-white"
@@ -1828,7 +1828,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                   type="date"
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
-                  className="bg-black border border-[#1A1A1A] text-white rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#71717A]"
+                  className="bg-[#1c1c1e] border border-[#262626] text-white rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#71717A]"
                 />
               </div>
               <div className="space-y-1.5">
@@ -1837,7 +1837,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="bg-black border border-[#1A1A1A] text-white rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#71717A]"
+                  className="bg-[#1c1c1e] border border-[#262626] text-white rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#71717A]"
                 />
               </div>
               <button
@@ -1854,8 +1854,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "settings":
         return (
-          <div className="flex flex-col h-full bg-black text-white">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-[#121212] text-white">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0">
               <button 
                 onClick={() => setActivePanel("none")} 
                 className="p-2 hover:bg-[#111111] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-[#A1A1AA] hover:text-white"
@@ -1864,7 +1864,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
               </button>
               <span className="font-semibold text-base">Post Settings</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-1 divide-y divide-[#1A1A1A]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-1 divide-y divide-[#262626]">
               <div className="flex justify-between items-center py-4">
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-white">Allow Comments</span>
@@ -1999,7 +1999,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-[#121212] scrollbar-none select-text">
         {/* Side-by-Side Avatar + Textarea Layout */}
         <div className="flex gap-3 items-start w-full">
-          <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-black border border-[#1A1A1A] shrink-0 select-none" />
+          <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-[#1c1c1e] border border-[#262626] shrink-0 select-none" />
           <div className="flex-grow flex flex-col min-w-0">
             <textarea
               value={threads[0].text}
@@ -2068,14 +2068,14 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                       onClick={() => {
                         toast({ description: "Image choices for polls are coming soon!" });
                       }}
-                      className="size-11 shrink-0 border border-zinc-800 rounded-xl bg-black flex items-center justify-center text-zinc-400 hover:bg-zinc-900 transition-colors active:scale-95"
+                      className="size-11 shrink-0 border border-[#262626] rounded-xl bg-[#1c1c1e] flex items-center justify-center text-zinc-400 hover:bg-zinc-800 transition-colors active:scale-95"
                       title="Add choice image"
                     >
                       <ImageIcon className="size-5" />
                     </button>
 
                     {/* Input Field Container */}
-                    <div className="flex-grow border border-zinc-800 focus-within:border-sky-500 rounded-xl px-3 py-0.5 bg-black flex items-center gap-2 transition-all">
+                    <div className="flex-grow border border-[#262626] focus-within:border-sky-500 rounded-xl px-3 py-0.5 bg-[#1c1c1e] flex items-center gap-2 transition-all">
                       <input
                         type="text"
                         placeholder={`Choice ${oIdx + 1}`}
@@ -2122,7 +2122,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
             </div>
 
             {/* Poll Length Select */}
-            <div className="flex flex-col gap-1 text-xs pt-2 border-t border-zinc-900 mt-2 select-none">
+            <div className="flex flex-col gap-1 text-xs pt-2 border-t border-[#262626] mt-2 select-none">
               <span className="text-zinc-500 font-medium">Poll length</span>
               <div className="flex items-center gap-1.5 text-sky-500 font-bold cursor-pointer hover:opacity-85">
                 <select
@@ -2135,9 +2135,9 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                   }}
                   className="bg-transparent border-none text-sky-500 text-sm font-bold focus:ring-0 p-0 outline-none cursor-pointer"
                 >
-                  <option value="1d" className="bg-black text-white">1 day</option>
-                  <option value="3d" className="bg-black text-white">3 days</option>
-                  <option value="7d" className="bg-black text-white">7 days</option>
+                  <option value="1d" className="bg-[#1c1c1e] text-white">1 day</option>
+                  <option value="3d" className="bg-[#1c1c1e] text-white">3 days</option>
+                  <option value="7d" className="bg-[#1c1c1e] text-white">7 days</option>
                 </select>
               </div>
             </div>
@@ -2154,7 +2154,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
             <button
               type="button"
               onClick={() => setActivePanel("camera")}
-              className="size-20 rounded-2xl border border-zinc-800 bg-[#0A0A0A] hover:bg-zinc-900 transition-colors flex items-center justify-center text-white shrink-0 cursor-pointer"
+              className="size-20 rounded-2xl border border-[#262626] bg-[#1c1c1e] hover:bg-zinc-800 transition-colors flex items-center justify-center text-white shrink-0 cursor-pointer"
               title="Open Camera"
             >
               <Camera className="size-6 text-zinc-300" strokeWidth={2} />
@@ -2168,7 +2168,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
               return (
                 <div 
                   key={idx} 
-                  className="relative size-20 rounded-2xl overflow-hidden shrink-0 border border-zinc-800 bg-[#0A0A0A] flex items-center justify-center group"
+                  className="relative size-20 rounded-2xl overflow-hidden shrink-0 border border-[#262626] bg-[#1c1c1e] flex items-center justify-center group"
                 >
                   {isVideoFile ? (
                     <video src={item.previewUrl} className="w-full h-full object-cover" muted />
@@ -2367,7 +2367,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
               </button>
               <button
                 onClick={handleDiscardAndClose}
-                className="w-full bg-[#0A0A0A] border border-[#1A1A1A] hover:bg-red-950/20 text-[#EF4444] font-semibold py-3 rounded-xl text-sm min-h-[44px]"
+                className="w-full bg-[#121212] border border-[#262626] hover:bg-red-950/20 text-[#EF4444] font-semibold py-3 rounded-xl text-sm min-h-[44px]"
               >
                 Discard Draft
               </button>
@@ -2428,7 +2428,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                         <IconComponent size={22} className="size-5.5" />
                       </div>
                       {isSel && (
-                        <div className="absolute -bottom-0.5 -right-0.5 size-4.5 bg-[#00BA7C] rounded-full border border-[#0A0A0A] flex items-center justify-center">
+                        <div className="absolute -bottom-0.5 -right-0.5 size-4.5 bg-[#00BA7C] rounded-full border border-[#121212] flex items-center justify-center">
                           <Check className="size-2.5 text-white" strokeWidth={4} />
                         </div>
                       )}

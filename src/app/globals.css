@@ -253,4 +253,8 @@ body.chat-active .main-content-wrapper {
   .main-content-wrapper {
     padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
   }
+  body.chat-active .main-content-wrapper,
+  body.route-create-active .main-content-wrapper {
+    padding-bottom: 0 !important;
+  }
 }

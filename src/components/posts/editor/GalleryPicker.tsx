@@ -170,7 +170,7 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
   const sortedAssets = [...filteredAssets].sort((a, b) => b.dateAdded - a.dateAdded);
 
   return (
-    <div className="flex-grow flex flex-col bg-black text-white select-none font-sans h-full relative">
+    <div className="flex-grow flex flex-col bg-[#121212] text-white select-none font-sans h-full relative">
       {/* Hidden native file input */}
       <input
         type="file"
@@ -183,14 +183,14 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
 
       {/* Processing overlay */}
       {isProcessing && (
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
+        <div className="absolute inset-0 bg-[#121212]/85 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
           <Loader2 className="size-6 animate-spin text-white" />
           <span className="text-sm font-semibold tracking-wide">Uploading selected media...</span>
         </div>
       )}
 
       {/* Header Row */}
-      <div className="flex justify-between items-center px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0 z-25">
+      <div className="flex justify-between items-center px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0 z-25">
         <button
           type="button"
           onClick={onClose}
@@ -215,7 +215,7 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
               {/* Click outside backdrop for dropdown */}
               <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
               
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl shadow-2xl py-2 z-50 animate-slide-up">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1c1c1e] border border-[#262626] rounded-2xl shadow-2xl py-2 z-50 animate-slide-up">
                 <button
                   type="button"
                   onClick={() => {
@@ -266,10 +266,10 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
 
       {/* Limited Access Banner */}
       {galleryPermission === "limited" ? (
-        <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between text-xs text-zinc-300 select-none animate-fade-in">
+        <div className="px-4 py-3 bg-[#1c1c1e] border-b border-[#262626] flex items-center justify-between text-xs text-zinc-300 select-none animate-fade-in text-left leading-tight pr-2">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-            <p className="text-left leading-tight pr-2">Next Social only has access to selected items. Folders may be incomplete.</p>
+            <p>Next Social only has access to selected items. Folders may be incomplete.</p>
           </div>
           <button 
             type="button" 
@@ -281,7 +281,7 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
         </div>
       ) : (
         galleryAssets.length > 0 && (
-          <div className="px-4 py-2.5 bg-[#0D0D0D] border-b border-[#1A1A1A] flex items-center justify-between text-xs text-zinc-400 select-none">
+          <div className="px-4 py-2.5 bg-[#1c1c1e] border-b border-[#262626] flex items-center justify-between text-xs text-zinc-400 select-none">
             <span>Viewing selected files & folders</span>
             <button 
               type="button" 
@@ -300,9 +300,9 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
           {/* Slot 1: Camera shortcut tile */}
           <div
             onClick={onOpenCamera}
-            className="aspect-square bg-zinc-950 hover:bg-zinc-900 transition-colors border border-zinc-850 rounded-xl flex flex-col items-center justify-center text-[#A1A1AA] cursor-pointer group active:scale-95 transition-all select-none"
+            className="aspect-square bg-[#1c1c1e] hover:bg-zinc-850 transition-colors border border-[#262626] rounded-xl flex flex-col items-center justify-center text-[#A1A1AA] cursor-pointer group active:scale-95 transition-all select-none"
           >
-            <div className="size-11 rounded-full bg-zinc-900 flex items-center justify-center text-sky-500 border border-zinc-800 shadow-sm group-hover:bg-zinc-850">
+            <div className="size-11 rounded-full bg-[#121212] flex items-center justify-center text-sky-500 border border-[#262626] shadow-sm group-hover:bg-[#1c1c1e]">
               <Camera className="size-5" strokeWidth={2} />
             </div>
             <span className="text-[11px] font-semibold text-zinc-400 mt-2">Camera</span>
@@ -311,9 +311,9 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
           {/* Slot 2: Manage/Select More tile (strict/partial permissions access) */}
           <div
             onClick={handleRequestMoreFiles}
-            className="aspect-square bg-zinc-950 hover:bg-zinc-900 transition-colors border border-zinc-850 rounded-xl flex flex-col items-center justify-center text-[#A1A1AA] cursor-pointer group active:scale-95 transition-all select-none"
+            className="aspect-square bg-[#1c1c1e] hover:bg-zinc-850 transition-colors border border-[#262626] rounded-xl flex flex-col items-center justify-center text-[#A1A1AA] cursor-pointer group active:scale-95 transition-all select-none"
           >
-            <div className="size-11 rounded-full bg-zinc-900 flex items-center justify-center text-emerald-500 border border-zinc-800 shadow-sm group-hover:bg-zinc-850">
+            <div className="size-11 rounded-full bg-[#121212] flex items-center justify-center text-emerald-500 border border-[#262626] shadow-sm group-hover:bg-[#1c1c1e]">
               <ImageIcon className="size-5" strokeWidth={2} />
             </div>
             <span className="text-[11px] font-semibold text-zinc-400 mt-2">Select More</span>
@@ -330,7 +330,7 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
               <div
                 key={item.id}
                 onClick={() => handleToggleSelect(item)}
-                className="aspect-square rounded-xl overflow-hidden relative cursor-pointer group border border-zinc-900 bg-zinc-950 active:scale-95 transition-all"
+                className="aspect-square rounded-xl overflow-hidden relative cursor-pointer group border border-[#262626] bg-[#1c1c1e] active:scale-95 transition-all"
               >
                 {isVideo ? (
                   <video

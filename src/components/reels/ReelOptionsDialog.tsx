@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { PostData } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -70,55 +71,69 @@ export default function ReelOptionsDialog({
 
   if (!open || !mounted) return null;
 
-  const menuItems = [
-    ...(hasProducts && onShopProductsClick
-      ? [
-          {
-            label: "Shop Products in Video",
-            icon: ShoppingBag,
-            onClick: onShopProductsClick,
-            color: "text-yellow-500 hover:text-yellow-400",
-            iconColor: "text-yellow-500",
-          },
-        ]
-      : []),
+  // Shortcuts displayed in the top row grid
+  const shortcuts = [
     {
-      label: "Report",
-      icon: AlertTriangle,
-      onClick: () => handlePlaceholderAction("Report"),
-      color: "text-red-500 hover:text-red-400",
-      iconColor: "text-red-500",
-    },
-    {
-      label: "Go to post",
-      icon: ExternalLink,
-      onClick: () => handlePlaceholderAction("Go to post"),
-    },
-    {
-      label: "Share to...",
+      label: "Share",
       icon: Send,
       onClick: () => handlePlaceholderAction("Share to"),
     },
     {
-      label: "Copy link",
+      label: "Copy Link",
       icon: Copy,
       onClick: handleCopyLink,
     },
+    ...(hasProducts && onShopProductsClick
+      ? [
+          {
+            label: "Shop Looks",
+            icon: ShoppingBag,
+            onClick: onShopProductsClick,
+            highlight: true,
+          },
+        ]
+      : [
+          {
+            label: "Embed",
+            icon: Code,
+            onClick: () => handlePlaceholderAction("Embed"),
+          },
+        ]),
     {
-      label: "Embed",
-      icon: Code,
-      onClick: () => handlePlaceholderAction("Embed"),
+      label: "Go to Post",
+      icon: ExternalLink,
+      onClick: () => handlePlaceholderAction("Go to post"),
     },
+  ];
+
+  // Additional options in the vertical list below
+  const listItems = [
+    ...(hasProducts
+      ? [
+          {
+            label: "Embed",
+            icon: Code,
+            onClick: () => handlePlaceholderAction("Embed"),
+          },
+        ]
+      : []),
     {
       label: "About this account",
       icon: Info,
       onClick: () => handlePlaceholderAction("About this account"),
     },
+    {
+      label: "Report Reel",
+      icon: AlertTriangle,
+      onClick: () => handlePlaceholderAction("Report"),
+      color: "text-red-500 hover:bg-red-500/10 hover:text-red-400",
+      iconColor: "text-red-500",
+    },
   ];
 
   return createPortal(
     <>
-      {/* Backdrop */}
+      {/* Backdrop with blur & smooth fade */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -138,29 +153,56 @@ export default function ReelOptionsDialog({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
-        className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#121212] border-t border-zinc-800 rounded-t-[24px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-md md:mx-auto pb-4 pointer-events-auto"
+        className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#1c222b] border-t border-[#262626] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden text-white md:max-w-md md:mx-auto pb-6 px-6 pointer-events-auto select-none"
       >
         {/* Drag handle */}
-        <div className="w-full flex justify-center py-3 flex-shrink-0 cursor-row-resize select-none">
-          <div className="w-10 h-1 bg-zinc-700 rounded-full" />
+        <div className="w-full flex justify-center py-3 flex-shrink-0 cursor-row-resize">
+          <div className="w-12 h-1 bg-zinc-700/80 rounded-full" />
         </div>
 
         {/* Title */}
         <div className="sr-only">Post Options</div>
 
-        {/* Options List */}
-        <div className="flex flex-col px-3 pb-2 select-none max-h-[70vh] overflow-y-auto scrollbar-none">
-          {menuItems.map((item, idx) => {
+        {/* Grid of Shortcut Options */}
+        <div className="grid grid-cols-4 gap-4 w-full py-4 justify-items-center">
+          {shortcuts.map((item, idx) => {
             const Icon = item.icon;
             return (
               <button
                 key={idx}
                 onClick={item.onClick}
-                className={`flex items-center gap-4 w-full py-4 px-4 text-left text-[15px] font-semibold transition-colors hover:bg-zinc-800/40 active:bg-zinc-800/70 rounded-xl ${
-                  item.color || "text-zinc-200 hover:text-white"
-                }`}
+                className="flex flex-col items-center gap-2 group w-full cursor-pointer max-w-[70px]"
               >
-                <Icon className={`size-5 ${item.iconColor || "text-zinc-400"}`} />
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 group-hover:scale-105 active:scale-95 shrink-0 shadow-md",
+                  item.highlight
+                    ? "bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25"
+                    : "bg-[#252c38] text-zinc-200 border border-[#2d3645] hover:bg-[#2e3747]"
+                )}>
+                  <Icon className="size-5" />
+                </div>
+                <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white transition-colors truncate w-full text-center">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Vertical List of Options */}
+        <div className="w-full flex flex-col bg-[#252c38]/40 border border-[#2d3645]/45 rounded-2xl divide-y divide-[#2d3645]/40 overflow-hidden mt-2">
+          {listItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={idx}
+                onClick={item.onClick}
+                className={cn(
+                  "flex items-center gap-3.5 w-full py-4 px-4 text-left text-[14.5px] font-bold transition-all hover:bg-zinc-800/40 active:bg-zinc-800/70",
+                  item.color || "text-zinc-250 hover:text-white"
+                )}
+              >
+                <Icon className={cn("size-4.5 shrink-0", item.iconColor || "text-zinc-400")} />
                 <span>{item.label}</span>
               </button>
             );
@@ -168,14 +210,12 @@ export default function ReelOptionsDialog({
         </div>
 
         {/* Cancel Button */}
-        <div className="px-3">
-          <button
-            onClick={() => onOpenChange(false)}
-            className="w-full py-3.5 text-center text-[15px] font-bold text-zinc-400 hover:text-white bg-zinc-800/40 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors rounded-xl border border-zinc-800/60"
-          >
-            Cancel
-          </button>
-        </div>
+        <button
+          onClick={() => onOpenChange(false)}
+          className="w-full py-3.5 mt-4 bg-[#252c38]/80 hover:bg-[#252c38] rounded-xl text-center font-bold text-zinc-400 hover:text-white text-[15px] transition-colors border border-[#2d3645]/30 shadow-md"
+        >
+          Cancel
+        </button>
       </motion.div>
     </>,
     document.body

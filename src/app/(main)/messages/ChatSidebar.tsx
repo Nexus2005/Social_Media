@@ -527,7 +527,7 @@ export default function ChatSidebar() {
                 }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
               >
-                <Sparkles className="size-4 text-[#7c3aed]" />
+                <Sparkles className="size-4 text-[#2a87d0]" />
                 <span>Instants Archive</span>
               </button>
 
@@ -704,7 +704,7 @@ export default function ChatSidebar() {
                       </div>
                     </div>
                     {!loggedInUserHasInstant && (
-                      <div className="absolute bottom-0 right-0 bg-[#7c3aed] text-white rounded-full size-[22px] sm:size-[26px] flex items-center justify-center border-2 border-black">
+                      <div className="absolute bottom-0 right-0 bg-[#2a87d0] text-white rounded-full size-[22px] sm:size-[26px] flex items-center justify-center border-2 border-black">
                         <Plus className="size-3.5 sm:size-4 stroke-[3px]" />
                       </div>
                     )}
@@ -759,7 +759,7 @@ export default function ChatSidebar() {
                   onClick={() => setActiveFilter("all")}
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all ${
                     activeFilter === "all"
-                      ? "bg-[#7c3aed] text-white"
+                      ? "bg-[#2a87d0] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -769,7 +769,7 @@ export default function ChatSidebar() {
                   onClick={() => setActiveFilter("unread")}
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all flex items-center gap-1.5 ${
                     activeFilter === "unread"
-                      ? "bg-[#7c3aed] text-white"
+                      ? "bg-[#2a87d0] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -777,7 +777,7 @@ export default function ChatSidebar() {
                   {totalUnreadChannelsCount > 0 && (
                     <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
                       activeFilter === "unread"
-                        ? "bg-[#6d28d9] text-zinc-100"
+                        ? "bg-[#2076b4] text-zinc-100"
                         : "bg-zinc-800 text-zinc-300"
                     }`}>
                       {totalUnreadChannelsCount}
@@ -788,7 +788,7 @@ export default function ChatSidebar() {
                   onClick={() => setActiveFilter("groups")}
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all flex items-center gap-1.5 ${
                     activeFilter === "groups"
-                      ? "bg-[#7c3aed] text-white"
+                      ? "bg-[#2a87d0] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -796,7 +796,7 @@ export default function ChatSidebar() {
                   {totalGroupsCount > 0 && (
                     <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
                       activeFilter === "groups"
-                        ? "bg-[#6d28d9] text-zinc-100"
+                        ? "bg-[#2076b4] text-zinc-100"
                         : "bg-zinc-800 text-zinc-300"
                     }`}>
                       {totalGroupsCount}
@@ -807,7 +807,7 @@ export default function ChatSidebar() {
                   onClick={() => setActiveFilter("channels")}
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all ${
                     activeFilter === "channels"
-                      ? "bg-[#7c3aed] text-white"
+                      ? "bg-[#2a87d0] text-white"
                       : "bg-zinc-900/60 text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -1156,7 +1156,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
   const renderLastMessage = () => {
     if (isTyping) {
       return (
-        <span className="text-[13px] sm:text-[14px] font-semibold text-[#7c3aed]">
+        <span className="text-[13px] sm:text-[14px] font-semibold text-[#2a87d0]">
           Typing...
         </span>
       );
@@ -1282,7 +1282,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
                 className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
               />
             ) : isGroup ? (
-              <div className="size-[58px] sm:size-[64px] rounded-full flex items-center justify-center text-lg font-bold text-white bg-purple-600 border border-zinc-800">
+              <div className="size-[58px] sm:size-[64px] rounded-full flex items-center justify-center text-lg font-bold text-white bg-[#2a87d0] border border-zinc-800">
                 {(displayName || "G")[0].toUpperCase()}
               </div>
             ) : (
@@ -1325,9 +1325,9 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
             {/* Unread badge or status dot */}
             {unreadCount > 0 && (
               showUnreadDot ? (
-                <span className="size-2.5 rounded-full bg-[#7c3aed]" />
+                <span className="size-2.5 rounded-full bg-[#2a87d0]" />
               ) : (
-                <span className="flex h-5.5 min-w-5.5 sm:h-6 sm:min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] sm:text-[12px] font-extrabold text-white bg-[#7c3aed]">
+                <span className="flex h-5.5 min-w-5.5 sm:h-6 sm:min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] sm:text-[12px] font-extrabold text-white bg-[#2a87d0]">
                   {unreadCount}
                 </span>
               )
@@ -1342,7 +1342,7 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
             {!unreadCount && !isTyping && lastMessage && lastMessage.user?.id === loggedInUserId && (
               channel.state.read[otherMember?.id || ""]?.last_read && 
               new Date(channel.state.read[otherMember?.id || ""]!.last_read).getTime() >= new Date(lastMessage.created_at).getTime() ? (
-                <CheckCheck className="size-4.5 sm:size-5.5 text-[#7c3aed]" />
+                <CheckCheck className="size-4.5 sm:size-5.5 text-[#2a87d0]" />
               ) : (
                 <Check className="size-4.5 sm:size-5.5 text-zinc-500" />
               )

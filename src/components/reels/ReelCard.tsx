@@ -730,8 +730,8 @@ export default function ReelCard({
                 </button>
               )}
 
-              {/* 2. Creator Profile & Understated Follow */}
-              <div className="flex items-center gap-2.5">
+              {/* 2. Creator Profile, Understated Follow & Music Stack */}
+              <div className="flex items-center gap-3">
                 <Link
                   href={`/users/${post.user.username}`}
                   className="flex-shrink-0"
@@ -745,36 +745,40 @@ export default function ReelCard({
                   {hasActiveStory ? (
                     <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
                       <div className="rounded-full p-[1.5px] bg-[#000000]">
-                        <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover" />
+                        <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover animate-in fade-in" />
                       </div>
                     </div>
                   ) : (
                     <UserAvatar avatarUrl={post.user.avatarUrl} size={40} className="w-10 h-10 border border-white/20 object-cover" />
                   )}
                 </Link>
-                <div className="flex items-center gap-2">
-                  <Link href={`/users/${post.user.username}`} className="font-semibold text-[15px] hover:underline truncate max-w-[150px] text-white">
-                    {post.user.username}
-                  </Link>
-                  {post.user.verified && (
-                    <VerifiedBadge size={14} className="shrink-0" />
-                  )}
-                  {post.user.id !== loggedInUser.id && (
-                    <>
-                      <span className="text-white/60 text-[10px] select-none shrink-0">&#8226;</span>
-                      <FollowButton userId={post.user.id} initialState={followerInfo} variant="reel-pill" />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* 3. Music Track Marquee */}
-              <div className="flex items-center gap-1.5 bg-black/35 px-2.5 py-1 rounded-full w-fit max-w-[190px] overflow-hidden text-[11px]">
-                <Music className="size-3 flex-shrink-0 animate-pulse" />
-                <div className="w-[140px] overflow-hidden whitespace-nowrap relative select-none">
-                  <span className="animate-scroll-text pl-[100%]">
-                    {post.user.displayName} · Original Audio &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {post.user.displayName} · Original Audio
-                  </span>
+                
+                <div className="flex flex-col gap-1 min-w-0">
+                  {/* Row 1: Username & Follow */}
+                  <div className="flex items-center gap-2">
+                    <Link href={`/users/${post.user.username}`} className="font-semibold text-[15px] hover:underline truncate max-w-[150px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                      {post.user.username}
+                    </Link>
+                    {post.user.verified && (
+                      <VerifiedBadge size={14} className="shrink-0" />
+                    )}
+                    {post.user.id !== loggedInUser.id && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-white/60 text-[10px] select-none">&#8226;</span>
+                        <FollowButton userId={post.user.id} initialState={followerInfo} variant="reel-pill" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Row 2: Music Track Marquee (positioned directly below the username) */}
+                  <div className="flex items-center gap-1.5 text-[12.5px] text-zinc-200 select-none">
+                    <Music className="size-3.5 flex-shrink-0 text-white animate-pulse" strokeWidth={2} />
+                    <div className="w-[155px] overflow-hidden whitespace-nowrap relative select-none">
+                      <span className="animate-scroll-text pl-[100%] inline-block text-[12px] font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                        {post.user.displayName} · Original Audio &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {post.user.displayName} · Original Audio
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
