@@ -7,7 +7,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Bookmark } from "lucide-react";
+import { BookmarkIcon } from "@/components/icons/InstagramIcons";
 import { useToast } from "../ui/use-toast";
 
 interface BookmarkButtonProps {
@@ -71,13 +71,10 @@ export default function BookmarkButton({
   });
 
   return (
-    <button onClick={() => mutate()} className="h-11 w-11 flex items-center justify-center hover:opacity-80 transition-opacity text-white">
-      <Bookmark
-        className={cn(
-          "size-6",
-          data.isBookmarkedByUser && "fill-white text-white",
-        )}
-        strokeWidth={1.75}
+    <button onClick={() => mutate()} className="h-11 w-11 flex items-center justify-center hover:opacity-80 transition-opacity text-instagram-lightText dark:text-instagram-darkText">
+      <BookmarkIcon
+        isActive={data.isBookmarkedByUser}
+        className="size-6"
       />
     </button>
   );

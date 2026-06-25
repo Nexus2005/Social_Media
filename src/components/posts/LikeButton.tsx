@@ -7,7 +7,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Heart } from "lucide-react";
+import { HeartIcon } from "@/components/icons/InstagramIcons";
 import { useToast } from "../ui/use-toast";
 
 interface LikeButtonProps {
@@ -60,16 +60,13 @@ export default function LikeButton({ postId, initialState, hideLikes }: LikeButt
   });
 
   return (
-    <button onClick={() => mutate()} className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-white">
-      <Heart
-        className={cn(
-          "size-6",
-          data.isLikedByUser && "fill-[#ed4956] text-[#ed4956]",
-        )}
-        strokeWidth={1.75}
+    <button onClick={() => mutate()} className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-instagram-lightText dark:text-instagram-darkText">
+      <HeartIcon
+        isActive={data.isLikedByUser}
+        className="size-6"
       />
       {!hideLikes && data.likes > 0 && (
-        <span className="text-[15px] font-semibold tabular-nums text-white">
+        <span className="text-[15px] font-semibold tabular-nums text-instagram-lightText dark:text-instagram-darkText">
           {data.likes}
         </span>
       )}

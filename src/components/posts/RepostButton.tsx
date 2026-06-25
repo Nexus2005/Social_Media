@@ -11,7 +11,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useSession } from "@/app/(main)/SessionProvider";
-import { Repeat2, MessageSquareQuote, PenLine } from "lucide-react";
+import { MessageSquareQuote, PenLine } from "lucide-react";
+import { RepostIcon } from "@/components/icons/InstagramIcons";
 import { useToast } from "../ui/use-toast";
 import QuotePostDialog from "./QuotePostDialog";
 import { motion } from "framer-motion";
@@ -94,12 +95,11 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
             className="h-10 w-10 flex items-center justify-center text-white"
             title="Repost"
           >
-            <Repeat2
+            <RepostIcon
               className={cn(
                 "w-7 h-7 transition-colors",
                 data.isRepostedByUser && "text-green-500"
               )}
-              strokeWidth={1.75}
             />
           </motion.button>
           <span className={cn(
@@ -124,12 +124,11 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
               }}
               className="flex items-start gap-4 px-4 py-4 rounded-2xl hover:bg-zinc-900 active:bg-zinc-900 transition-colors w-full text-start group"
             >
-              <Repeat2
+              <RepostIcon
                 className={cn(
                   "size-6 mt-0.5 shrink-0 transition-colors text-zinc-400 group-hover:text-white",
                   data.isRepostedByUser && "text-green-500 group-hover:text-green-400"
                 )}
-                strokeWidth={2}
               />
               <div className="flex flex-col min-w-0">
                 <span className="font-bold text-[16px] text-white leading-tight">
@@ -174,18 +173,17 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
     <>
       <button
         onClick={() => setShowRepostSheet(true)}
-        className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-white"
+        className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-instagram-lightText dark:text-instagram-darkText"
         title="Repost"
       >
-        <Repeat2
+        <RepostIcon
           className={cn(
             "size-6",
             data.isRepostedByUser && "text-green-500"
           )}
-          strokeWidth={1.75}
         />
         {data.reposts > 0 && (
-          <span className="text-[15px] font-semibold tabular-nums text-white">
+          <span className="text-[15px] font-semibold tabular-nums text-instagram-lightText dark:text-instagram-darkText">
             {data.reposts}
           </span>
         )}
@@ -205,12 +203,11 @@ export default function RepostButton({ post, variant = "feed" }: RepostButtonPro
             }}
             className="flex items-start gap-4 px-4 py-4 rounded-2xl hover:bg-zinc-900 active:bg-zinc-900 transition-colors w-full text-start group"
           >
-            <Repeat2
+            <RepostIcon
               className={cn(
                 "size-6 mt-0.5 shrink-0 transition-colors text-zinc-400 group-hover:text-white",
                 data.isRepostedByUser && "text-green-500 group-hover:text-green-400"
               )}
-              strokeWidth={2}
             />
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-[16px] text-white leading-tight">

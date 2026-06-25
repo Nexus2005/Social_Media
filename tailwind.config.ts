@@ -20,6 +20,16 @@ const config = {
     },
     extend: {
       colors: {
+        instagram: {
+          darkBg: "#121212",
+          darkPostBg: "#1c1c1e",
+          darkBorder: "#262626",
+          lightBg: "#ffffff",
+          lightBorder: "#dbdbdb",
+          darkText: "#f5f5f5",
+          lightText: "#000000",
+          accentHeart: "#ed4956",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

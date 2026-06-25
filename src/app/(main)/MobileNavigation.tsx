@@ -7,10 +7,7 @@ import kyInstance from "@/lib/ky";
 import { MessageCountInfo, NotificationCountInfo } from "@/lib/types";
 import {
   Heart,
-  Home,
   Mail,
-  PlusSquare,
-  Search,
   ChevronDown,
   Menu,
   ShoppingBag,
@@ -18,8 +15,8 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { SpotsIcon } from "./CartlySidebar";
 import ProfileMenuDrawer from "./users/[username]/ProfileMenuDrawer";
+import { HomeIcon, SearchIcon, CreateIcon, ReelsIcon } from "@/components/icons/InstagramIcons";
 
 interface MobileNavigationProps {
   initialNotificationsCount: number;
@@ -71,7 +68,7 @@ export default function MobileNavigation({
     <>
       {/* Mobile Top Header */}
       {showHeader && (
-        <header className="sticky top-0 z-30 flex h-[56px] w-full items-center justify-between border-b border-[#1A1A1A] bg-black px-4 sm:hidden">
+        <header className="sticky top-0 z-30 flex h-[56px] w-full items-center justify-between border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-instagram-lightBg dark:bg-instagram-darkBg px-4 sm:hidden">
           {isHome ? (
             <>
               {/* Home Feed Header */}
@@ -81,7 +78,7 @@ export default function MobileNavigation({
                   alt="Cartly Logo"
                   className="size-7 object-contain"
                 />
-                <span className="text-xl font-extrabold tracking-tight font-sans text-white">
+                <span className="text-xl font-extrabold tracking-tight font-sans text-instagram-lightText dark:text-instagram-darkText">
                   Cartly
                 </span>
               </Link>
@@ -90,19 +87,19 @@ export default function MobileNavigation({
                 {/* Shop Hub */}
                 <Link
                   href="/shop"
-                  className="relative flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
+                  className="relative flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
                   title="Shop Hub"
                 >
-                  <ShoppingBag className="size-6 text-[#E4E4E7]" strokeWidth={1.75} />
+                  <ShoppingBag className="size-6 text-current" strokeWidth={1.75} />
                 </Link>
 
                 {/* Notifications */}
                 <Link
                   href="/notifications"
-                  className="relative flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
+                  className="relative flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
                   title="Notifications"
                 >
-                  <Heart className="size-6 text-[#E4E4E7]" strokeWidth={1.75} />
+                  <Heart className="size-6 text-current" strokeWidth={1.75} />
                   {!!notificationsData.unreadCount && (
                     <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border border-black shadow-sm">
                       {notificationsData.unreadCount}
@@ -113,10 +110,10 @@ export default function MobileNavigation({
                 {/* Messages */}
                 <Link
                   href="/messages"
-                  className="relative flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
+                  className="relative flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
                   title="Messages"
                 >
-                  <Mail className="size-6 text-[#E4E4E7]" strokeWidth={1.75} />
+                  <Mail className="size-6 text-current" strokeWidth={1.75} />
                   {!!messagesData.unreadCount && (
                     <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border border-black shadow-sm">
                       {messagesData.unreadCount}
@@ -129,7 +126,7 @@ export default function MobileNavigation({
             <>
               {/* Instagram-style profile header */}
               <div className="flex items-center gap-1 h-11 px-1">
-                <span className="text-[18px] font-bold text-white max-w-[180px] truncate">
+                <span className="text-[18px] font-bold text-instagram-lightText dark:text-instagram-darkText max-w-[180px] truncate">
                   {profileUsername}
                 </span>
                 <ChevronDown className="size-4 text-zinc-400" />
@@ -139,16 +136,16 @@ export default function MobileNavigation({
                 {/* Create/Add */}
                 <Link
                   href="/create"
-                  className="flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
+                  className="flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
                   title="Create Post"
                 >
-                  <PlusSquare className="size-6" strokeWidth={1.75} />
+                  <CreateIcon className="size-6" />
                 </Link>
 
                 {/* Notifications */}
                 <Link
                   href="/notifications"
-                  className="relative flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
+                  className="relative flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
                   title="Notifications"
                 >
                   <Heart className="size-6" strokeWidth={1.75} />
@@ -162,7 +159,7 @@ export default function MobileNavigation({
                 {/* Menu/Hamburger */}
                 <button
                   onClick={() => setIsMenuOpen(true)}
-                  className="flex h-11 w-11 items-center justify-center text-[#E4E4E7]"
+                  className="flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
                   title="Menu"
                 >
                   <Menu className="size-6" strokeWidth={1.75} />
@@ -174,45 +171,38 @@ export default function MobileNavigation({
       )}
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[56px] w-full items-center justify-around border-t border-[#1A1A1A] bg-black/85 backdrop-blur-md sm:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[56px] w-full items-center justify-around border-t border-instagram-lightBorder dark:border-instagram-darkBorder bg-instagram-lightBg/85 dark:bg-instagram-darkBg/85 backdrop-blur-md sm:hidden">
         <Link
           href="/"
-          className="flex h-11 w-11 items-center justify-center transition-colors"
+          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
         >
-          <Home
-            className={pathname === "/" ? "size-[26px]" : "size-6"}
-            stroke={pathname === "/" ? "white" : "#71717A"}
-            strokeWidth={pathname === "/" ? 2.25 : 1.75}
+          <HomeIcon
+            isActive={pathname === "/"}
           />
         </Link>
         <Link
           href="/search"
-          className="flex h-11 w-11 items-center justify-center transition-colors"
+          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
         >
-          <Search
-            className={pathname.startsWith("/search") ? "size-[26px]" : "size-6"}
-            stroke={pathname.startsWith("/search") ? "white" : "#71717A"}
-            strokeWidth={pathname.startsWith("/search") ? 2.25 : 1.75}
+          <SearchIcon
+            className={pathname.startsWith("/search") ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
           />
         </Link>
         <Link
           href="/create"
-          className="flex h-11 w-11 items-center justify-center transition-colors"
+          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
         >
-          <PlusSquare
-            className={pathname === "/create" ? "size-[26px]" : "size-6"}
-            stroke={pathname === "/create" ? "white" : "#71717A"}
-            strokeWidth={pathname === "/create" ? 2.25 : 1.75}
+          <CreateIcon
+            className={pathname === "/create" ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
           />
         </Link>
         <Link
           href="/reels"
-          className="flex h-11 w-11 items-center justify-center transition-colors"
+          className="flex h-11 w-11 items-center justify-center transition-colors text-instagram-lightText dark:text-instagram-darkText"
         >
-          <SpotsIcon
-            className={pathname === "/reels" ? "size-[26px]" : "size-6"}
-            stroke={pathname === "/reels" ? "white" : "#71717A"}
-            strokeWidth={pathname === "/reels" ? 2.25 : 1.75}
+          <ReelsIcon
+            isActive={pathname === "/reels"}
+            className={pathname === "/reels" ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"}
           />
         </Link>
         <Link
@@ -222,7 +212,7 @@ export default function MobileNavigation({
           <div
             className={`rounded-full transition-all duration-200 ${
               pathname === `/users/${user.username}`
-                ? "ring-2 ring-white p-[1px]"
+                ? "ring-2 ring-instagram-lightText dark:ring-instagram-darkText p-[1px]"
                 : "ring-0 p-0"
             }`}
           >

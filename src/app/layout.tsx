@@ -35,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
         <ReactQueryProvider>
           <ThemeProvider
             attribute="class"

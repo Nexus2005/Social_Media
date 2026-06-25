@@ -36,7 +36,7 @@ export default async function Layout({
     <SessionProvider value={session}>
       <ChatProvider>
         <StoryViewerProvider>
-          <div className="flex min-h-screen flex-col bg-background">
+          <div className="flex min-h-screen flex-col bg-instagram-lightBg dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText transition-colors duration-200">
           {/* Left Sidebar for Desktop */}
           <CartlySidebar
             initialNotificationsCount={unreadNotificationsCount}

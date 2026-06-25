@@ -11,10 +11,8 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
-  MessageCircle,
-  Share2,
-  Repeat2,
 } from "lucide-react";
+import { DirectShareIcon, CommentIcon, RepostIcon } from "@/components/icons/InstagramIcons";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -170,7 +168,7 @@ export default function Post({ post }: PostProps) {
 
   if (isNotInterested) {
     return (
-      <div className="py-6 px-4 border-b border-neutral-900 bg-black flex items-center justify-between text-sm text-zinc-400">
+      <div className="py-6 px-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-white dark:bg-instagram-darkBg flex items-center justify-between text-sm text-zinc-400">
         <span>Post hidden. We&apos;ll show you fewer posts like this.</span>
         <button
           onClick={() => setIsNotInterested(false)}
@@ -183,14 +181,14 @@ export default function Post({ post }: PostProps) {
   }
 
   return (
-    <article className="group/post space-y-3.5 py-3 sm:py-4 border-b border-neutral-900 bg-black relative w-full">
+    <article className="group/post space-y-3.5 py-3 sm:py-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-white dark:bg-instagram-darkBg relative w-full">
       {/* Track Post View */}
       <PostViewTracker postId={post.id} />
 
       {/* Repost Header */}
       {repostInfo && (
         <div className="flex items-center gap-1.5 text-xs text-[#8e8e93] font-semibold px-1 -mt-1 mb-2">
-          <Repeat2 className="size-3.5 text-green-500" strokeWidth={2.25} />
+          <RepostIcon className="size-3.5 text-green-500" />
           <span>{repostInfo.user.displayName} reposted</span>
         </div>
       )}
@@ -210,7 +208,7 @@ export default function Post({ post }: PostProps) {
             >
               {hasActiveStory ? (
                 <div className="rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
-                  <div className="rounded-full p-[1.5px] bg-[#000000]">
+                  <div className="rounded-full p-[1.5px] bg-white dark:bg-instagram-darkBg">
                     <UserAvatar avatarUrl={post.user.avatarUrl} size={48} className="w-[48px] h-[48px]" />
                   </div>
                 </div>
@@ -220,11 +218,11 @@ export default function Post({ post }: PostProps) {
             </Link>
           </UserTooltip>
           <div className="flex flex-col justify-center min-w-0">
-            <div className="flex flex-wrap items-center gap-1 text-[15px] font-semibold text-white">
+            <div className="flex flex-wrap items-center gap-1 text-[15px] font-semibold text-instagram-lightText dark:text-instagram-darkText">
               <UserTooltip user={post.user}>
                 <Link
                   href={`/users/${post.user.username}`}
-                  className="hover:underline flex items-center gap-1 text-white"
+                  className="hover:underline flex items-center gap-1 text-instagram-lightText dark:text-instagram-darkText"
                 >
                   <span>{post.user.username}</span>
                   {post.user.verified && (
@@ -277,7 +275,7 @@ export default function Post({ post }: PostProps) {
       </div>
 
       <Linkify>
-        <div className="whitespace-pre-line break-words text-[16px] leading-[24px] text-white px-1 mt-3">{post.content}</div>
+        <div className="whitespace-pre-line break-words text-[16px] leading-[24px] text-instagram-lightText dark:text-instagram-darkText px-1 mt-3">{post.content}</div>
       </Linkify>
 
       {/* POLL WIDGET */}
@@ -319,10 +317,10 @@ export default function Post({ post }: PostProps) {
 
           <button
             onClick={handleShare}
-            className="h-11 w-11 flex items-center justify-center hover:opacity-85 transition-opacity text-white"
+            className="h-11 w-11 flex items-center justify-center hover:opacity-85 transition-opacity text-instagram-lightText dark:text-instagram-darkText"
             title="Share"
           >
-            <Share2 className="size-6" strokeWidth={1.75} />
+            <DirectShareIcon className="size-6" />
           </button>
         </div>
 
@@ -367,7 +365,7 @@ export default function Post({ post }: PostProps) {
               </span>
             </>
           ) : (
-            <span className="text-[14px] font-semibold text-white leading-none">
+            <span className="text-[14px] font-semibold text-instagram-lightText dark:text-instagram-darkText leading-none">
               {post._count.likes} {post._count.likes === 1 ? "like" : "likes"}
             </span>
           )}
@@ -737,12 +735,12 @@ function CommentButton({ post, onClick }: { post: PostData; onClick: () => void 
   return (
     <button
       onClick={onClick}
-      className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-white"
+      className="h-11 px-2 flex items-center gap-2 hover:opacity-80 transition-opacity text-instagram-lightText dark:text-instagram-darkText"
       title="Comment"
     >
-      <MessageCircle className="size-6" strokeWidth={1.75} />
+      <CommentIcon className="size-6" />
       {post._count.comments > 0 && (
-        <span className="text-[15px] font-semibold tabular-nums text-white">
+        <span className="text-[15px] font-semibold tabular-nums text-instagram-lightText dark:text-instagram-darkText">
           {post._count.comments}
         </span>
       )}
