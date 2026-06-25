@@ -7,15 +7,30 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatRelativeDate(from: Date) {
+  const diffMs = Date.now() - from.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) {
+    return "now";
+  }
+  if (diffMins < 60) {
+    return `${diffMins} min`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} h`;
+  }
+  if (diffDays < 7) {
+    return `${diffDays} d`;
+  }
+
   const currentDate = new Date();
-  if (currentDate.getTime() - from.getTime() < 24 * 60 * 60 * 1000) {
-    return formatDistanceToNowStrict(from, { addSuffix: true });
+  if (currentDate.getFullYear() === from.getFullYear()) {
+    return formatDate(from, "MMM d");
   } else {
-    if (currentDate.getFullYear() === from.getFullYear()) {
-      return formatDate(from, "MMM d");
-    } else {
-      return formatDate(from, "MMM d, yyyy");
-    }
+    return formatDate(from, "MMM d, yyyy");
   }
 }
 
