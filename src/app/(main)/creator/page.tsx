@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useSession } from "@/app/(main)/SessionProvider";
 import { useQuery } from "@tanstack/react-query";
 import kyInstance from "@/lib/ky";

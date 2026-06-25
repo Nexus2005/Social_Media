@@ -6,8 +6,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatRelativeDate(from: Date) {
-  const diffMs = Date.now() - from.getTime();
+export function formatRelativeDate(from: Date | string) {
+  const date = typeof from === "string" ? new Date(from) : from;
+  const diffMs = Date.now() - date.getTime();
   const diffSecs = Math.floor(diffMs / 1000);
   const diffMins = Math.floor(diffSecs / 60);
   const diffHours = Math.floor(diffMins / 60);
@@ -27,10 +28,10 @@ export function formatRelativeDate(from: Date) {
   }
 
   const currentDate = new Date();
-  if (currentDate.getFullYear() === from.getFullYear()) {
-    return formatDate(from, "MMM d");
+  if (currentDate.getFullYear() === date.getFullYear()) {
+    return formatDate(date, "MMM d");
   } else {
-    return formatDate(from, "MMM d, yyyy");
+    return formatDate(date, "MMM d, yyyy");
   }
 }
 
