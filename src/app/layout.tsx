@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="bg-instagram-lightBg dark:bg-instagram-darkBg" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
         <ReactQueryProvider>
           <ThemeProvider

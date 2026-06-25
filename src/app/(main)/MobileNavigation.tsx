@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ProfileMenuDrawer from "./users/[username]/ProfileMenuDrawer";
 import { HomeIcon, SearchIcon, CreateIcon, ReelsIcon } from "@/components/icons/InstagramIcons";
 
@@ -30,6 +30,34 @@ export default function MobileNavigation({
   const { user } = useSession();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Dynamic theme-color meta tag manager
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const updateThemeColor = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      const themeColor = isDark ? "#121212" : "#ffffff";
+      
+      let meta = document.querySelector('meta[name="theme-color"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'theme-color');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', themeColor);
+    };
+
+    updateThemeColor();
+
+    const observer = new MutationObserver(updateThemeColor);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Queries for real-time counts
   const { data: notificationsData } = useQuery({
