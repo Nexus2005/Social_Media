@@ -45,7 +45,7 @@ export default async function Page({ params: { username } }: PageProps) {
   if (!profileUser) notFound();
 
   return (
-    <div className="mx-auto w-full max-w-[600px] bg-black border-x border-[#1A1A1A] min-h-screen text-white pb-14 sm:pb-0">
+    <div className="mx-auto w-full max-w-[600px] bg-white dark:bg-instagram-darkBg border-x border-instagram-lightBorder dark:border-instagram-darkBorder min-h-screen text-instagram-lightText dark:text-instagram-darkText pb-14 sm:pb-0">
       <FollowingClient
         profileUserId={profileUser.id}
         profileUsername={profileUser.username}

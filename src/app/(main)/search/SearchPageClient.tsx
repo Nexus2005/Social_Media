@@ -52,7 +52,7 @@ function ExploreGridItem({ post, isSpot, onClick }: ExploreGridItemProps) {
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`relative cursor-pointer overflow-hidden bg-zinc-950 group ${
+      className={`relative cursor-pointer overflow-hidden bg-zinc-100 dark:bg-zinc-900 group ${
         isSpot ? "col-span-1 row-span-2 aspect-[9/16]" : "aspect-square"
       }`}
     >
@@ -280,11 +280,11 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const posts = data?.pages.flatMap((page) => page.posts) || [];
 
   return (
-    <div className="w-full min-h-screen bg-black text-white pb-14 md:pb-0 flex flex-col items-center">
+    <div className="w-full min-h-screen bg-white dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText pb-14 md:pb-0 flex flex-col items-center">
       {/* Sticky top search input */}
-      <div className="sticky top-0 z-30 w-full bg-black/80 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex flex-col items-center">
+      <div className="sticky top-0 z-30 w-full bg-white/80 dark:bg-instagram-darkBg/80 backdrop-blur-md border-b border-instagram-lightBorder dark:border-instagram-darkBorder px-4 py-3 flex flex-col items-center">
         <form onSubmit={handleSearchSubmit} className="w-full max-w-[600px] relative">
-          <div className="bg-zinc-900 border border-transparent focus-within:border-white focus-within:bg-black rounded-full h-10 px-4 w-full flex items-center gap-3 transition-all">
+          <div className="bg-zinc-100 dark:bg-zinc-900 border border-transparent focus-within:border-instagram-lightText dark:focus-within:border-instagram-darkText focus-within:bg-white dark:focus-within:bg-instagram-darkBg rounded-full h-10 px-4 w-full flex items-center gap-3 transition-all">
             <Search className="size-4 text-zinc-500" />
             <input
               ref={inputRef}
@@ -294,7 +294,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setShowRecentDropdown(true)}
               onBlur={() => setTimeout(() => setShowRecentDropdown(false), 200)}
-              className="flex-grow bg-transparent text-sm text-white outline-none placeholder:text-zinc-500"
+              className="flex-grow bg-transparent text-sm text-current outline-none placeholder:text-zinc-500"
             />
             {searchQuery && (
               <button
@@ -304,7 +304,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   setCommittedQuery("");
                   setActiveTab("For You");
                 }}
-                className="p-1 text-zinc-500 hover:text-white rounded-full bg-zinc-800/40 hover:bg-zinc-800 transition-colors"
+                className="p-1 text-zinc-500 hover:text-current rounded-full bg-zinc-200/40 hover:bg-zinc-200 dark:bg-zinc-800/40 dark:hover:bg-zinc-800 transition-colors"
               >
                 <X className="size-3.5" />
               </button>
@@ -313,11 +313,11 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
 
           {/* Autocomplete / Recent Searches dropdown modal */}
           {showRecentDropdown && (
-            <div className="absolute top-12 left-0 right-0 z-40 bg-zinc-950 border border-zinc-900 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 animate-fade-in max-h-[350px] overflow-y-auto">
+            <div className="absolute top-12 left-0 right-0 z-40 bg-white dark:bg-zinc-950 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-2xl shadow-2xl p-4 flex flex-col gap-3 animate-fade-in max-h-[350px] overflow-y-auto">
               {searchQuery.trim() ? (
                 // Autocomplete Suggestions (Twitter/X style)
                 <>
-                  <div className="flex justify-between items-center text-xs font-bold text-zinc-400 border-b border-zinc-900 pb-2">
+                  <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-instagram-lightBorder dark:border-instagram-darkBorder pb-2">
                     <span>Search Suggestions</span>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -329,7 +329,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                         setShowRecentDropdown(false);
                         inputRef.current?.blur();
                       }}
-                      className="px-2 py-2 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-white font-semibold"
+                      className="px-2 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-current font-semibold"
                     >
                       Search for &quot;{searchQuery}&quot;
                     </div>
@@ -339,14 +339,14 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                       <Link
                         key={acc.id}
                         href={`/users/${acc.username}`}
-                        className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors text-white"
+                        className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-current"
                       >
                         <UserAvatar avatarUrl={acc.avatarUrl} size={36} />
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-xs hover:underline">{acc.displayName}</span>
                             {acc.verified && (
-                              <span className="size-3.5 rounded-full bg-blue-500 text-[8px] text-white flex items-center justify-center font-bold select-none shrink-0">
+                              <span className="size-3.5 rounded-full bg-blue-505 text-[8px] text-white flex items-center justify-center font-bold select-none shrink-0">
                                 ✓
                               </span>
                             )}
@@ -368,9 +368,9 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
               ) : recentSearches.length > 0 ? (
                 // Recent Searches (Instagram style)
                 <>
-                  <div className="flex justify-between items-center text-xs font-bold text-zinc-400">
+                  <div className="flex justify-between items-center text-xs font-bold text-muted-foreground">
                     <span>Recent Searches</span>
-                    <button type="button" onClick={clearAllRecent} className="text-white hover:text-zinc-300">
+                    <button type="button" onClick={clearAllRecent} className="text-current hover:opacity-80">
                       Clear all
                     </button>
                   </div>
@@ -384,13 +384,13 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                           setShowRecentDropdown(false);
                           setTimeout(() => handleSearchSubmit(), 50);
                         }}
-                        className="flex justify-between items-center px-2 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer text-sm"
+                        className="flex justify-between items-center px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-sm"
                       >
                         <span>{item}</span>
                         <button
                           type="button"
                           onClick={(e) => removeRecentSearch(e, item)}
-                          className="p-1 text-zinc-500 hover:text-white rounded-full transition-colors"
+                          className="p-1 text-zinc-500 hover:text-current rounded-full transition-colors"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -412,8 +412,8 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   onClick={() => setActiveTab(tab)}
                   className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border transition-all ${
                     activeTab === tab
-                      ? "bg-white text-black border-white"
-                      : "bg-transparent text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700"
+                      ? "bg-instagram-lightText dark:bg-instagram-darkText text-instagram-lightBg dark:text-instagram-darkBg border-instagram-lightText dark:border-instagram-darkText"
+                      : "bg-transparent text-zinc-500 border-instagram-lightBorder dark:border-instagram-darkBorder hover:text-current hover:border-current"
                   }`}
                 >
                   {tab}
@@ -425,8 +425,8 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   onClick={() => setActiveTab(tab)}
                   className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border transition-all snap-start ${
                     activeTab === tab
-                      ? "bg-white text-black border-white"
-                      : "bg-transparent text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700"
+                      ? "bg-instagram-lightText dark:bg-instagram-darkText text-instagram-lightBg dark:text-instagram-darkBg border-instagram-lightText dark:border-instagram-darkText"
+                      : "bg-transparent text-zinc-500 border-instagram-lightBorder dark:border-instagram-darkBorder hover:text-current hover:border-current"
                   }`}
                 >
                   {tab}
@@ -444,17 +444,17 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
             {(activeTab === "For You" || activeTab === "Trending") && (
               <div className="flex flex-col w-full animate-fade-in mb-6">
                 {/* Hero space banner */}
-                <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 bg-gradient-to-tr from-zinc-900 via-zinc-950 to-sky-950 border border-zinc-900 group">
+                <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 bg-gradient-to-tr from-zinc-100 dark:from-zinc-900 via-zinc-200 dark:via-zinc-950 to-sky-100 dark:to-sky-950 border border-instagram-lightBorder dark:border-instagram-darkBorder group">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
-                  <div className="absolute top-3 left-3 bg-red-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest flex items-center gap-1 z-20">
+                  <div className="absolute top-3 left-3 bg-red-650 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest flex items-center gap-1 z-20">
                     <Radio className="size-3 animate-pulse" /> LIVE SPACES
                   </div>
                   <div className="absolute bottom-4 left-4 right-4 z-20">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Trending Category</span>
-                    <h3 className="text-lg font-extrabold leading-tight tracking-tight mt-1 mb-1">
+                    <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Trending Category</span>
+                    <h3 className="text-lg font-extrabold leading-tight tracking-tight mt-1 mb-1 text-white">
                       Building Next.js 15 apps with Prisma & High Fidelity layouts
                     </h3>
-                    <p className="text-xs text-zinc-400">1.2K people listening right now</p>
+                    <p className="text-xs text-zinc-300">1.2K people listening right now</p>
                   </div>
                 </div>
 
@@ -465,34 +465,34 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                       {/* Text Trending row */}
                       <Link
                         href={`/hashtag/${trend.hashtag.replace("#", "")}`}
-                        className="flex justify-between items-start hover:bg-zinc-950 p-2 rounded-xl transition-colors cursor-pointer animate-fade-in"
+                        className="flex justify-between items-start hover:bg-zinc-100 dark:hover:bg-zinc-950 p-2 rounded-xl transition-colors cursor-pointer animate-fade-in"
                       >
                         <div className="flex flex-col">
                           <span className="text-[11px] text-zinc-500 font-semibold">Trending · #{idx + 1}</span>
-                          <span className="font-bold text-sm text-white mt-0.5">{trend.hashtag}</span>
-                          <span className="text-[11px] text-zinc-400 mt-0.5">
+                          <span className="font-bold text-sm text-current mt-0.5">{trend.hashtag}</span>
+                          <span className="text-[11px] text-muted-foreground mt-0.5">
                             {trend.totalPosts} {trend.totalPosts === 1 ? "post" : "posts"} · {trend.totalEngagement} engagement
                           </span>
                         </div>
-                        <span className="text-zinc-600 text-xs font-bold">···</span>
+                        <span className="text-zinc-400 dark:text-zinc-650 text-xs font-bold">···</span>
                       </Link>
 
                       {/* Inline Who to Follow widgets after index 3 */}
                       {idx === 3 && suggestions.length > 0 && (
-                        <div className="my-6 bg-zinc-950 border border-zinc-900 rounded-2xl p-4 flex flex-col gap-3">
-                          <span className="text-xs font-extrabold tracking-wide uppercase text-zinc-400">Who to follow</span>
+                        <div className="my-6 bg-zinc-50 dark:bg-zinc-950 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-2xl p-4 flex flex-col gap-3">
+                          <span className="text-xs font-extrabold tracking-wide uppercase text-muted-foreground">Who to follow</span>
                           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none snap-x">
                             {suggestions.map((suggestedUser) => (
                               <div
                                 key={suggestedUser.id}
-                                className="flex-shrink-0 w-[180px] bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex flex-col items-center text-center snap-start justify-between"
+                                className="flex-shrink-0 w-[180px] bg-zinc-100 dark:bg-zinc-900 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-xl p-3 flex flex-col items-center text-center snap-start justify-between"
                               >
                                 <Link href={`/users/${suggestedUser.username}`} className="flex flex-col items-center">
                                   <UserAvatar avatarUrl={suggestedUser.avatarUrl} size={50} />
-                                  <span className="font-bold text-xs hover:underline mt-2 truncate max-w-[150px]">
+                                  <span className="font-bold text-xs hover:underline mt-2 truncate max-w-[150px] text-current">
                                     {suggestedUser.displayName}
                                   </span>
-                                  <span className="text-[10px] text-zinc-500 truncate max-w-[150px]">
+                                  <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">
                                     @{suggestedUser.username}
                                   </span>
                                 </Link>
@@ -524,8 +524,8 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
             {/* LOWER HALF: Instagram explore staggered grid */}
             <div className="flex flex-col mt-4">
               <div className="flex items-center gap-2 mb-4 px-1">
-                <span className="text-xs font-extrabold tracking-wider uppercase text-zinc-400">Explore Discoveries</span>
-                <div className="h-px bg-zinc-900 flex-grow" />
+                <span className="text-xs font-extrabold tracking-wider uppercase text-muted-foreground">Explore Discoveries</span>
+                <div className="h-px bg-instagram-lightBorder dark:bg-instagram-darkBorder flex-grow" />
               </div>
 
               {status === "pending" ? (
@@ -570,12 +570,12 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   <p className="text-center text-zinc-500 py-10">No profiles found for &quot;{committedQuery}&quot;</p>
                 ) : (
                   accountsData.users.map((acc: any) => (
-                    <div key={acc.id} className="flex justify-between items-center gap-4 hover:bg-zinc-950 p-2.5 rounded-xl transition-colors">
+                    <div key={acc.id} className="flex justify-between items-center gap-4 hover:bg-zinc-100 dark:hover:bg-zinc-950 p-2.5 rounded-xl transition-colors">
                       <Link href={`/users/${acc.username}`} className="flex items-center gap-3">
                         <UserAvatar avatarUrl={acc.avatarUrl} size={48} />
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-sm hover:underline">{acc.displayName}</span>
+                            <span className="font-bold text-sm hover:underline text-current">{acc.displayName}</span>
                             {/* Verified check badge if popular */}
                             {(acc.followers?.length > 0 || acc.username === "Omkar") && (
                               <span className="size-4 rounded-full bg-blue-500 text-[10px] text-white flex items-center justify-center font-bold select-none">
@@ -583,9 +583,9 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                               </span>
                             )}
                           </div>
-                          <span className="text-xs text-zinc-500">@{acc.username}</span>
-                          {acc.bio && <span className="text-xs text-zinc-400 mt-1 line-clamp-1 max-w-[320px]">{acc.bio}</span>}
-                          <span className="text-[10px] text-zinc-500 mt-0.5">{acc.followers?.length || 0} followers</span>
+                          <span className="text-xs text-muted-foreground">@{acc.username}</span>
+                          {acc.bio && <span className="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-[320px]">{acc.bio}</span>}
+                          <span className="text-[10px] text-muted-foreground mt-0.5">{acc.followers?.length || 0} followers</span>
                         </div>
                       </Link>
                       <FollowButton
@@ -611,12 +611,12 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 ) : (
                   <div className="flex flex-col gap-4">
                     {/* Hashtag volume card */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <span className="text-lg font-black text-white">#{committedQuery.replace("#", "")}</span>
-                        <span className="text-xs text-zinc-400 mt-1">{posts.length}+ active posts</span>
+                    <div className="bg-zinc-100 dark:bg-zinc-900 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-2xl p-4 flex justify-between items-center">
+                       <div className="flex flex-col">
+                        <span className="text-lg font-black text-current">#{committedQuery.replace("#", "")}</span>
+                        <span className="text-xs text-muted-foreground mt-1">{posts.length}+ active posts</span>
                       </div>
-                      <span className="text-xs font-semibold text-white">Tag aggregate</span>
+                      <span className="text-xs font-semibold text-current">Tag aggregate</span>
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -684,12 +684,12 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm overflow-hidden select-none animate-fade-in p-4">
           <div className="absolute inset-0" onClick={() => setImmersivePostIndex(null)} />
           
-          <div className="relative w-full max-w-[500px] h-[90vh] bg-zinc-950 border border-zinc-900 rounded-3xl overflow-hidden flex flex-col z-10 shadow-2xl">
+          <div className="relative w-full max-w-[500px] h-[90vh] bg-white dark:bg-zinc-950 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-3xl overflow-hidden flex flex-col z-10 shadow-2xl">
             {/* Modal sticky header */}
-            <header className="flex justify-between items-center px-4 py-3 border-b border-zinc-900 bg-zinc-950 text-white">
+            <header className="flex justify-between items-center px-4 py-3 border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-white dark:bg-zinc-955 text-instagram-lightText dark:text-instagram-darkText">
               <button
                 onClick={() => setImmersivePostIndex(null)}
-                className="p-1 rounded-full hover:bg-zinc-900 flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white"
+                className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-current"
               >
                 <ArrowLeft className="size-4" /> Explore Stream
               </button>
@@ -697,14 +697,14 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 <button
                   disabled={immersivePostIndex === 0}
                   onClick={() => setImmersivePostIndex((prev) => prev! - 1)}
-                  className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+                  className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-muted-foreground hover:text-current disabled:opacity-30 disabled:hover:bg-transparent"
                 >
                   <ArrowUp className="size-4" />
                 </button>
                 <button
                   disabled={immersivePostIndex === posts.length - 1}
                   onClick={() => setImmersivePostIndex((prev) => prev! + 1)}
-                  className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+                  className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-muted-foreground hover:text-current disabled:opacity-30 disabled:hover:bg-transparent"
                 >
                   <ArrowDown className="size-4" />
                 </button>

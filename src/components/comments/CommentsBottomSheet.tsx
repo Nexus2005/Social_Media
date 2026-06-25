@@ -237,7 +237,7 @@ export default function CommentsBottomSheet({
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 220 }}
+        transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
         className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#0c1017] border-t border-zinc-800/80 rounded-t-[20px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-xl md:mx-auto"
         style={{
           height: sheetHeight === "max" ? "93vh" : "60vh",
@@ -388,12 +388,12 @@ export default function CommentsBottomSheet({
           )}
 
           {/* Main write comment grid */}
-          <div className="p-4 flex items-center gap-3 relative select-none">
+          <div className="p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3 relative select-none">
             {/* User Avatar */}
-            <UserAvatar avatarUrl={loggedInUser?.avatarUrl} size={40} className="shrink-0" />
+            <UserAvatar avatarUrl={loggedInUser?.avatarUrl} size={32} className="shrink-0 size-8 sm:size-10" />
 
             {/* Input Composer Pill */}
-            <div className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-full py-2.5 pl-4 pr-3.5 flex items-center gap-2 relative">
+            <div className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-full py-1.5 sm:py-2.5 pl-3 sm:pl-4 pr-2 sm:pr-3.5 flex items-center gap-1.5 sm:gap-2 relative min-w-0">
               <input
                 type="text"
                 placeholder="Write a comment..."
@@ -402,24 +402,24 @@ export default function CommentsBottomSheet({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSubmit();
                 }}
-                className="flex-1 bg-transparent text-[15px] text-white placeholder:text-zinc-550 outline-none pr-1"
+                className="flex-1 bg-transparent text-sm sm:text-[15px] text-white placeholder:text-zinc-550 outline-none pr-1 min-w-0"
               />
 
               {/* Action Buttons: Image, GIF */}
-              <div className="flex items-center gap-2 text-zinc-450">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-450 shrink-0">
                 <button
                   type="button"
                   title="Attach image"
                   onClick={() => toast({ description: "Image attachments in comments coming soon!" })}
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-white transition-colors cursor-pointer p-0.5"
                 >
-                  <ImageIcon className="size-4.5" />
+                  <ImageIcon className="size-4 sm:size-4.5" />
                 </button>
                 <button
                   type="button"
                   title="Pick GIF"
                   onClick={() => setShowGifPicker(!showGifPicker)}
-                  className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded border leading-none transition-colors cursor-pointer ${
+                  className={`text-[10px] sm:text-[11px] font-extrabold px-1.5 py-0.5 rounded border leading-none transition-colors cursor-pointer ${
                     showGifPicker
                       ? "border-sky-400 text-sky-400"
                       : "border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
@@ -434,12 +434,12 @@ export default function CommentsBottomSheet({
             <button
               onClick={() => handleSubmit()}
               disabled={(!commentText.trim() && !selectedGifUrl) || isSubmitting}
-              className="size-10 bg-white dark:bg-white text-black font-semibold rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 hover:opacity-90 transition-opacity cursor-pointer"
+              className="size-8 sm:size-10 bg-white dark:bg-white text-black font-semibold rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 hover:opacity-90 transition-opacity cursor-pointer"
             >
               {isSubmitting ? (
-                <Loader2 className="size-4.5 animate-spin text-black" />
+                <Loader2 className="size-4 sm:size-4.5 animate-spin text-black" />
               ) : (
-                <Send className="size-4.5 text-black fill-black" />
+                <Send className="size-4 sm:size-4.5 text-black fill-black" />
               )}
             </button>
 
@@ -666,46 +666,162 @@ function CommentNode({
   const viewsCount = comment.viewsCount || 0;
   const repliesCount = comment._count?.replies || 0;
 
+  // Optimistic UI state hooks
+  const [localIsLiked, setLocalIsLiked] = useState(isLiked);
+  const [localLikesCount, setLocalLikesCount] = useState(likesCount);
+  const [localIsReposted, setLocalIsReposted] = useState(isReposted);
+  const [localRepostsCount, setLocalRepostsCount] = useState(repostsCount);
+  const [localIsBookmarked, setLocalIsBookmarked] = useState(isBookmarked);
+
+  // Sync state if props change (e.g. from outer query refreshes)
+  useEffect(() => {
+    setLocalIsLiked(isLiked);
+    setLocalLikesCount(likesCount);
+  }, [isLiked, likesCount]);
+
+  useEffect(() => {
+    setLocalIsReposted(isReposted);
+    setLocalRepostsCount(repostsCount);
+  }, [isReposted, repostsCount]);
+
+  useEffect(() => {
+    setLocalIsBookmarked(isBookmarked);
+  }, [isBookmarked]);
+
   const handleLike = async () => {
+    const nextIsLiked = !localIsLiked;
+    const nextCount = localLikesCount + (nextIsLiked ? 1 : -1);
+
+    setLocalIsLiked(nextIsLiked);
+    setLocalLikesCount(nextCount);
+
     try {
-      if (isLiked) {
+      if (localIsLiked) {
         await unlikeComment(comment.id);
       } else {
         await likeComment(comment.id);
       }
-      queryClient.invalidateQueries({ queryKey: ["comments", comment.postId] });
+      
+      // Update cache silently
+      queryClient.setQueryData(["comments", comment.postId], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            comments: page.comments.map((c: any) => {
+              if (c.id === comment.id) {
+                return {
+                  ...c,
+                  likes: nextIsLiked
+                    ? [...(c.likes || []), { userId: loggedInUser?.id }]
+                    : (c.likes || []).filter((l: any) => l.userId !== loggedInUser?.id),
+                  _count: {
+                    ...c._count,
+                    likes: nextCount,
+                  }
+                };
+              }
+              return c;
+            })
+          }))
+        };
+      });
     } catch (err) {
       console.error(err);
+      // Revert state
+      setLocalIsLiked(!nextIsLiked);
+      setLocalLikesCount(localLikesCount);
+      toast({ variant: "destructive", description: "Failed to update like." });
     }
   };
 
   const handleRepost = async () => {
+    const nextIsReposted = !localIsReposted;
+    const nextCount = localRepostsCount + (nextIsReposted ? 1 : -1);
+
+    setLocalIsReposted(nextIsReposted);
+    setLocalRepostsCount(nextCount);
+
     try {
-      if (isReposted) {
+      if (localIsReposted) {
         await unrepostComment(comment.id);
         toast({ description: "Repost removed" });
       } else {
         await repostComment(comment.id);
         toast({ description: "Comment reposted!" });
       }
-      queryClient.invalidateQueries({ queryKey: ["comments", comment.postId] });
+
+      queryClient.setQueryData(["comments", comment.postId], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            comments: page.comments.map((c: any) => {
+              if (c.id === comment.id) {
+                return {
+                  ...c,
+                  reposts: nextIsReposted
+                    ? [...(c.reposts || []), { userId: loggedInUser?.id }]
+                    : (c.reposts || []).filter((r: any) => r.userId !== loggedInUser?.id),
+                  _count: {
+                    ...c._count,
+                    reposts: nextCount,
+                  }
+                };
+              }
+              return c;
+            })
+          }))
+        };
+      });
     } catch (err) {
       console.error(err);
+      setLocalIsReposted(!nextIsReposted);
+      setLocalRepostsCount(localRepostsCount);
+      toast({ variant: "destructive", description: "Failed to update repost." });
     }
   };
 
   const handleBookmark = async () => {
+    const nextIsBookmarked = !localIsBookmarked;
+
+    setLocalIsBookmarked(nextIsBookmarked);
+
     try {
-      if (isBookmarked) {
+      if (localIsBookmarked) {
         await unbookmarkComment(comment.id);
         toast({ description: "Comment removed from bookmarks" });
       } else {
         await bookmarkComment(comment.id);
         toast({ description: "Comment bookmarked!" });
       }
-      queryClient.invalidateQueries({ queryKey: ["comments", comment.postId] });
+
+      queryClient.setQueryData(["comments", comment.postId], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            comments: page.comments.map((c: any) => {
+              if (c.id === comment.id) {
+                return {
+                  ...c,
+                  bookmarks: nextIsBookmarked
+                    ? [...(c.bookmarks || []), { userId: loggedInUser?.id }]
+                    : (c.bookmarks || []).filter((b: any) => b.userId !== loggedInUser?.id),
+                };
+              }
+              return c;
+            })
+          }))
+        };
+      });
     } catch (err) {
       console.error(err);
+      setLocalIsBookmarked(!nextIsBookmarked);
+      toast({ variant: "destructive", description: "Failed to update bookmark." });
     }
   };
 
@@ -737,7 +853,7 @@ function CommentNode({
           
           {/* Metadata header */}
           <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-1.5 text-zinc-400">
+            <div className="flex items-center gap-1.5 text-zinc-450">
               <UserTooltip user={comment.user}>
                 <Link href={`/users/${comment.user.username}`} className="font-bold text-white hover:underline flex items-center gap-0.5">
                   <span>{comment.user.displayName}</span>
@@ -760,8 +876,8 @@ function CommentNode({
 
           {/* Replying indicator */}
           {comment.parentCommentId && (
-            <div className="text-[12.5px] text-zinc-500">
-              Replying to <span className="text-sky-400 font-medium">@NotionHQ</span>
+            <div className="text-[12.5px] text-zinc-550">
+              Replying to <span className="text-sky-400 font-medium">@{comment.user.username}</span>
             </div>
           )}
 
@@ -788,22 +904,22 @@ function CommentNode({
             <button
               onClick={handleRepost}
               className={`flex items-center gap-1.5 transition-colors ${
-                isReposted ? "text-green-500" : "hover:text-green-500"
+                localIsReposted ? "text-green-500" : "hover:text-green-500"
               }`}
             >
               <Repeat2 className="size-[19px]" />
-              {repostsCount > 0 && <span className="font-semibold text-xs">{repostsCount}</span>}
+              {localRepostsCount > 0 && <span className="font-semibold text-xs">{localRepostsCount}</span>}
             </button>
 
             {/* Like button */}
             <button
               onClick={handleLike}
               className={`flex items-center gap-1.5 transition-colors ${
-                isLiked ? "text-red-500" : "hover:text-red-500"
+                localIsLiked ? "text-red-500" : "hover:text-red-500"
               }`}
             >
-              <Heart className={`size-4.5 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
-              {likesCount > 0 && <span className="font-semibold text-xs">{likesCount}</span>}
+              <Heart className={`size-4.5 ${localIsLiked ? "fill-red-500 text-red-500" : ""}`} />
+              {localLikesCount > 0 && <span className="font-semibold text-xs">{localLikesCount}</span>}
             </button>
 
             {/* Views counter */}
@@ -815,9 +931,9 @@ function CommentNode({
             {/* Bookmark button */}
             <button
               onClick={handleBookmark}
-              className={`transition-colors ${isBookmarked ? "text-yellow-500" : "hover:text-yellow-500"}`}
+              className={`transition-colors ${localIsBookmarked ? "text-yellow-500" : "hover:text-yellow-500"}`}
             >
-              <Bookmark className={`size-4.5 ${isBookmarked ? "fill-yellow-500" : ""}`} />
+              <Bookmark className={`size-4.5 ${localIsBookmarked ? "fill-yellow-500" : ""}`} />
             </button>
 
             {/* Share button */}

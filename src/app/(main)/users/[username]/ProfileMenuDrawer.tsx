@@ -71,7 +71,7 @@ export default function ProfileMenuDrawer({
     {
       icon: Activity,
       label: "Your Activity",
-      href: "#",
+      href: "/settings/activity",
     },
     {
       icon: Bookmark,

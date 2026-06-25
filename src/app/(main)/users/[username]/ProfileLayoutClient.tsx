@@ -77,14 +77,14 @@ export default function ProfileLayoutClient({
   });
 
   return (
-    <div className="w-full relative bg-black text-white select-none">
+    <div className="w-full relative bg-white dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText select-none">
       {/* Sticky Collapsing Header Bar */}
       <header
         style={{
-          backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`,
+          backgroundColor: `rgba(18, 18, 18, ${bgOpacity})`,
           backdropFilter: bgOpacity > 0.5 ? "blur(12px)" : "none",
         }}
-        className="sticky top-0 z-40 flex h-[56px] w-full items-center justify-between px-4 border-b border-[#1A1A1A] transition-colors duration-150"
+        className="sticky top-0 z-40 flex h-[56px] w-full items-center justify-between px-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder transition-colors duration-150"
       >
         <button
           onClick={() => router.back()}
@@ -126,7 +126,7 @@ export default function ProfileLayoutClient({
       </header>
 
       {/* Profile Header Content (Banner, Avatar, Details, Mutuals, Stats, Actions) */}
-      <div className="w-full bg-black flex flex-col">
+      <div className="w-full bg-white dark:bg-instagram-darkBg flex flex-col">
         {/* 1. Banner */}
         <div className="w-full h-32 sm:h-40 md:h-44 bg-zinc-900 relative overflow-hidden select-none">
           {user.headerBannerUrl ? (
@@ -142,7 +142,7 @@ export default function ProfileLayoutClient({
 
         {/* 2. Avatar with 50% overlap and Stats Row next to it */}
         <div className="px-4 md:px-6 relative -mt-[50px] sm:-mt-[60px] md:-mt-[60px] flex justify-between items-end gap-4 z-10 w-full">
-          <div className="shrink-0 rounded-full border-4 border-black bg-black">
+          <div className="shrink-0 rounded-full border-4 border-white dark:border-instagram-darkBg bg-white dark:bg-instagram-darkBg">
             <UserAvatar
               avatarUrl={user.avatarUrl}
               size={120}
@@ -223,13 +223,13 @@ export default function ProfileLayoutClient({
         )}
 
         {/* 6 & 7. Actions & Professional Dashboard */}
-        <div className="px-4 md:px-6 pt-4 pb-4 border-b border-[#1A1A1A] space-y-2 select-none">
+        <div className="px-4 md:px-6 pt-4 pb-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder space-y-2 select-none">
           {isOwner ? (
             <>
               <ProfileHeaderActions user={user} />
               <Link
                 href="/creator"
-                className="w-full text-center block h-9 leading-[36px] rounded-[10px] bg-[#262626] hover:bg-zinc-800 text-white text-xs font-semibold transition-colors border-0"
+                className="w-full text-center block h-9 leading-[36px] rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors border border-[#363636]"
               >
                 Professional Dashboard
               </Link>
@@ -243,7 +243,7 @@ export default function ProfileLayoutClient({
                 <>
                   <button
                     onClick={() => router.push(`/messages?userId=${user.id}`)}
-                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center justify-center border-0 shrink-0"
+                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors flex items-center justify-center border border-[#363636] shrink-0"
                   >
                     Message
                   </button>
@@ -255,7 +255,7 @@ export default function ProfileLayoutClient({
                         description: "Profile link copied to clipboard!",
                       });
                     }}
-                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center justify-center border-0 shrink-0"
+                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors flex items-center justify-center border border-[#363636] shrink-0"
                   >
                     Share Profile
                   </button>
@@ -267,7 +267,7 @@ export default function ProfileLayoutClient({
 
         {/* 8. Pinned Reels (up to 3) */}
         {pinnedReels.length > 0 && (
-          <div className="px-4 md:px-6 py-4 border-b border-[#1A1A1A] space-y-2.5 select-none">
+          <div className="px-4 md:px-6 py-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder space-y-2.5 select-none">
             <div className="flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4 text-white">
                 <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-1.5V9a3 3 0 0 0-3-3H9a3 3 0 0 0-3 3v1.5H4.5a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM6 9a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 15 9v1.5H6V9Zm-3 5.5A1.5 1.5 0 0 1 4.5 13h15a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18v-3.5Z" />

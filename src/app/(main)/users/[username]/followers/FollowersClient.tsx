@@ -49,14 +49,14 @@ export default function FollowersClient({
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-black">
+    <div className="flex flex-col min-h-screen bg-white dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-30 bg-black/85 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center gap-3">
-        <Link href={`/users/${profileUsername}`} className="p-1 hover:bg-zinc-900 rounded-full transition">
-          <ArrowLeft className="size-6 text-white" strokeWidth={1.75} />
+      <div className="sticky top-0 z-30 bg-white/85 dark:bg-instagram-darkBg/85 backdrop-blur-md border-b border-instagram-lightBorder dark:border-instagram-darkBorder px-4 py-3 flex items-center gap-3">
+        <Link href={`/users/${profileUsername}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full transition">
+          <ArrowLeft className="size-6 text-current" strokeWidth={1.75} />
         </Link>
         <div className="flex flex-col">
-          <span className="font-bold text-[16px] text-white leading-none">
+          <span className="font-bold text-[16px] text-current leading-none">
             Followers
           </span>
           <span className="text-[12px] text-zinc-500 mt-1 font-semibold leading-none">
@@ -66,16 +66,16 @@ export default function FollowersClient({
       </div>
 
       {/* Sticky Filters & Search */}
-      <div className="sticky top-[56px] z-20 bg-black border-b border-zinc-900 p-4 space-y-4">
+      <div className="sticky top-[56px] z-20 bg-white dark:bg-instagram-darkBg border-b border-instagram-lightBorder dark:border-instagram-darkBorder p-4 space-y-4">
         {/* Search Input */}
-        <div className="relative flex items-center h-10 w-full bg-zinc-950 rounded-[10px] px-3 gap-2 border border-zinc-900 focus-within:border-zinc-800 transition-colors">
+        <div className="relative flex items-center h-10 w-full bg-zinc-100 dark:bg-zinc-900/60 rounded-[10px] px-3 gap-2 border border-instagram-lightBorder dark:border-instagram-darkBorder focus-within:border-zinc-400 dark:focus-within:border-zinc-700 transition-colors">
           <Search className="size-4 text-zinc-500 shrink-0" strokeWidth={2} />
           <input
             type="text"
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-grow bg-transparent text-[15px] text-white placeholder-zinc-500 outline-none h-full"
+            className="flex-grow bg-transparent text-[15px] text-current placeholder-zinc-500 outline-none h-full"
           />
         </div>
 
@@ -85,8 +85,8 @@ export default function FollowersClient({
             onClick={() => setFilter("all")}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
               filter === "all"
-                ? "bg-white text-black border-white"
-                : "bg-transparent text-zinc-400 border-zinc-800 hover:text-white"
+                ? "bg-instagram-lightText dark:bg-instagram-darkText text-instagram-lightBg dark:text-instagram-darkBg border-instagram-lightText dark:border-instagram-darkText"
+                : "bg-transparent text-zinc-500 border-instagram-lightBorder dark:border-instagram-darkBorder hover:text-current"
             }`}
           >
             All
@@ -95,8 +95,8 @@ export default function FollowersClient({
             onClick={() => setFilter("mutual")}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
               filter === "mutual"
-                ? "bg-white text-black border-white"
-                : "bg-transparent text-zinc-400 border-zinc-800 hover:text-white"
+                ? "bg-instagram-lightText dark:bg-instagram-darkText text-instagram-lightBg dark:text-instagram-darkBg border-instagram-lightText dark:border-instagram-darkText"
+                : "bg-transparent text-zinc-500 border-instagram-lightBorder dark:border-instagram-darkBorder hover:text-current"
             }`}
           >
             Mutual
@@ -116,8 +116,8 @@ export default function FollowersClient({
           </p>
         ) : filteredUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center select-none">
-            <Users className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
-            <h3 className="text-[16px] font-bold text-white mb-1">
+            <Users className="size-12 text-zinc-400 dark:text-zinc-600 mb-3" strokeWidth={1.5} />
+            <h3 className="text-[16px] font-bold text-current mb-1">
               No followers found
             </h3>
             <p className="text-[14px] text-zinc-500 max-w-[240px]">
@@ -132,10 +132,10 @@ export default function FollowersClient({
                   href={`/users/${item.username}`}
                   className="flex items-center gap-3 min-w-0"
                 >
-                  <UserAvatar avatarUrl={item.avatarUrl} size={40} className="size-10 shrink-0 border border-zinc-900 bg-zinc-950 object-cover" />
+                  <UserAvatar avatarUrl={item.avatarUrl} size={40} className="size-10 shrink-0 border border-instagram-lightBorder dark:border-instagram-darkBorder bg-zinc-100 dark:bg-zinc-900 object-cover" />
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1">
-                      <span className="font-semibold text-[15px] text-white hover:underline truncate">
+                      <span className="font-semibold text-[15px] text-current hover:underline truncate">
                         {item.displayName || item.username}
                       </span>
                       {item.verified && (

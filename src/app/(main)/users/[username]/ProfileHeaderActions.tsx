@@ -28,7 +28,7 @@ export default function ProfileHeaderActions({ user }: ProfileHeaderActionsProps
       <Button 
         variant="ghost" 
         onClick={() => setShowDialog(true)}
-        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-850 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors border-0"
+        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors border border-[#363636]"
       >
         Edit profile
       </Button>
@@ -36,7 +36,7 @@ export default function ProfileHeaderActions({ user }: ProfileHeaderActionsProps
       <Button
         variant="ghost"
         onClick={handleShare}
-        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-850 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors flex items-center justify-center gap-2 border-0"
+        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors flex items-center justify-center gap-2 border border-[#363636]"
       >
         <Share2 className="size-4.5 text-[#FFFFFF]" strokeWidth={1.75} />
         <span>Share profile</span>

@@ -58,11 +58,13 @@ export async function GET(
         },
       };
     } else if (tab === "collections") {
+      const collectionId = req.nextUrl.searchParams.get("collectionId") || undefined;
       whereClause = {
         collectionItems: {
           some: {
             collection: {
               userId,
+              ...(collectionId ? { id: collectionId } : {}),
             },
           },
         },

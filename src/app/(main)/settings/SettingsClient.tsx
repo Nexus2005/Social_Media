@@ -4,6 +4,7 @@ import { useSession } from "../SessionProvider";
 import { logout } from "@/app/(auth)/actions";
 import { useToast } from "@/components/ui/use-toast";
 import UserAvatar from "@/components/UserAvatar";
+import { useRouter } from "next/navigation";
 import { 
   User, 
   MessageCircle, 
@@ -13,7 +14,8 @@ import {
   Camera, 
   ChevronRight, 
   LogOut, 
-  HelpCircle
+  HelpCircle,
+  Activity
 } from "lucide-react";
 
 interface SettingRowProps {
@@ -47,6 +49,7 @@ function SettingRow({ icon, bgClass, title, description, onClick }: SettingRowPr
 export default function SettingsClient() {
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleLogout = async () => {
     try {
@@ -96,6 +99,14 @@ export default function SettingsClient() {
           <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground px-1">Settings Categories</h3>
           
           <div className="rounded-2xl bg-card border border-border overflow-hidden divide-y divide-border/60">
+            <SettingRow 
+              icon={<Activity className="size-5" />}
+              bgClass="bg-violet-600"
+              title="Your Activity"
+              description="Manage your collections, saved media, and replies"
+              onClick={() => router.push("/settings/activity")}
+            />
+
             <SettingRow 
               icon={<User className="size-5" />}
               bgClass="bg-blue-500"

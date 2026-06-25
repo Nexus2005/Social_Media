@@ -17,7 +17,9 @@ interface UserPostsProps {
   userId: string;
 }
 
-type ProfileTab = "posts" | "reposts" | "replies" | "media" | "reels" | "likes" | "collections" | "saved-products" | "storefront";
+type ProfileTab = "posts" | "reels" | "reposts" | "storefront";
+
+const ALLOWED_PROFILE_TABS: ProfileTab[] = ["posts", "reels", "reposts", "storefront"];
 
 export default function UserPosts({ userId }: UserPostsProps) {
   const { user: loggedInUser } = useSession();
@@ -25,7 +27,10 @@ export default function UserPosts({ userId }: UserPostsProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const activeTab = (searchParams.get("tab") as ProfileTab) || "posts";
+  const rawTab = searchParams.get("tab");
+  const activeTab: ProfileTab = ALLOWED_PROFILE_TABS.includes(rawTab as any)
+    ? (rawTab as ProfileTab)
+    : "posts";
 
   const handleTabChange = (tabName: ProfileTab) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -38,7 +43,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
   };
 
   const isOwner = userId === loggedInUser.id;
-  const isPostTab = activeTab !== "storefront" && activeTab !== "saved-products";
+  const isPostTab = activeTab !== "storefront";
 
   const {
     data,
@@ -70,7 +75,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
   if (isPostTab && status === "pending") {
     return (
       <div className="space-y-4">
-        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
+        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
         <PostsLoadingSkeleton />
       </div>
     );
@@ -79,7 +84,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
   if (isPostTab && status === "error") {
     return (
       <div className="space-y-4">
-        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
+        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
         <p className="text-center text-destructive py-8 font-medium">
           An error occurred while loading posts.
         </p>
@@ -87,17 +92,15 @@ export default function UserPosts({ userId }: UserPostsProps) {
     );
   }
 
-  const isGridView = ["posts", "media", "likes", "collections"].includes(activeTab);
+  const isGridView = activeTab === "posts";
   const isReelsView = activeTab === "reels";
 
   return (
     <div className="space-y-0 select-none">
-      <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} showCollections={isOwner} />
+      <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
 
       {activeTab === "storefront" ? (
         <StorefrontGrid userId={userId} isOwner={isOwner} />
-      ) : activeTab === "saved-products" ? (
-        <SavedProductsGrid userId={userId} />
       ) : !posts.length && !hasNextPage ? (
         <div className="flex flex-col items-center justify-center py-16 text-center select-none px-4">
           {activeTab === "reels" ? (
@@ -106,41 +109,23 @@ export default function UserPosts({ userId }: UserPostsProps) {
               <h3 className="text-[16px] font-bold text-white mb-1">No Reels</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Videos shared by this user will appear here.</p>
             </>
-          ) : activeTab === "media" ? (
-            <>
-              <ImageIcon className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
-              <h3 className="text-[16px] font-bold text-white mb-1">No Media</h3>
-              <p className="text-[14px] text-zinc-500 max-w-[280px]">Photos and videos shared by this user will appear here.</p>
-            </>
-          ) : activeTab === "likes" ? (
-            <>
-              <Heart className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
-              <h3 className="text-[16px] font-bold text-white mb-1">No Liked Posts</h3>
-              <p className="text-[14px] text-zinc-500 max-w-[280px]">Liked posts will show up here.</p>
-            </>
           ) : activeTab === "reposts" ? (
             <>
               <Repeat2 className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
               <h3 className="text-[16px] font-bold text-white mb-1">No Reposts</h3>
               <p className="text-[14px] text-zinc-500 max-w-[280px]">Reposted content will show up here.</p>
             </>
-          ) : activeTab === "replies" ? (
-            <>
-              <MessageSquare className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
-              <h3 className="text-[16px] font-bold text-white mb-1">No Replies</h3>
-              <p className="text-[14px] text-zinc-500 max-w-[280px]">Comments and replies will show up here.</p>
-            </>
           ) : (
             <>
-              <Grid className="size-12 text-zinc-750 mb-3" strokeWidth={1.5} />
-              <h3 className="text-[16px] font-bold text-white mb-1">No Posts Yet</h3>
-              <p className="text-[14px] text-zinc-500 max-w-[280px]">When this user posts, they will show up here.</p>
+              <Grid className="size-12 text-zinc-550 mb-3" strokeWidth={1.5} />
+              <h3 className="text-[16px] font-bold text-foreground mb-1">No Posts Yet</h3>
+              <p className="text-[14px] text-muted-foreground max-w-[280px]">When this user posts, they will show up here.</p>
             </>
           )}
         </div>
       ) : isGridView ? (
         <InfiniteScrollContainer
-          className="grid grid-cols-3 gap-0.5 w-full bg-black"
+          className="grid grid-cols-3 gap-0.5 w-full bg-instagram-lightBorder dark:bg-instagram-darkBorder"
           onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
         >
           {posts.map((post) => (
@@ -154,7 +139,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
         </InfiniteScrollContainer>
       ) : isReelsView ? (
         <InfiniteScrollContainer
-          className="grid grid-cols-3 gap-0.5 w-full bg-black"
+          className="grid grid-cols-3 gap-0.5 w-full bg-instagram-lightBorder dark:bg-instagram-darkBorder"
           onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
         >
           {posts.map((post) => (
@@ -275,27 +260,18 @@ ReelsGridItem.displayName = "ReelsGridItem";
 interface TabsSelectorProps {
   activeTab: ProfileTab;
   onTabChange: (tab: ProfileTab) => void;
-  showCollections: boolean;
 }
 
-function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorProps) {
+function TabsSelector({ activeTab, onTabChange }: TabsSelectorProps) {
   const tabs: { value: ProfileTab; icon: any; label: string }[] = [
     { value: "posts", icon: Grid, label: "Posts" },
-    { value: "reposts", icon: Repeat2, label: "Reposts" },
-    { value: "replies", icon: MessageSquare, label: "Replies" },
-    { value: "media", icon: ImageIcon, label: "Media" },
     { value: "reels", icon: Film, label: "Reels" },
+    { value: "reposts", icon: Repeat2, label: "Reposts" },
     { value: "storefront", icon: ShoppingBag, label: "Shop" },
-    { value: "saved-products", icon: Bookmark, label: "Saved" },
-    { value: "likes", icon: Heart, label: "Likes" },
   ];
 
-  if (showCollections) {
-    tabs.push({ value: "collections", icon: FolderOpen, label: "Collections" });
-  }
-
   return (
-    <div className="flex border-b border-[#1A1A1A] w-full bg-black/95 backdrop-blur sticky top-[56px] z-20 overflow-x-auto scrollbar-none h-12">
+    <div className="flex border-b border-instagram-lightBorder dark:border-instagram-darkBorder w-full bg-instagram-lightBg/95 dark:bg-instagram-darkBg/95 backdrop-blur sticky top-[56px] z-20 overflow-x-auto scrollbar-none h-12">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
         const Icon = tab.icon;
@@ -307,12 +283,13 @@ function TabsSelector({ activeTab, onTabChange, showCollections }: TabsSelectorP
             title={tab.label}
           >
             <Icon
-              className="size-[22px] transition-colors"
-              stroke={isActive ? "white" : "#71717A"}
+              className={`size-[22px] transition-colors ${
+                isActive ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"
+              }`}
               strokeWidth={isActive ? 2 : 1.75}
             />
             {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-white" />
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-instagram-lightText dark:bg-instagram-darkText" />
             )}
           </button>
         );
