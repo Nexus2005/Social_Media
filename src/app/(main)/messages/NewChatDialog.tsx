@@ -492,23 +492,60 @@ export default function NewChatDialog({
     return "Active yesterday";
   };
 
+  // Lock body scroll and add class when open
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyHeight = document.body.style.height;
+    const originalBodyWidth = document.body.style.width;
+
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalHtmlPosition = document.documentElement.style.position;
+    const originalHtmlHeight = document.documentElement.style.height;
+    const originalHtmlWidth = document.documentElement.style.width;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.height = "100%";
+    document.body.style.width = "100%";
+    document.body.classList.add("share-dialog-active");
+
+    document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.position = "fixed";
+    document.documentElement.style.height = "100%";
+    document.documentElement.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.height = originalBodyHeight;
+      document.body.style.width = originalBodyWidth;
+      document.body.classList.remove("share-dialog-active");
+
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.documentElement.style.position = originalHtmlPosition;
+      document.documentElement.style.height = originalHtmlHeight;
+      document.documentElement.style.width = originalHtmlWidth;
+    };
+  }, []);
+
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-full h-[100dvh] md:h-[90vh] md:max-w-md p-0 overflow-hidden bg-[#0A0B0D] border-none text-white flex flex-col [&>button]:hidden font-sans select-none">
+      <DialogContent className="fixed inset-0 w-full h-full max-w-none p-0 overflow-hidden bg-[#121212] border-none text-white flex flex-col [&>button]:hidden font-sans select-none translate-x-0 translate-y-0 left-0 top-0 md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-[90vh] md:max-w-md md:rounded-3xl border-[#262626] shadow-2xl pb-[env(safe-area-inset-bottom)]">
         
         {/* Dynamic Headers */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900 shrink-0 bg-[#0B0C0E]">
-          <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#262626] shrink-0 bg-[#121212]">
+          <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60">
             <X className="size-6" />
           </button>
           <span className="text-[17px] font-bold text-white">New Chat</span>
-          <button className="p-1 rounded-lg text-[#2a87d0] hover:bg-zinc-900">
+          <button className="p-1 rounded-lg text-[#2a87d0] hover:bg-zinc-800/60">
             <UserPlus className="size-6" />
           </button>
         </div>
 
         {/* Input & Action buttons */}
-        <div className="flex flex-col gap-4 p-4 shrink-0 border-b border-zinc-950 bg-[#0A0B0D]">
+        <div className="flex flex-col gap-4 p-4 shrink-0 border-b border-[#262626] bg-[#121212]">
           {/* Search bar */}
           <div className="relative flex items-center">
             <Search className="absolute left-3.5 size-4 text-zinc-500" />
@@ -517,7 +554,7 @@ export default function NewChatDialog({
               placeholder="Search contacts, groups or channels"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full h-11 pl-10 pr-11 bg-[#1A1C1F] border border-transparent focus:border-zinc-800 rounded-xl text-[14px] text-white focus:outline-none placeholder-zinc-500 font-medium"
+              className="w-full h-11 pl-10 pr-11 bg-[#1c1c1e] border border-transparent focus:border-zinc-800 rounded-xl text-[14px] text-white focus:outline-none placeholder-zinc-500 font-medium"
             />
             <button onClick={handleQrGalleryClick} className="absolute right-3.5 text-zinc-400 hover:text-white">
               <QrCode className="size-5" />
@@ -542,7 +579,7 @@ export default function NewChatDialog({
                 }}
                 className={cn(
                   "flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl transition-all",
-                  isGroupMode ? "bg-[#2a87d0]/15 border border-[#2a87d0]/30" : "bg-[#18191B] hover:bg-[#202124]"
+                  isGroupMode ? "bg-[#2a87d0]/15 border border-[#2a87d0]/30" : "bg-[#1c1c1e] hover:bg-zinc-800/60"
                 )}
               >
                 <div className="size-[38px] rounded-full bg-[#2a87d0] text-white flex items-center justify-center shrink-0">
@@ -557,7 +594,7 @@ export default function NewChatDialog({
               {/* New Channel Card */}
               <button
                 onClick={() => setShowCreateChannelModal(true)}
-                className="flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl bg-[#18191B] hover:bg-[#202124] transition-all"
+                className="flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl bg-[#1c1c1e] hover:bg-zinc-800/60 transition-all"
               >
                 <div className="size-[38px] rounded-full bg-[#0ea5e9] text-white flex items-center justify-center shrink-0">
                   <Megaphone className="size-[20px]" />
@@ -571,7 +608,7 @@ export default function NewChatDialog({
               {/* New Community Card */}
               <button
                 onClick={() => setShowCreateCommunityModal(true)}
-                className="flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl bg-[#18191B] hover:bg-[#202124] transition-all"
+                className="flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl bg-[#1c1c1e] hover:bg-zinc-800/60 transition-all"
               >
                 <div className="size-[38px] rounded-full bg-[#22c55e] text-white flex items-center justify-center shrink-0">
                   <Globe className="size-[20px]" />
@@ -585,7 +622,7 @@ export default function NewChatDialog({
               {/* Invite Link Card */}
               <button
                 onClick={handleInviteLink}
-                className="flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl bg-[#18191B] hover:bg-[#202124] transition-all"
+                className="flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl bg-[#1c1c1e] hover:bg-zinc-800/60 transition-all"
               >
                 <div className="size-[38px] rounded-full bg-[#f43f5e] text-white flex items-center justify-center shrink-0">
                   <LinkIcon className="size-[19px]" />
@@ -600,11 +637,11 @@ export default function NewChatDialog({
         </div>
 
         {/* Scrolling Main Body */}
-        <div className="flex-1 overflow-y-auto scrollbar-none flex flex-col bg-[#0A0B0D]">
+        <div className="flex-1 overflow-y-auto scrollbar-none flex flex-col bg-[#121212]">
           
           {/* Contacts on Cartly Scroll */}
           {!searchInput && activeTab === "contacts" && (
-            <div className="flex flex-col py-4 border-b border-zinc-950 shrink-0">
+            <div className="flex flex-col py-4 border-b border-[#262626] shrink-0">
               <div className="flex justify-between items-center px-4 mb-2.5">
                 <span className="text-[14px] font-bold text-zinc-400">Contacts on Cartly</span>
                 <button onClick={() => onOpenChange(false)} className="text-[13px] font-bold text-[#2a87d0] hover:underline">
@@ -616,11 +653,11 @@ export default function NewChatDialog({
                 <div className="flex flex-col items-center gap-1.5 shrink-0 select-none">
                   <div className="relative">
                     <div className="rounded-full p-[2.2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
-                      <div className="bg-black p-[2px] rounded-full">
-                        <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={62} className="size-[62px] border border-zinc-800" />
+                      <div className="bg-[#121212] p-[2px] rounded-full">
+                        <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={62} className="size-[62px] border border-[#262626]" />
                       </div>
                     </div>
-                    <span className="absolute bottom-0 right-0 size-3.5 rounded-full border-2 border-black bg-green-500" />
+                    <span className="absolute bottom-0 right-0 size-3.5 rounded-full border-2 border-[#121212] bg-green-500" />
                   </div>
                   <span className="text-[11px] font-bold text-zinc-400 w-[72px] text-center truncate">
                     {loggedInUser.displayName?.split(" ")[0]?.toUpperCase() || "OMKAR"} (You)
@@ -636,11 +673,11 @@ export default function NewChatDialog({
                   >
                     <div className="relative">
                       <div className="rounded-full p-[2.2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
-                        <div className="bg-black p-[2px] rounded-full">
-                          <UserAvatar avatarUrl={user.avatarUrl} size={62} className="size-[62px] border border-zinc-800" />
+                        <div className="bg-[#121212] p-[2px] rounded-full">
+                          <UserAvatar avatarUrl={user.avatarUrl} size={62} className="size-[62px] border border-[#262626]" />
                         </div>
                       </div>
-                      <span className="absolute bottom-0 right-0 size-3.5 rounded-full border-2 border-black bg-green-500" />
+                      <span className="absolute bottom-0 right-0 size-3.5 rounded-full border-2 border-[#121212] bg-green-500" />
                     </div>
                     <span className="text-[11px] font-bold text-zinc-300 w-[72px] text-center truncate flex items-center justify-center gap-0.5">
                       {user.displayName || user.username}
@@ -654,18 +691,18 @@ export default function NewChatDialog({
 
           {/* Frequently Contacted */}
           {!searchInput && activeTab === "contacts" && frequentlyContacted.length > 0 && (
-            <div className="flex flex-col py-4 border-b border-zinc-950 shrink-0">
+            <div className="flex flex-col py-4 border-b border-[#262626] shrink-0">
               <span className="text-[14px] font-bold text-zinc-400 px-4 mb-2">Frequently contacted</span>
               <div className="flex flex-col">
                 {frequentlyContacted.map((user) => (
                   <button
                     key={user.id}
                     onClick={() => handleUserClick(user)}
-                    className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-colors"
+                    className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-800/30 text-start w-full transition-colors"
                   >
                     <div className="relative shrink-0">
-                      <UserAvatar avatarUrl={user.avatarUrl} size={44} className="size-[44px] border border-zinc-800" />
-                      <span className="absolute bottom-0.5 right-0.5 size-3.5 rounded-full border border-black bg-green-500" />
+                      <UserAvatar avatarUrl={user.avatarUrl} size={44} className="size-[44px] border border-[#262626]" />
+                      <span className="absolute bottom-0.5 right-0.5 size-3.5 rounded-full border border-[#121212] bg-green-500" />
                     </div>
                     <div className="flex flex-col flex-1 min-w-0">
                       <span className="text-[14.5px] font-semibold text-white truncate">{user.name}</span>
@@ -678,7 +715,7 @@ export default function NewChatDialog({
           )}
 
           {/* Tab Navigation Chips */}
-          <div className="flex border-b border-zinc-900 sticky top-0 bg-[#0A0B0D] z-10 shrink-0">
+          <div className="flex border-b border-[#262626] sticky top-0 bg-[#121212] z-10 shrink-0">
             {[
               { id: "contacts", label: "All Contacts" },
               { id: "groups", label: "Groups" },
@@ -714,7 +751,7 @@ export default function NewChatDialog({
                   ) : (
                     Object.keys(groupedContacts).map((letter) => (
                       <div key={letter} id={`letter-${letter}`} className="flex flex-col mb-4">
-                        <span className="px-4 py-1 text-xs font-bold text-[#2a87d0] bg-[#111214] select-none block sticky top-[45px] z-5">
+                        <span className="px-4 py-1 text-xs font-bold text-[#2a87d0] bg-[#1c1c1e] select-none block sticky top-[45px] z-5">
                           {letter}
                         </span>
                         <div className="flex flex-col mt-1">
@@ -724,12 +761,12 @@ export default function NewChatDialog({
                               <button
                                 key={user.id}
                                 onClick={() => handleUserClick(user)}
-                                className="flex items-center justify-between px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-colors"
+                                className="flex items-center justify-between px-4 py-2.5 hover:bg-zinc-800/30 text-start w-full transition-colors"
                               >
                                 <div className="flex items-center gap-3 min-w-0">
                                   <div className="relative shrink-0">
-                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
-                                    <span className="absolute bottom-0 right-0 size-3 rounded-full border border-black bg-green-500" />
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-[#262626]" />
+                                    <span className="absolute bottom-0 right-0 size-3 rounded-full border border-[#121212] bg-green-500" />
                                   </div>
                                   <div className="flex flex-col justify-center min-w-0">
                                     <span className="font-semibold text-sm text-white truncate flex items-center gap-1">
@@ -745,7 +782,7 @@ export default function NewChatDialog({
                                       "size-[22px] rounded-full border flex items-center justify-center transition-all",
                                       isChecked
                                         ? "bg-[#2a87d0] border-[#2a87d0] text-white"
-                                        : "border-zinc-700 bg-transparent text-transparent"
+                                        : "border-[#262626]/50 bg-transparent text-transparent"
                                     )}
                                   >
                                     <Check className="size-3.5 stroke-[3px]" />
@@ -762,12 +799,12 @@ export default function NewChatDialog({
 
                 {/* Right side A-Z vertical indicator */}
                 {!searchInput && (
-                  <div className="w-[28px] flex flex-col items-center justify-start py-4 bg-[#0F1012]/40 border-l border-zinc-950 shrink-0 select-none text-[9.5px] font-extrabold text-[#2a87d0] sticky top-[45px] right-0 gap-0.5 leading-none">
+                  <div className="w-[28px] flex flex-col items-center justify-start py-4 bg-[#121212]/40 border-l border-[#262626] shrink-0 select-none text-[9.5px] font-extrabold text-[#2a87d0] sticky top-[45px] right-0 gap-0.5 leading-none">
                     {["#", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"].map((l) => (
                       <button
                         key={l}
                         onClick={() => scrollLetter(l)}
-                        className="py-[2px] w-full text-center hover:bg-zinc-900 rounded font-black active:scale-95 transition-all select-none"
+                        className="py-[2px] w-full text-center hover:bg-zinc-800/40 rounded font-black active:scale-95 transition-all select-none"
                       >
                         {l}
                       </button>
@@ -790,10 +827,10 @@ export default function NewChatDialog({
                         if (onChannelCreated) onChannelCreated(channel);
                         onChatCreated();
                       }}
-                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-900/40 text-start w-full border-b border-zinc-950/40 transition-colors"
+                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-800/30 text-start w-full border-b border-[#262626]/40 transition-colors"
                     >
                       {channel.data?.image ? (
-                        <div className="size-11 rounded-full overflow-hidden shrink-0 border border-zinc-800">
+                        <div className="size-11 rounded-full overflow-hidden shrink-0 border border-[#262626]">
                           <img
                             src={channel.data.image}
                             alt={channel.data.name || "Group"}
@@ -801,7 +838,7 @@ export default function NewChatDialog({
                           />
                         </div>
                       ) : (
-                        <div className="size-11 rounded-full bg-[#2a87d0] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
+                        <div className="size-11 rounded-full bg-[#2a87d0] text-white flex items-center justify-center shrink-0 font-bold border border-[#262626]">
                           {channel.data?.name?.[0]?.toUpperCase() || <Users className="size-5" />}
                         </div>
                       )}
@@ -830,9 +867,9 @@ export default function NewChatDialog({
                         if (onChannelCreated) onChannelCreated(channel);
                         onChatCreated();
                       }}
-                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-900/40 text-start w-full border-b border-zinc-950/40 transition-colors"
+                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-800/30 text-start w-full border-b border-[#262626]/40 transition-colors"
                     >
-                      <div className="size-11 rounded-full bg-[#0ea5e9] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
+                      <div className="size-11 rounded-full bg-[#0ea5e9] text-white flex items-center justify-center shrink-0 font-bold border border-[#262626]">
                         {channel.data?.name?.[0]?.toUpperCase() || <Megaphone className="size-5" />}
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
@@ -860,9 +897,9 @@ export default function NewChatDialog({
                         if (onChannelCreated) onChannelCreated(channel);
                         onChatCreated();
                       }}
-                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-900/40 text-start w-full border-b border-zinc-950/40 transition-colors"
+                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-800/30 text-start w-full border-b border-[#262626]/40 transition-colors"
                     >
-                      <div className="size-11 rounded-full bg-[#22c55e] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
+                      <div className="size-11 rounded-full bg-[#22c55e] text-white flex items-center justify-center shrink-0 font-bold border border-[#262626]">
                         {channel.data?.name?.[0]?.toUpperCase() || <Globe className="size-5" />}
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
@@ -881,9 +918,9 @@ export default function NewChatDialog({
 
         {/* Step 1: Contact Selection Overlay */}
         {isGroupMode && groupStep === 1 && (
-          <div className="absolute inset-0 z-[140] flex flex-col bg-[#0A0B0D] animate-in slide-in-from-bottom duration-200">
+          <div className="absolute inset-0 z-[140] flex flex-col bg-[#121212] animate-in slide-in-from-bottom duration-200 pb-[env(safe-area-inset-bottom)]">
             {/* Header */}
-            <div className="flex items-center gap-4 px-4 py-4 border-b border-zinc-900 shrink-0 bg-[#0B0C0E]">
+            <div className="flex items-center gap-4 px-4 py-4 border-b border-[#262626] shrink-0 bg-[#121212]">
               <button 
                 onClick={() => {
                   setIsGroupMode(false);
@@ -891,7 +928,7 @@ export default function NewChatDialog({
                   setSelectedGroupUsers([]);
                   setSearchInput("");
                 }} 
-                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 active:scale-95 transition-transform"
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 active:scale-95 transition-transform"
               >
                 <ArrowLeft className="size-6" />
               </button>
@@ -905,7 +942,7 @@ export default function NewChatDialog({
 
             {/* Selected Contacts Horizontal Pill List */}
             {selectedGroupUsers.length > 0 && (
-              <div className="flex gap-4 overflow-x-auto px-4 py-3 bg-[#0A0B0D] border-b border-zinc-950/40 shrink-0 scrollbar-none" style={{ scrollbarWidth: "none" }}>
+              <div className="flex gap-4 overflow-x-auto px-4 py-3 bg-[#121212] border-b border-[#262626]/40 shrink-0 scrollbar-none" style={{ scrollbarWidth: "none" }}>
                 {selectedGroupUsers.map((user) => (
                   <div 
                     key={user.id} 
@@ -913,7 +950,7 @@ export default function NewChatDialog({
                   >
                     <div className="relative">
                       {user.avatarUrl ? (
-                        <UserAvatar avatarUrl={user.avatarUrl} size={44} className="size-[44px] border border-zinc-800" />
+                        <UserAvatar avatarUrl={user.avatarUrl} size={44} className="size-[44px] border border-[#262626]" />
                       ) : (
                         <div className={cn("size-[44px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))} style={{ minWidth: "44px" }}>
                           {getInitials(user.displayName)}
@@ -922,7 +959,7 @@ export default function NewChatDialog({
                       {/* Remove Button */}
                       <button
                         onClick={() => setSelectedGroupUsers((prev) => prev.filter((u) => u.id !== user.id))}
-                        className="absolute -top-1 -right-1 size-5 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center border border-[#0A0B0D]"
+                        className="absolute -top-1 -right-1 size-5 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center border border-[#121212]"
                       >
                         <X className="size-3" />
                       </button>
@@ -936,7 +973,7 @@ export default function NewChatDialog({
             )}
 
             {/* Sticky Search Bar */}
-            <div className="p-4 shrink-0 bg-[#0A0B0D] border-b border-zinc-950/20">
+            <div className="p-4 shrink-0 bg-[#121212] border-b border-[#262626]/20">
               <div className="relative flex items-center">
                 <Search className="absolute left-3.5 size-4 text-zinc-500" />
                 <input
@@ -944,13 +981,13 @@ export default function NewChatDialog({
                   placeholder="Who would you like to add?"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 bg-[#1A1C1F] border border-transparent focus:border-zinc-800 rounded-xl text-[14px] text-white focus:outline-none placeholder-zinc-500 font-medium"
+                  className="w-full h-11 pl-10 pr-4 bg-[#1c1c1e] border border-transparent focus:border-zinc-800 rounded-xl text-[14px] text-white focus:outline-none placeholder-zinc-500 font-medium"
                 />
               </div>
             </div>
 
             {/* Scrollable Contacts List */}
-            <div className="flex-1 overflow-y-auto scrollbar-none flex flex-col bg-[#0A0B0D] pb-24">
+            <div className="flex-1 overflow-y-auto scrollbar-none flex flex-col bg-[#121212] pb-24">
               {groupContactsList.length === 0 ? (
                 <p className="text-center text-sm text-zinc-500 py-12 font-medium">No contacts found</p>
               ) : (
@@ -970,18 +1007,18 @@ export default function NewChatDialog({
                               <button
                                 key={user.id}
                                 onClick={() => handleUserClick(user)}
-                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-800/30 text-start w-full transition-all duration-200 active:scale-[0.99]"
                               >
                                 <div className="relative shrink-0">
                                   {user.avatarUrl ? (
-                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-[#262626]" />
                                   ) : (
                                     <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
                                       {getInitials(user.displayName)}
                                     </div>
                                   )}
                                   {isChecked && (
-                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#121212] flex items-center justify-center text-white animate-in zoom-in duration-200">
                                       <Check className="size-3 text-white stroke-[4px]" />
                                     </span>
                                   )}
@@ -1012,18 +1049,18 @@ export default function NewChatDialog({
                               <button
                                 key={user.id}
                                 onClick={() => handleUserClick(user)}
-                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-800/30 text-start w-full transition-all duration-200 active:scale-[0.99]"
                               >
                                 <div className="relative shrink-0">
                                   {user.avatarUrl ? (
-                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-[#262626]" />
                                   ) : (
                                     <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
                                       {getInitials(user.displayName)}
                                     </div>
                                   )}
                                   {isChecked && (
-                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#121212] flex items-center justify-center text-white animate-in zoom-in duration-200">
                                       <Check className="size-3 text-white stroke-[4px]" />
                                     </span>
                                   )}
@@ -1054,18 +1091,18 @@ export default function NewChatDialog({
                               <button
                                 key={user.id}
                                 onClick={() => handleUserClick(user)}
-                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-800/30 text-start w-full transition-all duration-200 active:scale-[0.99]"
                               >
                                 <div className="relative shrink-0">
                                   {user.avatarUrl ? (
-                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-[#262626]" />
                                   ) : (
                                     <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
                                       {getInitials(user.displayName)}
                                     </div>
                                   )}
                                   {isChecked && (
-                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#121212] flex items-center justify-center text-white animate-in zoom-in duration-200">
                                       <Check className="size-3 text-white stroke-[4px]" />
                                     </span>
                                   )}
@@ -1091,18 +1128,18 @@ export default function NewChatDialog({
                             <button
                               key={user.id}
                               onClick={() => handleUserClick(user)}
-                              className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                              className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-800/30 text-start w-full transition-all duration-200 active:scale-[0.99]"
                             >
                               <div className="relative shrink-0">
                                 {user.avatarUrl ? (
-                                  <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                  <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-[#262626]" />
                                 ) : (
                                   <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
                                     {getInitials(user.displayName)}
                                   </div>
                                 )}
                                 {isChecked && (
-                                  <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                  <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#121212] flex items-center justify-center text-white animate-in zoom-in duration-200">
                                     <Check className="size-3 text-white stroke-[4px]" />
                                   </span>
                                 )}
@@ -1128,7 +1165,7 @@ export default function NewChatDialog({
                   setGroupStep(2);
                   setSearchInput("");
                 }}
-                className="absolute bottom-6 right-6 size-14 rounded-full bg-[#229ED9] hover:bg-[#1d8dbf] text-white flex items-center justify-center shadow-2xl transition-all active:scale-90 select-none animate-in fade-in zoom-in duration-200 z-[145]"
+                className="absolute bottom-6 right-6 size-14 rounded-full bg-[#2a87d0] hover:bg-[#2076b4] text-white flex items-center justify-center shadow-2xl transition-all active:scale-90 select-none animate-in fade-in zoom-in duration-200 z-[145]"
               >
                 <ArrowRight className="size-6 text-white" />
               </button>
@@ -1138,14 +1175,14 @@ export default function NewChatDialog({
 
         {/* Step 2: Group Details Overlay */}
         {isGroupMode && groupStep === 2 && (
-          <div className="absolute inset-0 z-[150] flex flex-col bg-[#0A0B0D] animate-in slide-in-from-bottom duration-200">
+          <div className="absolute inset-0 z-[150] flex flex-col bg-[#121212] animate-in slide-in-from-bottom duration-200 pb-[env(safe-area-inset-bottom)]">
             {/* Header */}
-            <div className="flex items-center gap-4 px-4 py-4 border-b border-zinc-900 shrink-0 bg-[#0B0C0E]">
+            <div className="flex items-center gap-4 px-4 py-4 border-b border-[#262626] shrink-0 bg-[#121212]">
               <button 
                 onClick={() => {
                   setGroupStep(1);
                 }} 
-                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 active:scale-95 transition-transform"
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 active:scale-95 transition-transform"
               >
                 <ArrowLeft className="size-6" />
               </button>
@@ -1156,10 +1193,10 @@ export default function NewChatDialog({
             </div>
 
             {/* Config Card */}
-            <div className="flex gap-4 p-5 items-center bg-[#0B0C0E] border-b border-zinc-950/40 shrink-0">
+            <div className="flex gap-4 p-5 items-center bg-[#121212] border-b border-[#262626]/40 shrink-0">
               <div 
                 onClick={() => groupPhotoInputRef.current?.click()}
-                className="size-[72px] rounded-full bg-[#229ED9]/10 hover:bg-[#229ED9]/20 border border-dashed border-[#229ED9]/40 flex flex-col items-center justify-center text-[#229ED9] shrink-0 cursor-pointer relative overflow-hidden transition-colors"
+                className="size-[72px] rounded-full bg-[#2a87d0]/10 hover:bg-[#2a87d0]/20 border border-dashed border-[#2a87d0]/40 flex flex-col items-center justify-center text-[#2a87d0] shrink-0 cursor-pointer relative overflow-hidden transition-colors"
               >
                 {groupPhotoPreview ? (
                   <img src={groupPhotoPreview} alt="Group preview" className="w-full h-full object-cover" />
@@ -1178,7 +1215,7 @@ export default function NewChatDialog({
                 />
               </div>
               <div className="flex-1 min-w-0 flex flex-col gap-2 relative">
-                <div className="flex items-center gap-2 border-b border-zinc-800 focus-within:border-[#229ED9] transition-colors py-1">
+                <div className="flex items-center gap-2 border-b border-zinc-800 focus-within:border-[#2a87d0] transition-colors py-1">
                   <input
                     type="text"
                     placeholder="Enter group name"
@@ -1203,7 +1240,7 @@ export default function NewChatDialog({
             </div>
 
             {/* Auto-Delete Messages Row */}
-            <div className="flex flex-col bg-[#0A0B0D] shrink-0">
+            <div className="flex flex-col bg-[#121212] shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -1218,7 +1255,7 @@ export default function NewChatDialog({
                     }`,
                   });
                 }}
-                className="flex items-center justify-between px-5 py-4 border-b border-zinc-950 hover:bg-zinc-900/20 text-start transition-colors"
+                className="flex items-center justify-between px-5 py-4 border-b border-[#262626] hover:bg-zinc-800/20 text-start transition-colors"
               >
                 <div className="flex items-center gap-3.5">
                   <Clock className="size-5 text-zinc-400" />
@@ -1227,13 +1264,13 @@ export default function NewChatDialog({
                     <span className="text-[12px] text-zinc-500">Automatically delete new messages for all members</span>
                   </div>
                 </div>
-                <span className="text-sm font-bold text-[#229ED9]">{autoDeleteTime}</span>
+                <span className="text-sm font-bold text-[#2a87d0]">{autoDeleteTime}</span>
               </button>
             </div>
 
             {/* Selected Members list */}
-            <div className="flex-1 flex flex-col min-h-0 bg-[#0A0B0D]">
-              <div className="px-5 py-3 border-b border-zinc-950/20 bg-[#0B0C0E]/40 shrink-0">
+            <div className="flex-1 flex flex-col min-h-0 bg-[#121212]">
+              <div className="px-5 py-3 border-b border-[#262626]/20 bg-[#121212]/40 shrink-0">
                 <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                   Members ({selectedGroupUsers.length})
                 </span>
@@ -1242,11 +1279,11 @@ export default function NewChatDialog({
                 {selectedGroupUsers.map((user) => (
                   <div
                     key={user.id}
-                    className="flex items-center gap-3.5 px-5 py-2.5 hover:bg-zinc-900/10 text-start w-full border-b border-zinc-950/20"
+                    className="flex items-center gap-3.5 px-5 py-2.5 hover:bg-zinc-800/10 text-start w-full border-b border-[#262626]/20"
                   >
                     <div className="relative shrink-0">
                       {user.avatarUrl ? (
-                        <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-[40px] border border-zinc-850" />
+                        <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-[40px] border border-[#262626]" />
                       ) : (
                         <div className={cn("size-[40px] rounded-full flex items-center justify-center text-xs font-bold text-white", getTelegramColor(user.displayName))}>
                           {getInitials(user.displayName)}
@@ -1266,7 +1303,7 @@ export default function NewChatDialog({
             <button
               onClick={() => createGroupMutation.mutate()}
               disabled={!groupName.trim() || createGroupMutation.isPending}
-              className="absolute bottom-6 right-6 size-14 rounded-full bg-[#229ED9] hover:bg-[#1d8dbf] text-white flex items-center justify-center shadow-2xl transition-all active:scale-90 disabled:opacity-50 select-none animate-in fade-in zoom-in duration-200 z-[155]"
+              className="absolute bottom-6 right-6 size-14 rounded-full bg-[#2a87d0] hover:bg-[#2076b4] text-white flex items-center justify-center shadow-2xl transition-all active:scale-90 disabled:opacity-50 select-none animate-in fade-in zoom-in duration-200 z-[155]"
             >
               {createGroupMutation.isPending ? (
                 <Loader2 className="size-6 animate-spin text-white" />
@@ -1279,8 +1316,8 @@ export default function NewChatDialog({
 
         {/* 2. Channel Creation Form Dialog overlay */}
         {showCreateChannelModal && (
-          <div className="absolute inset-0 z-[150] flex flex-col bg-[#0A0B0D] p-5 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
+          <div className="absolute inset-0 z-[150] flex flex-col bg-[#121212] p-5 animate-in slide-in-from-bottom duration-200 pb-[env(safe-area-inset-bottom)]">
+            <div className="flex items-center justify-between pb-4 border-b border-[#262626]">
               <button onClick={() => setShowCreateChannelModal(false)} className="p-1 text-zinc-400 hover:text-white">
                 <X className="size-6" />
               </button>
@@ -1301,7 +1338,7 @@ export default function NewChatDialog({
                   placeholder="Enter channel name"
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
-                  className="h-11 w-full bg-[#18191B] border border-zinc-800 focus:border-zinc-700 rounded-xl px-4 text-sm text-white focus:outline-none"
+                  className="h-11 w-full bg-[#1c1c1e] border border-[#262626] focus:border-zinc-750 rounded-xl px-4 text-sm text-white focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -1311,7 +1348,7 @@ export default function NewChatDialog({
                   placeholder="What is this channel about?"
                   value={channelDesc}
                   onChange={(e) => setChannelDesc(e.target.value)}
-                  className="h-24 w-full bg-[#18191B] border border-zinc-800 focus:border-zinc-700 rounded-xl p-3 text-sm text-white focus:outline-none resize-none"
+                  className="h-24 w-full bg-[#1c1c1e] border border-[#262626] focus:border-zinc-750 rounded-xl p-3 text-sm text-white focus:outline-none resize-none"
                 />
               </div>
             </div>
@@ -1320,8 +1357,8 @@ export default function NewChatDialog({
 
         {/* 3. Community Creation Form Dialog overlay */}
         {showCreateCommunityModal && (
-          <div className="absolute inset-0 z-[150] flex flex-col bg-[#0A0B0D] p-5 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
+          <div className="absolute inset-0 z-[150] flex flex-col bg-[#121212] p-5 animate-in slide-in-from-bottom duration-200 pb-[env(safe-area-inset-bottom)]">
+            <div className="flex items-center justify-between pb-4 border-b border-[#262626]">
               <button onClick={() => setShowCreateCommunityModal(false)} className="p-1 text-zinc-400 hover:text-white">
                 <X className="size-6" />
               </button>
@@ -1342,7 +1379,7 @@ export default function NewChatDialog({
                   placeholder="Enter community name"
                   value={communityName}
                   onChange={(e) => setCommunityName(e.target.value)}
-                  className="h-11 w-full bg-[#18191B] border border-zinc-800 focus:border-zinc-700 rounded-xl px-4 text-sm text-white focus:outline-none"
+                  className="h-11 w-full bg-[#1c1c1e] border border-[#262626] focus:border-zinc-750 rounded-xl px-4 text-sm text-white focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -1352,7 +1389,7 @@ export default function NewChatDialog({
                   placeholder="What is this community about?"
                   value={communityDesc}
                   onChange={(e) => setCommunityDesc(e.target.value)}
-                  className="h-24 w-full bg-[#18191B] border border-zinc-800 focus:border-zinc-700 rounded-xl p-3 text-sm text-white focus:outline-none resize-none"
+                  className="h-24 w-full bg-[#1c1c1e] border border-[#262626] focus:border-zinc-750 rounded-xl p-3 text-sm text-white focus:outline-none resize-none"
                 />
               </div>
             </div>

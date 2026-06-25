@@ -41,10 +41,10 @@ export default function MutualsBottomSheet({
 
   return (
     <StandardDrawer open={open} onClose={onClose} title="Mutual Followers">
-      <div className="flex flex-col h-full bg-[#0A0A0A]">
+      <div className="flex flex-col h-full bg-[#121212]">
         {/* Search bar */}
-        <div className="px-4 py-3 border-b border-zinc-900 shrink-0">
-          <div className="relative flex items-center h-10 w-full bg-zinc-900 rounded-[10px] px-3 gap-2 border border-zinc-800">
+        <div className="px-4 py-3 border-b border-[#262626] shrink-0">
+          <div className="relative flex items-center h-10 w-full bg-[#1c1c1e] rounded-[10px] px-3 gap-2 border border-[#262626]">
             <Search className="size-4 text-zinc-500 shrink-0" strokeWidth={2} />
             <input
               type="text"
@@ -75,7 +75,7 @@ export default function MutualsBottomSheet({
                     onClick={onClose}
                     className="flex items-center gap-3 min-w-0"
                   >
-                    <UserAvatar avatarUrl={item.avatarUrl} size={40} className="size-10 shrink-0 border border-zinc-800" />
+                    <UserAvatar avatarUrl={item.avatarUrl} size={40} className="size-10 shrink-0 border border-[#262626]" />
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1">
                         <span className="font-semibold text-[15px] text-white hover:underline truncate">

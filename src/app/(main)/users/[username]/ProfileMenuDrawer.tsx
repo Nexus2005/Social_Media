@@ -132,7 +132,7 @@ export default function ProfileMenuDrawer({
 
   return (
     <StandardDrawer open={open} onClose={onClose} title={isOwner ? "Options" : username}>
-      <div className="flex flex-col py-2 bg-[#0A0A0A]">
+      <div className="flex flex-col py-2 bg-[#121212]">
         {isOwner ? (
           <>
             {ownMenuItems.map((item, idx) => {
@@ -142,7 +142,7 @@ export default function ProfileMenuDrawer({
                   key={idx}
                   href={item.href}
                   onClick={onClose}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-zinc-900/40 text-white font-medium text-[16px] transition-colors"
+                  className="flex items-center gap-4 px-6 py-4 hover:bg-zinc-800/40 text-white font-medium text-[16px] transition-colors"
                 >
                   <Icon className="size-6 text-zinc-400" strokeWidth={1.75} />
                   <span>{item.label}</span>
@@ -151,7 +151,7 @@ export default function ProfileMenuDrawer({
             })}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-red-500/5 text-red-500 font-semibold text-[16px] transition-colors text-left w-full border-t border-zinc-900 mt-2"
+              className="flex items-center gap-4 px-6 py-4 hover:bg-red-500/5 text-red-500 font-semibold text-[16px] transition-colors text-left w-full border-t border-[#262626] mt-2"
             >
               <LogOut className="size-6 text-red-500" strokeWidth={1.75} />
               <span>Log out</span>
@@ -165,7 +165,7 @@ export default function ProfileMenuDrawer({
                 <button
                   key={idx}
                   onClick={item.onClick}
-                  className={`flex items-center gap-4 px-6 py-4 hover:bg-zinc-900/40 font-medium text-[16px] transition-colors text-left w-full ${
+                  className={`flex items-center gap-4 px-6 py-4 hover:bg-zinc-800/40 font-medium text-[16px] transition-colors text-left w-full ${
                     item.danger ? "text-red-500 hover:bg-red-500/5" : "text-white"
                   }`}
                 >

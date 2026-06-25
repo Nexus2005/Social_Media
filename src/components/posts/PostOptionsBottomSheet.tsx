@@ -119,7 +119,7 @@ export default function PostOptionsBottomSheet({
   return (
     <>
       <StandardDrawer open={open} onClose={() => { onClose(); handleReset(); }} title={view === "menu" ? "Post Options" : undefined}>
-        <div className="flex flex-col bg-[#0A0A0A] p-4 text-white">
+        <div className="flex flex-col bg-[#121212] p-4 text-white">
           
           {/* Main Navigation Menu */}
           {view === "menu" && (
@@ -129,7 +129,7 @@ export default function PostOptionsBottomSheet({
                 {/* Save Card */}
                 <button
                   onClick={() => bookmarkMutation.mutate()}
-                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 transition-all border border-zinc-800/50"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-[#1c1c1e] hover:bg-zinc-800/60 transition-all border border-[#262626]"
                 >
                   <Bookmark
                     className={`size-6 ${bookmarkData.isBookmarkedByUser ? "fill-white text-white animate-pulse" : "text-zinc-300"}`}
@@ -146,7 +146,7 @@ export default function PostOptionsBottomSheet({
                     onQuoteClick();
                     onClose();
                   }}
-                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 transition-all border border-zinc-800/50"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-[#1c1c1e] hover:bg-zinc-800/60 transition-all border border-[#262626]"
                 >
                   <Repeat className="size-6 text-zinc-300" strokeWidth={2} />
                   <span className="text-[13px] font-medium truncate w-full text-center">Remix</span>
@@ -155,7 +155,7 @@ export default function PostOptionsBottomSheet({
                 {/* QR Code Card */}
                 <button
                   onClick={() => setView("qrcode")}
-                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 transition-all border border-zinc-800/50"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-[#1c1c1e] hover:bg-zinc-800/60 transition-all border border-[#262626]"
                 >
                   <QrCode className="size-6 text-zinc-300" strokeWidth={2} />
                   <span className="text-[13px] font-medium truncate w-full text-center">QR code</span>
@@ -163,14 +163,14 @@ export default function PostOptionsBottomSheet({
               </div>
 
               {/* List Actions */}
-              <div className="flex flex-col rounded-2xl bg-zinc-900 overflow-hidden border border-zinc-800/50">
+              <div className="flex flex-col rounded-2xl bg-[#1c1c1e] overflow-hidden border border-[#262626]">
                 {/* Cutout Sticker */}
                 <button
                   onClick={() => {
                     toast({ description: "Sticker generated! Added to stickers keyboard." });
                     onClose();
                   }}
-                  className="flex items-center gap-3.5 px-4 py-3.5 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <Scissors className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">Create a cutout sticker</span>
@@ -179,7 +179,7 @@ export default function PostOptionsBottomSheet({
                 {/* Why seeing this */}
                 <button
                   onClick={() => setView("why_seeing")}
-                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <Info className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">Why you&apos;re seeing this post</span>
@@ -191,7 +191,7 @@ export default function PostOptionsBottomSheet({
                     onNotInterested();
                     onClose();
                   }}
-                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <EyeOff className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">Not interested</span>
@@ -203,7 +203,7 @@ export default function PostOptionsBottomSheet({
                     toast({ description: "Post marked as interested. We'll recommend more similar posts." });
                     onClose();
                   }}
-                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <Eye className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">Interested</span>
@@ -212,7 +212,7 @@ export default function PostOptionsBottomSheet({
                 {/* About this account */}
                 <button
                   onClick={() => setView("about_account")}
-                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <UserCircle2 className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">About this account</span>
@@ -221,7 +221,7 @@ export default function PostOptionsBottomSheet({
                 {/* AI Info */}
                 <button
                   onClick={() => setView("ai_info")}
-                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <Sparkles className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">AI info</span>
@@ -230,7 +230,7 @@ export default function PostOptionsBottomSheet({
                 {/* Report post */}
                 <button
                   onClick={() => setView("report")}
-                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <AlertTriangle className="size-5 text-red-500" strokeWidth={2} />
                   <span className="text-[15px] font-medium text-red-500">Report</span>
@@ -241,7 +241,7 @@ export default function PostOptionsBottomSheet({
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => setView("preferences")}
-                  className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-zinc-900 border border-zinc-800/50 hover:bg-zinc-800 transition-colors text-start w-full"
+                  className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-[#1c1c1e] border border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                 >
                   <SlidersHorizontal className="size-5 text-zinc-400" strokeWidth={2} />
                   <span className="text-[15px] font-medium">Manage content preferences</span>
@@ -254,7 +254,7 @@ export default function PostOptionsBottomSheet({
                       onEditClick();
                       onClose();
                     }}
-                    className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-zinc-900 border border-zinc-800/50 hover:bg-zinc-800 transition-colors text-start w-full"
+                    className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-[#1c1c1e] border border-[#262626] hover:bg-zinc-800/60 transition-colors text-start w-full"
                   >
                     <SquarePen className="size-5 text-zinc-300" strokeWidth={2} />
                     <span className="text-[15px] font-semibold text-zinc-300">Edit Post</span>
@@ -268,7 +268,7 @@ export default function PostOptionsBottomSheet({
                       onDeleteClick();
                       onClose();
                     }}
-                    className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-red-950/20 border border-red-900/40 hover:bg-red-950/40 transition-colors text-start w-full"
+                    className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-red-955/20 border border-red-900/40 hover:bg-red-955/40 transition-colors text-start w-full"
                   >
                     <Trash2 className="size-5 text-red-500" strokeWidth={2} />
                     <span className="text-[15px] font-semibold text-red-500">Delete Post</span>
@@ -282,14 +282,14 @@ export default function PostOptionsBottomSheet({
           {view === "qrcode" && (
             <div className="flex flex-col gap-5 select-none">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900">
+                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
                   <ChevronLeft className="size-5" />
                 </button>
                 <span className="text-[16px] font-bold">QR code sharing</span>
               </div>
-              <div className="flex flex-col items-center gap-6 py-6 bg-gradient-to-b from-zinc-900 to-zinc-950 rounded-3xl border border-zinc-800/80 max-w-sm mx-auto w-full shadow-2xl">
+              <div className="flex flex-col items-center gap-6 py-6 bg-[#1c1c1e] rounded-3xl border border-[#262626] max-w-sm mx-auto w-full shadow-2xl">
                 <div className="flex items-center gap-3 px-6 w-full justify-center">
-                  <img src={post.user.avatarUrl || "/avatar-placeholder.png"} alt="avatar" className="size-10 rounded-full border border-zinc-800 object-cover" />
+                  <img src={post.user.avatarUrl || "/avatar-placeholder.png"} alt="avatar" className="size-10 rounded-full border border-[#262626] object-cover" />
                   <div className="flex flex-col text-start">
                     <span className="font-bold text-[15px] text-white">@{post.user.username}</span>
                     <span className="text-xs text-zinc-400">Scan to view post</span>
@@ -315,14 +315,14 @@ export default function PostOptionsBottomSheet({
                   <path d="M 36,4 h 4 v 4 h -4 z M 48,0 h 4 v 4 h -4 z M 56,8 h 4 v 4 h -4 z M 36,16 h 8 v 4 h -8 z M 52,20 h 4 v 4 h -4 z M 44,28 h 4 v 4 h -4 z M 0,36 h 8 v 4 h -8 z M 16,36 h 4 v 4 h -4 z M 24,40 h 4 v 4 h -4 z M 36,36 h 4 v 8 h -4 z M 48,44 h 8 v 4 h -8 z M 64,36 h 4 v 4 h -4 z M 76,36 h 12 v 4 h -12 z M 8,48 h 4 v 4 h -4 z M 20,48 h 8 v 4 h -8 z M 36,52 h 4 v 4 h -4 z M 60,52 h 8 v 4 h -8 z M 76,48 h 4 v 4 h -4 z M 88,52 h 4 v 4 h -4 z M 4,60 h 4 v 4 h -4 z M 16,64 h 4 v 4 h -4 z M 28,60 h 4 v 4 h -4 z M 44,60 h 8 v 4 h -8 z M 56,60 h 4 v 8 h -4 z M 72,64 h 4 v 4 h -4 z M 84,60 h 8 v 4 h -8 z M 36,72 h 4 v 8 h -4 z M 48,76 h 8 v 4 h -8 z M 64,72 h 4 v 4 h -4 z M 36,88 h 8 v 4 h -8 z M 52,88 h 4 v 4 h -4 z M 60,84 h 4 v 4 h -4 z" fill="black" />
                 </svg>
 
-                <div className="text-zinc-400 text-xs px-6 text-center select-text break-all font-mono py-1 rounded bg-zinc-900 border border-zinc-800">
+                <div className="text-zinc-400 text-xs px-6 text-center select-text break-all font-mono py-1 rounded bg-[#1c1c1e] border border-[#262626]">
                   {window.location.origin}/posts/{post.id}
                 </div>
               </div>
               <div className="flex gap-2 justify-center w-full my-2">
                 <button
                   onClick={handleCopyLink}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-[14px] font-semibold border border-zinc-800 transition-all active:scale-95 flex-1 justify-center"
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#1c1c1e] hover:bg-zinc-800/60 text-[14px] font-semibold border border-[#262626] transition-all active:scale-95 flex-1 justify-center"
                 >
                   <Copy className="size-4 text-zinc-400" />
                   <span>Copy Link</span>
@@ -345,12 +345,12 @@ export default function PostOptionsBottomSheet({
           {view === "why_seeing" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900">
+                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
                   <ChevronLeft className="size-5" />
                 </button>
                 <span className="text-[16px] font-bold">Why you&apos;re seeing this post</span>
               </div>
-              <div className="flex flex-col gap-3.5 py-4 px-5 rounded-2xl bg-zinc-900 border border-zinc-800/80 text-start">
+              <div className="flex flex-col gap-3.5 py-4 px-5 rounded-2xl bg-[#1c1c1e] border border-[#262626] text-start">
                 <div className="flex gap-3">
                   <UserCircle2 className="size-5 text-primary shrink-0 mt-0.5" />
                   <div>
@@ -360,7 +360,7 @@ export default function PostOptionsBottomSheet({
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-3 border-t border-zinc-800 pt-3.5">
+                <div className="flex gap-3 border-t border-[#262626] pt-3.5">
                   <Sparkles className="size-5 text-yellow-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-[15px] font-bold">Content Popularity</h4>
@@ -377,13 +377,13 @@ export default function PostOptionsBottomSheet({
           {view === "about_account" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900">
+                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
                   <ChevronLeft className="size-5" />
                 </button>
                 <span className="text-[16px] font-bold">About this account</span>
               </div>
-              <div className="flex flex-col items-center gap-4 py-6 px-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-start w-full">
-                <img src={post.user.avatarUrl || "/avatar-placeholder.png"} alt="avatar" className="size-16 rounded-full border border-zinc-800 object-cover" />
+              <div className="flex flex-col items-center gap-4 py-6 px-4 rounded-2xl bg-[#1c1c1e] border border-[#262626] text-start w-full">
+                <img src={post.user.avatarUrl || "/avatar-placeholder.png"} alt="avatar" className="size-16 rounded-full border border-[#262626] object-cover" />
                 <div className="flex flex-col text-center">
                   <span className="font-bold text-[17px] text-white flex items-center justify-center gap-1">
                     {post.user.displayName}
@@ -393,7 +393,7 @@ export default function PostOptionsBottomSheet({
                   </span>
                   <span className="text-sm text-zinc-400">@{post.user.username}</span>
                 </div>
-                <div className="w-full flex flex-col gap-3.5 border-t border-zinc-800/80 pt-4 mt-2">
+                <div className="w-full flex flex-col gap-3.5 border-t border-[#262626] pt-4 mt-2">
                   <div className="flex justify-between items-center text-[14px]">
                     <span className="text-zinc-400">Date joined</span>
                     <span className="font-semibold text-white">June 2024</span>
@@ -415,12 +415,12 @@ export default function PostOptionsBottomSheet({
           {view === "ai_info" && (
             <div className="flex flex-col gap-4 text-start">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900">
+                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
                   <ChevronLeft className="size-5" />
                 </button>
                 <span className="text-[16px] font-bold">AI info</span>
               </div>
-              <div className="flex flex-col gap-4 py-5 px-5 rounded-2xl bg-zinc-900 border border-zinc-800">
+              <div className="flex flex-col gap-4 py-5 px-5 rounded-2xl bg-[#1c1c1e] border border-[#262626]">
                 <div className="flex items-center gap-3.5">
                   <Sparkles className="size-8 text-primary" strokeWidth={1.5} />
                   <div>
@@ -428,7 +428,7 @@ export default function PostOptionsBottomSheet({
                     <span className="text-[11px] text-zinc-400 block uppercase tracking-wider mt-0.5">Checked by system validator</span>
                   </div>
                 </div>
-                <p className="text-[14px] text-zinc-400 leading-relaxed border-t border-zinc-800 pt-3.5 mt-1">
+                <p className="text-[14px] text-zinc-400 leading-relaxed border-t border-[#262626] pt-3.5 mt-1">
                   Our system verifies media metadata tags and analyzes pixel structures. This content is verified as original, human-generated photography/videography.
                 </p>
               </div>
@@ -439,14 +439,14 @@ export default function PostOptionsBottomSheet({
           {view === "report" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900">
+                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
                   <ChevronLeft className="size-5" />
                 </button>
                 <span className="text-[16px] font-bold">Report Post</span>
               </div>
               
               {!reported ? (
-                <div className="flex flex-col rounded-2xl bg-zinc-900 overflow-hidden border border-zinc-800/80">
+                <div className="flex flex-col rounded-2xl bg-[#1c1c1e] overflow-hidden border border-[#262626]">
                   {[
                     "It's spam", 
                     "Nudity or sexual activity", 
@@ -459,14 +459,14 @@ export default function PostOptionsBottomSheet({
                     <button
                       key={reason}
                       onClick={() => handleReport(reason)}
-                      className={`flex items-center px-4 py-3.5 text-[15px] font-medium hover:bg-zinc-850 text-start w-full ${idx > 0 ? "border-t border-zinc-800/60" : ""}`}
+                      className={`flex items-center px-4 py-3.5 text-[15px] font-medium hover:bg-zinc-800/60 text-start w-full ${idx > 0 ? "border-t border-[#262626]" : ""}`}
                     >
                       {reason}
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-4 py-8 bg-zinc-900 rounded-2xl border border-zinc-800">
+                <div className="flex flex-col items-center gap-4 py-8 bg-[#1c1c1e] rounded-2xl border border-[#262626]">
                   <CheckCircle className="size-12 text-primary" />
                   <div className="flex flex-col text-center px-4 gap-1.5">
                     <h4 className="font-bold text-[16px]">Report submitted</h4>
@@ -486,18 +486,18 @@ export default function PostOptionsBottomSheet({
           {view === "preferences" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900">
+                <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
                   <ChevronLeft className="size-5" />
                 </button>
                 <span className="text-[16px] font-bold">Content preferences</span>
               </div>
-              <div className="flex flex-col rounded-2xl bg-zinc-900 overflow-hidden border border-zinc-800/80 text-start">
+              <div className="flex flex-col rounded-2xl bg-[#1c1c1e] overflow-hidden border border-[#262626] text-start">
                 <button
                   onClick={() => {
                     toast({ description: `Muted all posts from @${post.user.username}.` });
                     onClose();
                   }}
-                  className="flex items-center justify-between px-4 py-3.5 hover:bg-zinc-850 w-full"
+                  className="flex items-center justify-between px-4 py-3.5 hover:bg-zinc-800/60 w-full"
                 >
                   <span className="text-[15px] font-medium">Mute @{post.user.username}</span>
                 </button>
@@ -506,7 +506,7 @@ export default function PostOptionsBottomSheet({
                     toast({ description: "Sensitive content filters updated." });
                     onClose();
                   }}
-                  className="flex items-center justify-between px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-850 w-full"
+                  className="flex items-center justify-between px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 w-full"
                 >
                   <span className="text-[15px] font-medium">Sensitive content control</span>
                 </button>
@@ -515,7 +515,7 @@ export default function PostOptionsBottomSheet({
                     toast({ description: "Feed ranking reset to default chronological sorting." });
                     onClose();
                   }}
-                  className="flex items-center justify-between px-4 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-850 w-full"
+                  className="flex items-center justify-between px-4 py-3.5 border-t border-[#262626] hover:bg-zinc-800/60 w-full"
                 >
                   <span className="text-[15px] font-medium">Snooze suggested posts</span>
                 </button>
