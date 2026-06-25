@@ -17,6 +17,13 @@ import {
   BarChart2,
   Send,
   Sparkles,
+  VolumeX,
+  Ban,
+  Flag,
+  UserPlus,
+  UserMinus,
+  BellOff,
+  Volume2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -26,7 +33,19 @@ import UserAvatar from "../UserAvatar";
 import UserTooltip from "../UserTooltip";
 import Linkify from "../Linkify";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
-import { likeComment, unlikeComment, submitComment } from "./actions";
+import {
+  likeComment,
+  unlikeComment,
+  submitComment,
+  repostComment,
+  unrepostComment,
+  bookmarkComment,
+  unbookmarkComment,
+  toggleMuteUser,
+  toggleBlockUser,
+  toggleMuteConversation,
+  reportContent,
+} from "./actions";
 import { useToast } from "../ui/use-toast";
 import kyInstance from "@/lib/ky";
 import GifPicker from "../stories/GifPicker";
@@ -61,10 +80,8 @@ export default function CommentsBottomSheet({
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null);
 
-  // Social Simulation States (Bookmarks/Reposts maps)
-  const [localBookmarks, setLocalBookmarks] = useState<Record<string, boolean>>({});
-  const [localReposts, setLocalReposts] = useState<Record<string, { count: number; active: boolean }>>({});
-  const [localComments, setLocalComments] = useState<Record<string, number>>({});
+  // Options Sheet comment target
+  const [optionComment, setOptionComment] = useState<any | null>(null);
 
   // Share Dialog Integration
   const [sharePostData, setSharePostData] = useState<PostData | null>(null);
@@ -91,7 +108,6 @@ export default function CommentsBottomSheet({
   const rawComments = data?.pages.flatMap((page) => page.comments) || [];
 
   // Group comments & replies
-  // We want to filter top-level comments and map sorting
   const processedComments = useMemo(() => {
     // 1. Separate top-level comments and replies
     const topLevel = rawComments.filter((c) => !c.parentCommentId);
@@ -117,8 +133,10 @@ export default function CommentsBottomSheet({
       if (sortBy === "top") {
         const likesA = a._count?.likes || 0;
         const likesB = b._count?.likes || 0;
-        const scoreA = likesA + (localReposts[a.id]?.count || 0);
-        const scoreB = likesB + (localReposts[b.id]?.count || 0);
+        const repostsA = a._count?.reposts || 0;
+        const repostsB = b._count?.reposts || 0;
+        const scoreA = likesA + repostsA;
+        const scoreB = likesB + repostsB;
         return scoreB - scoreA;
       }
       if (sortBy === "newest") {
@@ -129,7 +147,7 @@ export default function CommentsBottomSheet({
       }
       return 0;
     });
-  }, [rawComments, sortBy, localReposts]);
+  }, [rawComments, sortBy]);
 
   // Lock scrolling when sheet is open
   useEffect(() => {
@@ -184,14 +202,6 @@ export default function CommentsBottomSheet({
       setSelectedGifUrl(null);
       setReplyToComment(null);
       setShowGifPicker(false);
-      
-      // Update count locally
-      if (replyToComment) {
-        setLocalComments((prev) => ({
-          ...prev,
-          [replyToComment.id]: (prev[replyToComment.id] || replyToComment._count?.replies || 0) + 1,
-        }));
-      }
 
       queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
       toast({ description: "Comment submitted successfully!" });
@@ -241,17 +251,17 @@ export default function CommentsBottomSheet({
         {/* Header section */}
         <div className="px-5 pb-3 border-b border-zinc-900/60 flex items-center justify-between flex-shrink-0 select-none">
           <div className="flex items-center gap-3 relative">
-            <h3 className="font-bold text-lg text-white">Comments</h3>
+            <h3 className="font-bold text-xl text-white">Comments</h3>
             
             {/* Sort Toggle Button */}
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white font-semibold transition-colors bg-zinc-900/55 px-2.5 py-1 rounded-full border border-zinc-800/60"
+              className="flex items-center gap-1 text-sm text-zinc-400 hover:text-white font-semibold transition-colors bg-zinc-900/55 px-2.5 py-1 rounded-full border border-zinc-800/60"
             >
               <span>
                 {sortBy === "top" ? "Top comments" : sortBy === "newest" ? "Newest" : "Oldest"}
               </span>
-              <ChevronDown className="size-3" />
+              <ChevronDown className="size-3.5" />
             </button>
 
             {/* Sort Dropdown Popup */}
@@ -279,12 +289,12 @@ export default function CommentsBottomSheet({
             onClick={handleClose}
             className="text-zinc-400 hover:text-white transition-colors p-1"
           >
-            <X className="size-5" />
+            <X className="size-6" />
           </button>
         </div>
 
         {/* Scrollable list container */}
-        <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-none select-none">
+        <div className="flex-grow overflow-y-auto p-4 space-y-5 scrollbar-none select-none">
           {hasNextPage && (
             <button
               disabled={isFetching}
@@ -310,49 +320,35 @@ export default function CommentsBottomSheet({
           )}
 
           {/* Render comments tree */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {processedComments.map((comment) => (
-              <CommentNode
+              <div 
                 key={comment.id}
-                comment={comment}
-                postUserId={post.user.id}
-                loggedInUser={loggedInUser}
-                onReply={(c) => {
-                  setReplyToComment(c);
-                  setCommentText(`@${c.user.username} `);
-                }}
-                localBookmarks={localBookmarks}
-                toggleBookmark={(id) =>
-                  setLocalBookmarks((prev) => ({ ...prev, [id]: !prev[id] }))
-                }
-                localReposts={localReposts}
-                toggleRepost={(id) =>
-                  setLocalReposts((prev) => {
-                    const current = prev[id] || { count: Math.floor((id.charCodeAt(0) % 5) + 2), active: false };
-                    return {
-                      ...prev,
-                      [id]: {
-                        count: current.active ? current.count - 1 : current.count + 1,
-                        active: !current.active,
-                      },
-                    };
-                  })
-                }
-                localComments={localComments}
-                onShareClick={(c) => {
-                  // Simulate open post share sheet
-                  setSharePostData({
-                    id: c.postId,
-                    content: c.content,
-                    user: c.user,
-                    attachments: [],
-                    _count: { likes: c._count?.likes || 0, comments: 0, reposts: 0 },
-                    likes: [],
-                    bookmarks: [],
-                  } as any);
-                }}
-                queryClient={queryClient}
-              />
+                className="border-b border-zinc-900/60 pb-5 mb-5 last:border-b-0 last:pb-0 last:mb-0"
+              >
+                <CommentNode
+                  comment={comment}
+                  postUserId={post.user.id}
+                  loggedInUser={loggedInUser}
+                  onReply={(c) => {
+                    setReplyToComment(c);
+                    setCommentText(`@${c.user.username} `);
+                  }}
+                  onShareClick={(c) => {
+                    setSharePostData({
+                      id: c.postId,
+                      content: c.content,
+                      user: c.user,
+                      attachments: [],
+                      _count: { likes: c._count?.likes || 0, comments: 0, reposts: 0 },
+                      likes: [],
+                      bookmarks: [],
+                    } as any);
+                  }}
+                  onShowOptions={(c) => setOptionComment(c)}
+                  queryClient={queryClient}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -366,7 +362,7 @@ export default function CommentsBottomSheet({
               <button
                 key={emoji}
                 onClick={() => handleEmojiClick(emoji)}
-                className="text-xl transition-transform active:scale-90 hover:scale-110 cursor-pointer"
+                className="text-2xl transition-transform active:scale-90 hover:scale-110 cursor-pointer"
               >
                 {emoji}
               </button>
@@ -375,7 +371,7 @@ export default function CommentsBottomSheet({
 
           {/* Reply context notice if replying to someone */}
           {replyToComment && (
-            <div className="px-5 py-1.5 bg-zinc-950/65 text-[11px] text-zinc-400 flex items-center justify-between border-b border-zinc-900/30 select-none">
+            <div className="px-5 py-2 bg-zinc-950/65 text-xs text-zinc-400 flex items-center justify-between border-b border-zinc-900/30 select-none">
               <span>
                 Replying to <span className="font-semibold text-white">@{replyToComment.user.username}</span>
               </span>
@@ -394,10 +390,10 @@ export default function CommentsBottomSheet({
           {/* Main write comment grid */}
           <div className="p-4 flex items-center gap-3 relative select-none">
             {/* User Avatar */}
-            <UserAvatar avatarUrl={loggedInUser?.avatarUrl} size={38} className="shrink-0" />
+            <UserAvatar avatarUrl={loggedInUser?.avatarUrl} size={40} className="shrink-0" />
 
             {/* Input Composer Pill */}
-            <div className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-full py-2 pl-4 pr-3.5 flex items-center gap-2 relative">
+            <div className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-full py-2.5 pl-4 pr-3.5 flex items-center gap-2 relative">
               <input
                 type="text"
                 placeholder="Write a comment..."
@@ -406,7 +402,7 @@ export default function CommentsBottomSheet({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSubmit();
                 }}
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-550 outline-none pr-1"
+                className="flex-1 bg-transparent text-[15px] text-white placeholder:text-zinc-550 outline-none pr-1"
               />
 
               {/* Action Buttons: Image, GIF */}
@@ -417,13 +413,13 @@ export default function CommentsBottomSheet({
                   onClick={() => toast({ description: "Image attachments in comments coming soon!" })}
                   className="hover:text-white transition-colors cursor-pointer"
                 >
-                  <ImageIcon className="size-4" />
+                  <ImageIcon className="size-4.5" />
                 </button>
                 <button
                   type="button"
                   title="Pick GIF"
                   onClick={() => setShowGifPicker(!showGifPicker)}
-                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border leading-none transition-colors cursor-pointer ${
+                  className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded border leading-none transition-colors cursor-pointer ${
                     showGifPicker
                       ? "border-sky-400 text-sky-400"
                       : "border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
@@ -438,12 +434,12 @@ export default function CommentsBottomSheet({
             <button
               onClick={() => handleSubmit()}
               disabled={(!commentText.trim() && !selectedGifUrl) || isSubmitting}
-              className="size-9 bg-white dark:bg-white text-black font-semibold rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 hover:opacity-90 transition-opacity cursor-pointer"
+              className="size-10 bg-white dark:bg-white text-black font-semibold rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 hover:opacity-90 transition-opacity cursor-pointer"
             >
               {isSubmitting ? (
-                <Loader2 className="size-4 animate-spin text-black" />
+                <Loader2 className="size-4.5 animate-spin text-black" />
               ) : (
-                <Send className="size-4 text-black fill-black" />
+                <Send className="size-4.5 text-black fill-black" />
               )}
             </button>
 
@@ -474,6 +470,163 @@ export default function CommentsBottomSheet({
           }}
         />
       )}
+
+      {/* Option Options Bottom Sheet Drawer */}
+      <AnimatePresence>
+        {optionComment && (
+          <>
+            {/* Backdrop for option sheet */}
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[130] transition-opacity duration-300 pointer-events-auto"
+              onClick={() => setOptionComment(null)}
+            />
+            {/* Sheet content */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="fixed left-0 right-0 bottom-0 z-[140] w-full bg-[#121212] border-t border-zinc-800 rounded-t-[24px] p-5 pb-safe flex flex-col gap-4 select-none md:max-w-md md:mx-auto text-white shadow-2xl"
+            >
+              {/* Drag handle */}
+              <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
+              
+              {/* Menu items */}
+              <div className="flex flex-col mt-2 divide-y divide-zinc-900/60">
+                {/* Follow / Unfollow */}
+                <button
+                  onClick={async () => {
+                    const isFollowed = optionComment.user.followers.some(
+                      (f: any) => f.followerId === loggedInUser?.id
+                    );
+                    try {
+                      if (isFollowed) {
+                        await kyInstance.delete(`/api/users/${optionComment.user.id}/followers`);
+                        toast({ description: `Unfollowed @${optionComment.user.username}` });
+                      } else {
+                        await kyInstance.post(`/api/users/${optionComment.user.id}/followers`);
+                        toast({ description: `Followed @${optionComment.user.username}` });
+                      }
+                      queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
+                    } catch (err) {
+                      console.error(err);
+                      toast({ variant: "destructive", description: "Failed to update follow state." });
+                    }
+                    setOptionComment(null);
+                  }}
+                  className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
+                >
+                  {optionComment.user.followers.some((f: any) => f.followerId === loggedInUser?.id) ? (
+                    <>
+                      <UserMinus className="size-5 text-zinc-400" />
+                      <span>Unfollow @{optionComment.user.username}</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="size-5 text-zinc-400" />
+                      <span>Follow @{optionComment.user.username}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Mute user */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await toggleMuteUser(optionComment.user.id);
+                      toast({
+                        description: res.muted
+                          ? `@${optionComment.user.username} muted successfully. You won't see their comments or posts.`
+                          : `@${optionComment.user.username} unmuted.`,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
+                    } catch (err) {
+                      console.error(err);
+                      toast({ variant: "destructive", description: "Failed to mute user." });
+                    }
+                    setOptionComment(null);
+                  }}
+                  className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
+                >
+                  <VolumeX className="size-5 text-zinc-400" />
+                  <span>Mute @{optionComment.user.username}</span>
+                </button>
+
+                {/* Mute Conversation */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await toggleMuteConversation(optionComment.id);
+                      toast({
+                        description: res.muted
+                          ? "Conversation muted. You will not receive any new notifications about it."
+                          : "Conversation unmuted.",
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
+                    } catch (err) {
+                      console.error(err);
+                      toast({ variant: "destructive", description: "Failed to mute conversation." });
+                    }
+                    setOptionComment(null);
+                  }}
+                  className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
+                >
+                  <BellOff className="size-5 text-zinc-400" />
+                  <span>
+                    {optionComment.mutedConversations?.some((mc: any) => mc.userId === loggedInUser?.id)
+                      ? "Unmute conversation"
+                      : "Mute conversation"}
+                  </span>
+                </button>
+
+                {/* Block user */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await toggleBlockUser(optionComment.user.id);
+                      toast({
+                        description: res.blocked
+                          ? `@${optionComment.user.username} blocked successfully.`
+                          : `@${optionComment.user.username} unblocked.`,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
+                    } catch (err) {
+                      console.error(err);
+                      toast({ variant: "destructive", description: "Failed to block user." });
+                    }
+                    setOptionComment(null);
+                  }}
+                  className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
+                >
+                  <Ban className="size-5 text-zinc-400" />
+                  <span>Block @{optionComment.user.username}</span>
+                </button>
+
+                {/* Divider line before Report post */}
+                <div className="h-px bg-zinc-850/70 w-full my-2" />
+
+                {/* Report post */}
+                <button
+                  onClick={async () => {
+                    try {
+                      await reportContent({ postId: post.id, reason: "Inappropriate content" });
+                      toast({ description: "Post has been reported successfully." });
+                    } catch (err) {
+                      console.error(err);
+                      toast({ variant: "destructive", description: "Failed to report post." });
+                    }
+                    setOptionComment(null);
+                  }}
+                  className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-red-500 active:bg-zinc-900/40"
+                >
+                  <Flag className="size-5 text-red-500" />
+                  <span>Report post</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>,
     document.body
   );
@@ -485,12 +638,8 @@ interface CommentNodeProps {
   postUserId: string;
   loggedInUser: any;
   onReply: (comment: any) => void;
-  localBookmarks: Record<string, boolean>;
-  toggleBookmark: (id: string) => void;
-  localReposts: Record<string, { count: number; active: boolean }>;
-  toggleRepost: (id: string) => void;
-  localComments: Record<string, number>;
   onShareClick: (comment: any) => void;
+  onShowOptions: (comment: any) => void;
   queryClient: any;
 }
 
@@ -499,28 +648,23 @@ function CommentNode({
   postUserId,
   loggedInUser,
   onReply,
-  localBookmarks,
-  toggleBookmark,
-  localReposts,
-  toggleRepost,
-  localComments,
   onShareClick,
+  onShowOptions,
   queryClient,
 }: CommentNodeProps) {
   const { toast } = useToast();
   const [showReplies, setShowReplies] = useState(false);
 
+  // Real Database fields (100% live state mappings)
   const isLiked = comment.likes?.some((like: any) => like.userId === loggedInUser?.id);
   const likesCount = comment._count?.likes || 0;
-  const repliesCount = localComments[comment.id] !== undefined ? localComments[comment.id] : (comment._count?.replies || 0);
-
-  // Simulated metrics
-  const isBookmarked = !!localBookmarks[comment.id];
-  const repostInfo = localReposts[comment.id] || {
-    count: Math.floor((comment.id.charCodeAt(0) % 6) + 1),
-    active: false,
-  };
-  const viewsCount = Math.floor((likesCount * 12) + (comment.id.charCodeAt(0) % 200) + 120);
+  
+  const isReposted = comment.reposts?.some((rp: any) => rp.userId === loggedInUser?.id);
+  const repostsCount = comment._count?.reposts || 0;
+  
+  const isBookmarked = comment.bookmarks?.some((bm: any) => bm.userId === loggedInUser?.id);
+  const viewsCount = comment.viewsCount || 0;
+  const repliesCount = comment._count?.replies || 0;
 
   const handleLike = async () => {
     try {
@@ -535,7 +679,35 @@ function CommentNode({
     }
   };
 
-  const hasActiveStory = false; // Simplified
+  const handleRepost = async () => {
+    try {
+      if (isReposted) {
+        await unrepostComment(comment.id);
+        toast({ description: "Repost removed" });
+      } else {
+        await repostComment(comment.id);
+        toast({ description: "Comment reposted!" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["comments", comment.postId] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBookmark = async () => {
+    try {
+      if (isBookmarked) {
+        await unbookmarkComment(comment.id);
+        toast({ description: "Comment removed from bookmarks" });
+      } else {
+        await bookmarkComment(comment.id);
+        toast({ description: "Comment bookmarked!" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["comments", comment.postId] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Helper to format views
   const formatViews = (val: number) => {
@@ -548,7 +720,7 @@ function CommentNode({
       
       {/* Visual Thread connector line connecting parent to replies */}
       {showReplies && comment.replies && comment.replies.length > 0 && (
-        <div className="absolute left-[18px] top-10 bottom-6 w-0.5 bg-zinc-800/80 pointer-events-none rounded-full" />
+        <div className="absolute left-[20px] top-11 bottom-6 w-0.5 bg-zinc-800/80 pointer-events-none rounded-full" />
       )}
 
       <div className="flex gap-3">
@@ -556,7 +728,7 @@ function CommentNode({
         {/* User avatar */}
         <UserTooltip user={comment.user}>
           <Link href={`/users/${comment.user.username}`} className="shrink-0 select-none">
-            <UserAvatar avatarUrl={comment.user.avatarUrl} size={38} className="size-[38px] rounded-full object-cover" />
+            <UserAvatar avatarUrl={comment.user.avatarUrl} size={40} className="size-[40px] rounded-full object-cover" />
           </Link>
         </UserTooltip>
 
@@ -564,90 +736,88 @@ function CommentNode({
         <div className="flex-1 space-y-1 min-w-0">
           
           {/* Metadata header */}
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 text-zinc-400">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5 text-zinc-400">
               <UserTooltip user={comment.user}>
                 <Link href={`/users/${comment.user.username}`} className="font-bold text-white hover:underline flex items-center gap-0.5">
                   <span>{comment.user.displayName}</span>
-                  {comment.user.verified && <VerifiedBadge size={12} />}
+                  {comment.user.verified && <VerifiedBadge size={14} />}
                 </Link>
               </UserTooltip>
-              <span className="text-zinc-650">@{comment.user.username}</span>
-              <span className="text-zinc-700">•</span>
+              <span className="text-zinc-550">@{comment.user.username}</span>
+              <span className="text-zinc-650 select-none">•</span>
               <span>{formatRelativeDate(comment.createdAt)}</span>
             </div>
             
             {/* Options button */}
-            <button className="text-zinc-600 hover:text-white select-none">
+            <button 
+              onClick={() => onShowOptions(comment)}
+              className="text-zinc-550 hover:text-white select-none px-1 py-0.5 active:opacity-70 transition-opacity"
+            >
               <span className="text-sm font-bold">•••</span>
             </button>
           </div>
 
           {/* Replying indicator */}
           {comment.parentCommentId && (
-            <div className="text-[11px] text-zinc-500">
+            <div className="text-[12.5px] text-zinc-500">
               Replying to <span className="text-sky-400 font-medium">@NotionHQ</span>
             </div>
           )}
 
           {/* Content */}
           <Linkify>
-            <div className="text-[13.5px] break-words text-zinc-150 leading-relaxed pr-2">
+            <div className="text-[15px] break-words text-zinc-150 leading-relaxed pr-2">
               {comment.content}
             </div>
           </Linkify>
 
           {/* Action toolbar matching user mockup */}
-          <div className="flex items-center justify-between text-zinc-500 text-xs py-1.5 select-none pr-3 max-w-sm">
+          <div className="flex items-center justify-between text-zinc-500 text-[13px] py-2 select-none pr-3 max-w-sm">
             
             {/* Replies button */}
             <button
               onClick={() => onReply(comment)}
-              className="flex items-center gap-1 hover:text-zinc-300 transition-colors"
+              className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors"
             >
-              <Reply className="size-3.5 transform scale-x-[-1]" />
-              {repliesCount > 0 && <span className="font-medium text-[11px]">{repliesCount}</span>}
+              <Reply className="size-4.5 transform scale-x-[-1]" />
+              {repliesCount > 0 && <span className="font-semibold text-xs">{repliesCount}</span>}
             </button>
 
             {/* Repost button */}
             <button
-              onClick={() => toggleRepost(comment.id)}
-              className={`flex items-center gap-1 transition-colors ${
-                repostInfo.active ? "text-green-500" : "hover:text-green-500"
+              onClick={handleRepost}
+              className={`flex items-center gap-1.5 transition-colors ${
+                isReposted ? "text-green-500" : "hover:text-green-500"
               }`}
             >
-              <Repeat2 className="size-4" />
-              <span className="font-medium text-[11px]">{repostInfo.count}</span>
+              <Repeat2 className="size-[19px]" />
+              {repostsCount > 0 && <span className="font-semibold text-xs">{repostsCount}</span>}
             </button>
 
             {/* Like button */}
             <button
               onClick={handleLike}
-              className={`flex items-center gap-1 transition-colors ${
+              className={`flex items-center gap-1.5 transition-colors ${
                 isLiked ? "text-red-500" : "hover:text-red-500"
               }`}
             >
-              <Heart className={`size-3.5 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
-              {likesCount > 0 && <span className="font-medium text-[11px]">{likesCount}</span>}
+              <Heart className={`size-4.5 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
+              {likesCount > 0 && <span className="font-semibold text-xs">{likesCount}</span>}
             </button>
 
             {/* Views counter */}
-            <div className="flex items-center gap-1 select-none text-zinc-600">
-              <BarChart2 className="size-3.5" />
-              <span className="text-[11px] font-medium">{formatViews(viewsCount)}</span>
+            <div className="flex items-center gap-1.5 select-none text-zinc-650">
+              <BarChart2 className="size-4.5" />
+              <span className="text-xs font-semibold">{formatViews(viewsCount)}</span>
             </div>
 
             {/* Bookmark button */}
             <button
-              onClick={() => {
-                toggleBookmark(comment.id);
-                toast({
-                  description: isBookmarked ? "Comment removed from bookmarks" : "Comment bookmarked!",
-                });
-              }}
+              onClick={handleBookmark}
               className={`transition-colors ${isBookmarked ? "text-yellow-500" : "hover:text-yellow-500"}`}
             >
-              <Bookmark className={`size-3.5 ${isBookmarked ? "fill-yellow-500" : ""}`} />
+              <Bookmark className={`size-4.5 ${isBookmarked ? "fill-yellow-500" : ""}`} />
             </button>
 
             {/* Share button */}
@@ -655,7 +825,7 @@ function CommentNode({
               onClick={() => onShareClick(comment)}
               className="hover:text-zinc-300 transition-colors"
             >
-              <Share2 className="size-3.5" />
+              <Share2 className="size-4.5" />
             </button>
           </div>
         </div>
@@ -663,11 +833,11 @@ function CommentNode({
 
       {/* Show Nested Replies toggle */}
       {repliesCount > 0 && comment.replies && comment.replies.length > 0 && !showReplies && (
-        <div className="pl-12 py-1 select-none flex items-center gap-2">
+        <div className="pl-13 py-1 select-none flex items-center gap-2">
           <div className="w-8 h-px bg-zinc-800" />
           <button
             onClick={() => setShowReplies(true)}
-            className="text-xs font-bold text-sky-400 hover:underline flex items-center"
+            className="text-[13px] font-bold text-sky-400 hover:underline flex items-center"
           >
             Show replies ({repliesCount})
           </button>
@@ -676,7 +846,7 @@ function CommentNode({
 
       {/* Render Nested Replies */}
       {showReplies && comment.replies && comment.replies.length > 0 && (
-        <div className="pl-12 space-y-4 mt-2">
+        <div className="pl-13 space-y-4 mt-2">
           {comment.replies.map((reply: any) => (
             <CommentNode
               key={reply.id}
@@ -684,12 +854,8 @@ function CommentNode({
               postUserId={postUserId}
               loggedInUser={loggedInUser}
               onReply={onReply}
-              localBookmarks={localBookmarks}
-              toggleBookmark={toggleBookmark}
-              localReposts={localReposts}
-              toggleRepost={toggleRepost}
-              localComments={localComments}
               onShareClick={onShareClick}
+              onShowOptions={onShowOptions}
               queryClient={queryClient}
             />
           ))}
@@ -699,7 +865,7 @@ function CommentNode({
             <div className="w-8 h-px bg-zinc-800" />
             <button
               onClick={() => setShowReplies(false)}
-              className="text-xs font-bold text-zinc-500 hover:text-white hover:underline"
+              className="text-[13px] font-bold text-zinc-500 hover:text-white hover:underline"
             >
               Hide replies
             </button>

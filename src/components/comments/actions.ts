@@ -156,3 +156,191 @@ export async function unlikeComment(commentId: string) {
   });
 }
 
+export async function repostComment(commentId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  await prisma.commentRepost.upsert({
+    where: {
+      userId_commentId: {
+        userId: user.id,
+        commentId,
+      },
+    },
+    create: {
+      userId: user.id,
+      commentId,
+    },
+    update: {},
+  });
+}
+
+export async function unrepostComment(commentId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  await prisma.commentRepost.deleteMany({
+    where: {
+      userId: user.id,
+      commentId,
+    },
+  });
+}
+
+export async function bookmarkComment(commentId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  await prisma.commentBookmark.upsert({
+    where: {
+      userId_commentId: {
+        userId: user.id,
+        commentId,
+      },
+    },
+    create: {
+      userId: user.id,
+      commentId,
+    },
+    update: {},
+  });
+}
+
+export async function unbookmarkComment(commentId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  await prisma.commentBookmark.deleteMany({
+    where: {
+      userId: user.id,
+      commentId,
+    },
+  });
+}
+
+export async function incrementCommentViews(commentId: string) {
+  await prisma.comment.update({
+    where: { id: commentId },
+    data: {
+      viewsCount: {
+        increment: 1,
+      },
+    },
+  });
+}
+
+export async function toggleMuteUser(targetUserId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  const existing = await prisma.userMute.findUnique({
+    where: {
+      muterId_mutedId: {
+        muterId: user.id,
+        mutedId: targetUserId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.userMute.delete({
+      where: {
+        id: existing.id,
+      },
+    });
+    return { muted: false };
+  } else {
+    await prisma.userMute.create({
+      data: {
+        muterId: user.id,
+        mutedId: targetUserId,
+      },
+    });
+    return { muted: true };
+  }
+}
+
+export async function toggleBlockUser(targetUserId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  const existing = await prisma.userBlock.findUnique({
+    where: {
+      blockerId_blockedId: {
+        blockerId: user.id,
+        blockedId: targetUserId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.userBlock.delete({
+      where: {
+        id: existing.id,
+      },
+    });
+    return { blocked: false };
+  } else {
+    await prisma.userBlock.create({
+      data: {
+        blockerId: user.id,
+        blockedId: targetUserId,
+      },
+    });
+    return { blocked: true };
+  }
+}
+
+export async function toggleMuteConversation(commentId: string) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  const existing = await prisma.mutedConversation.findUnique({
+    where: {
+      userId_commentId: {
+        userId: user.id,
+        commentId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.mutedConversation.delete({
+      where: {
+        id: existing.id,
+      },
+    });
+    return { muted: false };
+  } else {
+    await prisma.mutedConversation.create({
+      data: {
+        userId: user.id,
+        commentId,
+      },
+    });
+    return { muted: true };
+  }
+}
+
+export async function reportContent({
+  commentId,
+  postId,
+  reason,
+}: {
+  commentId?: string | null;
+  postId?: string | null;
+  reason: string;
+}) {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  await prisma.commentReport.create({
+    data: {
+      userId: user.id,
+      commentId: commentId || undefined,
+      postId: postId || undefined,
+      reason,
+    },
+  });
+}
+

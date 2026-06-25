@@ -53,6 +53,16 @@ model User {
   unreadNotificationCount  Int                 @default(0)
   notificationPreference   NotificationPreference?
 
+  // Comment & User Interactions
+  commentReposts           CommentRepost[]
+  commentBookmarks         CommentBookmark[]
+  mutedConversations       MutedConversation[]
+  commentReports           CommentReport[]
+  mutes                    UserMute[]          @relation("UserMutes")
+  mutedBy                  UserMute[]          @relation("UserMutedBy")
+  blocks                   UserBlock[]         @relation("UserBlocks")
+  blockedBy                UserBlock[]         @relation("UserBlockedBy")
+
   // Messaging Preferences V5
   chatPins                 ChatPin[]
   chatArchives             ChatArchive[]
@@ -127,6 +137,7 @@ model Post {
   reposts             Repost[]
   collectionItems     SavedCollectionItem[]
   videoJob            VideoProcessingJob?
+  reports             CommentReport[]
 
   // Spots V3 Creator Commerce System
   assignments         ProductAssignment[]
@@ -152,17 +163,22 @@ model Media {
 }
 
 model Comment {
-  id              String        @id @default(cuid())
+  id              String              @id @default(cuid())
   content         String
   userId          String
   postId          String
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime            @default(now())
   parentCommentId String?
+  viewsCount      Int                 @default(0) @map("views_count")
   likes           CommentLike[]
-  parentComment   Comment?      @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies         Comment[]     @relation("CommentReplies")
-  post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reposts         CommentRepost[]
+  bookmarks       CommentBookmark[]
+  mutedConversations MutedConversation[]
+  reports         CommentReport[]
+  parentComment   Comment?            @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         Comment[]           @relation("CommentReplies")
+  post            Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([postId])
   @@index([userId])
@@ -862,6 +878,80 @@ model InstantView {
 
   @@unique([instantId, userId])
   @@map("instant_views")
+}
+
+model CommentRepost {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("comment_reposts")
+}
+
+model CommentBookmark {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("comment_bookmarks")
+}
+
+model UserMute {
+  id        String   @id @default(cuid())
+  muterId   String
+  mutedId   String
+  createdAt DateTime @default(now())
+  muter     User     @relation("UserMutes", fields: [muterId], references: [id], onDelete: Cascade)
+  muted     User     @relation("UserMutedBy", fields: [mutedId], references: [id], onDelete: Cascade)
+
+  @@unique([muterId, mutedId])
+  @@map("user_mutes")
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("user_blocks")
+}
+
+model MutedConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("muted_conversations")
+}
+
+model CommentReport {
+  id        String   @id @default(cuid())
+  commentId String?
+  postId    String?
+  userId    String
+  reason    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comment_reports")
 }
 
 

@@ -161,6 +161,30 @@ export function getCommentDataInclude(loggedInUserId: string) {
         userId: true,
       },
     },
+    reposts: {
+      where: {
+        userId: loggedInUserId,
+      },
+      select: {
+        userId: true,
+      },
+    },
+    bookmarks: {
+      where: {
+        userId: loggedInUserId,
+      },
+      select: {
+        userId: true,
+      },
+    },
+    mutedConversations: {
+      where: {
+        userId: loggedInUserId,
+      },
+      select: {
+        userId: true,
+      },
+    },
     replies: {
       include: {
         user: {
@@ -174,9 +198,34 @@ export function getCommentDataInclude(loggedInUserId: string) {
             userId: true,
           },
         },
+        reposts: {
+          where: {
+            userId: loggedInUserId,
+          },
+          select: {
+            userId: true,
+          },
+        },
+        bookmarks: {
+          where: {
+            userId: loggedInUserId,
+          },
+          select: {
+            userId: true,
+          },
+        },
+        mutedConversations: {
+          where: {
+            userId: loggedInUserId,
+          },
+          select: {
+            userId: true,
+          },
+        },
         _count: {
           select: {
             likes: true,
+            reposts: true,
           },
         },
       },
@@ -188,6 +237,7 @@ export function getCommentDataInclude(loggedInUserId: string) {
       select: {
         likes: true,
         replies: true,
+        reposts: true,
       },
     },
   } satisfies Prisma.CommentInclude;
