@@ -1062,16 +1062,20 @@ export default function ChatChannel() {
   const members = Object.values(channel.state.members || {});
   const otherMember = members.find((m) => m.user?.id !== loggedInUser.id)?.user;
   
-  const displayName = channel.data?.name || otherMember?.name || "Chat Room";
-  const avatarUrl = channel.data?.image || otherMember?.image;
+  const isGroup = channel.data?.isGroup === true || members.length > 2;
+  const displayName = channel.data?.name || (isGroup ? "Group Chat" : otherMember?.name || "Chat Room");
+  const avatarUrl = channel.data?.image || (isGroup ? undefined : otherMember?.image);
   const isOnline = otherMember?.online || false;
+  const onlineMembersCount = members.filter(
+    (m) => m.user?.id !== loggedInUser.id && m.user?.online
+  ).length;
 
   // Pinned Message banner
   const pinnedMessages = messages.filter((m) => m.pinned);
   const latestPinned = pinnedMessages[pinnedMessages.length - 1];
 
   return (
-    <div className="flex h-full w-full flex-col bg-background select-none relative">
+    <div className="flex h-full w-full flex-col bg-[#121212] select-none relative">
       {/* Header Panel */}
       {selectedMessage ? (
         <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md">
@@ -1255,7 +1259,7 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-[#09090b] border-b border-zinc-800/60 px-4 z-10 shrink-0">
+        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-[#121212] border-b border-zinc-800/60 px-4 z-10 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -1275,7 +1279,15 @@ export default function ChatChannel() {
             >
               <div className="rounded-full p-[2.5px] bg-gradient-to-tr from-[#f91f76] to-[#a83ffc] shadow-md flex items-center justify-center">
                 <div className="rounded-full bg-[#09090b] p-[1.5px] flex items-center justify-center">
-                  <UserAvatar avatarUrl={avatarUrl as string | undefined} size={36} className="size-9 rounded-full border-none" />
+                  {avatarUrl ? (
+                    <UserAvatar avatarUrl={avatarUrl as string | undefined} size={36} className="size-9 rounded-full border-none" />
+                  ) : isGroup ? (
+                    <div className="size-9 rounded-full flex items-center justify-center text-sm font-bold text-white bg-purple-600">
+                      {(displayName || "G")[0].toUpperCase()}
+                    </div>
+                  ) : (
+                    <UserAvatar avatarUrl={undefined} size={36} className="size-9 rounded-full border-none" />
+                  )}
                 </div>
               </div>
               <div className="flex flex-col text-start leading-tight">
@@ -1286,6 +1298,10 @@ export default function ChatChannel() {
                 <div className="flex items-center gap-1.5 text-[12px] text-zinc-400">
                   {typingState ? (
                     <span className="text-zinc-500 italic">{typingState}</span>
+                  ) : isGroup ? (
+                    <span>
+                      {members.length} members{onlineMembersCount > 0 ? `, ${onlineMembersCount} online` : ""}
+                    </span>
                   ) : isOnline ? (
                     <>
                       <span className="size-1.5 rounded-full bg-green-500 shrink-0" />

@@ -233,9 +233,11 @@ export default function Chat() {
         style={{
           height: isMobile && mobileView === "chat" && activeChannel
             ? viewportHeight
+            : isMobile
+            ? "calc(100dvh - 56px)"
             : undefined
         }}
-        className="chat-main-container relative flex h-[calc(100vh-96px)] w-full overflow-hidden rounded-2xl border bg-background shadow-lg md:h-[calc(100vh-120px)]"
+        className="chat-main-container relative flex h-[calc(100vh-56px)] w-full overflow-hidden border-none md:border md:rounded-2xl bg-[#121212] shadow-lg md:h-[calc(100vh-120px)]"
       >
         {/* Chat List Sidebar (Split Pane on Desktop, Screen on Mobile) */}
         <div

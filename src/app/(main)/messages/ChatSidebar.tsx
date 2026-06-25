@@ -399,7 +399,7 @@ export default function ChatSidebar() {
     }
     
     if (activeFilter === "groups") {
-      return Object.keys(channel.state.members || {}).length > 2;
+      return Object.keys(channel.state.members || {}).length > 2 || channel.data?.isGroup === true;
     }
     
     if (activeFilter === "channels") {
@@ -478,9 +478,9 @@ export default function ChatSidebar() {
   if (!loggedInUser) return null;
 
   return (
-    <div className="flex h-full w-full flex-col bg-black select-none relative text-white">
+    <div className="flex h-full w-full flex-col bg-[#121212] select-none relative text-white">
       {/* iOS Styled Top Header Bar (Responsively sized) */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black relative shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#121212] relative shrink-0">
         <button
           onClick={() => setShowAdminMenu(!showAdminMenu)}
           className="p-1 rounded-lg hover:bg-zinc-900 transition-colors shrink-0 text-zinc-300 hover:text-white"
@@ -1079,8 +1079,9 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
   const members = Object.values(channel.state.members || {});
   const otherMember = members.find((m) => m.user?.id !== loggedInUserId)?.user;
   
-  const displayName = channel.data?.name || otherMember?.name || "Chat Room";
-  const avatarUrl = channel.data?.image || otherMember?.image;
+  const isGroup = channel.data?.isGroup === true || members.length > 2;
+  const displayName = channel.data?.name || (isGroup ? "Group Chat" : otherMember?.name || "Chat Room");
+  const avatarUrl = channel.data?.image || (isGroup ? undefined : otherMember?.image);
   const isOnline = otherMember?.online || false;
 
   // Extract active message info, filtering out deleted and cleared history
@@ -1274,11 +1275,23 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
           }`}
         >
           <div className="bg-black p-[1px] rounded-full">
-            <UserAvatar 
-              avatarUrl={avatarUrl as string | null | undefined} 
-              size={58} 
-              className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
-            />
+            {avatarUrl ? (
+              <UserAvatar 
+                avatarUrl={avatarUrl as string | null | undefined} 
+                size={58} 
+                className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
+              />
+            ) : isGroup ? (
+              <div className="size-[58px] sm:size-[64px] rounded-full flex items-center justify-center text-lg font-bold text-white bg-purple-600 border border-zinc-800">
+                {(displayName || "G")[0].toUpperCase()}
+              </div>
+            ) : (
+              <UserAvatar 
+                avatarUrl={undefined} 
+                size={58} 
+                className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
+              />
+            )}
           </div>
         </div>
         {isOnline && (

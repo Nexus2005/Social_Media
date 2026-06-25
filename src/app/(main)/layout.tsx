@@ -50,7 +50,7 @@ export default async function Layout({
           />
 
           {/* Main Content Area */}
-          <div className="main-content-wrapper flex-grow flex justify-center w-full pl-0 sm:pl-[72px] xl:pl-[244px] pb-14 sm:pb-0 transition-all duration-300">
+          <div className="main-content-wrapper flex-grow flex justify-center w-full pl-0 sm:pl-[72px] xl:pl-[244px] pb-14 sm:pb-0 has-[.chat-main-container]:pb-0 transition-all duration-300">
             <main className="w-full">
               {children}
             </main>

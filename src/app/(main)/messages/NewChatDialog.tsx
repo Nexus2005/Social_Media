@@ -234,15 +234,41 @@ export default function NewChatDialog({
   };
 
   const uploadPhoto = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
+    const presignRes = await fetch(
+      `/api/upload?endpoint=attachment&filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`
+    );
+    if (!presignRes.ok) {
+      throw new Error("Failed to get upload signature");
+    }
+    const { signedUrl, publicUrl, fileKey } = await presignRes.json();
+
+    const putRes = await fetch(signedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
     });
-    if (!res.ok) throw new Error("Upload failed");
-    const data = await res.json();
-    return data.url;
+    if (!putRes.ok) {
+      throw new Error("Failed to put file to storage");
+    }
+
+    const registerRes = await fetch("/api/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        endpoint: "attachment",
+        files: [{ name: file.name, url: publicUrl, fileKey, type: file.type }],
+      }),
+    });
+    if (!registerRes.ok) {
+      throw new Error("Failed to register file upload");
+    }
+
+    const data = await registerRes.json();
+    return data[0]?.url || publicUrl;
   };
 
   const groupContactsList = useMemo(() => {
@@ -309,7 +335,8 @@ export default function NewChatDialog({
         }
       }
 
-      const channel = client.channel("messaging", {
+      const channelId = `group_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+      const channel = client.channel("messaging", channelId, {
         members: [loggedInUser.id, ...selectedGroupUsers.map((u) => u.id)],
         name: groupName.trim(),
         image: imageUrl || undefined,
@@ -765,9 +792,19 @@ export default function NewChatDialog({
                       }}
                       className="flex items-center gap-3.5 px-4 py-3 hover:bg-zinc-900/40 text-start w-full border-b border-zinc-950/40 transition-colors"
                     >
-                      <div className="size-11 rounded-full bg-[#8b5cf6] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
-                        {channel.data?.name?.[0]?.toUpperCase() || <Users className="size-5" />}
-                      </div>
+                      {channel.data?.image ? (
+                        <div className="size-11 rounded-full overflow-hidden shrink-0 border border-zinc-800">
+                          <img
+                            src={channel.data.image}
+                            alt={channel.data.name || "Group"}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="size-11 rounded-full bg-[#8b5cf6] text-white flex items-center justify-center shrink-0 font-bold border border-zinc-800">
+                          {channel.data?.name?.[0]?.toUpperCase() || <Users className="size-5" />}
+                        </div>
+                      )}
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="font-semibold text-[14.5px] text-white truncate">{channel.data?.name || "Group Chat"}</span>
                         <span className="text-xs text-zinc-500 font-medium truncate">
