@@ -2,7 +2,7 @@
 
 import { createPortal } from "react-dom";
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -866,6 +866,7 @@ export default function ChatChannel() {
   const [showForwardDialog, setShowForwardDialog] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<MessageResponse | null>(null);
   const [forwardChannels, setForwardChannels] = useState<Channel[]>([]);
+  const [forwardSearchQuery, setForwardSearchQuery] = useState("");
 
   // Selection Mode states
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -939,6 +940,16 @@ export default function ChatChannel() {
   const allMessages = useMemo(() => {
     return [...filteredMessages, ...queueMessages];
   }, [filteredMessages, queueMessages]);
+
+  const filteredForwardChannels = useMemo(() => {
+    if (!forwardSearchQuery) return forwardChannels;
+    return forwardChannels.filter((c) => {
+      const m = Object.values(c.state.members || {});
+      const other = m.find((member) => member.user?.id !== loggedInUser.id)?.user;
+      const name = c.data?.name || other?.name || "Chat Room";
+      return name.toLowerCase().includes(forwardSearchQuery.toLowerCase());
+    });
+  }, [forwardChannels, forwardSearchQuery, loggedInUser.id]);
 
   // Compute final virtual list items (injecting Date and Unread separators)
   const listItems = useMemo(() => {
@@ -1186,34 +1197,35 @@ export default function ChatChannel() {
     );
   };
 
-  // Upload file attachment
-  const handleSelectFile = async (file: File) => {
+  // Upload multiple file attachments
+  const handleSelectFiles = async (files: File[]) => {
     if (!channel) return;
     try {
-      // Optimistic file uploading card in message list
-      const tempId = `file-${Date.now()}`;
-      const type = file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "file";
-      
-      // Upload using Stream sendFile/sendImage API
-      let fileUrl = "";
-      if (type === "image") {
-        const response = await channel.sendImage(file);
-        fileUrl = response.file || "";
-      } else {
-        const response = await channel.sendFile(file);
-        fileUrl = response.file || "";
-      }
+      const attachments = await Promise.all(
+        files.map(async (file) => {
+          const type = file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "file";
+          
+          // Upload using Stream sendFile/sendImage API
+          let fileUrl = "";
+          if (type === "image") {
+            const response = await channel.sendImage(file);
+            fileUrl = response.file || "";
+          } else {
+            const response = await channel.sendFile(file);
+            fileUrl = response.file || "";
+          }
+          return {
+            type,
+            asset_url: fileUrl,
+            title: file.name,
+            file_size: file.size,
+          };
+        })
+      );
 
-      await outgoingMessageQueue.addMessage(channel, "", loggedInUser.id, [
-        {
-          type,
-          asset_url: fileUrl,
-          title: file.name,
-          file_size: file.size,
-        },
-      ]);
+      await outgoingMessageQueue.addMessage(channel, "", loggedInUser.id, attachments);
     } catch (error) {
-      console.error("Failed to upload file:", error);
+      console.error("Failed to upload files:", error);
     }
   };
 
@@ -1954,7 +1966,7 @@ export default function ChatChannel() {
         <AttachmentPicker
           onClose={() => setShowAttachmentPicker(false)}
           onSelectShare={handleSelectShare}
-          onSelectFile={handleSelectFile}
+          onSelectFiles={handleSelectFiles}
         />
       )}
 
@@ -2089,64 +2101,111 @@ export default function ChatChannel() {
         </div>
       )}
 
-      {/* Forward Message Selector Dialog */}
-      {showForwardDialog && forwardingMessage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => {
-            setShowForwardDialog(false);
-            setForwardingMessage(null);
-          }}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-card border shadow-2xl p-4 flex flex-col gap-3 mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b pb-2">
-              <span className="font-semibold text-base text-foreground">Forward Message</span>
-              <button
-                onClick={() => {
-                  setShowForwardDialog(false);
-                  setForwardingMessage(null);
-                }}
-                className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+      {/* Forward Message Selector Dialog (Slide-Up Bottom Sheet Drawer) */}
+      <AnimatePresence>
+        {showForwardDialog && forwardingMessage && (
+          <div className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowForwardDialog(false);
+                setForwardingMessage(null);
+                setForwardSearchQuery("");
+              }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-[1px]"
+            />
+            {/* Bottom Sheet Drawer */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="relative z-50 bg-[#121212] border-t border-zinc-800 rounded-t-3xl pb-8 pt-4 px-6 flex flex-col gap-4 max-w-md mx-auto w-full select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag Handle */}
+              <div className="w-10 h-1 bg-zinc-750 rounded-full mx-auto mb-1 shrink-0" />
+              
+              {/* Header Panel */}
+              <div className="relative border-b border-zinc-900 pb-3 flex items-center justify-center shrink-0">
+                <span className="font-black text-white text-[17px] tracking-wide">Forward Message</span>
+                <button
+                  onClick={() => {
+                    setShowForwardDialog(false);
+                    setForwardingMessage(null);
+                    setForwardSearchQuery("");
+                  }}
+                  className="absolute right-0 text-zinc-400 hover:text-white"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
 
-            <p className="text-xs text-muted-foreground mb-1">
-              Select a conversation to forward this message to:
-            </p>
+              {/* Search bar inside forward panel */}
+              <div className="relative w-full shrink-0">
+                <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Search chats"
+                  value={forwardSearchQuery}
+                  onChange={(e) => setForwardSearchQuery(e.target.value)}
+                  className="w-full bg-[#262626] border border-transparent rounded-xl py-2.5 pl-10 pr-4 text-[14px] text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700 transition-colors"
+                />
+              </div>
 
-            <div className="max-h-60 overflow-y-auto flex flex-col gap-1.5">
-              {forwardChannels.length > 0 ? (
-                forwardChannels.map((c) => {
-                  const m = Object.values(c.state.members || {});
-                  const other = m.find((member) => member.user?.id !== loggedInUser.id)?.user;
-                  const name = c.data?.name || other?.name || "Chat Room";
-                  const avatar = c.data?.image || other?.image;
-                  
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => handleForwardToChannel(c)}
-                      className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-muted text-start w-full border border-transparent hover:border-border transition-colors"
-                    >
-                      <UserAvatar avatarUrl={avatar as string | undefined} size={36} className="size-9 border" />
-                      <span className="text-sm font-semibold truncate">{name}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="flex h-20 items-center justify-center text-xs text-muted-foreground">
-                  No other active chats found.
-                </div>
-              )}
-            </div>
+              {/* Channels List */}
+              <div className="max-h-[300px] overflow-y-auto flex flex-col gap-2 scrollbar-none pr-1">
+                {filteredForwardChannels.length > 0 ? (
+                  filteredForwardChannels.map((c) => {
+                    const m = Object.values(c.state.members || {});
+                    const other = m.find((member) => member.user?.id !== loggedInUser.id)?.user;
+                    const name = c.data?.name || other?.name || "Chat Room";
+                    const avatar = c.data?.image || other?.image;
+                    const isGroupChat = c.data?.isGroup === true || m.length > 2;
+
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          handleForwardToChannel(c);
+                          setForwardSearchQuery("");
+                        }}
+                        className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 hover:bg-zinc-800/40 border border-zinc-800/40 text-start w-full transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          {avatar ? (
+                            <UserAvatar avatarUrl={avatar as string | undefined} size={36} className="size-9 rounded-full" />
+                          ) : isGroupChat ? (
+                            <div className="size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold text-white uppercase">
+                              {(name || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                            </div>
+                          ) : (
+                            <UserAvatar avatarUrl={undefined} size={36} className="size-9 rounded-full" />
+                          )}
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-white truncate max-w-[200px]">{name}</span>
+                            <span className="text-xs text-zinc-500">{isGroupChat ? `${m.length} members` : "chat"}</span>
+                          </div>
+                        </div>
+                        <div className="size-5 rounded-full border border-zinc-700 group-hover:border-zinc-500 flex items-center justify-center">
+                          <Check className="size-3 text-[#0095f6] hidden group-hover:block" />
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="flex h-24 items-center justify-center text-xs text-zinc-550">
+                    No active chats found.
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {mounted && (
         createPortal(

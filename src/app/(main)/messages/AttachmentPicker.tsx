@@ -16,10 +16,10 @@ interface AttachmentPickerProps {
     price?: string;
     originalPrice?: string;
   }) => void;
-  onSelectFile: (file: File) => void;
+  onSelectFiles: (files: File[]) => void;
 }
 
-export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile }: AttachmentPickerProps) {
+export default function AttachmentPicker({ onClose, onSelectShare, onSelectFiles }: AttachmentPickerProps) {
   const [activeSheet, setActiveSheet] = useState<"menu" | "products" | "reels" | "posts" | "collections" | "profiles">("menu");
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -79,8 +79,8 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onSelectFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      onSelectFiles(Array.from(e.target.files));
       onClose();
     }
   };
@@ -112,7 +112,7 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
               {/* Grid 1: Basic Files and Camera */}
               <div className="grid grid-cols-4 gap-x-2 gap-y-5 p-2 text-center text-[11px] font-medium text-muted-foreground">
                 <label className="flex cursor-pointer flex-col items-center gap-2 hover:opacity-85">
-                  <input type="file" className="hidden" onChange={handleFileChange} />
+                  <input type="file" className="hidden" multiple onChange={handleFileChange} />
                   <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                     <ImageIcon className="size-5" />
                   </div>
@@ -125,7 +125,7 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
                   <span>Camera</span>
                 </div>
                 <label className="flex cursor-pointer flex-col items-center gap-2 hover:opacity-85">
-                  <input type="file" className="hidden" onChange={handleFileChange} />
+                  <input type="file" className="hidden" multiple onChange={handleFileChange} />
                   <div className="flex size-11 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                     <FileText className="size-5" />
                   </div>
