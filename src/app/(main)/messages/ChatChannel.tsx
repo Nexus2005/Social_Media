@@ -855,6 +855,20 @@ export default function ChatChannel() {
   const [showLeaveGroupDialog, setShowLeaveGroupDialog] = useState(false);
   const [leaveDeleteForAll, setLeaveDeleteForAll] = useState(false);
 
+  // Mute options, toast notifications and custom settings states
+  const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const [notificationBanner, setNotificationBanner] = useState<{ text: string; icon: "sound" | "muted" } | null>(null);
+  const [showMuteForDrawer, setShowMuteForDrawer] = useState(false);
+  const [selectedMuteDuration, setSelectedMuteDuration] = useState("30 minutes");
+  const [showCustomNotificationsPage, setShowCustomNotificationsPage] = useState(false);
+
+  // Custom Notifications config states
+  const [showPreviews, setShowPreviews] = useState(true);
+  const [smartNotificationsVal, setSmartNotificationsVal] = useState("2 / 3 minutes");
+  const [priorityVal, setPriorityVal] = useState("Same as in Settings");
+  const [popupNotificationsVal, setPopupNotificationsVal] = useState("Disabled");
+  const [lightColorVal, setLightColorVal] = useState("#0095f6");
+
   // Jump highlights & unread lock states
   const [initialFirstUnreadId, setInitialFirstUnreadId] = useState<string | null>(null);
   const [initialUnreadCount, setInitialUnreadCount] = useState<number>(0);
@@ -2283,7 +2297,7 @@ export default function ChatChannel() {
                 className="fixed inset-0 z-50 flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
               >
                 {/* Header panel */}
-                <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">
+                <div className="flex h-12 items-center justify-between px-4 shrink-0 mt-2">
                   <button
                     onClick={() => setShowGroupProfile(false)}
                     className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
@@ -2300,20 +2314,20 @@ export default function ChatChannel() {
                   </div>
                 </div>
 
-                {/* Group profile center details */}
-                <div className="flex flex-col items-center p-6 text-center shrink-0">
+                {/* Group profile center details (Moved Up) */}
+                <div className="flex flex-col items-center pt-0 pb-3 px-6 text-center shrink-0">
                   {/* Large Avatar */}
                   <div className="size-[100px] rounded-full flex items-center justify-center text-4xl font-bold text-white bg-[#48bb78] border border-zinc-800/60 shadow-lg select-none">
-                    {(displayName || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                    {(displayName || "G").slice(0, 2).toUpperCase()}
                   </div>
                   {/* Display Name */}
-                  <h3 className="mt-4 text-xl font-bold tracking-tight text-white">{displayName}</h3>
+                  <h3 className="mt-3 text-xl font-bold tracking-tight text-white">{displayName}</h3>
                   {/* Member count */}
                   <p className="text-sm text-zinc-400 mt-1">{members.length} members</p>
                 </div>
 
-                {/* Action button cards */}
-                <div className="px-6 py-2 shrink-0">
+                {/* Action button cards (Reduced gap / padding) */}
+                <div className="px-3 py-2 shrink-0">
                   <div className="grid grid-cols-4 gap-3">
                     {/* Message */}
                     <button
@@ -2330,8 +2344,14 @@ export default function ChatChannel() {
                         onClick={() => setShowMuteDropdown(!showMuteDropdown)}
                         className="flex flex-col items-center justify-center w-full bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
                       >
-                        <Bell className="size-[20px] text-zinc-300" />
-                        <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Mute</span>
+                        {isSoundMuted ? (
+                          <BellOff className="size-[20px] text-zinc-300" />
+                        ) : (
+                          <Bell className="size-[20px] text-zinc-300" />
+                        )}
+                        <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">
+                          {isSoundMuted ? "Unmute" : "Mute"}
+                        </span>
                       </button>
 
                       {/* Mute Dropdown Popover */}
@@ -2352,17 +2372,37 @@ export default function ChatChannel() {
                               <button
                                 onClick={() => {
                                   setShowMuteDropdown(false);
-                                  toast({ description: "Sound disabled" });
+                                  const nextState = !isSoundMuted;
+                                  setIsSoundMuted(nextState);
+                                  if (nextState) {
+                                    setNotificationBanner({ text: "Notifications muted.", icon: "muted" });
+                                  } else {
+                                    setNotificationBanner({ text: "You will receive notifications with sound.", icon: "sound" });
+                                  }
+                                  setTimeout(() => setNotificationBanner(null), 3000);
                                 }}
                                 className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
                               >
-                                <VolumeX className="size-4 shrink-0 text-zinc-400" />
-                                <span>Disable sound</span>
+                                {isSoundMuted ? (
+                                  <>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0 text-zinc-400">
+                                      <path d="M9 18V5l12-2v13" />
+                                      <circle cx="6" cy="18" r="3" />
+                                      <circle cx="18" cy="16" r="3" />
+                                    </svg>
+                                    <span>Enable sound</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <VolumeX className="size-4 shrink-0 text-zinc-400" />
+                                    <span>Disable sound</span>
+                                  </>
+                                )}
                               </button>
                               <button
                                 onClick={() => {
                                   setShowMuteDropdown(false);
-                                  toast({ description: "Muted for customizing" });
+                                  setShowMuteForDrawer(true);
                                 }}
                                 className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
                               >
@@ -2372,7 +2412,7 @@ export default function ChatChannel() {
                               <button
                                 onClick={() => {
                                   setShowMuteDropdown(false);
-                                  toast({ description: "Custom mute settings" });
+                                  setShowCustomNotificationsPage(true);
                                 }}
                                 className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
                               >
@@ -2382,9 +2422,11 @@ export default function ChatChannel() {
                               <button
                                 onClick={() => {
                                   setShowMuteDropdown(false);
-                                  toast({ description: "Muted Forever" });
+                                  setIsSoundMuted(true);
+                                  setNotificationBanner({ text: "Notifications muted.", icon: "muted" });
+                                  setTimeout(() => setNotificationBanner(null), 3000);
                                 }}
-                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-red-405 font-medium"
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-red-500 font-medium"
                               >
                                 <VolumeX className="size-4 shrink-0 text-red-500" />
                                 <span className="text-red-500">Mute Forever</span>
@@ -2417,53 +2459,50 @@ export default function ChatChannel() {
                   </div>
                 </div>
 
-                {/* Main Body Section */}
-                <div className="flex-1 px-6 py-4 overflow-y-auto">
+                {/* Main Body Section (Reduced Gap / Tighter Padding) */}
+                <div className="px-3 pb-6 shrink-0">
                   <div className="bg-[#1c1c1e] rounded-[20px] overflow-hidden border border-zinc-800/30">
                     {/* Add Members Row */}
                     <button
                       onClick={() => {
                         toast({ description: "Add Members clicked" });
                       }}
-                      className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-zinc-800/40 text-start transition-colors border-b border-zinc-800/40"
+                      className="flex items-center gap-3 px-3.5 py-3 w-full hover:bg-zinc-800/40 text-start transition-colors border-b border-zinc-800/40"
                     >
-                      <div className="size-9 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300">
-                        <UserPlus className="size-5" />
-                      </div>
+                      <UserPlus className="size-6 text-zinc-400 shrink-0" />
                       <span className="text-[15px] font-semibold text-white">Add Members</span>
                     </button>
 
-                    {/* Members List */}
+                    {/* Members List (Avatars size increased to 48px) */}
                     <div className="flex flex-col">
                       {members.map((member: any) => {
                         const user = member.user;
                         if (!user) return null;
                         const isOnline = user.online;
                         
-                        // Rule: Check if the user is the owner/admin
-                        const isOwner = member.role === "owner" ||
-                                        user.id === (channel.data as any)?.created_by?.id ||
-                                        user.id === (channel.data as any)?.created_by_id ||
-                                        user.name?.toLowerCase().includes("omkar") ||
+                        // Rule: Check if the user is the actual creator (Omkar only)
+                        const isOwner = user.name?.toLowerCase().includes("omkar") ||
                                         user.username?.toLowerCase().includes("omkar");
 
                         return (
                           <div
                             key={user.id}
-                            className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/20 transition-colors border-b border-zinc-800/20 last:border-b-0"
+                            className="flex items-center justify-between px-3.5 py-3 hover:bg-zinc-800/20 transition-colors border-b border-zinc-800/20 last:border-b-0"
                           >
                             <div className="flex items-center gap-3">
-                              <UserAvatar avatarUrl={user.image} size={36} className="size-9 border-none rounded-full bg-zinc-700" />
+                              <UserAvatar avatarUrl={user.image} size={48} className="size-[48px] border-none rounded-full bg-zinc-700 shrink-0" />
                               <div className="flex flex-col text-start">
                                 <span className="text-[15px] font-semibold text-white">{user.name || user.username}</span>
-                                {isOnline && (
+                                {isOnline ? (
                                   <span className="text-xs text-[#0095f6] font-semibold mt-0.5">online</span>
+                                ) : (
+                                  <span className="text-xs text-zinc-500 mt-0.5">last seen a long time ago</span>
                                 )}
                               </div>
                             </div>
                             
                             {isOwner && (
-                              <span className="bg-[#1e1a2e] text-[#a855f7] px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-[#a855f7]/20 select-none">
+                              <span className="bg-[#8a2be2]/20 border border-[#8a2be2]/40 text-[#d8b4fe] px-2.5 py-0.5 rounded-[12px] text-[11px] font-semibold select-none shadow-sm shadow-purple-500/10 backdrop-blur-[2px]">
                                 Owner
                               </span>
                             )}
@@ -2477,7 +2516,7 @@ export default function ChatChannel() {
                 {/* Video Chat Drawer (Bottom Sheet) */}
                 <AnimatePresence>
                   {showVideoChatDrawer && (
-                    <div className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end">
+                    <div className="fixed inset-0 z-[60] overflow-hidden flex flex-col justify-end">
                       {/* Drawer Backdrop */}
                       <motion.div
                         initial={{ opacity: 0 }}
@@ -2547,7 +2586,7 @@ export default function ChatChannel() {
                             <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/10 border border-zinc-800/20">
                               <div className="flex items-center gap-3">
                                 <div className="size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold text-white uppercase">
-                                  {(displayName || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                                  {(displayName || "G").slice(0, 2).toUpperCase()}
                                 </div>
                                 <div className="flex flex-col text-start leading-tight">
                                   <span className="text-sm font-semibold text-zinc-400">{displayName}</span>
@@ -2586,6 +2625,249 @@ export default function ChatChannel() {
                   )}
                 </AnimatePresence>
 
+                {/* Mute notifications for... Scroll Wheel Drawer */}
+                <AnimatePresence>
+                  {showMuteForDrawer && (
+                    <div className="fixed inset-0 z-[60] overflow-hidden flex flex-col justify-end">
+                      {/* Drawer Backdrop */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowMuteForDrawer(false)}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-[1px]"
+                      />
+                      {/* Drawer Body */}
+                      <motion.div
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                        className="relative z-50 bg-[#1c222b] border-t border-[#262626] rounded-t-3xl pb-8 pt-4 px-6 flex flex-col items-center max-w-md mx-auto w-full select-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Drag Handle */}
+                        <div className="w-12 h-1 bg-zinc-750 rounded-full mb-4 shrink-0" />
+
+                        {/* Bell Notification Icon */}
+                        <div className="size-12 rounded-full bg-[#2a87d0]/10 border border-[#2a87d0]/20 flex items-center justify-center text-[#2a87d0] mt-1">
+                          <Bell className="size-6 text-[#2a87d0] fill-[#2a87d0]/15" />
+                        </div>
+
+                        {/* Title text */}
+                        <h4 className="text-[17px] font-bold text-white text-center mt-3">Mute notifications for...</h4>
+
+                        {/* Scroll Picker Drum Layout */}
+                        <div className="relative w-full h-[200px] my-4 flex flex-col items-center justify-center overflow-hidden">
+                          {/* Top and Bottom Horizontal Borders for Selection indicator */}
+                          <div className="absolute left-0 right-0 top-[78px] h-[44px] border-y-2 border-[#0095f6] pointer-events-none" />
+                          
+                          {/* Scroll Container */}
+                          <div
+                            onScroll={(e) => {
+                              const container = e.currentTarget;
+                              const scrollTop = container.scrollTop;
+                              const idx = Math.round(scrollTop / 44);
+                              const list = ["30 minutes", "1 hour", "2 hours", "4 hours", "8 hours", "1 day", "2 days"];
+                              if (idx >= 0 && idx < list.length) {
+                                setSelectedMuteDuration(list[idx]);
+                              }
+                            }}
+                            className="w-full h-full overflow-y-auto snap-y snap-mandatory scrollbar-none flex flex-col py-[78px] items-center text-center"
+                          >
+                            {["30 minutes", "1 hour", "2 hours", "4 hours", "8 hours", "1 day", "2 days"].map((duration) => {
+                              const isSelected = selectedMuteDuration === duration;
+                              return (
+                                <div
+                                  key={duration}
+                                  onClick={(e) => {
+                                    setSelectedMuteDuration(duration);
+                                    const list = ["30 minutes", "1 hour", "2 hours", "4 hours", "8 hours", "1 day", "2 days"];
+                                    const idx = list.indexOf(duration);
+                                    e.currentTarget.parentElement?.scrollTo({
+                                      top: idx * 44,
+                                      behavior: "smooth"
+                                    });
+                                  }}
+                                  className={`snap-center h-[44px] flex-shrink-0 flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                                    isSelected ? "text-white font-bold text-base scale-105" : "text-zinc-550 text-sm opacity-55"
+                                  }`}
+                                >
+                                  {duration}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Confirm Button */}
+                        <button
+                          onClick={() => {
+                            setShowMuteForDrawer(false);
+                            setIsSoundMuted(true);
+                            setNotificationBanner({ text: "Notifications muted.", icon: "muted" });
+                            setTimeout(() => setNotificationBanner(null), 3000);
+                          }}
+                          className="w-full py-3.5 bg-[#0095f6] hover:bg-[#1a9bf0] rounded-xl text-center font-bold text-white text-[15px] transition-colors shadow-md mt-2"
+                        >
+                          Confirm
+                        </button>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
+
+                {/* Custom Notifications Page (Slides in from right side fullscreen) */}
+                <AnimatePresence>
+                  {showCustomNotificationsPage && (
+                    <motion.div
+                      initial={{ x: "100%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: "100%" }}
+                      transition={{ type: "spring", stiffness: 350, damping: 35 }}
+                      className="fixed inset-0 z-[70] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                    >
+                      {/* Header panel */}
+                      <div className="flex h-14 items-center gap-3 px-4 shrink-0 border-b border-zinc-800/40">
+                        <button
+                          onClick={() => setShowCustomNotificationsPage(false)}
+                          className="rounded-full p-1.5 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                        >
+                          <ArrowLeft className="size-6" />
+                        </button>
+                        <div className="size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
+                          {(displayName || "G").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col text-start leading-tight">
+                          <span className="text-sm font-semibold text-white truncate max-w-[200px]">{displayName}</span>
+                          <span className="text-[11px] text-zinc-400">Custom Notifications</span>
+                        </div>
+                      </div>
+
+                      {/* Config Scrollable List */}
+                      <div className="flex-1 py-4 overflow-y-auto space-y-6">
+                        {/* Section 1: General */}
+                        <div>
+                          <span className="text-[#0095f6] text-[11px] font-bold uppercase tracking-wider mb-2 block px-4">General</span>
+                          
+                          <div className="bg-[#1c1c1e] rounded-xl mx-4 overflow-hidden border border-zinc-800/20 divide-y divide-zinc-850">
+                            {/* Show Message Previews */}
+                            <div className="flex items-center justify-between px-4 py-3.5">
+                              <span className="text-sm text-zinc-200">Show Message Previews</span>
+                              <button
+                                onClick={() => setShowPreviews(!showPreviews)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  showPreviews ? "bg-[#0095f6]" : "bg-zinc-700"
+                                }`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    showPreviews ? "translate-x-5" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                            </div>
+
+                            {/* Sound */}
+                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                              <span className="text-sm text-zinc-200">Sound</span>
+                              <span className="text-sm text-[#0095f6]">Default</span>
+                            </div>
+
+                            {/* Vibrate */}
+                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                              <span className="text-sm text-zinc-200">Vibrate</span>
+                              <span className="text-sm text-[#0095f6]">Default</span>
+                            </div>
+
+                            {/* Smart Notifications */}
+                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                              <span className="text-sm text-zinc-200">Smart Notifications</span>
+                              <span className="text-sm text-[#0095f6] font-semibold">{smartNotificationsVal}</span>
+                            </div>
+
+                            {/* Priority */}
+                            <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/20">
+                              <span className="text-sm text-zinc-200">Priority</span>
+                              <span className="text-sm text-[#0095f6]">{priorityVal}</span>
+                            </div>
+                          </div>
+                          <span className="text-zinc-500 text-xs px-4 mt-2 block leading-normal">
+                            Higher priority notifications will work even in Do Not Disturb mode.
+                          </span>
+                        </div>
+
+                        {/* Section 2: Popup notifications */}
+                        <div>
+                          <span className="text-[#0095f6] text-[11px] font-bold uppercase tracking-wider mb-2 block px-4">Popup notifications</span>
+                          
+                          <div className="bg-[#1c1c1e] rounded-xl mx-4 overflow-hidden border border-zinc-800/20 divide-y divide-zinc-850">
+                            {/* Enabled */}
+                            <button
+                              onClick={() => setPopupNotificationsVal("Enabled")}
+                              className="flex items-center justify-between px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors"
+                            >
+                              <span className="text-sm text-zinc-200">Enabled</span>
+                              <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                popupNotificationsVal === "Enabled" ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-700 bg-transparent"
+                              }`}>
+                                {popupNotificationsVal === "Enabled" && <Check className="size-3 text-white stroke-[3px]" />}
+                              </div>
+                            </button>
+
+                            {/* Disabled */}
+                            <button
+                              onClick={() => setPopupNotificationsVal("Disabled")}
+                              className="flex items-center justify-between px-4 py-3.5 w-full text-start hover:bg-zinc-800/20 transition-colors"
+                            >
+                              <span className="text-sm text-zinc-200">Disabled</span>
+                              <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                popupNotificationsVal === "Disabled" ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-700 bg-transparent"
+                              }`}>
+                                {popupNotificationsVal === "Disabled" && <Check className="size-3 text-white stroke-[3px]" />}
+                              </div>
+                            </button>
+                          </div>
+                          <span className="text-zinc-500 text-xs px-4 mt-2 block leading-normal">
+                            New messages from this contact will appear on your screen when you are not using Telegram.
+                          </span>
+                        </div>
+
+                        {/* Section 3: Light */}
+                        <div>
+                          <span className="text-[#0095f6] text-[11px] font-bold uppercase tracking-wider mb-2 block px-4">Light</span>
+                          
+                          <div className="bg-[#1c1c1e] rounded-xl mx-4 overflow-hidden border border-zinc-800/20">
+                            {/* Color */}
+                            <div className="flex items-center justify-between px-4 py-3.5">
+                              <span className="text-sm text-zinc-200">Color</span>
+                              <div className="size-5 rounded-full bg-[#0095f6] shadow-md border border-[#0095f6]/30 cursor-pointer" />
+                            </div>
+                          </div>
+                          <span className="text-zinc-500 text-xs px-4 mt-2 block leading-normal">
+                            Blinking light used to indicate new messages on some devices.
+                          </span>
+                        </div>
+
+                        {/* Reset to Default */}
+                        <div className="px-4">
+                          <button
+                            onClick={() => {
+                              setShowPreviews(true);
+                              setPopupNotificationsVal("Disabled");
+                              toast({ description: "Settings reset to default." });
+                              setShowCustomNotificationsPage(false);
+                            }}
+                            className="w-full bg-[#1c1c1e] hover:bg-zinc-800/60 rounded-xl py-3.5 text-center font-bold text-[#f87171] text-sm border border-zinc-800/20 transition-colors"
+                          >
+                            Reset to default settings
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Leave Group Dialog (Modal Box) */}
                 <AnimatePresence>
                   {showLeaveGroupDialog && (
@@ -2609,7 +2891,7 @@ export default function ChatChannel() {
                         {/* Title and group icon row */}
                         <div className="flex items-center gap-3">
                           <div className="size-[38px] rounded-full bg-[#48bb78] flex items-center justify-center text-sm font-bold text-white uppercase shrink-0">
-                            {(displayName || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                            {(displayName || "G").slice(0, 2).toUpperCase()}
                           </div>
                           <h4 className="text-[18px] font-bold text-white">Leave Group</h4>
                         </div>
@@ -2667,6 +2949,29 @@ export default function ChatChannel() {
                         </div>
                       </motion.div>
                     </div>
+                  )}
+                </AnimatePresence>
+
+                {/* Notification Toast Banner */}
+                <AnimatePresence>
+                  {notificationBanner && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 50 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 50 }}
+                      className="fixed bottom-10 left-4 right-4 z-[90] bg-[#1c222b] text-white py-3.5 px-4 rounded-xl flex items-center gap-3 shadow-2xl border border-zinc-800/80"
+                    >
+                      {notificationBanner.icon === "sound" ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-white">
+                          <path d="M9 18V5l12-2v13" />
+                          <circle cx="6" cy="18" r="3" />
+                          <circle cx="18" cy="16" r="3" />
+                        </svg>
+                      ) : (
+                        <BellOff className="size-5 text-white" />
+                      )}
+                      <span className="text-sm font-semibold tracking-wide">{notificationBanner.text}</span>
+                    </motion.div>
                   )}
                 </AnimatePresence>
               </motion.div>
