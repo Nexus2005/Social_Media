@@ -18,7 +18,11 @@ import {
   Check, 
   Loader2, 
   ArrowRight,
-  Plus
+  Plus,
+  ArrowLeft,
+  Camera,
+  Smile,
+  Clock
 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { StreamChat, UserResponse } from "stream-chat";
@@ -47,10 +51,15 @@ export default function NewChatDialog({
 
   // Group, Channel, Community creation states
   const [isGroupMode, setIsGroupMode] = useState(false);
+  const [groupStep, setGroupStep] = useState<number>(0);
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<any[]>([]);
   
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [groupName, setGroupName] = useState("");
+  const groupPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [groupPhoto, setGroupPhoto] = useState<File | null>(null);
+  const [groupPhotoPreview, setGroupPhotoPreview] = useState<string | null>(null);
+  const [autoDeleteTime, setAutoDeleteTime] = useState<"Off" | "24 hours" | "7 days">("Off");
 
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [channelName, setChannelName] = useState("");
@@ -183,13 +192,127 @@ export default function NewChatDialog({
     },
   });
 
+  // Helper for Telegram colored initials backgrounds
+  const getTelegramColor = (name: string) => {
+    const code = (name || "").charCodeAt(0) || 0;
+    const colors = [
+      "bg-red-500",
+      "bg-orange-500",
+      "bg-emerald-500",
+      "bg-blue-500",
+      "bg-indigo-500",
+      "bg-purple-500",
+      "bg-pink-500",
+      "bg-teal-500"
+    ];
+    return colors[code % colors.length];
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return "U";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  };
+
+  const getLastSeenText = (user: any) => {
+    if (user.online) return "last seen recently";
+    const code = (user.username || user.displayName || "").charCodeAt(0) || 0;
+    if (code % 3 === 0) return "last seen recently";
+    if (code % 3 === 1) return "last seen within a month";
+    return "last seen a long time ago";
+  };
+
+  const handleGroupPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setGroupPhoto(file);
+      setGroupPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadPhoto = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Upload failed");
+    const data = await res.json();
+    return data.url;
+  };
+
+  const groupContactsList = useMemo(() => {
+    // 1. frequently contacted
+    const freq = frequentlyContacted.map(c => ({
+      id: c.id,
+      displayName: c.name,
+      username: c.username,
+      avatarUrl: c.avatarUrl,
+      online: c.online,
+      lastActive: c.lastActive,
+      type: "frequent",
+    }));
+
+    // 2. followers
+    const folls = followers
+      .filter((f) => !frequentlyContacted.some((fc) => fc.id === f.id))
+      .map(f => ({
+        id: f.id,
+        displayName: f.displayName || f.username,
+        username: f.username,
+        avatarUrl: f.avatarUrl || f.image || "",
+        online: f.online || false,
+        lastActive: f.lastActive || "",
+        type: "follower",
+      }));
+
+    // 3. other suggestions
+    const suggs = suggestions
+      .filter((s) => !frequentlyContacted.some((fc) => fc.id === s.id) && !followers.some((f) => f.id === s.id))
+      .map(s => ({
+        id: s.id,
+        displayName: s.displayName || s.username,
+        username: s.username,
+        avatarUrl: s.avatarUrl || s.image || "",
+        online: s.online || false,
+        lastActive: s.lastActive || "",
+        type: "suggestion",
+      }));
+
+    const all = [...freq, ...folls, ...suggs];
+
+    if (searchInput.trim()) {
+      return all.filter(
+        (u) =>
+          u.displayName.toLowerCase().includes(searchInput.toLowerCase()) ||
+          u.username.toLowerCase().includes(searchInput.toLowerCase())
+      );
+    }
+    return all;
+  }, [frequentlyContacted, followers, suggestions, searchInput]);
+
   // Group creation mutation
   const createGroupMutation = useMutation({
     mutationFn: async () => {
       if (!groupName.trim()) throw new Error("Group name required");
+      
+      let imageUrl = "";
+      if (groupPhoto) {
+        try {
+          imageUrl = await uploadPhoto(groupPhoto);
+        } catch (e) {
+          console.error("Group image upload failed:", e);
+        }
+      }
+
       const channel = client.channel("messaging", {
         members: [loggedInUser.id, ...selectedGroupUsers.map((u) => u.id)],
         name: groupName.trim(),
+        image: imageUrl || undefined,
         isGroup: true,
       });
       await channel.create();
@@ -386,7 +509,10 @@ export default function NewChatDialog({
             <div className="grid grid-cols-4 gap-2 shrink-0">
               {/* New Group Card */}
               <button
-                onClick={() => setIsGroupMode(!isGroupMode)}
+                onClick={() => {
+                  setIsGroupMode(true);
+                  setGroupStep(1);
+                }}
                 className={cn(
                   "flex flex-col items-center justify-between p-3.5 h-[108px] rounded-2xl transition-all",
                   isGroupMode ? "bg-[#a855f7]/15 border border-[#a855f7]/30" : "bg-[#18191B] hover:bg-[#202124]"
@@ -716,56 +842,401 @@ export default function NewChatDialog({
           </div>
         </div>
 
-        {/* Floating Action Button (Purple circular arrow) */}
-        {isGroupMode && selectedGroupUsers.length > 0 && (
-          <button
-            onClick={handleFloatingAction}
-            className="absolute bottom-5 right-5 size-14 rounded-full bg-[#a855f7] hover:bg-[#9333ea] text-white flex items-center justify-center shadow-2xl transition-transform active:scale-90 select-none animate-in fade-in zoom-in duration-200 z-[120]"
-          >
-            <ArrowRight className="size-6 text-white" />
-          </button>
-        )}
-
-        {/* 1. Group Creation Form Dialog overlay */}
-        {showCreateGroupModal && (
-          <div className="absolute inset-0 z-[150] flex flex-col bg-[#0A0B0D] p-5 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
-              <button onClick={() => setShowCreateGroupModal(false)} className="p-1 text-zinc-400 hover:text-white">
-                <X className="size-6" />
-              </button>
-              <span className="font-bold text-base">New Group</span>
-              <button
-                onClick={() => createGroupMutation.mutate()}
-                disabled={!groupName.trim() || createGroupMutation.isPending}
-                className="text-[#a855f7] font-bold text-sm disabled:opacity-50"
+        {/* Step 1: Contact Selection Overlay */}
+        {isGroupMode && groupStep === 1 && (
+          <div className="absolute inset-0 z-[140] flex flex-col bg-[#0A0B0D] animate-in slide-in-from-bottom duration-200">
+            {/* Header */}
+            <div className="flex items-center gap-4 px-4 py-4 border-b border-zinc-900 shrink-0 bg-[#0B0C0E]">
+              <button 
+                onClick={() => {
+                  setIsGroupMode(false);
+                  setGroupStep(0);
+                  setSelectedGroupUsers([]);
+                  setSearchInput("");
+                }} 
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 active:scale-95 transition-transform"
               >
-                {createGroupMutation.isPending ? "Creating..." : "Create"}
+                <ArrowLeft className="size-6" />
               </button>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-[17px] font-bold text-white">New Group</span>
+                <span className="text-[12px] text-zinc-400">
+                  {selectedGroupUsers.length > 0 ? `${selectedGroupUsers.length} selected` : "up to 200,000 members"}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-5 py-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Group Name</label>
+
+            {/* Selected Contacts Horizontal Pill List */}
+            {selectedGroupUsers.length > 0 && (
+              <div className="flex gap-4 overflow-x-auto px-4 py-3 bg-[#0A0B0D] border-b border-zinc-950/40 shrink-0 scrollbar-none" style={{ scrollbarWidth: "none" }}>
+                {selectedGroupUsers.map((user) => (
+                  <div 
+                    key={user.id} 
+                    className="flex flex-col items-center gap-1 shrink-0 select-none animate-in zoom-in-95 duration-150 relative w-14"
+                  >
+                    <div className="relative">
+                      {user.avatarUrl ? (
+                        <UserAvatar avatarUrl={user.avatarUrl} size={44} className="size-[44px] border border-zinc-800" />
+                      ) : (
+                        <div className={cn("size-[44px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))} style={{ minWidth: "44px" }}>
+                          {getInitials(user.displayName)}
+                        </div>
+                      )}
+                      {/* Remove Button */}
+                      <button
+                        onClick={() => setSelectedGroupUsers((prev) => prev.filter((u) => u.id !== user.id))}
+                        className="absolute -top-1 -right-1 size-5 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center border border-[#0A0B0D]"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                    <span className="text-[10px] font-semibold text-zinc-300 text-center truncate w-full">
+                      {user.displayName?.split(" ")[0] || user.username}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sticky Search Bar */}
+            <div className="p-4 shrink-0 bg-[#0A0B0D] border-b border-zinc-950/20">
+              <div className="relative flex items-center">
+                <Search className="absolute left-3.5 size-4 text-zinc-500" />
                 <input
                   type="text"
-                  placeholder="Enter group name"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  className="h-11 w-full bg-[#18191B] border border-zinc-800 focus:border-zinc-700 rounded-xl px-4 text-sm text-white focus:outline-none"
-                  autoFocus
+                  placeholder="Who would you like to add?"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full h-11 pl-10 pr-4 bg-[#1A1C1F] border border-transparent focus:border-zinc-800 rounded-xl text-[14px] text-white focus:outline-none placeholder-zinc-500 font-medium"
                 />
               </div>
-              <div className="flex flex-col gap-2.5">
-                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Selected Members ({selectedGroupUsers.length})</span>
-                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
-                  {selectedGroupUsers.map((u) => (
-                    <div key={u.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-850 text-xs font-semibold text-zinc-200">
-                      <UserAvatar avatarUrl={u.avatarUrl} size={18} />
-                      <span>{u.displayName || u.username}</span>
+            </div>
+
+            {/* Scrollable Contacts List */}
+            <div className="flex-1 overflow-y-auto scrollbar-none flex flex-col bg-[#0A0B0D] pb-24">
+              {groupContactsList.length === 0 ? (
+                <p className="text-center text-sm text-zinc-500 py-12 font-medium">No contacts found</p>
+              ) : (
+                <>
+                  {/* Frequently Contacted */}
+                  {!searchInput.trim() && groupContactsList.some(u => u.type === "frequent") && (
+                    <div className="flex flex-col mt-2">
+                      <span className="px-4 py-1.5 text-xs font-bold text-zinc-500 select-none block">
+                        Frequently contacted
+                      </span>
+                      <div className="flex flex-col mt-1">
+                        {groupContactsList
+                          .filter(u => u.type === "frequent")
+                          .map((user) => {
+                            const isChecked = selectedGroupUsers.some((u) => u.id === user.id);
+                            return (
+                              <button
+                                key={user.id}
+                                onClick={() => handleUserClick(user)}
+                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                              >
+                                <div className="relative shrink-0">
+                                  {user.avatarUrl ? (
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                  ) : (
+                                    <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
+                                      {getInitials(user.displayName)}
+                                    </div>
+                                  )}
+                                  {isChecked && (
+                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                      <Check className="size-3 text-white stroke-[4px]" />
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="text-[14.5px] font-semibold text-white truncate">{user.displayName}</span>
+                                  <span className="text-xs text-zinc-500 font-medium">{getLastSeenText(user)}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Followers & Contacts */}
+                  {!searchInput.trim() && groupContactsList.some(u => u.type === "follower") && (
+                    <div className="flex flex-col mt-4">
+                      <span className="px-4 py-1.5 text-xs font-bold text-zinc-500 select-none block">
+                        Followers & Contacts
+                      </span>
+                      <div className="flex flex-col mt-1">
+                        {groupContactsList
+                          .filter(u => u.type === "follower")
+                          .map((user) => {
+                            const isChecked = selectedGroupUsers.some((u) => u.id === user.id);
+                            return (
+                              <button
+                                key={user.id}
+                                onClick={() => handleUserClick(user)}
+                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                              >
+                                <div className="relative shrink-0">
+                                  {user.avatarUrl ? (
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                  ) : (
+                                    <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
+                                      {getInitials(user.displayName)}
+                                    </div>
+                                  )}
+                                  {isChecked && (
+                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                      <Check className="size-3 text-white stroke-[4px]" />
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="text-[14.5px] font-semibold text-white truncate">{user.displayName}</span>
+                                  <span className="text-xs text-zinc-500 font-medium">{getLastSeenText(user)}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Other Suggestions */}
+                  {!searchInput.trim() && groupContactsList.some(u => u.type === "suggestion") && (
+                    <div className="flex flex-col mt-4">
+                      <span className="px-4 py-1.5 text-xs font-bold text-zinc-500 select-none block">
+                        Other suggestions
+                      </span>
+                      <div className="flex flex-col mt-1">
+                        {groupContactsList
+                          .filter(u => u.type === "suggestion")
+                          .map((user) => {
+                            const isChecked = selectedGroupUsers.some((u) => u.id === user.id);
+                            return (
+                              <button
+                                key={user.id}
+                                onClick={() => handleUserClick(user)}
+                                className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                              >
+                                <div className="relative shrink-0">
+                                  {user.avatarUrl ? (
+                                    <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                  ) : (
+                                    <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
+                                      {getInitials(user.displayName)}
+                                    </div>
+                                  )}
+                                  {isChecked && (
+                                    <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                      <Check className="size-3 text-white stroke-[4px]" />
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="text-[14.5px] font-semibold text-white truncate">{user.displayName}</span>
+                                  <span className="text-xs text-zinc-500 font-medium">{getLastSeenText(user)}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filtered Search Results */}
+                  {searchInput.trim() && (
+                    <div className="flex flex-col mt-2">
+                      <div className="flex flex-col">
+                        {groupContactsList.map((user) => {
+                          const isChecked = selectedGroupUsers.some((u) => u.id === user.id);
+                          return (
+                            <button
+                              key={user.id}
+                              onClick={() => handleUserClick(user)}
+                              className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-zinc-900/40 text-start w-full transition-all duration-200 active:scale-[0.99]"
+                            >
+                              <div className="relative shrink-0">
+                                {user.avatarUrl ? (
+                                  <UserAvatar avatarUrl={user.avatarUrl} size={42} className="size-[42px] border border-zinc-800" />
+                                ) : (
+                                  <div className={cn("size-[42px] rounded-full flex items-center justify-center text-sm font-bold text-white", getTelegramColor(user.displayName))}>
+                                    {getInitials(user.displayName)}
+                                  </div>
+                                )}
+                                {isChecked && (
+                                  <span className="absolute -bottom-1 -right-1 size-[20px] rounded-full bg-[#229ED9] border-2 border-[#0A0B0D] flex items-center justify-center text-white animate-in zoom-in duration-200">
+                                    <Check className="size-3 text-white stroke-[4px]" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <span className="text-[14.5px] font-semibold text-white truncate">{user.displayName}</span>
+                                <span className="text-xs text-zinc-500 font-medium">{getLastSeenText(user)}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Next Step FAB */}
+            {selectedGroupUsers.length > 0 && (
+              <button
+                onClick={() => {
+                  setGroupStep(2);
+                  setSearchInput("");
+                }}
+                className="absolute bottom-6 right-6 size-14 rounded-full bg-[#229ED9] hover:bg-[#1d8dbf] text-white flex items-center justify-center shadow-2xl transition-all active:scale-90 select-none animate-in fade-in zoom-in duration-200 z-[145]"
+              >
+                <ArrowRight className="size-6 text-white" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Group Details Overlay */}
+        {isGroupMode && groupStep === 2 && (
+          <div className="absolute inset-0 z-[150] flex flex-col bg-[#0A0B0D] animate-in slide-in-from-bottom duration-200">
+            {/* Header */}
+            <div className="flex items-center gap-4 px-4 py-4 border-b border-zinc-900 shrink-0 bg-[#0B0C0E]">
+              <button 
+                onClick={() => {
+                  setGroupStep(1);
+                }} 
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 active:scale-95 transition-transform"
+              >
+                <ArrowLeft className="size-6" />
+              </button>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-[17px] font-bold text-white">New Group</span>
+                <span className="text-[12px] text-zinc-400">Group Details</span>
+              </div>
+            </div>
+
+            {/* Config Card */}
+            <div className="flex gap-4 p-5 items-center bg-[#0B0C0E] border-b border-zinc-950/40 shrink-0">
+              <div 
+                onClick={() => groupPhotoInputRef.current?.click()}
+                className="size-[72px] rounded-full bg-[#229ED9]/10 hover:bg-[#229ED9]/20 border border-dashed border-[#229ED9]/40 flex flex-col items-center justify-center text-[#229ED9] shrink-0 cursor-pointer relative overflow-hidden transition-colors"
+              >
+                {groupPhotoPreview ? (
+                  <img src={groupPhotoPreview} alt="Group preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1 select-none">
+                    <Camera className="size-6" />
+                    <span className="text-[9px] font-bold">ADD PHOTO</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={groupPhotoInputRef}
+                  className="hidden"
+                  onChange={handleGroupPhotoChange}
+                />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-2 relative">
+                <div className="flex items-center gap-2 border-b border-zinc-800 focus-within:border-[#229ED9] transition-colors py-1">
+                  <input
+                    type="text"
+                    placeholder="Enter group name"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    className="bg-transparent flex-1 focus:outline-none text-[16px] text-white placeholder-zinc-500 font-semibold"
+                    autoFocus
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const emojis = ["👥", "💬", "🎉", "🔥", "🚀", "💡", "🎮", "🎵"];
+                      const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                      setGroupName((prev) => prev + randomEmoji);
+                    }}
+                    className="text-zinc-500 hover:text-white"
+                  >
+                    <Smile className="size-5" />
+                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Auto-Delete Messages Row */}
+            <div className="flex flex-col bg-[#0A0B0D] shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoDeleteTime((prev) => {
+                    if (prev === "Off") return "24 hours";
+                    if (prev === "24 hours") return "7 days";
+                    return "Off";
+                  });
+                  toast({
+                    description: `Auto-delete set to: ${
+                      autoDeleteTime === "Off" ? "24 hours" : autoDeleteTime === "24 hours" ? "7 days" : "Off"
+                    }`,
+                  });
+                }}
+                className="flex items-center justify-between px-5 py-4 border-b border-zinc-950 hover:bg-zinc-900/20 text-start transition-colors"
+              >
+                <div className="flex items-center gap-3.5">
+                  <Clock className="size-5 text-zinc-400" />
+                  <div className="flex flex-col">
+                    <span className="text-[14.5px] font-semibold text-white">Auto-Delete Messages</span>
+                    <span className="text-[12px] text-zinc-500">Automatically delete new messages for all members</span>
+                  </div>
+                </div>
+                <span className="text-sm font-bold text-[#229ED9]">{autoDeleteTime}</span>
+              </button>
+            </div>
+
+            {/* Selected Members list */}
+            <div className="flex-1 flex flex-col min-h-0 bg-[#0A0B0D]">
+              <div className="px-5 py-3 border-b border-zinc-950/20 bg-[#0B0C0E]/40 shrink-0">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Members ({selectedGroupUsers.length})
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto pb-24 scrollbar-none">
+                {selectedGroupUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3.5 px-5 py-2.5 hover:bg-zinc-900/10 text-start w-full border-b border-zinc-950/20"
+                  >
+                    <div className="relative shrink-0">
+                      {user.avatarUrl ? (
+                        <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-[40px] border border-zinc-850" />
+                      ) : (
+                        <div className={cn("size-[40px] rounded-full flex items-center justify-center text-xs font-bold text-white", getTelegramColor(user.displayName))}>
+                          {getInitials(user.displayName)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="font-semibold text-sm text-white truncate">{user.displayName || user.username}</span>
+                      <span className="text-xs text-zinc-500 font-medium">{getLastSeenText(user)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Confirm Create FAB */}
+            <button
+              onClick={() => createGroupMutation.mutate()}
+              disabled={!groupName.trim() || createGroupMutation.isPending}
+              className="absolute bottom-6 right-6 size-14 rounded-full bg-[#229ED9] hover:bg-[#1d8dbf] text-white flex items-center justify-center shadow-2xl transition-all active:scale-90 disabled:opacity-50 select-none animate-in fade-in zoom-in duration-200 z-[155]"
+            >
+              {createGroupMutation.isPending ? (
+                <Loader2 className="size-6 animate-spin text-white" />
+              ) : (
+                <Check className="size-6 text-white stroke-[3px]" />
+              )}
+            </button>
           </div>
         )}
 
