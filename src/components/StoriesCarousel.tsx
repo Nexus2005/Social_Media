@@ -94,7 +94,7 @@ export default function StoriesCarousel() {
     : otherStories;
 
   return (
-    <div className="relative group/carousel w-full bg-black select-none pt-3 pb-1 px-4 sm:py-3 sm:px-0">
+    <div className="relative group/carousel w-full bg-white dark:bg-instagram-darkBg border-b border-instagram-lightBorder dark:border-instagram-darkBorder select-none pt-3 pb-1 px-4 sm:py-3 sm:px-0 transition-colors duration-200">
       {/* Scroll Left Button */}
       {canScrollLeft && (
         <button
@@ -144,7 +144,7 @@ export default function StoriesCarousel() {
                   : "bg-neutral-800"
               }`}
             >
-              <div className="bg-black p-[2px] rounded-full">
+              <div className="bg-white dark:bg-instagram-darkBg p-[2px] rounded-full">
                 <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                   {sessionUser.avatarUrl ? (
                     <Image
@@ -168,14 +168,14 @@ export default function StoriesCarousel() {
                   e.stopPropagation(); // Prevent opening viewer
                   setCreateStoryOpen(true);
                 }}
-                className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-black text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
+                className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-instagram-darkBg text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
                 title="Add Story"
               >
                 <Plus className="size-3.5 stroke-[3px]" />
               </button>
             )}
           </div>
-          <span className="text-[12px] font-medium text-white w-[76px] text-center truncate">
+          <span className="text-[12px] font-medium text-instagram-lightText dark:text-instagram-darkText w-[76px] text-center truncate">
             Your story
           </span>
         </div>
@@ -193,7 +193,7 @@ export default function StoriesCarousel() {
             >
               {/* Gradient Outline Border Ring */}
               <div className="bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] p-[3px] rounded-full transition-transform duration-200 active:scale-95">
-                <div className="bg-black p-[2px] rounded-full">
+                <div className="bg-white dark:bg-instagram-darkBg p-[2px] rounded-full">
                   <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                     {item.user.avatarUrl ? (
                       <Image
@@ -211,7 +211,7 @@ export default function StoriesCarousel() {
                 </div>
               </div>
               {/* Username Label */}
-              <span className="text-[12px] font-medium text-white w-[76px] text-center truncate">
+              <span className="text-[12px] font-medium text-instagram-lightText dark:text-instagram-darkText w-[76px] text-center truncate">
                 {item.user.username}
               </span>
             </div>

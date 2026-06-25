@@ -54,6 +54,114 @@ function formatViews(viewsCount: number) {
   return viewsCount.toString();
 }
 
+interface LikeBannerProps {
+  likesCount: number;
+  likingUsers: any[];
+  currentUserId: string;
+}
+
+function LikeBanner({ likesCount, likingUsers, currentUserId }: LikeBannerProps) {
+  if (likesCount === 0) return null;
+
+  // Filter for followed users who liked this post (excluding current user)
+  const followedLiking = likingUsers.filter(
+    (u) => u.id !== currentUserId && u.followers && u.followers.length > 0
+  );
+
+  // Case 1: No followed users liked it - Show native broad metric format
+  if (followedLiking.length === 0) {
+    return (
+      <span className="text-sm font-semibold text-instagram-lightText dark:text-instagram-darkText">
+        {likesCount.toLocaleString()} {likesCount === 1 ? "like" : "likes"}
+      </span>
+    );
+  }
+
+  const getName = (u: any) => u.displayName || u.username;
+
+  // Case 2: Single mutual follower engagement
+  if (followedLiking.length === 1) {
+    const name = getName(followedLiking[0]);
+    const remainder = likesCount - 1;
+    if (remainder === 0) {
+      return (
+        <span className="text-sm text-instagram-lightText dark:text-instagram-darkText">
+          Liked by <span className="font-semibold">{name}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="text-sm text-instagram-lightText dark:text-instagram-darkText">
+        Liked by <span className="font-semibold">{name}</span> and{" "}
+        <span className="font-semibold">
+          {remainder.toLocaleString()} {remainder === 1 ? "other" : "others"}
+        </span>
+      </span>
+    );
+  }
+
+  // Case 3: Multi-followed users engagement overlay
+  const name1 = getName(followedLiking[0]);
+  const name2 = getName(followedLiking[1]);
+  const remainder = likesCount - 2;
+  if (remainder === 0) {
+    return (
+      <span className="text-sm text-instagram-lightText dark:text-instagram-darkText">
+        Liked by <span className="font-semibold">{name1}</span> and{" "}
+        <span className="font-semibold">{name2}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-sm text-instagram-lightText dark:text-instagram-darkText">
+      Liked by <span className="font-semibold">{name1}</span>,{" "}
+      <span className="font-semibold">{name2}</span> and{" "}
+      <span className="font-semibold">
+        {remainder.toLocaleString()} {remainder === 1 ? "other" : "others"}
+      </span>
+    </span>
+  );
+}
+
+interface PostCaptionProps {
+  username: string;
+  text: string;
+}
+
+function PostCaption({ username, text }: PostCaptionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const shouldTruncate = text.length > 90;
+  const displayText = isExpanded || !shouldTruncate ? text : text.slice(0, 90);
+
+  return (
+    <div className="px-3 py-1 text-sm text-instagram-lightText dark:text-instagram-darkText leading-tight">
+      <p>
+        <Link href={`/users/${username}`} className="font-semibold mr-2 hover:underline">
+          {username}
+        </Link>
+        <Linkify>
+          <span className="whitespace-pre-line break-words">{displayText}</span>
+        </Linkify>
+        {shouldTruncate && !isExpanded && (
+          <>
+            <span>...</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(true);
+              }}
+              className="text-zinc-500 dark:text-zinc-400 font-normal ml-1 focus:outline-none hover:underline"
+            >
+              more
+            </button>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
 export default function Post({ post }: PostProps) {
   const { user } = useSession();
   const { toast } = useToast();
@@ -100,56 +208,6 @@ export default function Post({ post }: PostProps) {
     }
   };
 
-  const renderLikesText = () => {
-    const count = post._count.likes;
-    if (count === 0 || likingUsers.length === 0) return null;
-
-    const isLikedByMe = post.likes.some((like) => like.userId === user.id);
-    const otherLikingUsers = likingUsers.filter((u) => u.id !== user.id);
-    const names = otherLikingUsers.map(u => u.displayName || u.username);
-    
-    const othersCount = isLikedByMe ? count - 1 : count;
-
-    if (othersCount === 0 || names.length === 0) {
-      return (
-        <span>
-          {count} {count === 1 ? "like" : "likes"}
-        </span>
-      );
-    }
-
-    if (othersCount === 1) {
-      return (
-        <span>
-          Liked by <span className="font-bold text-white">{names[0]}</span>
-        </span>
-      );
-    }
-
-    if (othersCount === 2) {
-      return (
-        <span>
-          Liked by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
-        </span>
-      );
-    }
-
-    const diff = othersCount - 2;
-    if (diff <= 0) {
-      return (
-        <span>
-          Liked by <span className="font-bold text-white">{names[0]}</span> and <span className="font-bold text-white">{names[1]}</span>
-        </span>
-      );
-    }
-
-    return (
-      <span>
-        Liked by <span className="font-bold text-white">{names[0]}</span>, <span className="font-bold text-white">{names[1]}</span> and <span className="font-bold text-white">{diff} other{diff > 1 ? "s" : ""}</span>
-      </span>
-    );
-  };
-
   const handleShare = () => {
     setIsShareOpen(true);
   };
@@ -181,19 +239,19 @@ export default function Post({ post }: PostProps) {
   }
 
   return (
-    <article className="group/post space-y-3.5 py-3 sm:py-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-white dark:bg-instagram-darkBg relative w-full">
+    <article className="group/post space-y-2 py-2 sm:py-2.5 border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-white dark:bg-instagram-darkBg relative w-full transition-colors duration-200">
       {/* Track Post View */}
       <PostViewTracker postId={post.id} />
 
       {/* Repost Header */}
       {repostInfo && (
-        <div className="flex items-center gap-1.5 text-xs text-[#8e8e93] font-semibold px-1 -mt-1 mb-2">
+        <div className="flex items-center gap-1.5 text-xs text-[#8e8e93] font-semibold px-3 -mt-1 mb-1">
           <RepostIcon className="size-3.5 text-green-500" />
           <span>{repostInfo.user.displayName} reposted</span>
         </div>
       )}
 
-      <div className="flex justify-between gap-3 px-1">
+      <div className="flex justify-between gap-3 px-3 py-2.5">
         <div className="flex flex-wrap gap-3">
           <UserTooltip user={post.user}>
             <Link
@@ -274,20 +332,18 @@ export default function Post({ post }: PostProps) {
         </div>
       </div>
 
-      <Linkify>
-        <div className="whitespace-pre-line break-words text-[16px] leading-[24px] text-instagram-lightText dark:text-instagram-darkText px-1 mt-3">{post.content}</div>
-      </Linkify>
+      {/* Caption moved below action row / likes banner for Instagram layout */}
 
       {/* POLL WIDGET */}
       {post.poll && (
-        <div className="px-1">
+        <div className="px-3">
           <PollWidget poll={post.poll} userId={user.id} />
         </div>
       )}
 
       {/* MULTI-MEDIA CAROUSEL WITH INTERACTIVE TAGGING */}
       {!!post.attachments.length && (
-        <div className="mt-2">
+        <div className="w-full">
           <MediaCarousel
             attachments={post.attachments}
             tags={post.tags}
@@ -299,7 +355,7 @@ export default function Post({ post }: PostProps) {
       )}
 
       {/* Action Center - Placed immediately beneath the media/content */}
-      <div className="flex justify-between items-center gap-5 pt-3 px-1">
+      <div className="flex justify-between items-center w-full px-3 pt-2 pb-1 text-instagram-lightText dark:text-instagram-darkText">
         <div className="flex items-center gap-2">
           <LikeButton
             postId={post.id}
@@ -317,7 +373,7 @@ export default function Post({ post }: PostProps) {
 
           <button
             onClick={handleShare}
-            className="h-11 w-11 flex items-center justify-center hover:opacity-85 transition-opacity text-instagram-lightText dark:text-instagram-darkText"
+            className="h-11 w-11 flex items-center justify-center hover:opacity-85 transition-opacity"
             title="Share"
           >
             <DirectShareIcon className="size-6" />
@@ -337,44 +393,43 @@ export default function Post({ post }: PostProps) {
         </div>
       </div>
 
-      {/* Likes row */}
+      {/* Likes Banner */}
       {!post.hideLikes && post._count.likes > 0 && (
         <div 
           onClick={() => setShowLikesSheet(true)}
-          className="flex items-center gap-2 mt-2 px-1 cursor-pointer hover:opacity-85 transition-opacity select-none"
+          className="flex items-center gap-2 px-3 py-0.5 cursor-pointer hover:opacity-85 transition-opacity select-none"
         >
-          {likingUsers.length > 0 ? (
-            <>
-              {likingUsers.some((u: any) => u.id !== user.id) && (
-                <div className="flex -space-x-1.5 overflow-hidden">
-                  {likingUsers
-                    .filter((u: any) => u.id !== user.id)
-                    .slice(0, 3)
-                    .map((u: any) => (
-                      <img
-                        key={u.id}
-                        className="inline-block size-5 rounded-full ring-1 ring-black object-cover shrink-0"
-                        src={u.avatarUrl || "/avatar-placeholder.png"}
-                        alt={u.username}
-                      />
-                    ))}
-                </div>
-              )}
-              <span className="text-[14px] text-[#8e8e93] leading-none">
-                {renderLikesText()}
-              </span>
-            </>
-          ) : (
-            <span className="text-[14px] font-semibold text-instagram-lightText dark:text-instagram-darkText leading-none">
-              {post._count.likes} {post._count.likes === 1 ? "like" : "likes"}
-            </span>
+          {likingUsers.some((u: any) => u.id !== user.id) && (
+            <div className="flex -space-x-1.5 overflow-hidden">
+              {likingUsers
+                .filter((u: any) => u.id !== user.id)
+                .slice(0, 3)
+                .map((u: any) => (
+                  <img
+                    key={u.id}
+                    className="inline-block size-5 rounded-full ring-1 ring-white dark:ring-instagram-darkBg object-cover shrink-0"
+                    src={u.avatarUrl || "/avatar-placeholder.png"}
+                    alt={u.username}
+                  />
+                ))}
+            </div>
           )}
+          <LikeBanner
+            likesCount={post._count.likes}
+            likingUsers={likingUsers}
+            currentUserId={user.id}
+          />
         </div>
+      )}
+
+      {/* Caption */}
+      {post.content && (
+        <PostCaption username={post.user.username} text={post.content} />
       )}
 
       {/* Quote Post Card */}
       {post.quotedPost && (
-        <div className="px-1">
+        <div className="px-3">
           <Link
             href={`/posts/${post.quotedPost.id}`}
             className="block border border-border/80 hover:border-border/60 hover:bg-neutral-800/10 rounded-xl p-3 mt-2 text-xs transition-colors"
