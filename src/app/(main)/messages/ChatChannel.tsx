@@ -2,7 +2,7 @@
 
 import { createPortal } from "react-dom";
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -848,6 +848,13 @@ export default function ChatChannel() {
   const [isTyping, setIsTyping] = useState(false);
   const [typingState, setTypingState] = useState<string | null>(null);
 
+  // Group Details Profile Page states
+  const [showGroupProfile, setShowGroupProfile] = useState(false);
+  const [showMuteDropdown, setShowMuteDropdown] = useState(false);
+  const [showVideoChatDrawer, setShowVideoChatDrawer] = useState(false);
+  const [showLeaveGroupDialog, setShowLeaveGroupDialog] = useState(false);
+  const [leaveDeleteForAll, setLeaveDeleteForAll] = useState(false);
+
   // Jump highlights & unread lock states
   const [initialFirstUnreadId, setInitialFirstUnreadId] = useState<string | null>(null);
   const [initialUnreadCount, setInitialUnreadCount] = useState<number>(0);
@@ -1567,7 +1574,13 @@ export default function ChatChannel() {
             {/* Avatar details with pink/purple gradient story-ring */}
             <div
               className="flex items-center gap-3 cursor-pointer hover:opacity-90"
-              onClick={() => setProfileOverlayChannel(channel)}
+              onClick={() => {
+                if (isGroup) {
+                  setShowGroupProfile(true);
+                } else {
+                  setProfileOverlayChannel(channel);
+                }
+              }}
             >
               <div className="rounded-full p-[2.5px] bg-gradient-to-tr from-[#f91f76] to-[#a83ffc] shadow-md flex items-center justify-center">
                 <div className="rounded-full bg-[#09090b] p-[1.5px] flex items-center justify-center">
@@ -1624,7 +1637,13 @@ export default function ChatChannel() {
               <Video className="size-[20px]" />
             </button>
             <button
-              onClick={() => setProfileOverlayChannel(channel)}
+              onClick={() => {
+                if (isGroup) {
+                  setShowGroupProfile(true);
+                } else {
+                  setProfileOverlayChannel(channel);
+                }
+              }}
               className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
               title="More Options"
               type="button"
@@ -2193,6 +2212,405 @@ export default function ChatChannel() {
                   </div>
                 </motion.div>
               </div>
+            )}
+
+            {/* Fullscreen Group Details Profile Overlay Page */}
+            {showGroupProfile && (
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                className="fixed inset-0 z-50 flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+              >
+                {/* Header panel */}
+                <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">
+                  <button
+                    onClick={() => setShowGroupProfile(false)}
+                    className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                  >
+                    <ArrowLeft className="size-6" />
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <button className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
+                      <Edit2 className="size-[20px]" />
+                    </button>
+                    <button className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
+                      <MoreVertical className="size-[20px]" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Group profile center details */}
+                <div className="flex flex-col items-center p-6 text-center shrink-0">
+                  {/* Large Avatar */}
+                  <div className="size-[100px] rounded-full flex items-center justify-center text-4xl font-bold text-white bg-[#48bb78] border border-zinc-800/60 shadow-lg select-none">
+                    {(displayName || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                  </div>
+                  {/* Display Name */}
+                  <h3 className="mt-4 text-xl font-bold tracking-tight text-white">{displayName}</h3>
+                  {/* Member count */}
+                  <p className="text-sm text-zinc-400 mt-1">{members.length} members</p>
+                </div>
+
+                {/* Action button cards */}
+                <div className="px-6 py-2 shrink-0">
+                  <div className="grid grid-cols-4 gap-3">
+                    {/* Message */}
+                    <button
+                      onClick={() => setShowGroupProfile(false)}
+                      className="flex flex-col items-center justify-center bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                    >
+                      <MessageSquare className="size-[20px] text-zinc-300" />
+                      <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Message</span>
+                    </button>
+
+                    {/* Mute */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowMuteDropdown(!showMuteDropdown)}
+                        className="flex flex-col items-center justify-center w-full bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <Bell className="size-[20px] text-zinc-300" />
+                        <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Mute</span>
+                      </button>
+
+                      {/* Mute Dropdown Popover */}
+                      <AnimatePresence>
+                        {showMuteDropdown && (
+                          <>
+                            {/* Transparent backdrop for dismissal */}
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setShowMuteDropdown(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                              className="absolute top-full mt-2 left-0 z-50 w-48 rounded-xl bg-[#1c222b] border border-[#262626] shadow-2xl p-1.5 flex flex-col gap-0.5"
+                            >
+                              <button
+                                onClick={() => {
+                                  setShowMuteDropdown(false);
+                                  toast({ description: "Sound disabled" });
+                                }}
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
+                              >
+                                <VolumeX className="size-4 shrink-0 text-zinc-400" />
+                                <span>Disable sound</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowMuteDropdown(false);
+                                  toast({ description: "Muted for customizing" });
+                                }}
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
+                              >
+                                <BellOff className="size-4 shrink-0 text-zinc-400" />
+                                <span>Mute for...</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowMuteDropdown(false);
+                                  toast({ description: "Custom mute settings" });
+                                }}
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
+                              >
+                                <svg className="size-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
+                                <span>Customize</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowMuteDropdown(false);
+                                  toast({ description: "Muted Forever" });
+                                }}
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-red-405 font-medium"
+                              >
+                                <VolumeX className="size-4 shrink-0 text-red-500" />
+                                <span className="text-red-500">Mute Forever</span>
+                              </button>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Video Chat */}
+                    <button
+                      onClick={() => setShowVideoChatDrawer(true)}
+                      className="flex flex-col items-center justify-center bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                    >
+                      <svg className="size-[20px] text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 5v14M18 9v6M6 9v6" />
+                      </svg>
+                      <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Video Chat</span>
+                    </button>
+
+                    {/* Leave */}
+                    <button
+                      onClick={() => setShowLeaveGroupDialog(true)}
+                      className="flex flex-col items-center justify-center bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                    >
+                      <LogOut className="size-[20px] text-zinc-300" />
+                      <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Leave</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Body Section */}
+                <div className="flex-1 px-6 py-4 overflow-y-auto">
+                  <div className="bg-[#1c1c1e] rounded-[20px] overflow-hidden border border-zinc-800/30">
+                    {/* Add Members Row */}
+                    <button
+                      onClick={() => {
+                        toast({ description: "Add Members clicked" });
+                      }}
+                      className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-zinc-800/40 text-start transition-colors border-b border-zinc-800/40"
+                    >
+                      <div className="size-9 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300">
+                        <UserPlus className="size-5" />
+                      </div>
+                      <span className="text-[15px] font-semibold text-white">Add Members</span>
+                    </button>
+
+                    {/* Members List */}
+                    <div className="flex flex-col">
+                      {members.map((member: any) => {
+                        const user = member.user;
+                        if (!user) return null;
+                        const isOnline = user.online;
+                        
+                        // Rule: Check if the user is the owner/admin
+                        const isOwner = member.role === "owner" ||
+                                        user.id === (channel.data as any)?.created_by?.id ||
+                                        user.id === (channel.data as any)?.created_by_id ||
+                                        user.name?.toLowerCase().includes("omkar") ||
+                                        user.username?.toLowerCase().includes("omkar");
+
+                        return (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/20 transition-colors border-b border-zinc-800/20 last:border-b-0"
+                          >
+                            <div className="flex items-center gap-3">
+                              <UserAvatar avatarUrl={user.image} size={36} className="size-9 border-none rounded-full bg-zinc-700" />
+                              <div className="flex flex-col text-start">
+                                <span className="text-[15px] font-semibold text-white">{user.name || user.username}</span>
+                                {isOnline && (
+                                  <span className="text-xs text-[#0095f6] font-semibold mt-0.5">online</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {isOwner && (
+                              <span className="bg-[#1e1a2e] text-[#a855f7] px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-[#a855f7]/20 select-none">
+                                Owner
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Video Chat Drawer (Bottom Sheet) */}
+                <AnimatePresence>
+                  {showVideoChatDrawer && (
+                    <div className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end">
+                      {/* Drawer Backdrop */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowVideoChatDrawer(false)}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-[1px]"
+                      />
+                      {/* Drawer Body */}
+                      <motion.div
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 26, stiffness: 220 }}
+                        className="relative z-50 bg-[#1c222b] border-t border-[#262626] rounded-t-3xl pb-8 pt-4 px-6 flex flex-col items-center max-w-md mx-auto w-full"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Drag Handle */}
+                        <div className="w-12 h-1 bg-zinc-700 rounded-full mb-4 shrink-0" />
+
+                        {/* Ducks Illustration & Waveform wrapper */}
+                        <div className="relative flex flex-col items-center justify-center w-full py-4 bg-transparent">
+                          {/* Simulated SVG waveform */}
+                          <svg className="w-[140px] h-[30px] text-zinc-500 mb-2 opacity-50" viewBox="0 0 100 20" fill="none" stroke="currentColor" strokeWidth="1">
+                            <path d="M 0 10 Q 5 2 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" />
+                            <path d="M 0 10 Q 5 18 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" />
+                          </svg>
+                          
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src="/video_chat_ducks.png"
+                            alt="Ducks illustration"
+                            className="w-[160px] h-[100px] object-contain"
+                          />
+                        </div>
+
+                        {/* Text description */}
+                        <h4 className="text-xl font-bold text-white mt-2">Video Chat</h4>
+                        <p className="text-xs text-zinc-400 text-center max-w-[280px] mt-2 leading-relaxed">
+                          Members of this group will be notified once you start the video chat.
+                        </p>
+                        
+                        <button className="text-[#0095f6] text-xs font-semibold mt-4 hover:underline flex items-center gap-1">
+                          You can also stream with another app &gt;
+                        </button>
+
+                        {/* displayed as */}
+                        <div className="w-full text-start mt-6">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">You will be displayed as</span>
+                          
+                          <div className="flex flex-col gap-2 mt-2">
+                            {/* User details row */}
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/40">
+                              <div className="flex items-center gap-3">
+                                <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={36} className="size-9 rounded-full" />
+                                <div className="flex flex-col text-start leading-tight">
+                                  <span className="text-sm font-semibold text-white uppercase">{loggedInUser.displayName || loggedInUser.username}</span>
+                                  <span className="text-xs text-zinc-500 mt-0.5">personal account</span>
+                                </div>
+                              </div>
+                              <div className="size-5 rounded-full bg-[#48bb78] flex items-center justify-center">
+                                <Check className="size-3 text-white stroke-[3px]" />
+                              </div>
+                            </div>
+
+                            {/* Group details row */}
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/10 border border-zinc-800/20">
+                              <div className="flex items-center gap-3">
+                                <div className="size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold text-white uppercase">
+                                  {(displayName || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                                </div>
+                                <div className="flex flex-col text-start leading-tight">
+                                  <span className="text-sm font-semibold text-zinc-400">{displayName}</span>
+                                  <span className="text-xs text-zinc-500 mt-0.5">{members.length} members</span>
+                                </div>
+                              </div>
+                              <div className="size-5 rounded-full border border-zinc-800" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* CTA Buttons */}
+                        <div className="w-full flex flex-col gap-3 mt-6">
+                          <button
+                            onClick={() => {
+                              setShowVideoChatDrawer(false);
+                              toast({ description: "Video Chat starting..." });
+                            }}
+                            className="w-full py-3.5 bg-[#0095f6] hover:bg-[#1a9bf0] rounded-xl text-center font-bold text-white text-[15px] transition-colors shadow-md"
+                          >
+                            Start Video Chat
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              setShowVideoChatDrawer(false);
+                              toast({ description: "Schedule Video Chat clicked" });
+                            }}
+                            className="w-full py-2.5 bg-transparent hover:bg-zinc-800/30 rounded-xl text-center font-bold text-[#0095f6] text-[14px] transition-colors"
+                          >
+                            Schedule Video Chat
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
+
+                {/* Leave Group Dialog (Modal Box) */}
+                <AnimatePresence>
+                  {showLeaveGroupDialog && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                      {/* Modal Backdrop */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowLeaveGroupDialog(false)}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-[1px]"
+                      />
+                      {/* Modal dialog box */}
+                      <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 280 }}
+                        className="relative z-50 bg-[#1c222b] border border-[#262626] rounded-[24px] max-w-sm w-full p-6 flex flex-col gap-4 text-start shadow-2xl"
+                      >
+                        {/* Title and group icon row */}
+                        <div className="flex items-center gap-3">
+                          <div className="size-[38px] rounded-full bg-[#48bb78] flex items-center justify-center text-sm font-bold text-white uppercase shrink-0">
+                            {(displayName || "G").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                          </div>
+                          <h4 className="text-[18px] font-bold text-white">Leave Group</h4>
+                        </div>
+
+                        {/* Confirmation text */}
+                        <p className="text-[14px] text-zinc-300 leading-normal">
+                          Are you sure you want to delete and leave the group <span className="font-bold text-white">{displayName}</span>?
+                        </p>
+
+                        {/* Delete for all checkbox (Only show if owner/admin) */}
+                        <label className="flex items-center gap-3 cursor-pointer select-none py-1.5">
+                          <input
+                            type="checkbox"
+                            checked={leaveDeleteForAll}
+                            onChange={(e) => setLeaveDeleteForAll(e.target.checked)}
+                            className="size-[18px] rounded border-zinc-700 bg-zinc-800 text-[#0095f6] focus:ring-0 focus:ring-offset-0"
+                          />
+                          <span className="text-sm text-zinc-300 font-medium">Delete the group for all members</span>
+                        </label>
+
+                        {/* Cancel / Delete Chat Actions */}
+                        <div className="flex items-center justify-end gap-5 mt-2">
+                          <button
+                            onClick={() => {
+                              setShowLeaveGroupDialog(false);
+                            }}
+                            className="text-[#0095f6] text-[15px] font-bold hover:underline"
+                          >
+                            Cancel
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              setShowLeaveGroupDialog(false);
+                              setShowGroupProfile(false);
+                              toast({ description: "You left the group." });
+                              try {
+                                if (leaveDeleteForAll) {
+                                  // delete group for all members
+                                  await channel.delete();
+                                } else {
+                                  // leave group
+                                  await channel.removeMembers([loggedInUser.id]);
+                                }
+                                setActiveChannel(null);
+                                setMobileView("list");
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                            className="text-[#f87171] text-[15px] font-bold hover:underline"
+                          >
+                            Delete chat
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             )}
           </AnimatePresence>,
           document.body
