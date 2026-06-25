@@ -99,11 +99,11 @@ export function validateMediaFile(file: File): string | null {
     return `Unsupported file type (${file.type || "unknown"}).`;
   }
 
-  // Maximum sizes: 10MB for images, 100MB for videos
+  // Maximum sizes: 10MB for images, 10MB for videos
   const isVideo = file.type.startsWith("video/");
-  const maxSizeBytes = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+  const maxSizeBytes = 10 * 1024 * 1024;
   if (file.size > maxSizeBytes) {
-    return `File is too large. Maximum size is ${isVideo ? "100MB" : "10MB"}.`;
+    return `File is too large. Maximum size is 10MB.`;
   }
 
   return null;

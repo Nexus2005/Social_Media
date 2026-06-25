@@ -4,6 +4,9 @@ const nextConfig = {
     staleTimes: {
       dynamic: 30,
     },
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
   },
   serverExternalPackages: ["@node-rs/argon2"],
   images: {
