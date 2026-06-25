@@ -6,6 +6,7 @@ import { getPostDataInclude } from "@/lib/types";
 import { toPlainObject } from "@/lib/utils";
 import { createPostSchema } from "@/lib/validation";
 import { notifyQuote, notifyMention } from "@/lib/notification-center";
+import { z } from "zod";
 
 // Parse @mentions from text content
 function parseMentions(text: string): string[] {
@@ -171,6 +172,136 @@ export async function submitPost(input: {
   }
 
   return toPlainObject(newPost);
+}
+
+export async function updatePost(input: {
+  id: string;
+  content?: string;
+  mediaIds?: string[];
+  contentFormat?: "FEED" | "SPOT";
+  location?: string | null;
+  locationName?: string | null;
+  locationCity?: string | null;
+  locationState?: string | null;
+  locationCountry?: string | null;
+  locationDisplay?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  disableComments?: boolean;
+  hideLikes?: boolean;
+  altText?: string | null;
+  tags?: any;
+  collaborators?: any;
+  audience?: string;
+}) {
+  const { user } = await validateRequest();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const {
+    id,
+    content,
+    mediaIds,
+    contentFormat,
+    location,
+    locationName,
+    locationCity,
+    locationState,
+    locationCountry,
+    locationDisplay,
+    latitude,
+    longitude,
+    disableComments,
+    hideLikes,
+    altText,
+    tags,
+    collaborators,
+    audience,
+  } = z.object({
+    id: z.string(),
+    content: z.string().optional(),
+    mediaIds: z.array(z.string()).max(10, "Cannot have more than 10 attachments").default([]),
+    contentFormat: z.enum(["FEED", "SPOT"]).optional().default("FEED"),
+    location: z.string().trim().optional().nullable(),
+    locationName: z.string().trim().optional().nullable(),
+    locationCity: z.string().trim().optional().nullable(),
+    locationState: z.string().trim().optional().nullable(),
+    locationCountry: z.string().trim().optional().nullable(),
+    locationDisplay: z.string().trim().optional().nullable(),
+    latitude: z.number().optional().nullable(),
+    longitude: z.number().optional().nullable(),
+    disableComments: z.boolean().optional().default(false),
+    hideLikes: z.boolean().optional().default(false),
+    altText: z.string().trim().optional().nullable(),
+    tags: z.any().optional(),
+    collaborators: z.any().optional(),
+    audience: z.string().optional().default("PUBLIC"),
+  }).parse(input);
+
+  const post = await prisma.post.findUnique({
+    where: { id },
+  });
+
+  if (!post) throw new Error("Post not found");
+  if (post.userId !== user.id) throw new Error("Unauthorized");
+
+  const connectedMediaWithVideo = mediaIds.length > 0 ? await prisma.media.findFirst({
+    where: {
+      id: { in: mediaIds },
+      mediaType: "VIDEO",
+    },
+  }) : null;
+
+  const resolvedContentFormat = connectedMediaWithVideo ? "SPOT" : (contentFormat || "FEED");
+
+  // Disconnect existing media for this post to prevent orphan relations, then reconnect new ones
+  await prisma.media.updateMany({
+    where: { postId: id },
+    data: { postId: null },
+  });
+
+  const updatedPost = await prisma.post.update({
+    where: { id },
+    data: {
+      content: content || "",
+      contentFormat: resolvedContentFormat,
+      location,
+      locationName,
+      locationCity,
+      locationState,
+      locationCountry,
+      locationDisplay,
+      latitude,
+      longitude,
+      disableComments,
+      hideLikes,
+      altText,
+      tags: tags || undefined,
+      collaborators: collaborators || undefined,
+      audience,
+      attachments: {
+        connect: mediaIds.map((mediaId) => ({ id: mediaId })),
+      },
+    },
+    include: getPostDataInclude(user.id),
+  });
+
+  // If the post has video attachments, process it in the background for object localization
+  const hasVideo = updatedPost.attachments.some((att) => att.mediaType === "VIDEO");
+  if (hasVideo) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    fetch(`${baseUrl}/api/process-reel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ postId: updatedPost.id }),
+    }).catch((error) => {
+      console.error("Failed to trigger background Reel processing:", error);
+    });
+  }
+
+  return toPlainObject(updatedPost);
 }
 
 

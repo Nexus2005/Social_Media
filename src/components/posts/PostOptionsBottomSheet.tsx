@@ -18,7 +18,8 @@ import {
   ChevronLeft,
   CheckCircle,
   Copy,
-  Link2
+  Link2,
+  SquarePen
 } from "lucide-react";
 import kyInstance from "@/lib/ky";
 import { PostData, BookmarkInfo } from "@/lib/types";
@@ -26,14 +27,15 @@ import { useToast } from "../ui/use-toast";
 import { useSession } from "@/app/(main)/SessionProvider";
 import StandardDrawer from "../ui/StandardDrawer";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
-import QuotePostDialog from "./QuotePostDialog";
-import DeletePostDialog from "./DeletePostDialog";
 
 interface PostOptionsBottomSheetProps {
   post: PostData;
   open: boolean;
   onClose: () => void;
   onNotInterested: () => void;
+  onEditClick: () => void;
+  onDeleteClick: () => void;
+  onQuoteClick: () => void;
 }
 
 export default function PostOptionsBottomSheet({
@@ -41,6 +43,9 @@ export default function PostOptionsBottomSheet({
   open,
   onClose,
   onNotInterested,
+  onEditClick,
+  onDeleteClick,
+  onQuoteClick,
 }: PostOptionsBottomSheetProps) {
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
@@ -50,8 +55,6 @@ export default function PostOptionsBottomSheet({
     "menu" | "qrcode" | "why_seeing" | "about_account" | "ai_info" | "report" | "preferences"
   >("menu");
   
-  const [showQuoteDialog, setShowQuoteDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [reported, setReported] = useState(false);
 
   // Hook up bookmark query and mutation (synchronizes with main bookmark button)
@@ -140,7 +143,7 @@ export default function PostOptionsBottomSheet({
                 {/* Remix Card */}
                 <button
                   onClick={() => {
-                    setShowQuoteDialog(true);
+                    onQuoteClick();
                     onClose();
                   }}
                   className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 transition-all border border-zinc-800/50"
@@ -244,11 +247,26 @@ export default function PostOptionsBottomSheet({
                   <span className="text-[15px] font-medium">Manage content preferences</span>
                 </button>
 
+                {/* Edit button (If own post) */}
+                {isOwnPost && (
+                  <button
+                    onClick={() => {
+                      onEditClick();
+                      onClose();
+                    }}
+                    className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-zinc-900 border border-zinc-800/50 hover:bg-zinc-800 transition-colors text-start w-full"
+                  >
+                    <SquarePen className="size-5 text-zinc-300" strokeWidth={2} />
+                    <span className="text-[15px] font-semibold text-zinc-300">Edit Post</span>
+                  </button>
+                )}
+
                 {/* Delete button (If own post) */}
                 {isOwnPost && (
                   <button
                     onClick={() => {
-                      setShowDeleteDialog(true);
+                      onDeleteClick();
+                      onClose();
                     }}
                     className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-red-950/20 border border-red-900/40 hover:bg-red-950/40 transition-colors text-start w-full"
                   >
@@ -507,23 +525,6 @@ export default function PostOptionsBottomSheet({
 
         </div>
       </StandardDrawer>
-
-      {/* Embedded Quote Dialog */}
-      <QuotePostDialog
-        post={post}
-        open={showQuoteDialog}
-        onClose={() => setShowQuoteDialog(false)}
-      />
-
-      {/* Embedded Delete Dialog */}
-      <DeletePostDialog
-        post={post}
-        open={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          onClose();
-        }}
-      />
     </>
   );
 }

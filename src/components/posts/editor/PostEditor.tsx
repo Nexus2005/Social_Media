@@ -4,14 +4,15 @@ import { useSession } from "@/app/(main)/SessionProvider";
 import LoadingButton from "@/components/LoadingButton";
 import UserAvatar from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, InfiniteData } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { UploadService } from "@/lib/services/uploadService";
 import { LocationData, GooglePlacesLocationProvider } from "@/lib/providers/locationProvider";
-import { useSubmitPostMutation } from "./mutations";
+import { useSubmitPostMutation, useUpdatePostMutation } from "./mutations";
 import useMediaUpload, { Attachment } from "./useMediaUpload";
 import { getFilterString, getProcessedImg } from "./imageProcessing";
-import { submitPost } from "./actions";
+import { submitPost, updatePost } from "./actions";
+import { PostData, PostsPage } from "@/lib/types";
 import VideoPlayer from "@/components/VideoPlayer";
 import GifPicker from "@/components/stories/GifPicker";
 import {
@@ -117,6 +118,7 @@ interface ThreadNode {
 interface PostEditorProps {
   onClose?: () => void;
   className?: string;
+  postToEdit?: PostData;
 }
 
 type PanelType = 
@@ -136,11 +138,13 @@ type PanelType =
   | "draft-recovery"
   | "gallery";
 
-export default function PostEditor({ onClose, className }: PostEditorProps) {
+export default function PostEditor({ onClose, className, postToEdit }: PostEditorProps) {
   const { user } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const mutation = useSubmitPostMutation();
+  const submitMutation = useSubmitPostMutation();
+  const updateMutation = useUpdatePostMutation();
+  const mutation = postToEdit ? updateMutation : submitMutation;
 
   const {
     startUpload,
@@ -151,6 +155,24 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
     removeAttachment,
     reset: resetMediaUploads,
   } = useMediaUpload();
+
+  useEffect(() => {
+    if (postToEdit && postToEdit.attachments) {
+      setAttachments(
+        postToEdit.attachments.map((att) => ({
+          file: new File([], att.id, { type: att.mediaType === "VIDEO" ? "video/mp4" : "image/jpeg" }),
+          mediaId: att.id,
+          isUploading: false,
+          previewUrl: att.url,
+        }))
+      );
+      if (postToEdit.altText && postToEdit.attachments[0]) {
+        setMediaAltTexts({
+          [postToEdit.attachments[0].id]: postToEdit.altText
+        });
+      }
+    }
+  }, [postToEdit, setAttachments]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -229,21 +251,29 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
 
   // Unified State Panel Route
   const [activePanel, setActivePanel] = useState<PanelType>("none");
-  const [postType, setPostType] = useState<"normal" | "thread" | "poll" | "article">("normal");
+  const [postType, setPostType] = useState<"normal" | "thread" | "poll" | "article">(
+    postToEdit?.poll ? "poll" : "normal"
+  );
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   // Draft recovery states
   const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   // Editor Nodes & Active indices
-  const [threads, setThreads] = useState<ThreadNode[]>([
-    { id: "1", text: "" }
-  ]);
+  const [threads, setThreads] = useState<ThreadNode[]>(
+    postToEdit 
+      ? [{ id: "1", text: postToEdit.content }] 
+      : [{ id: "1", text: "" }]
+  );
   const [activeThreadIndex, setActiveThreadIndex] = useState(0);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
   // Poll state parameters
-  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [pollOptions, setPollOptions] = useState<string[]>(
+    postToEdit?.poll?.options 
+      ? postToEdit.poll.options.map((o) => o.text) 
+      : ["", ""]
+  );
   const [pollDays, setPollDays] = useState(1);
   const [pollHours, setPollHours] = useState(0);
   const [pollMinutes, setPollMinutes] = useState(0);
@@ -254,7 +284,19 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
   const [searchingLocations, setSearchingLocations] = useState(false);
   const [locating, setLocating] = useState(false);
   const [recentLocations, setRecentLocations] = useState<LocationData[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(
+    postToEdit && postToEdit.location
+      ? {
+          name: postToEdit.locationName || postToEdit.location,
+          city: postToEdit.locationCity || "",
+          state: postToEdit.locationState || "",
+          country: postToEdit.locationCountry || "",
+          locationDisplay: postToEdit.locationDisplay || postToEdit.location,
+          lat: postToEdit.latitude || 0,
+          lng: postToEdit.longitude || 0,
+        }
+      : null
+  );
 
   // Media Tweaks
   const [mediaAdjustments, setMediaAdjustments] = useState<Record<string, ImageAdjustmentState>>({});
@@ -273,13 +315,17 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
   const [scheduleTimezone, setScheduleTimezone] = useState("UTC");
 
   // Post Configuration Settings
-  const [audience, setAudience] = useState("PUBLIC");
-  const [allowComments, setAllowComments] = useState(true);
+  const [audience, setAudience] = useState(postToEdit?.audience || "PUBLIC");
+  const [allowComments, setAllowComments] = useState(
+    postToEdit ? !postToEdit.disableComments : true
+  );
   const [allowReposts, setAllowReposts] = useState(true);
   const [allowRemixes, setAllowRemixes] = useState(true);
   const [allowProductDetection, setAllowProductDetection] = useState(true);
   const [allowAITranslation, setAllowAITranslation] = useState(true);
-  const [hideLikeCount, setHideLikeCount] = useState(false);
+  const [hideLikeCount, setHideLikeCount] = useState(
+    postToEdit ? postToEdit.hideLikes : false
+  );
   const [sensitiveWarning, setSensitiveWarning] = useState(false);
 
   // Camera settings
@@ -307,6 +353,7 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
 
   // Auto-Save mechanism (debounced threads text & metadata changes)
   useEffect(() => {
+    if (postToEdit) return;
     const hasContent = threads.some(t => t.text.trim().length > 0) || attachments.length > 0;
     if (!hasContent) {
       setSaveStatus("idle");
@@ -364,6 +411,7 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
 
   // Load drafts on mount
   useEffect(() => {
+    if (postToEdit) return;
     const stored = localStorage.getItem("cartly_composer_draft");
     if (stored) {
       setShowDraftBanner(true);
@@ -672,58 +720,57 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
       // Handle individual node submits for threads, or single submit for normal/poll
       const nodesToPublish = postType === "thread" ? threads : [threads[0]];
 
-      for (let i = 0; i < nodesToPublish.length; i++) {
-        const node = nodesToPublish[i];
+      if (postToEdit) {
+        const node = nodesToPublish[0];
         const nodeMediaIds: string[] = [];
 
         // Upload/Process edited attachments for this specific node
-        if (i === 0) {
-          const processedPromises = attachments.map(async (a) => {
-            const fileAdj = mediaAdjustments[a.file.name];
-            const hasEdit = fileAdj && (
-              fileAdj.filter !== "Normal" ||
-              fileAdj.brightness !== 1 ||
-              fileAdj.contrast !== 1 ||
-              fileAdj.saturation !== 1 ||
-              fileAdj.vignette > 0 ||
-              fileAdj.temperature !== 0 ||
-              fileAdj.sharpness !== 0
+        const processedPromises = attachments.map(async (a) => {
+          const fileAdj = mediaAdjustments[a.file.name];
+          const hasEdit = fileAdj && (
+            fileAdj.filter !== "Normal" ||
+            fileAdj.brightness !== 1 ||
+            fileAdj.contrast !== 1 ||
+            fileAdj.saturation !== 1 ||
+            fileAdj.vignette > 0 ||
+            fileAdj.temperature !== 0 ||
+            fileAdj.sharpness !== 0
+          );
+
+          if (a.file.type.startsWith("image") && hasEdit) {
+            const processedBlob = await getProcessedImg(
+              a.previewUrl!,
+              null,
+              fileAdj.rotation,
+              fileAdj.filter,
+              {
+                brightness: fileAdj.brightness,
+                contrast: fileAdj.contrast,
+                saturation: fileAdj.saturation,
+                temperature: fileAdj.temperature,
+                vignette: fileAdj.vignette,
+                exposure: 0,
+                fade: 0,
+                sharpen: fileAdj.sharpness,
+                structure: 0,
+                highlights: fileAdj.highlights,
+                shadows: fileAdj.shadows
+              }
             );
+            const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
+            const uploaded = await UploadService.uploadPostAttachment(finalFile);
+            return uploaded.mediaId;
+          }
+          return a.mediaId || "";
+        });
 
-            if (a.file.type.startsWith("image") && hasEdit) {
-              const processedBlob = await getProcessedImg(
-                a.previewUrl!,
-                null,
-                fileAdj.rotation,
-                fileAdj.filter,
-                {
-                  brightness: fileAdj.brightness,
-                  contrast: fileAdj.contrast,
-                  saturation: fileAdj.saturation,
-                  temperature: fileAdj.temperature,
-                  vignette: fileAdj.vignette,
-                  exposure: 0,
-                  fade: 0,
-                  sharpen: fileAdj.sharpness,
-                  structure: 0,
-                  highlights: fileAdj.highlights,
-                  shadows: fileAdj.shadows
-                }
-              );
-              const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
-              const uploaded = await UploadService.uploadPostAttachment(finalFile);
-              return uploaded.mediaId;
-            }
-            return a.mediaId || "";
-          });
+        const ids = await Promise.all(processedPromises);
+        ids.forEach((id) => {
+          if (id) nodeMediaIds.push(id);
+        });
 
-          const ids = await Promise.all(processedPromises);
-          ids.forEach((id) => {
-            if (id) nodeMediaIds.push(id);
-          });
-        }
-
-        const result = await submitPost({
+        const result = await updatePost({
+          id: postToEdit.id,
           content: node.text,
           mediaIds: nodeMediaIds,
           location: selectedLocation?.name || null,
@@ -738,27 +785,120 @@ export default function PostEditor({ onClose, className }: PostEditorProps) {
           hideLikes: hideLikeCount,
           altText: attachments.length > 0 ? mediaAltTexts[attachments[0].file.name] || null : null,
           audience,
-          quotedPostId: previousPostId,
           tags: null,
           collaborators: invitedCollaborators.length > 0 ? invitedCollaborators.map(c => c.username) : null,
-          poll: postType === "poll" && i === 0
-            ? {
-                options: pollOptions.filter(o => o.trim() !== ""),
-                duration: { days: pollDays, hours: pollHours, minutes: pollMinutes }
-              }
-            : null
         });
 
-        previousPostId = result.id;
+        const queryFilter = { queryKey: ["post-feed"] };
+        await queryClient.cancelQueries(queryFilter);
+        queryClient.setQueriesData<InfiniteData<PostsPage, string | null>>(
+          queryFilter,
+          (oldData) => {
+            if (!oldData) return;
+            return {
+              pageParams: oldData.pageParams,
+              pages: oldData.pages.map((page) => ({
+                nextCursor: page.nextCursor,
+                posts: page.posts.map((p) => (p.id === result.id ? result : p)),
+              })),
+            };
+          }
+        );
+
+        queryClient.invalidateQueries({ queryKey: ["post-details", postToEdit.id] });
+        queryClient.invalidateQueries({ queryKey: ["post-feed"] });
+
+        toast({ description: "Post updated successfully!" });
+        if (onClose) onClose();
+      } else {
+        for (let i = 0; i < nodesToPublish.length; i++) {
+          const node = nodesToPublish[i];
+          const nodeMediaIds: string[] = [];
+
+          // Upload/Process edited attachments for this specific node
+          if (i === 0) {
+            const processedPromises = attachments.map(async (a) => {
+              const fileAdj = mediaAdjustments[a.file.name];
+              const hasEdit = fileAdj && (
+                fileAdj.filter !== "Normal" ||
+                fileAdj.brightness !== 1 ||
+                fileAdj.contrast !== 1 ||
+                fileAdj.saturation !== 1 ||
+                fileAdj.vignette > 0 ||
+                fileAdj.temperature !== 0 ||
+                fileAdj.sharpness !== 0
+              );
+
+              if (a.file.type.startsWith("image") && hasEdit) {
+                const processedBlob = await getProcessedImg(
+                  a.previewUrl!,
+                  null,
+                  fileAdj.rotation,
+                  fileAdj.filter,
+                  {
+                    brightness: fileAdj.brightness,
+                    contrast: fileAdj.contrast,
+                    saturation: fileAdj.saturation,
+                    temperature: fileAdj.temperature,
+                    vignette: fileAdj.vignette,
+                    exposure: 0,
+                    fade: 0,
+                    sharpen: fileAdj.sharpness,
+                    structure: 0,
+                    highlights: fileAdj.highlights,
+                    shadows: fileAdj.shadows
+                  }
+                );
+                const finalFile = new File([processedBlob], a.file.name, { type: "image/jpeg" });
+                const uploaded = await UploadService.uploadPostAttachment(finalFile);
+                return uploaded.mediaId;
+              }
+              return a.mediaId || "";
+            });
+
+            const ids = await Promise.all(processedPromises);
+            ids.forEach((id) => {
+              if (id) nodeMediaIds.push(id);
+            });
+          }
+
+          const result = await submitPost({
+            content: node.text,
+            mediaIds: nodeMediaIds,
+            location: selectedLocation?.name || null,
+            locationName: selectedLocation?.name || null,
+            locationCity: selectedLocation?.city || null,
+            locationState: selectedLocation?.state || null,
+            locationCountry: selectedLocation?.country || null,
+            locationDisplay: selectedLocation?.locationDisplay || null,
+            latitude: selectedLocation?.lat || null,
+            longitude: selectedLocation?.lng || null,
+            disableComments: !allowComments,
+            hideLikes: hideLikeCount,
+            altText: attachments.length > 0 ? mediaAltTexts[attachments[0].file.name] || null : null,
+            audience,
+            quotedPostId: previousPostId,
+            tags: null,
+            collaborators: invitedCollaborators.length > 0 ? invitedCollaborators.map(c => c.username) : null,
+            poll: postType === "poll" && i === 0
+              ? {
+                  options: pollOptions.filter(o => o.trim() !== ""),
+                  duration: { days: pollDays, hours: pollHours, minutes: pollMinutes }
+                }
+              : null
+          });
+
+          previousPostId = result.id;
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["post-feed"] });
+        toast({ description: postType === "thread" ? "Thread published successfully!" : "Post published successfully!" });
+
+        setThreads([{ id: "1", text: "" }]);
+        resetMediaUploads();
+        localStorage.removeItem("cartly_composer_draft");
+        if (onClose) onClose();
       }
-
-      queryClient.invalidateQueries({ queryKey: ["post-feed"] });
-      toast({ description: postType === "thread" ? "Thread published successfully!" : "Post published successfully!" });
-
-      setThreads([{ id: "1", text: "" }]);
-      resetMediaUploads();
-      localStorage.removeItem("cartly_composer_draft");
-      if (onClose) onClose();
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", description: "Failed to publish post." });

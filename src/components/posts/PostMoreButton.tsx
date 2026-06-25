@@ -5,6 +5,9 @@ import { MoreVertical } from "lucide-react";
 import { PostData } from "@/lib/types";
 import { Button } from "../ui/button";
 import PostOptionsBottomSheet from "./PostOptionsBottomSheet";
+import DeletePostDialog from "./DeletePostDialog";
+import QuotePostDialog from "./QuotePostDialog";
+import EditPostDialog from "./EditPostDialog";
 
 interface PostMoreButtonProps {
   post: PostData;
@@ -18,6 +21,9 @@ export default function PostMoreButton({
   onNotInterested,
 }: PostMoreButtonProps) {
   const [showOptions, setShowOptions] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showQuoteDialog, setShowQuoteDialog] = useState(false);
 
   return (
     <>
@@ -38,6 +44,27 @@ export default function PostMoreButton({
         open={showOptions}
         onClose={() => setShowOptions(false)}
         onNotInterested={onNotInterested}
+        onDeleteClick={() => setShowDeleteDialog(true)}
+        onEditClick={() => setShowEditDialog(true)}
+        onQuoteClick={() => setShowQuoteDialog(true)}
+      />
+
+      <DeletePostDialog
+        post={post}
+        open={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+      />
+
+      <QuotePostDialog
+        post={post}
+        open={showQuoteDialog}
+        onClose={() => setShowQuoteDialog(false)}
+      />
+
+      <EditPostDialog
+        post={post}
+        open={showEditDialog}
+        onClose={() => setShowEditDialog(false)}
       />
     </>
   );

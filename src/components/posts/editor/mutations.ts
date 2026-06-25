@@ -7,7 +7,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { submitPost } from "./actions";
+import { submitPost, updatePost } from "./actions";
 
 export function useSubmitPostMutation() {
   const { toast } = useToast();
@@ -68,6 +68,56 @@ export function useSubmitPostMutation() {
       toast({
         variant: "destructive",
         description: "Failed to post. Please try again.",
+      });
+    },
+  });
+
+  return mutation;
+}
+
+export function useUpdatePostMutation() {
+  const { toast } = useToast();
+
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (input: Parameters<typeof updatePost>[0]) => updatePost(input),
+    onSuccess: async (updatedPost) => {
+      const queryFilter = {
+        queryKey: ["post-feed"],
+      } satisfies QueryFilters;
+
+      await queryClient.cancelQueries(queryFilter);
+
+      queryClient.setQueriesData<InfiniteData<PostsPage, string | null>>(
+        queryFilter,
+        (oldData) => {
+          if (!oldData) return;
+
+          return {
+            pageParams: oldData.pageParams,
+            pages: oldData.pages.map((page) => ({
+              nextCursor: page.nextCursor,
+              posts: page.posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
+            })),
+          };
+        },
+      );
+
+      // Invalidate the post-details query if it is open
+      queryClient.invalidateQueries({
+        queryKey: ["post-details", updatedPost.id],
+      });
+
+      toast({
+        description: "Post updated successfully",
+      });
+    },
+    onError(error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        description: "Failed to update post. Please try again.",
       });
     },
   });
