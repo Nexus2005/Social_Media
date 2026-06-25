@@ -13,7 +13,7 @@ import {
   VideoOff, Smartphone, Calendar, Share2, Sparkles, Music, 
   Play, Pause, Plus, Loader2, Pencil, Trash2, Check, ArrowRight, Clock, AlignLeft,
   ArrowLeft, Edit3, Smile, FileText, CheckCircle2, Lock, AlertTriangle, Volume2,
-  Users, MapPin, ListPlus, MessageSquare, Download, ChevronUp, Info
+  Users, MapPin, ListPlus, MessageSquare, Download, ChevronUp, Info, ArrowUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -2176,56 +2176,36 @@ export default function CreatePage() {
               )}
             </div>
 
-            {/* Bottom details card (Image 1 profile footer) */}
-            <div className="absolute inset-x-0 bottom-18 z-10 px-4 pb-4 flex flex-col gap-2.5 bg-gradient-to-t from-black/80 via-black/30 to-transparent">
-              <div className="flex items-center gap-3 text-left">
-                <UserAvatar 
-                  avatarUrl={user?.avatarUrl} 
-                  size={36} 
-                  className="size-9 shrink-0 border border-zinc-800 rounded-full" 
-                />
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-white text-sm font-bold tracking-tight">doctorshailya</span>
-                    <CheckCircle2 className="size-3 text-white fill-sky-500 text-sky-500" />
-                    <button className="bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] px-2.5 py-0.5 rounded-full border border-white/15">
-                      Follow
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-1 text-zinc-300 text-xs mt-0.5">
-                    <Music className="size-3 text-zinc-300" />
-                    <span>akhya Mai Aakh Ghali Jo | Instrumental ...</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-left text-zinc-150 text-xs font-medium leading-relaxed mt-1 px-1">
-                Comment your skin & hair concerns below 💕💕...
-              </p>
-
-              <div className="text-[11px] text-zinc-400 font-semibold tracking-wide mt-1.5 select-none animate-pulse">
+            {/* Swipe up indicator (Image 1 style matching) */}
+            <div className="absolute inset-x-0 bottom-24 z-10 flex flex-col items-center justify-center gap-1.5 text-center pointer-events-none">
+              <ArrowUp className="size-4 text-white animate-bounce" />
+              <span className="text-[11.5px] text-zinc-300 font-bold tracking-wide select-none animate-pulse">
                 Swipe up to edit
-              </div>
+              </span>
             </div>
 
-            {/* Bottom Action buttons */}
-            <div className="absolute inset-x-0 bottom-0 z-20 h-18 px-4 flex items-center justify-between border-t border-[#1A1A1A] bg-black shrink-0">
+            {/* Bottom Action buttons (YouTube Short style matching) */}
+            <div className="absolute inset-x-0 bottom-0 z-20 h-20 px-6 flex items-center justify-between border-t border-zinc-900/60 bg-black/90 backdrop-blur-md shrink-0">
               <button
                 onClick={() => setCreatorStep("timelineEditor")}
-                className="bg-[#272727] hover:bg-[#3e3e3e] text-white font-bold text-sm px-6 py-2.5 rounded-full flex items-center gap-1.5 transition-colors"
+                className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all border border-white/5 shadow-md active:scale-95 select-none"
               >
-                <Edit3 className="size-4 text-white" />
-                <span>Edit</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="size-4.5 text-white">
+                  <rect x="3" y="6" width="18" height="12" rx="1.5" />
+                  <line x1="8" y1="6" x2="8" y2="18" />
+                  <line x1="16" y1="6" x2="16" y2="18" />
+                  <circle cx="12" cy="12" r="1.5" />
+                </svg>
+                <span>Timeline</span>
               </button>
 
               <button
                 onClick={() => {
                   setCreatorStep("addDetails");
                 }}
-                className="bg-white hover:bg-zinc-150 text-black font-extrabold text-sm px-7 py-2.5 rounded-full flex items-center gap-1.5 transition-all shadow-lg active:scale-95"
+                className="bg-white hover:bg-zinc-150 text-black font-extrabold text-sm px-7 py-2.5 rounded-full transition-all shadow-lg active:scale-95 select-none"
               >
                 <span>Next</span>
-                <ArrowRight className="size-4" />
               </button>
             </div>
 
