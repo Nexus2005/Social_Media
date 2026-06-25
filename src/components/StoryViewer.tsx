@@ -100,7 +100,7 @@ export default function StoryViewer({
   const storyDuration = 5000; // 5 seconds for images
 
   const currentUserStories = groupedStories[userIndex];
-  const currentStory = currentUserStories?.stories[storyIndex];
+  const currentStory = currentUserStories?.stories[storyIndex] || currentUserStories?.stories[0];
 
   const isCurrentlyLiked = likedState[currentStory?.id] ?? currentStory?.isLiked ?? false;
 
@@ -113,6 +113,11 @@ export default function StoryViewer({
       }));
     }
   }, [currentStory?.id, currentStory?.isLiked]);
+
+  // Reset story index when switching users
+  useEffect(() => {
+    setStoryIndex(0);
+  }, [userIndex]);
 
   // Reset states when switching stories
   useEffect(() => {
@@ -586,6 +591,53 @@ export default function StoryViewer({
     setIsPaused(false);
   };
 
+  const handleDeleteStory = async () => {
+    if (!currentStory) return;
+    try {
+      await kyInstance.delete(`/api/stories/${currentStory.id}`);
+
+      setToastMessage("Story deleted");
+      setTimeout(() => setToastMessage(null), 2000);
+      setShowOptionsSheet(false);
+
+      const currentStoriesCount = currentUserStories.stories.length;
+      const isLastStoryOfUser = storyIndex === currentStoriesCount - 1;
+
+      // Update cache
+      queryClient.setQueryData<UserStories[]>(["stories"], (old) => {
+        if (!old) return old;
+        return old.map((userStories) => {
+          if (userStories.user.id === loggedInUser.id) {
+            return {
+              ...userStories,
+              stories: userStories.stories.filter((s) => s.id !== currentStory.id),
+            };
+          }
+          return userStories;
+        }).filter((userStories) => userStories.stories.length > 0);
+      });
+
+      if (currentStoriesCount > 1) {
+        if (isLastStoryOfUser) {
+          setStoryIndex(storyIndex - 1);
+        } else {
+          // Shifting: index stays same, progress resets
+          setProgress(0);
+        }
+      } else {
+        if (userIndex < groupedStories.length - 1) {
+          setUserIndex((prev) => prev + 1);
+        } else {
+          onClose();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete story:", err);
+      setToastMessage("Failed to delete story");
+      setTimeout(() => setToastMessage(null), 2000);
+    }
+  };
+
   // Copy Link deep link builder
   const handleCopyLink = () => {
     const link = `${window.location.origin}/stories?userId=${currentUserStories.user.id}`;
@@ -816,11 +868,11 @@ export default function StoryViewer({
               {/* Header Handle bar */}
               <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
               
-              <div className="relative flex items-center justify-between px-1 mt-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-[16px]">Viewers</span>
-                  <span className="bg-zinc-800 text-zinc-400 text-xs font-semibold px-2 py-0.5 rounded-full">
-                    {currentStory.views?.length || 0}
+              <div className="relative flex items-center justify-center mt-1 py-1">
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="font-bold text-white text-[17px]">Viewers</span>
+                  <span className="text-[12px] text-zinc-400 font-semibold">
+                    {currentStory.views?.length || 0} views
                   </span>
                 </div>
                 <button 
@@ -828,7 +880,7 @@ export default function StoryViewer({
                     setShowViewsDrawer(false);
                     setIsPaused(false);
                   }}
-                  className="text-zinc-400 hover:text-white"
+                  className="absolute right-1 text-zinc-400 hover:text-white"
                 >
                   <X className="size-5" />
                 </button>
@@ -1166,23 +1218,34 @@ export default function StoryViewer({
               {/* Header Handle Bar */}
               <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-2" />
               
-              {/* Report Action */}
-              <button 
-                onClick={handleReportStory}
-                className="w-full py-4 text-center text-sm font-bold text-red-500 hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors"
-              >
-                Report
-              </button>
-              
-              <div className="h-px bg-zinc-800/60 my-0.5" />
-              
-              {/* Mute Action */}
-              <button 
-                onClick={handleMuteUser}
-                className="w-full py-4 text-center text-sm font-semibold text-white hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors"
-              >
-                Mute
-              </button>
+              {currentUserStories.user.id === loggedInUser.id ? (
+                /* Own Story options: Delete */
+                <button 
+                  onClick={handleDeleteStory}
+                  className="w-full py-4 text-center text-sm font-bold text-red-500 hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  Delete Story
+                </button>
+              ) : (
+                /* Other user story options: Report & Mute */
+                <>
+                  <button 
+                    onClick={handleReportStory}
+                    className="w-full py-4 text-center text-sm font-bold text-red-500 hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Report
+                  </button>
+                  
+                  <div className="h-px bg-zinc-800/60 my-0.5" />
+                  
+                  <button 
+                    onClick={handleMuteUser}
+                    className="w-full py-4 text-center text-sm font-semibold text-white hover:bg-zinc-850/40 active:bg-zinc-850/60 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Mute
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
