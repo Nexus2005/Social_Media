@@ -70,6 +70,27 @@ export async function GET(req: NextRequest) {
       return Response.json({ users: mapped });
     }
 
+    if (type === "products") {
+      const products = await prisma.detectedProduct.findMany({
+        where: {
+          OR: [
+            { label: { contains: q, mode: "insensitive" } },
+            { category: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          matches: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+        take: 50,
+      });
+
+      return Response.json({ products });
+    }
+
     const whereClause: any = {};
 
     if (q) {

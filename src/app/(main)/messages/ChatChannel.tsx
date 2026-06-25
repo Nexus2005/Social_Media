@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video } from "lucide-react";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Channel, MessageResponse } from "stream-chat";
@@ -14,30 +15,28 @@ import { useQueryClient } from "@tanstack/react-query";
 import AttachmentPicker from "./AttachmentPicker";
 import StickerPicker from "./StickerPicker";
 import { useChat } from "../ChatProvider";
+import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 
 // Helper to calculate message bubble corner rounding rules
 const getBubbleCorners = (isOutgoing: boolean, pos: "single" | "first" | "middle" | "last") => {
   if (isOutgoing) {
     switch (pos) {
       case "single":
+      case "last":
         return "rounded-[18px] rounded-br-[4px]";
       case "first":
-        return "rounded-[18px] rounded-br-[18px]";
       case "middle":
-        return "rounded-[18px] rounded-r-[6px] rounded-l-[18px]";
-      case "last":
-        return "rounded-[18px] rounded-tr-[18px] rounded-br-[4px]";
+        return "rounded-[18px]";
     }
   } else {
     switch (pos) {
       case "single":
+      case "last":
         return "rounded-[18px] rounded-bl-[4px]";
       case "first":
-        return "rounded-[18px] rounded-bl-[18px]";
       case "middle":
-        return "rounded-[18px] rounded-l-[6px] rounded-r-[18px]";
-      case "last":
-        return "rounded-[18px] rounded-tl-[18px] rounded-bl-[4px]";
+        return "rounded-[18px]";
     }
   }
 };
@@ -158,6 +157,7 @@ const MessageBubbleContainer = React.memo(({
   const isSelected = selectedMessage?.id === message.id;
   const isSelectedMulti = selectedMessageIds.includes(message.id);
   const isStoryReply = message.attachments?.some((a: any) => a.type === "story-reply");
+  const isProductShare = message.attachments?.some((a: any) => a.type === "share-card" && a.shareType === "PRODUCT");
 
   const [dragX, setDragX] = useState(0);
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -272,50 +272,28 @@ const MessageBubbleContainer = React.memo(({
             }
           }
         }}
-        className={`relative max-w-[75%] px-3 py-1.5 text-sm shadow-sm cursor-pointer select-none transition-all duration-300 ${
-          isOutgoing
-            ? isStoryReply
-              ? `${message.id === highlightedMessageId ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 ring-2 ring-zinc-500/30" : isSelected ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 ring-2 ring-zinc-500/20" : "bg-gradient-to-tr from-pink-500/95 to-purple-600/95"} text-white ${
-                  getBubbleCorners(true, position)
-                }`
-              : `${message.id === highlightedMessageId ? "bg-primary/90 ring-2 ring-zinc-500/30" : isSelected ? "bg-primary/95 ring-2 ring-zinc-500/20" : "bg-primary"} text-primary-foreground ${
-                  getBubbleCorners(true, position)
-                }`
-            : isStoryReply
-            ? `${message.id === highlightedMessageId ? "bg-zinc-900/70 ring-2 ring-zinc-700/50 border border-zinc-800/80" : isSelected ? "bg-zinc-900/85 ring-2 ring-zinc-800/30 border border-zinc-800/80" : "bg-zinc-900/60 dark:bg-zinc-950/65 backdrop-blur-md border border-zinc-800/50"} text-foreground ${
-                getBubbleCorners(false, position)
-              }`
-            : `${message.id === highlightedMessageId ? "bg-card dark:bg-zinc-900 ring-2 ring-zinc-500/25 border-zinc-300 dark:border-zinc-700" : isSelected ? "bg-zinc-100 dark:bg-zinc-900/80 border-zinc-200 dark:border-zinc-800" : "bg-card border border-zinc-200 dark:border-zinc-800/60"} text-foreground ${
-                getBubbleCorners(false, position)
-              }`
-        } ${isFirstInGroup ? "mt-3" : "mt-0.5"} ${
-          message.id === highlightedMessageId || isSelected ? "scale-[1.03] shadow-md" : ""
-        }`}
+                className={cn(
+          "relative max-w-[75%] shadow-sm cursor-pointer select-none transition-all duration-300",
+          isProductShare
+            ? "p-0 rounded-[18px] overflow-hidden"
+            : cn(
+                "px-3.5 py-2 text-[15px] leading-[20px]",
+                isOutgoing
+                  ? isStoryReply
+                    ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 text-white"
+                    : "bg-[#7c3aed] text-white"
+                  : isStoryReply
+                  ? "bg-zinc-900/60 dark:bg-zinc-950/65 border border-zinc-800/50 text-white"
+                  : "bg-[#1c1c1e] border border-transparent text-zinc-100",
+                message.id === highlightedMessageId ? "ring-2 ring-zinc-500/30" : "",
+                isSelected ? "ring-2 ring-zinc-500/20" : "",
+                getBubbleCorners(isOutgoing, position)
+              ),
+          isFirstInGroup ? "mt-3" : "mt-0.5",
+          message.id === highlightedMessageId || isSelected ? "scale-[1.03] shadow-md" : "",
+          message.latest_reactions && message.latest_reactions.length > 0 ? "mb-2 pb-3.5" : ""
+        )}
       >
-        {/* Outgoing Bubble SVG Tail */}
-        {isOutgoing && isLastInGroup && !isStoryReply && (
-          <svg
-            className="absolute bottom-0 -right-[5px] text-primary fill-current shrink-0 pointer-events-none"
-            width="8"
-            height="10"
-            viewBox="0 0 8 10"
-          >
-            <path d="M0,10 h8 C8,10 5,8 4,5 C3,2 4,0 4,0 C4,0 3,4 0,7 z" />
-          </svg>
-        )}
-
-        {/* Incoming Bubble SVG Tail */}
-        {!isOutgoing && isLastInGroup && !isStoryReply && (
-          <svg
-            className="absolute bottom-0 -left-[5px] text-card fill-current shrink-0 pointer-events-none"
-            width="8"
-            height="10"
-            viewBox="0 0 8 10"
-          >
-            <path d="M8,10 h-8 C0,10 3,8 4,5 C5,2 4,0 4,0 C4,0 5,4 8,7 z" />
-          </svg>
-        )}
-
         {/* Sender Name if Group chat */}
         {!isOutgoing && isFirstInGroup && channel.data?.isGroup === true && (
           <span className="text-[10px] font-bold text-primary block mb-0.5">
@@ -350,6 +328,11 @@ const MessageBubbleContainer = React.memo(({
         {message.attachments?.some((a: any) => a.type === "share-card") ? (
           <ShareCardAttachment
             attachment={message.attachments.find((a: any) => a.type === "share-card")}
+            message={message}
+            isOutgoing={isOutgoing}
+            isQueue={isQueue}
+            otherMember={otherMember}
+            channel={channel}
           />
         ) : null}
 
@@ -404,36 +387,38 @@ const MessageBubbleContainer = React.memo(({
         )}
 
         {/* Floating Metadata (Time and status checks) */}
-        <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[9px] opacity-75 shrink-0 pointer-events-none select-none">
-          <span>
-            {new Date(message.created_at || (message as any).createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-          
-          {/* Read status checks for outgoing bubbles */}
-          {isOutgoing && (
-            isQueue ? (
-              (message as any).status === "PENDING" || (message as any).status === "SENDING" ? (
-                <span className="size-2 rounded-full border border-current border-t-transparent animate-spin shrink-0" />
+        {!isProductShare && (
+          <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[9px] opacity-75 shrink-0 pointer-events-none select-none">
+            <span>
+              {new Date(message.created_at || (message as any).createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            
+            {/* Read status checks for outgoing bubbles */}
+            {isOutgoing && (
+              isQueue ? (
+                (message as any).status === "PENDING" || (message as any).status === "SENDING" ? (
+                  <span className="size-2 rounded-full border border-current border-t-transparent animate-spin shrink-0" />
+                ) : (
+                  <AlertCircle className="size-3 text-destructive shrink-0" />
+                )
               ) : (
-                <AlertCircle className="size-3 text-destructive shrink-0" />
+                channel.state.read[otherMember?.id || ""]?.last_read && 
+                new Date(channel.state.read[otherMember?.id || ""]?.last_read || "").getTime() >= new Date(message.created_at || "").getTime() ? (
+                  <span className="text-[#38bdf8] font-bold">✓✓</span>
+                ) : (
+                  <span className="opacity-75 text-white">✓</span>
+                )
               )
-            ) : (
-              channel.state.read[otherMember?.id || ""]?.last_read && 
-              new Date(channel.state.read[otherMember?.id || ""]?.last_read || "").getTime() >= new Date(message.created_at || "").getTime() ? (
-                <span className="text-white font-bold">✓✓</span>
-              ) : (
-                <span className="opacity-75 text-white">✓</span>
-              )
-            )
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {/* Reactions Display Panel */}
+        {/* Reactions Display Panel (Overlapping bottom capsule) */}
         {message.latest_reactions && message.latest_reactions.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
+          <div className={`absolute -bottom-3 ${isOutgoing ? "left-3" : "right-3"} z-10 flex items-center gap-1 bg-[#1c1c1e] border border-zinc-800 rounded-full px-2 py-0.5 text-xs shadow-md`}>
             {Object.entries(
               message.latest_reactions.reduce((acc: Record<string, number>, r: any) => {
                 acc[r.type] = (acc[r.type] || 0) + 1;
@@ -442,24 +427,19 @@ const MessageBubbleContainer = React.memo(({
             ).map(([type, count]: any) => {
               const ownReacted = message.own_reactions?.some((r: any) => r.type === type);
               return (
-                <motion.button
-                  key={`${type}-${count}-${ownReacted}`}
-                  whileTap={{ scale: 0.9 }}
-                  animate={{ scale: [0.9, 1.1, 1] }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
+                <button
+                  key={type}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggleReaction(message.id, type);
                   }}
-                  className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border transition-colors ${
-                    ownReacted
-                      ? "bg-primary/20 border-primary/30 text-primary-foreground"
-                      : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-foreground"
+                  className={`flex items-center gap-0.5 hover:scale-110 active:scale-95 transition-transform ${
+                    ownReacted ? "text-primary" : "text-zinc-400"
                   }`}
                 >
                   <span>{reactionEmojiMap[type] || type}</span>
-                  {count > 1 && <span className="text-[10px] opacity-75">{count}</span>}
-                </motion.button>
+                  {count > 1 && <span className="text-[10px] font-semibold">{count}</span>}
+                </button>
               );
             })}
           </div>
@@ -505,10 +485,29 @@ const MessageBubbleContainer = React.memo(({
   );
 });
 MessageBubbleContainer.displayName = "MessageBubbleContainer";
+const getFriendlyDate = (dateStr: string) => {
+  try {
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (d.toDateString() === today.toDateString()) {
+      return "Today";
+    }
+    if (d.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  } catch (e) {
+    return dateStr;
+  }
+};
 
 export default function ChatChannel() {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const {
     activeChannel: channel,
@@ -833,7 +832,15 @@ export default function ChatChannel() {
   };
 
   // Send product/reel/post share cards
-  const handleSelectShare = async (share: { type: string; id: string; title: string; thumbnailUrl?: string; deepLink: string }) => {
+  const handleSelectShare = async (share: {
+    type: string;
+    id: string;
+    title: string;
+    thumbnailUrl?: string;
+    deepLink: string;
+    price?: string;
+    originalPrice?: string;
+  }) => {
     if (!channel) return;
     // Send as custom attachment card payload
     await outgoingMessageQueue.addMessage(
@@ -848,6 +855,8 @@ export default function ChatChannel() {
           title: share.title,
           image_url: share.thumbnailUrl,
           deepLink: share.deepLink,
+          price: share.price,
+          originalPrice: share.originalPrice,
         },
       ]
     );
@@ -1221,58 +1230,73 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : (
-        <div className="flex h-14 items-center justify-between border-b bg-card/50 px-3 z-10 shrink-0">
+        <div className="flex h-16 items-center justify-between bg-[#09090b] border-b border-zinc-800/60 px-4 z-10 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 setActiveChannel(null);
                 setMobileView("list");
               }}
-              className="rounded-full p-1.5 hover:bg-muted md:hidden"
+              className="rounded-full p-1.5 hover:bg-zinc-800 text-zinc-400 md:hidden"
               type="button"
             >
               <ArrowLeft className="size-5" />
             </button>
             
-            {/* Avatar details */}
+            {/* Avatar details with pink/purple gradient story-ring */}
             <div
-              className="flex items-center gap-2.5 cursor-pointer hover:opacity-85"
+              className="flex items-center gap-3 cursor-pointer hover:opacity-90"
               onClick={() => setProfileOverlayChannel(channel)}
             >
-              <UserAvatar avatarUrl={avatarUrl as string | undefined} size={40} className="size-10 border" />
+              <div className="rounded-full p-[2.5px] bg-gradient-to-tr from-[#f91f76] to-[#a83ffc] shadow-md flex items-center justify-center">
+                <div className="rounded-full bg-[#09090b] p-[1.5px] flex items-center justify-center">
+                  <UserAvatar avatarUrl={avatarUrl as string | undefined} size={36} className="size-9 rounded-full border-none" />
+                </div>
+              </div>
               <div className="flex flex-col text-start leading-tight">
-                <span className="text-[18px] font-semibold text-foreground">{displayName}</span>
-                <span className="text-[13px] text-zinc-400 dark:text-zinc-500">
-                  {typingState || (isOnline ? "online" : "offline")}
+                <span className="text-[16px] font-bold text-white flex items-center gap-1">
+                  {displayName}
+                  {!!(otherMember as any)?.verified && <VerifiedBadge size={14} className="text-[#0095f6] fill-[#0095f6]" />}
                 </span>
+                <div className="flex items-center gap-1.5 text-[12px] text-zinc-400">
+                  {typingState ? (
+                    <span className="text-zinc-500 italic">{typingState}</span>
+                  ) : isOnline ? (
+                    <>
+                      <span className="size-1.5 rounded-full bg-green-500 shrink-0" />
+                      <span>Active now</span>
+                    </>
+                  ) : (
+                    <span>Offline</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Ellipsis Actions menu */}
-          <div className="flex items-center gap-2">
+          {/* Header Action Icons */}
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={handleMute}
-              className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
-              title={isMuted ? "Unmute" : "Mute"}
+              className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+              title="Voice Call"
               type="button"
             >
-              {isMuted ? <VolumeX className="size-5 text-red-500" /> : <Volume2 className="size-5" />}
+              <Phone className="size-[20px]" />
             </button>
             <button
-              onClick={handlePin}
-              className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
-              title={isPinned ? "Unpin" : "Pin"}
+              className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+              title="Video Call"
               type="button"
             >
-              <Pin className={`size-5 ${isPinned ? "text-primary fill-primary rotate-45" : ""}`} />
+              <Video className="size-[20px]" />
             </button>
             <button
               onClick={() => setProfileOverlayChannel(channel)}
-              className="rounded-full p-1.5 hover:bg-muted text-muted-foreground"
+              className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+              title="More Options"
               type="button"
             >
-              <MoreVertical className="size-5" />
+              <MoreVertical className="size-[20px]" />
             </button>
           </div>
         </div>
@@ -1310,10 +1334,15 @@ export default function ChatChannel() {
         </div>
       )}
 
-      {/* Scrollable Messages Panel */}
+      {/* Scrollable Messages Panel with Outline Doodle Background */}
       <div
         ref={parentRef}
-        className="flex-1 overflow-y-auto px-4 py-3 bg-[#efeae2] dark:bg-[#0b141a] relative shadow-inner"
+        className="flex-1 overflow-y-auto px-4 py-4 relative"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d='M20 35h8l3-4h12l3 4h8a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V39a4 4 0 0 1 4-4z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Ccircle cx='34' cy='47' r='5' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M95 25c-4-4-10-4-14 0l-2 2-2-2c-4-4-10-4-14 0-4 4-4 10 0 14l16 16 16-16c4-4 4-10 0-14z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M30 90l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M85 85h15a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-8l-5 5v-5h-2a3 3 0 0 1-3-3V88a3 3 0 0 1 3-3z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundColor: '#09090b',
+        }}
       >
         <div
           style={{
@@ -1339,10 +1368,10 @@ export default function ChatChannel() {
                     width: "100%",
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  className="py-2 flex justify-center"
+                  className="py-2.5 flex justify-center text-center"
                 >
-                  <div className="rounded-full bg-zinc-800/10 dark:bg-zinc-800/60 px-3 py-0.5 text-[13px] font-semibold text-zinc-500 dark:text-zinc-300">
-                    {item.date}
+                  <div className="rounded-full bg-[#18181b] border border-zinc-800/40 px-3.5 py-1 text-[11px] font-medium text-zinc-400 select-none shadow-sm">
+                    {getFriendlyDate(item.date)}
                   </div>
                 </div>
               );
@@ -1483,71 +1512,72 @@ export default function ChatChannel() {
         </div>
       )}
 
-      {/* Input Message Composer Bar (WhatsApp style) */}
-      <div className="flex flex-col bg-transparent relative z-25">
-        <div className="flex items-end gap-2 p-3 bg-transparent select-none max-w-full">
-          {/* The Main Input Pill */}
-          <div className="flex-1 flex items-end bg-[#f0f2f5] dark:bg-[#202c33] rounded-[24px] px-3 py-1.5 min-w-0 transition-all border border-transparent shadow-sm">
-            {/* Sticker/Emoji drawer toggle */}
+      {/* Input Message Composer Bar (Social Commerce Theme) */}
+      <div className="flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25">
+        <div className="flex items-center gap-2.5 p-3 select-none max-w-full">
+          {/* Circular plus button on the left */}
+          <button
+            onClick={() => {
+              setShowAttachmentPicker(true);
+              setShowStickerPicker(false);
+            }}
+            className="size-10 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 text-zinc-300 flex items-center justify-center transition-colors shrink-0 cursor-pointer shadow"
+            type="button"
+          >
+            <Plus className="size-5" />
+          </button>
+
+          {/* Pill-shaped dark input wrapper */}
+          <div className="flex-1 flex items-center bg-[#1c1c1e] border border-zinc-800/45 rounded-full px-3.5 py-1 min-w-0 transition-all">
+            <textarea
+              ref={textareaRef}
+              placeholder="Message..."
+              value={inputText}
+              onChange={handleInputChange}
+              rows={1}
+              style={{ maxHeight: "120px" }}
+              className="flex-1 resize-none bg-transparent py-1.5 text-[15px] text-white placeholder:text-zinc-500 outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+            />
+
+            {/* Smile icon inside input wrapper on the right */}
             <button
               onClick={() => {
                 setShowStickerPicker(!showStickerPicker);
                 setShowAttachmentPicker(false);
               }}
               className={`rounded-full p-1.5 transition-colors shrink-0 ${
-                showStickerPicker ? "text-[#00a884]" : "text-muted-foreground hover:text-foreground"
+                showStickerPicker ? "text-[#7c3aed]" : "text-zinc-400 hover:text-zinc-200"
               }`}
               type="button"
             >
-              <Smile className="size-6 shrink-0" />
+              <Smile className="size-5 shrink-0" />
             </button>
 
-            {/* Attachment Paperclip toggle */}
+            {/* Mic icon inside input wrapper on the right */}
             <button
-              onClick={() => {
-                setShowAttachmentPicker(true);
-                setShowStickerPicker(false);
-              }}
-              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground shrink-0"
+              className="rounded-full p-1.5 text-zinc-400 hover:text-zinc-200 shrink-0"
               type="button"
             >
-              <Paperclip className="size-6 shrink-0" />
-            </button>
-
-            {/* Expanding input text editor */}
-            <textarea
-              ref={textareaRef}
-              placeholder="Message"
-              value={inputText}
-              onChange={handleInputChange}
-              rows={1}
-              style={{ maxHeight: "120px" }}
-              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-[16px] md:text-[17px] text-foreground placeholder:text-muted-foreground outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
-            />
-
-            {/* Camera / Media Quick attachment trigger */}
-            <button
-              onClick={() => {
-                setShowAttachmentPicker(true);
-                setShowStickerPicker(false);
-              }}
-              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground shrink-0"
-              type="button"
-            >
-              <ImageIcon className="size-6 shrink-0" />
+              <Mic className="size-5 shrink-0" />
             </button>
           </div>
 
-          {/* Detached FAB Action button */}
+          {/* Purple soundwave FAB / Send button */}
           <button
             onClick={inputText.trim() ? handleSendMessage : undefined}
-            className="size-12 rounded-full bg-[#00a884] text-white flex items-center justify-center shadow-md hover:bg-[#008f72] active:scale-95 transition-all shrink-0 cursor-pointer"
+            className="size-10 rounded-full bg-[#7c3aed] text-white flex items-center justify-center shadow-lg hover:bg-[#6d28d9] active:scale-95 transition-all shrink-0 cursor-pointer"
             type="button"
           >
             {inputText.trim() ? (
-              <Send className="size-5 fill-white text-white ml-0.5" />
+              <Send className="size-[18px] fill-white text-white ml-0.5" />
             ) : (
-              <Mic className="size-5 text-white" />
+              <Volume2 className="size-[18px] text-white animate-pulse" />
             )}
           </button>
         </div>
@@ -1765,12 +1795,26 @@ export default function ChatChannel() {
 }
 
 // Social Commerce unified ShareCard renderer
-function ShareCardAttachment({ attachment }: { attachment: any }) {
+function ShareCardAttachment({
+  attachment,
+  message,
+  isOutgoing,
+  isQueue,
+  otherMember,
+  channel
+}: {
+  attachment: any;
+  message?: any;
+  isOutgoing?: boolean;
+  isQueue?: boolean;
+  otherMember?: any;
+  channel?: any;
+}) {
   const { shareType, title, image_url, deepLink } = attachment;
-  
+
   let actionLabel = "View Product";
-  let icon = <ShoppingBag className="size-5 text-primary" />;
-  
+  let icon = <ShoppingBag className="size-5 text-[#8b5cf6]" />;
+
   if (shareType === "POST") {
     actionLabel = "View Post";
     icon = <Layers className="size-5 text-pink-500" />;
@@ -1785,15 +1829,84 @@ function ShareCardAttachment({ attachment }: { attachment: any }) {
     icon = <BookOpen className="size-5 text-indigo-500" />;
   }
 
+  if (shareType === "PRODUCT") {
+    return (
+      <div className="w-[280px] rounded-[18px] overflow-hidden border border-zinc-800 bg-[#18181b] shadow-lg flex flex-col relative select-none">
+        {image_url ? (
+          <div className="relative aspect-square w-full overflow-hidden bg-zinc-900">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={image_url} alt={title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="flex h-40 items-center justify-center bg-zinc-900">
+            <ShoppingBag className="size-8 text-zinc-500" />
+          </div>
+        )}
+        <div className="px-3.5 pt-3.5 pb-6 flex flex-col gap-2.5 relative">
+          <span className="text-[14px] font-bold text-white line-clamp-2 leading-snug">{title}</span>
+          
+          {(attachment.price || attachment.originalPrice) && (
+            <div className="flex items-baseline gap-2">
+              {attachment.price && (
+                <span className="text-[15px] font-black text-[#8b5cf6]">{attachment.price}</span>
+              )}
+              {attachment.originalPrice && (
+                <span className="text-[11px] text-zinc-500 line-through">{attachment.originalPrice}</span>
+              )}
+            </div>
+          )}
+
+          <a
+            href={deepLink}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full py-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-center text-xs font-semibold text-white transition-colors"
+          >
+            View Product
+          </a>
+
+          {/* Time & Read Status checkmarks aligned bottom right */}
+          {message && (
+            <div className="absolute bottom-1 right-3 flex items-center gap-1 text-[9px] opacity-60 text-zinc-400 select-none pointer-events-none">
+              <span>
+                {new Date(message.created_at || message.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              {isOutgoing && (
+                isQueue ? (
+                  message.status === "PENDING" || message.status === "SENDING" ? (
+                    <span className="size-2 rounded-full border border-current border-t-transparent animate-spin shrink-0" />
+                  ) : (
+                    <AlertCircle className="size-3 text-destructive shrink-0" />
+                  )
+                ) : (
+                  channel?.state?.read?.[otherMember?.id || ""]?.last_read && 
+                  new Date(channel.state.read[otherMember.id || ""].last_read).getTime() >= new Date(message.created_at || "").getTime() ? (
+                    <span className="text-[#38bdf8] font-bold">✓✓</span>
+                  ) : (
+                    <span className="opacity-75">✓</span>
+                  )
+                )
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Non-product attachments rendered inside bubble
   return (
     <a
       href={deepLink}
       target="_blank"
       rel="noreferrer"
-      className="flex flex-col rounded-xl overflow-hidden border bg-background my-1 max-w-xs shadow-sm hover:shadow-md transition-shadow shrink-0"
+      className="flex flex-col rounded-xl overflow-hidden border border-zinc-800 bg-[#1c1c1e] my-1 max-w-xs shadow-sm hover:shadow-md transition-shadow shrink-0"
     >
       {image_url ? (
-        <div className="relative aspect-video w-full overflow-hidden bg-muted">
+        <div className="relative aspect-video w-full overflow-hidden bg-zinc-900">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image_url} alt={title} className="w-full h-full object-cover" />
           {shareType === "REEL" && (
@@ -1803,7 +1916,7 @@ function ShareCardAttachment({ attachment }: { attachment: any }) {
           )}
         </div>
       ) : (
-        <div className="flex h-24 items-center justify-center bg-muted/30">
+        <div className="flex h-24 items-center justify-center bg-zinc-900">
           {icon}
         </div>
       )}
@@ -1814,7 +1927,7 @@ function ShareCardAttachment({ attachment }: { attachment: any }) {
             {shareType}
           </span>
         </div>
-        <span className="text-sm font-semibold text-foreground line-clamp-2 mt-1">{title}</span>
+        <span className="text-sm font-semibold text-white line-clamp-2 mt-1">{title}</span>
         <span className="text-xs font-medium text-primary hover:underline mt-2 self-start flex items-center gap-1">
           {actionLabel} &rarr;
         </span>

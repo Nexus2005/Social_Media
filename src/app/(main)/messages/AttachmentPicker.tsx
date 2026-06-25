@@ -7,7 +7,15 @@ import kyInstance from "@/lib/ky";
 
 interface AttachmentPickerProps {
   onClose: () => void;
-  onSelectShare: (payload: { type: "POST" | "REEL" | "PRODUCT" | "PROFILE" | "COLLECTION"; id: string; title: string; thumbnailUrl?: string; deepLink: string }) => void;
+  onSelectShare: (payload: {
+    type: "POST" | "REEL" | "PRODUCT" | "PROFILE" | "COLLECTION";
+    id: string;
+    title: string;
+    thumbnailUrl?: string;
+    deepLink: string;
+    price?: string;
+    originalPrice?: string;
+  }) => void;
   onSelectFile: (file: File) => void;
 }
 
@@ -31,7 +39,25 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
       
       // Map API outputs to unified picker interface
       if (type === "products") {
-        setItems((data.products || []).map((p: any) => ({ id: p.id, title: p.label, thumb: p.thumbnailUrl, link: `/shop/product/${p.id}` })));
+        setItems((data.products || []).map((p: any) => {
+          const match = p.matches?.[0];
+          return {
+            id: p.id,
+            title: p.label,
+            thumb: p.thumbnailUrl || p.sourceFrameUrl,
+            link: `/shop/product/${p.id}`,
+            price: match?.price || "₹2,499",
+            originalPrice: (() => {
+              if (!match || !match.price) return "₹3,499";
+              const numStr = match.price.replace(/[^\d.]/g, "");
+              const val = parseFloat(numStr);
+              if (isNaN(val)) return "₹3,499";
+              const isINR = match.currency === "INR" || match.price.includes("₹");
+              const symbol = isINR ? "₹" : "$";
+              return `${symbol}${Math.round(val * 1.4)}`;
+            })()
+          };
+        }));
       } else if (type === "posts") {
         setItems((data.posts || []).map((p: any) => ({ id: p.id, title: p.content, thumb: p.attachments?.[0]?.url, link: `/posts/${p.id}` })));
       } else if (type === "profiles") {
@@ -184,6 +210,8 @@ export default function AttachmentPicker({ onClose, onSelectShare, onSelectFile 
                             title: item.title,
                             thumbnailUrl: item.thumb,
                             deepLink: item.link,
+                            price: (item as any).price,
+                            originalPrice: (item as any).originalPrice,
                           });
                           onClose();
                         }}
