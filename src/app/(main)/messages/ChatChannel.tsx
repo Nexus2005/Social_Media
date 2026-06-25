@@ -968,6 +968,18 @@ export default function ChatChannel() {
   const [userBio, setUserBio] = useState("tap to add a bio");
   const [isBioEditing, setIsBioEditing] = useState(false);
 
+  // New video call feature states
+  const [cameraShareType, setCameraShareType] = useState<"PHONE SCREEN" | "FRONT CAMERA" | "BACK CAMERA">("PHONE SCREEN");
+  const [showCameraShareChoice, setShowCameraShareChoice] = useState(false);
+  const [isNoiseSuppressionEnabled, setIsNoiseSuppressionEnabled] = useState(false);
+  const [isRecordingCall, setIsRecordingCall] = useState(false);
+  const [isCallMessagesDisabled, setIsCallMessagesDisabled] = useState(false);
+  const [showCallOptionsMenu, setShowCallOptionsMenu] = useState(false);
+  const [floatingMessages, setFloatingMessages] = useState<Array<{ id: string; text: string; sender: string; avatarUrl?: string }>>([]);
+  const [showCallMessageInput, setShowCallMessageInput] = useState(false);
+  const [callMessageText, setCallMessageText] = useState("");
+  const [callTitle, setCallTitle] = useState("");
+
   const [selectedScheduleDate, setSelectedScheduleDate] = useState("Today");
   const [selectedScheduleHour, setSelectedScheduleHour] = useState("00");
   const [selectedScheduleMinute, setSelectedScheduleMinute] = useState("00");
@@ -984,6 +996,51 @@ export default function ChatChannel() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (isCameraOn && (cameraShareType === "FRONT CAMERA" || cameraShareType === "BACK CAMERA")) {
+      const constraints = {
+        video: {
+          facingMode: cameraShareType === "FRONT CAMERA" ? "user" : "environment",
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
+        audio: false
+      };
+      
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then((s) => {
+          setLocalStream(s);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = s;
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to get user media, falling back to simulation:", err);
+          setLocalStream(null);
+        });
+    } else {
+      if (localStream) {
+        localStream.getTracks().forEach((track) => track.stop());
+        setLocalStream(null);
+      }
+    }
+    
+    return () => {
+      if (localStream) {
+        localStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [isCameraOn, cameraShareType]);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, showVideoCallSheet, showCameraShareChoice]);
 
   // Compute schedule dates dynamically
   const scheduleDates = useMemo(() => {
@@ -1184,6 +1241,23 @@ export default function ChatChannel() {
   const [mounted, setMounted] = useState(false);
   const [moreOptionsMessage, setMoreOptionsMessage] = useState<MessageResponse | null>(null);
 
+  // Top-level derived values to solve block scoping constraints
+  const members = channel ? Object.values(channel.state.members || {}) : [];
+  const otherMember = channel ? members.find((m) => m.user?.id !== loggedInUser.id)?.user : undefined;
+  const isGroup = channel ? (channel.data?.isGroup === true || members.length > 2) : false;
+  const displayName = channel ? (channel.data?.name || (isGroup ? "Group Chat" : otherMember?.name || "Chat Room")) : "";
+  const avatarUrl = channel ? (channel.data?.image || (isGroup ? undefined : otherMember?.image)) : undefined;
+  const isOnline = otherMember?.online || false;
+  const onlineMembersCount = channel ? members.filter(
+    (m) => m.user?.id !== loggedInUser.id && m.user?.online
+  ).length : 0;
+
+  useEffect(() => {
+    if (displayName) {
+      setCallTitle(displayName);
+    }
+  }, [displayName]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -1204,6 +1278,26 @@ export default function ChatChannel() {
         console.warn(err);
       }
     }
+  };
+
+  const addFloatingMessage = (text: string) => {
+    if (!text.trim()) return;
+    const id = Math.random().toString(36).substring(2, 9);
+    const senderName = videoJoinAsPersonal 
+      ? (loggedInUser.displayName || loggedInUser.username)
+      : (displayName || "Group");
+    const senderAvatar = videoJoinAsPersonal 
+      ? (loggedInUser.avatarUrl || undefined) 
+      : undefined;
+
+    setFloatingMessages((prev) => [
+      ...prev,
+      { id, text, sender: senderName, avatarUrl: senderAvatar }
+    ]);
+
+    setTimeout(() => {
+      setFloatingMessages((prev) => prev.filter((msg) => msg.id !== id));
+    }, 4000);
   };
 
   // Reset selected message when switching channels
@@ -1695,17 +1789,6 @@ export default function ChatChannel() {
 
   // Get recipient (DM mode)
   if (!channel) return null;
-
-  const members = Object.values(channel.state.members || {});
-  const otherMember = members.find((m) => m.user?.id !== loggedInUser.id)?.user;
-  
-  const isGroup = channel.data?.isGroup === true || members.length > 2;
-  const displayName = channel.data?.name || (isGroup ? "Group Chat" : otherMember?.name || "Chat Room");
-  const avatarUrl = channel.data?.image || (isGroup ? undefined : otherMember?.image);
-  const isOnline = otherMember?.online || false;
-  const onlineMembersCount = members.filter(
-    (m) => m.user?.id !== loggedInUser.id && m.user?.online
-  ).length;
 
   // Pinned Message banner
   const pinnedMessages = messages.filter((m) => m.pinned);
@@ -3976,8 +4059,42 @@ export default function ChatChannel() {
                   className="relative z-50 bg-[#0f141c] border-t border-zinc-800/60 rounded-t-[28px] pb-8 pt-4 flex flex-col justify-between max-w-md mx-auto w-full select-none text-white shadow-2xl overflow-hidden transition-all duration-300"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* Camera stream background when camera is ON */}
+                  {isCameraOn && (
+                    <div className="absolute inset-0 z-0 bg-black">
+                      {cameraShareType === "PHONE SCREEN" ? (
+                        <div className="w-full h-full bg-gradient-to-b from-[#184e68] via-[#103040] to-[#0b1c24] flex flex-col items-center justify-center p-6 text-center select-none">
+                          <div className="relative size-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center shadow-xl mb-4 animate-pulse">
+                            <svg className="size-12 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                              <path d="M17 2H7v12h10V2z" />
+                              <circle cx="12" cy="18" r="1" strokeWidth="3" />
+                            </svg>
+                          </div>
+                          <span className="text-sm font-bold text-zinc-350">Sharing Screen...</span>
+                          <span className="text-xs text-zinc-500 mt-1.5 leading-normal max-w-xs">Everything on your screen, including notifications, is shared</span>
+                        </div>
+                      ) : localStream ? (
+                        <video 
+                          ref={localVideoRef} 
+                          autoPlay 
+                          playsInline 
+                          muted 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-b from-zinc-850 to-zinc-950 flex flex-col items-center justify-center text-center select-none">
+                          <UserAvatar avatarUrl={videoJoinAsPersonal ? loggedInUser.avatarUrl : undefined} size={80} className="size-20 rounded-full border border-white/10 animate-pulse" />
+                          <span className="text-sm font-bold text-zinc-400 mt-4 capitalize">{cameraShareType.toLowerCase()} starting...</span>
+                        </div>
+                      )}
+                      {/* Dark overlay gradients for text readability */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/75 pointer-events-none" />
+                    </div>
+                  )}
+
                   {/* Drawer Top Section (Drag Bar / Back Arrow depending on size) */}
-                  <div className="w-full shrink-0 flex flex-col items-center">
+                  <div className="w-full shrink-0 flex flex-col items-center z-10">
                     {!isVideoCallFullscreen ? (
                       <div 
                         onClick={() => setIsVideoCallFullscreen(true)}
@@ -3996,9 +4113,17 @@ export default function ChatChannel() {
                             <ArrowLeft className="size-6" />
                           </button>
                           <div className="flex flex-col text-start leading-tight">
-                            <span className="text-base font-bold text-white tracking-wide truncate max-w-[200px]">
-                              {displayName}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-base font-bold text-white tracking-wide truncate max-w-[180px]">
+                                {callTitle || displayName}
+                              </span>
+                              {isRecordingCall && (
+                                <span className="flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded-full border border-red-500/40 animate-pulse text-[9px] font-black text-red-400 uppercase select-none">
+                                  <span className="size-1.5 rounded-full bg-red-500" />
+                                  REC
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-zinc-400">1 participant</span>
                           </div>
                         </div>
@@ -4013,14 +4138,25 @@ export default function ChatChannel() {
                               <rect x="13" y="11" width="7" height="7" rx="1" ry="1" />
                             </svg>
                           </button>
-                          <button className="rounded-full p-2 hover:bg-white/10 text-zinc-300 transition-colors">
+                          <button 
+                            onClick={() => setShowCallOptionsMenu(!showCallOptionsMenu)}
+                            className="rounded-full p-2 hover:bg-white/10 text-zinc-300 transition-colors relative"
+                          >
                             <MoreVertical className="size-[20px]" />
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div className="w-full flex items-center justify-between px-6 py-2">
-                        <span className="text-xl font-bold tracking-wide text-white">Video Chat</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-bold tracking-wide text-white">{callTitle || displayName}</span>
+                          {isRecordingCall && (
+                            <span className="flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded-full border border-red-500/40 animate-pulse text-[9px] font-black text-red-400 uppercase select-none">
+                              <span className="size-1.5 rounded-full bg-red-500" />
+                              REC
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-3">
                           <button 
                             onClick={() => setIsVideoCallPiP(true)}
@@ -4032,7 +4168,10 @@ export default function ChatChannel() {
                               <rect x="13" y="11" width="7" height="7" rx="1" ry="1" />
                             </svg>
                           </button>
-                          <button className="rounded-full p-2 hover:bg-white/10 text-zinc-300 transition-colors">
+                          <button 
+                            onClick={() => setShowCallOptionsMenu(!showCallOptionsMenu)}
+                            className="rounded-full p-2 hover:bg-white/10 text-zinc-300 transition-colors relative"
+                          >
                             <MoreVertical className="size-[20px]" />
                           </button>
                         </div>
@@ -4040,15 +4179,189 @@ export default function ChatChannel() {
                     )}
                   </div>
 
+                  {/* Three-Dots Menu Dropdown Card */}
+                  {showCallOptionsMenu && (
+                    <>
+                      <div 
+                        onClick={() => setShowCallOptionsMenu(false)}
+                        className="fixed inset-0 z-40 bg-transparent"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        className="absolute right-4 top-16 z-50 w-64 rounded-2xl bg-[#1c222b] border border-zinc-800/80 shadow-2xl p-1 flex flex-col divide-y divide-zinc-800/30 text-start text-white"
+                      >
+                        {/* Display me as... Option */}
+                        <div 
+                          onClick={() => {
+                            const next = !videoJoinAsPersonal;
+                            setVideoJoinAsPersonal(next);
+                            toast({ description: `Now displaying as ${next ? "Personal Account" : "Channel Identity"}` });
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer first:rounded-t-2xl transition-colors"
+                        >
+                          {videoJoinAsPersonal ? (
+                            <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={36} className="size-9 rounded-full shrink-0 border border-zinc-700" />
+                          ) : (
+                            <div className="size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
+                              {(displayName || "G").slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider">Display me as...</span>
+                            <span className="text-[13px] font-bold text-white truncate">
+                              {videoJoinAsPersonal ? (loggedInUser.displayName || loggedInUser.username) : displayName}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Audio Switch Option */}
+                        <div 
+                          onClick={() => {
+                            setIsSpeakerOn(!isSpeakerOn);
+                            toast({ description: `Audio output switched to ${!isSpeakerOn ? "Speaker" : "Phone"}` });
+                          }}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                        >
+                          {isSpeakerOn ? <Volume2 className="size-5 text-zinc-400" /> : <Phone className="size-5 text-zinc-400" />}
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-[13px] font-medium text-zinc-200">Audio</span>
+                            <span className="text-[11px] text-[#0095f6] font-semibold">{isSpeakerOn ? "Speaker" : "Phone"}</span>
+                          </div>
+                        </div>
+
+                        {/* Noise Suppression Option */}
+                        <div 
+                          onClick={() => setIsNoiseSuppressionEnabled(!isNoiseSuppressionEnabled)}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                        >
+                          <Layers className="size-5 text-zinc-400" />
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-[13px] font-medium text-zinc-200">Noise suppression</span>
+                            <span className="text-[11px] text-[#0095f6] font-semibold">{isNoiseSuppressionEnabled ? "Enabled" : "Disabled"}</span>
+                          </div>
+                        </div>
+
+                        {/* Edit Title Option */}
+                        <div 
+                          onClick={() => {
+                            const newTitle = prompt("Edit video chat title:", callTitle || displayName);
+                            if (newTitle !== null && newTitle.trim() !== "") {
+                              setCallTitle(newTitle);
+                            }
+                            setShowCallOptionsMenu(false);
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer text-zinc-300 transition-colors"
+                        >
+                          <Edit2 className="size-5 text-zinc-400" />
+                          <span className="text-[13px] font-medium">Edit video chat title</span>
+                        </div>
+
+                        {/* Permissions Option */}
+                        <div 
+                          onClick={() => {
+                            toast({ description: "Only admins can edit permissions." });
+                            setShowCallOptionsMenu(false);
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer text-zinc-300 transition-colors"
+                        >
+                          <svg className="size-5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          <span className="text-[13px] font-medium">Edit permissions</span>
+                        </div>
+
+                        {/* Invite Link Option */}
+                        <div 
+                          onClick={() => {
+                            toast({ description: "Invite link copied to clipboard!" });
+                            setShowCallOptionsMenu(false);
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer text-zinc-300 transition-colors"
+                        >
+                          <Share2 className="size-5 text-zinc-400" />
+                          <span className="text-[13px] font-medium">Share invite link</span>
+                        </div>
+
+                        {/* Share Screen Option */}
+                        <div 
+                          onClick={() => {
+                            setCameraShareType("PHONE SCREEN");
+                            setShowCameraShareChoice(true);
+                            setShowCallOptionsMenu(false);
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer text-zinc-300 transition-colors"
+                        >
+                          <svg className="size-5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <polyline points="17 1 21 5 17 9" />
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                            <polyline points="7 23 3 19 7 15" />
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                          </svg>
+                          <span className="text-[13px] font-medium">Share screen</span>
+                        </div>
+
+                        {/* Start Recording Option */}
+                        <div 
+                          onClick={() => {
+                            setIsRecordingCall(!isRecordingCall);
+                            toast({ description: !isRecordingCall ? "Video chat recording started" : "Video chat recording stopped" });
+                            setShowCallOptionsMenu(false);
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer text-zinc-300 transition-colors"
+                        >
+                          <Star className="size-5 text-zinc-400 fill-zinc-400" />
+                          <span className="text-[13px] font-medium">{isRecordingCall ? "Stop recording" : "Start recording"}</span>
+                        </div>
+
+                        {/* Disable Messages Option */}
+                        <div 
+                          onClick={() => {
+                            setIsCallMessagesDisabled(!isCallMessagesDisabled);
+                            toast({ description: !isCallMessagesDisabled ? "Call screen chat overlay disabled" : "Call screen chat overlay enabled" });
+                            setShowCallOptionsMenu(false);
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer text-zinc-300 transition-colors"
+                        >
+                          <BellOff className="size-5 text-zinc-400" />
+                          <span className="text-[13px] font-medium">{isCallMessagesDisabled ? "Enable Messages" : "Disable Messages"}</span>
+                        </div>
+
+                        {/* End Call Option */}
+                        <div 
+                          onClick={() => {
+                            setShowVideoCallSheet(false);
+                            setShowCallOptionsMenu(false);
+                            toast({ description: "Video call ended" });
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-500/15 text-red-400 cursor-pointer last:rounded-b-2xl font-bold transition-colors"
+                        >
+                          <X className="size-5 text-red-400" />
+                          <span className="text-[13px]">End video chat</span>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+
                   {/* Mid Section: Active Caller Participant list */}
-                  <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">
-                    <div className="bg-[#1c222b] border border-zinc-800/40 rounded-[20px] p-4 flex flex-col gap-3">
+                  <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 z-10">
+                    <div className="bg-[#1c222b]/70 backdrop-blur-md border border-zinc-800/40 rounded-[20px] p-4 flex flex-col gap-3">
                       {/* Active Caller details row */}
-                      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/40">
+                      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/30">
                         <div className="flex items-center gap-3">
-                          <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={48} className="size-[48px] rounded-full border border-zinc-800" />
+                          {videoJoinAsPersonal ? (
+                            <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={48} className="size-[48px] rounded-full border border-zinc-800" />
+                          ) : (
+                            <div className="size-[48px] rounded-full bg-[#48bb78] flex items-center justify-center text-sm font-bold text-white uppercase shrink-0 border border-zinc-800">
+                              {(displayName || "G").slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
                           <div className="flex flex-col text-start">
-                            <span className="text-sm font-semibold text-white uppercase">{loggedInUser.displayName || loggedInUser.username}</span>
+                            <span className="text-sm font-semibold text-white uppercase">
+                              {videoJoinAsPersonal ? (loggedInUser.displayName || loggedInUser.username) : displayName}
+                            </span>
                             {isBioEditing ? (
                               <input
                                 autoFocus
@@ -4061,7 +4374,7 @@ export default function ChatChannel() {
                                     setIsBioEditing(false);
                                   }
                                 }}
-                                className="bg-zinc-800 border border-[#0095f6] text-[11px] text-zinc-300 rounded px-1.5 py-0.5 outline-none max-w-[140px]"
+                                className="bg-zinc-850 border border-[#0095f6] text-[11px] text-zinc-300 rounded px-1.5 py-0.5 outline-none max-w-[140px]"
                               />
                             ) : (
                               <span 
@@ -4098,25 +4411,110 @@ export default function ChatChannel() {
                     </div>
                   </div>
 
+                  {/* Floating messages stack overlay on the call screen */}
+                  <div className="absolute bottom-24 left-6 right-6 z-20 pointer-events-none flex flex-col items-center gap-2.5">
+                    <AnimatePresence>
+                      {!isCallMessagesDisabled && floatingMessages.map((msg) => (
+                        <motion.div
+                          key={msg.id}
+                          initial={{ opacity: 0, y: 35, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -35, scale: 0.9 }}
+                          transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                          className="bg-black/70 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-2.5 max-w-[280px]"
+                        >
+                          {msg.avatarUrl ? (
+                            <UserAvatar avatarUrl={msg.avatarUrl} size={28} className="size-7 rounded-full border border-white/10 shrink-0" />
+                          ) : (
+                            <div className="size-7 rounded-full bg-[#48bb78] flex items-center justify-center text-[10px] font-bold text-white uppercase shrink-0">
+                              {msg.sender.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex flex-col text-start leading-tight min-w-0">
+                            <span className="text-[11px] font-black text-[#0095f6] tracking-wide truncate">{msg.sender}</span>
+                            <span className="text-xs text-white break-words mt-0.5">{msg.text}</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Call quick message input overlay */}
+                  <AnimatePresence>
+                    {showCallMessageInput && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 15 }}
+                        className="absolute bottom-24 left-4 right-4 z-40 bg-[#1c222b] border border-zinc-800/80 rounded-2xl p-2.5 flex items-center gap-2 shadow-2xl max-w-sm mx-auto"
+                      >
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Type a message to call screen..."
+                          value={callMessageText}
+                          onChange={(e) => setCallMessageText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              addFloatingMessage(callMessageText);
+                              setCallMessageText("");
+                              setShowCallMessageInput(false);
+                            }
+                          }}
+                          className="flex-1 bg-zinc-900 border border-zinc-800 text-sm text-white rounded-xl px-3 py-2 outline-none placeholder:text-zinc-600"
+                        />
+                        <button
+                          onClick={() => {
+                            addFloatingMessage(callMessageText);
+                            setCallMessageText("");
+                            setShowCallMessageInput(false);
+                          }}
+                          className="p-2 bg-[#0095f6] hover:bg-[#1a9bf0] text-white rounded-xl transition-colors active:scale-95 shrink-0"
+                        >
+                          <Send className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => setShowCallMessageInput(false)}
+                          className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-colors"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Call Controls circle buttons bar */}
-                  <div className="w-full shrink-0 px-4 pt-4 border-t border-zinc-800/40 flex items-center justify-around max-w-md mx-auto">
-                    {/* Control 1: Speaker */}
+                  <div className="w-full shrink-0 px-4 pt-4 border-t border-zinc-800/40 flex items-center justify-around max-w-md mx-auto z-10">
+                    {/* Control 1: Speaker Switch */}
                     <div className="flex flex-col items-center">
                       <button
-                        onClick={() => setIsSpeakerOn(!isSpeakerOn)}
+                        onClick={() => {
+                          const next = !isSpeakerOn;
+                          setIsSpeakerOn(next);
+                          toast({ description: `Switched to ${next ? "Speaker" : "Phone"}` });
+                        }}
                         className={`size-14 rounded-full flex items-center justify-center transition-colors active:scale-95 shadow-md ${
                           isSpeakerOn ? "bg-[#2a87d0] text-white" : "bg-[#1c2732] text-zinc-400 hover:text-white"
                         }`}
                       >
-                        {isSpeakerOn ? <Volume2 className="size-6" /> : <VolumeX className="size-6" />}
+                        {isSpeakerOn ? <Volume2 className="size-6 animate-fade-in" /> : <Phone className="size-6 animate-fade-in" />}
                       </button>
-                      <span className="text-[11px] text-zinc-400 mt-1.5 font-medium select-none">Speaker</span>
+                      <span className="text-[11px] text-zinc-400 mt-1.5 font-medium select-none capitalize">
+                        {isSpeakerOn ? "Speaker" : "Phone"}
+                      </span>
                     </div>
 
-                    {/* Control 2: Camera */}
+                    {/* Control 2: Camera Trigger Choice */}
                     <div className="flex flex-col items-center">
                       <button
-                        onClick={() => setIsCameraOn(!isCameraOn)}
+                        onClick={() => {
+                          if (isCameraOn) {
+                            setIsCameraOn(false);
+                            toast({ description: "Camera turned off" });
+                          } else {
+                            setShowCameraShareChoice(true);
+                          }
+                        }}
                         className={`size-14 rounded-full flex items-center justify-center transition-colors active:scale-95 shadow-md ${
                           isCameraOn ? "bg-[#2a87d0] text-white" : "bg-[#1c2732] text-zinc-400 hover:text-white"
                         }`}
@@ -4143,11 +4541,19 @@ export default function ChatChannel() {
                       </span>
                     </div>
 
-                    {/* Control 4: Message */}
+                    {/* Control 4: Message Inline chat overlay */}
                     <div className="flex flex-col items-center">
                       <button
-                        onClick={() => setIsVideoCallPiP(true)}
-                        className="size-14 rounded-full bg-[#1c2732] text-zinc-400 hover:text-white flex items-center justify-center transition-colors active:scale-95 shadow-md"
+                        onClick={() => {
+                          if (isCallMessagesDisabled) {
+                            toast({ description: "Messages are disabled in this call." });
+                          } else {
+                            setShowCallMessageInput(!showCallMessageInput);
+                          }
+                        }}
+                        className={`size-14 rounded-full flex items-center justify-center transition-colors active:scale-95 shadow-md ${
+                          showCallMessageInput ? "bg-[#2a87d0] text-white" : "bg-[#1c2732] text-zinc-400 hover:text-white"
+                        }`}
                       >
                         <MessageSquare className="size-6" />
                       </button>
@@ -4172,6 +4578,130 @@ export default function ChatChannel() {
               </div>
             )}
 
+            {/* Camera Sharing Choice Screen */}
+            {showCameraShareChoice && (
+              <motion.div
+                initial={{ opacity: 0, y: "20%" }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: "20%" }}
+                className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-[#184e68] via-[#103040] to-[#0b1c24] text-white p-6 justify-between select-none"
+              >
+                {/* Header Back Button */}
+                <div className="flex h-14 items-center shrink-0">
+                  <button
+                    onClick={() => setShowCameraShareChoice(false)}
+                    className="rounded-full p-2 hover:bg-white/10 text-white transition-colors"
+                  >
+                    <ArrowLeft className="size-6 text-white" />
+                  </button>
+                </div>
+
+                {/* Big Centered Visual Area */}
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4 text-center">
+                  {cameraShareType === "PHONE SCREEN" ? (
+                    <div className="flex flex-col items-center gap-6 max-w-sm">
+                      <div className="relative size-32 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center shadow-2xl">
+                        <svg className="size-16 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                          <line x1="12" y1="18" x2="12.01" y2="18" />
+                          <path d="M17 2H7v12h10V2z" />
+                          <path d="M12 18h.01" strokeWidth="3" />
+                        </svg>
+                        <div className="absolute -right-2 -bottom-2 size-12 bg-[#0095f6] rounded-full flex items-center justify-center shadow-lg border-2 border-[#103040]">
+                          <svg className="size-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <line x1="12" y1="19" x2="12" y2="5" />
+                            <polyline points="5 12 12 5 19 12" />
+                          </svg>
+                        </div>
+                      </div>
+                      <p className="text-[17px] font-bold text-white max-w-xs leading-normal">
+                        Everything on your screen, including notifications, will be shared.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="relative w-72 aspect-[3/4] bg-black/45 border border-white/15 rounded-[32px] overflow-hidden shadow-2xl flex items-center justify-center">
+                      {localStream ? (
+                        <video 
+                          ref={localVideoRef} 
+                          autoPlay 
+                          playsInline 
+                          muted 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-4 text-zinc-400 p-6 select-none">
+                          <UserAvatar avatarUrl={videoJoinAsPersonal ? loggedInUser.avatarUrl : undefined} size={80} className="size-20 rounded-full border border-white/10" />
+                          <span className="text-sm font-semibold">{cameraShareType === "FRONT CAMERA" ? "Front Camera Video Preview" : "Back Camera Video Preview"}</span>
+                          <span className="text-xs text-zinc-500">Camera preview starting...</span>
+                        </div>
+                      )}
+                      
+                      {/* Gradient tag overlay */}
+                      <div className="absolute bottom-4 left-4 right-4 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 text-xs text-zinc-300 flex items-center gap-2 select-none">
+                        <span className="size-2 rounded-full bg-[#00ff87] animate-ping" />
+                        <span className="capitalize">{cameraShareType.toLowerCase()} Preview</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Controls Area */}
+                <div className="w-full flex flex-col items-center gap-6 pb-6">
+                  {/* Share Video Gradient button + Mic toggle row */}
+                  <div className="w-full flex items-center justify-center gap-4 max-w-sm">
+                    {/* Microphone Circle Toggle */}
+                    <button
+                      onClick={() => setIsCallMuted(!isCallMuted)}
+                      className={`size-12 rounded-full flex items-center justify-center border transition-all active:scale-95 shadow-md ${
+                        !isCallMuted 
+                          ? "bg-[#0095f6] border-[#0095f6] text-white shadow-[#0095f6]/20" 
+                          : "bg-white/10 border-white/10 text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      {!isCallMuted ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+                    </button>
+
+                    {/* Gradient Share Video Button */}
+                    <button
+                      onClick={() => {
+                        setIsCameraOn(true);
+                        setShowCameraShareChoice(false);
+                      }}
+                      className="flex-1 py-3.5 bg-gradient-to-r from-[#00ff87] to-[#60efff] hover:brightness-110 active:scale-[0.99] transition-all rounded-2xl text-center text-zinc-950 font-extrabold text-[15px] shadow-lg shadow-[#00ff87]/15"
+                    >
+                      Share Video
+                    </button>
+                  </div>
+
+                  {/* Horizontal Scroll Selector tabs */}
+                  <div className="flex items-center gap-8 text-[12px] font-black tracking-widest uppercase py-2">
+                    {["PHONE SCREEN", "FRONT CAMERA", "BACK CAMERA"].map((type) => {
+                      const isSelected = cameraShareType === type;
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setCameraShareType(type as any)}
+                          className={`transition-all duration-200 relative py-1 ${
+                            isSelected 
+                              ? "text-white scale-105 font-black" 
+                              : "text-zinc-550 hover:text-zinc-300 font-semibold"
+                          }`}
+                        >
+                          <span>{type}</span>
+                          {isSelected && (
+                            <motion.div 
+                              layoutId="cameraChoiceTab" 
+                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full mt-1" 
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Floating Picture-in-Picture Call Window */}
             {isVideoCallPiP && showVideoCallSheet && (
               <motion.div
@@ -4185,19 +4715,48 @@ export default function ChatChannel() {
                 {/* PiP Header */}
                 <div className="flex items-center justify-between pointer-events-none">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider truncate max-w-[80px]">
-                    {displayName}
+                    {videoJoinAsPersonal ? (loggedInUser.displayName || loggedInUser.username) : displayName}
                   </span>
                   <span className="size-2 rounded-full bg-green-500 animate-pulse" />
                 </div>
 
                 {/* PiP Body: Avatar/Waveform */}
-                <div className="flex flex-col items-center justify-center flex-1 my-2">
-                  <div className="relative size-12 rounded-full bg-[#48bb78] flex items-center justify-center text-sm font-bold uppercase shadow-md mb-1.5 select-none">
-                    {(displayName || "G").slice(0, 2).toUpperCase()}
-                  </div>
-                  <span className="text-[10px] text-zinc-400">
-                    {isCallMuted ? "Muted" : "Active"}
-                  </span>
+                <div className="flex flex-col items-center justify-center flex-1 my-2 w-full h-full overflow-hidden rounded-xl relative">
+                  {isCameraOn ? (
+                    cameraShareType === "PHONE SCREEN" ? (
+                      <div className="w-full h-full bg-gradient-to-b from-[#184e68] via-[#103040] to-[#0b1c24] flex items-center justify-center">
+                        <svg className="size-6 text-white animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                          <path d="M17 2H7v12h10V2z" />
+                        </svg>
+                      </div>
+                    ) : localStream ? (
+                      <video 
+                        ref={localVideoRef} 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                        <UserAvatar avatarUrl={videoJoinAsPersonal ? loggedInUser.avatarUrl : undefined} size={28} className="size-7 rounded-full animate-pulse border border-white/10" />
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      {videoJoinAsPersonal ? (
+                        <UserAvatar avatarUrl={loggedInUser.avatarUrl} size={36} className="size-9 rounded-full border border-zinc-700 mb-1.5 select-none" />
+                      ) : (
+                        <div className="relative size-9 rounded-full bg-[#48bb78] flex items-center justify-center text-xs font-bold uppercase shadow-md mb-1.5 select-none border border-zinc-750">
+                          {(displayName || "G").slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-[10px] text-zinc-400">
+                        {isCallMuted ? "Muted" : "Active"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* PiP Action Toggles */}
