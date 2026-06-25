@@ -28,8 +28,16 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
   const [activeAlbum, setActiveAlbum] = useState<string>("Recent");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [galleryPermission, setGalleryPermission] = useState<"prompt" | "all" | "limited" | "denied">("limited");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAllowAll = () => {
+    setGalleryPermission("all");
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 100);
+  };
 
   // Load assets on mount (checks native bridge or session cache)
   useEffect(() => {
@@ -256,18 +264,34 @@ export default function GalleryPicker({ onClose, onSelectImages, onOpenCamera }:
         </button>
       </div>
 
-      {/* Partial Access / Managed Gallery Warning Banner */}
-      {galleryAssets.length > 0 && (
-        <div className="px-4 py-2.5 bg-[#0D0D0D] border-b border-[#1A1A1A] flex items-center justify-between text-xs text-zinc-400 select-none">
-          <span>Viewing selected files & folders</span>
+      {/* Limited Access Banner */}
+      {galleryPermission === "limited" ? (
+        <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between text-xs text-zinc-300 select-none animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <p className="text-left leading-tight pr-2">Next Social only has access to selected items. Folders may be incomplete.</p>
+          </div>
           <button 
             type="button" 
-            onClick={handleRequestMoreFiles} 
-            className="text-sky-500 hover:text-sky-400 font-bold transition-colors active:opacity-70"
+            onClick={handleAllowAll} 
+            className="bg-white text-black px-3 py-1.5 rounded-full font-medium hover:bg-zinc-200 transition text-[10px] shrink-0 active:scale-95"
           >
-            Manage Access
+            Allow All
           </button>
         </div>
+      ) : (
+        galleryAssets.length > 0 && (
+          <div className="px-4 py-2.5 bg-[#0D0D0D] border-b border-[#1A1A1A] flex items-center justify-between text-xs text-zinc-400 select-none">
+            <span>Viewing selected files & folders</span>
+            <button 
+              type="button" 
+              onClick={handleRequestMoreFiles} 
+              className="text-sky-500 hover:text-sky-400 font-bold transition-colors active:opacity-70"
+            >
+              Manage Access
+            </button>
+          </div>
+        )
       )}
 
       {/* 3-Column Image Grid */}

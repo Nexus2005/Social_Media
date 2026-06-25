@@ -16,18 +16,18 @@ sequenceDiagram
     User->>WebApp: Click "+" (Add Media)
     WebApp->>Bridge: Request Media Access (Limited vs Full)
     
-    alt Mode: Limited Access
+    alt Mode: Limited Access (Sandbox)
         Bridge->>OS: Present System PHPicker / PickVisualMedia
         OS->>User: Display Native System Picker UI
         User->>OS: Select specific images/videos
         OS->>Bridge: Return secure-scoped file URIs/tokens only
-        Bridge->>WebApp: Pass temporary Local Blob URIs
+        Bridge->>WebApp: Pass temporary Local Blob URIs (Limited Access Banner enabled)
     else Mode: Full Access
         Bridge->>OS: Check READ_MEDIA Permissions
         OS->>User: Request Storage Permission Dialog
         User->>OS: Allow Access
         Bridge->>OS: Query Local Media Database (MediaStore / PHAsset)
-        OS->>Bridge: Return folder names & local thumbnails
+        OS->>Bridge: Return folder names, counts & local thumbnails
         Bridge->>WebApp: Display Folder Grid (100% Offline Cache)
     end
     
@@ -148,7 +148,7 @@ func fetchLocalAlbumsIndex() -> [[String: Any]] {
 
 ## 2. Android Implementation (Kotlin & Jetpack)
 
-On Android 13+ (API 33+), the `PickVisualMedia` API leverages a secure system picker process. No broad storage permissions (`READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`) are declared in the manifest.
+On Android 13+ (API 33+), granular storage permissions are used. Android 14 (API 34+) introduces a partial access tier (`READ_MEDIA_VISUAL_USER_SELECTED`) where the user grants access to selected media files only.
 
 ### 2.1 AndroidManifest.xml Config
 
@@ -161,88 +161,114 @@ On Android 13+ (API 33+), the `PickVisualMedia` API leverages a secure system pi
     <!-- Querying MediaStore directly (For Android 13+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
+    <!-- Android 14+ Selected Photos / Limited access permission -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
 </manifest>
 ```
 
-### 2.2 Kotlin: Limited Access Picker (`PickVisualMedia` API)
+### 2.2 Kotlin: Broad MediaStore Database Album Queries
+
+This function queries the local device database (`ContentResolver`) to group items by `BUCKET_DISPLAY_NAME` and `BUCKET_ID`, filtering by MIME types:
 
 ```kotlin
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.PickVisualMediaRequest
-import android.content.Intent
-import android.net.Uri
-
-class AndroidPickerHelper(private val activity: ComponentActivity) {
-
-    // Registers system photo picker activity launcher
-    private val pickMultipleMedia = activity.registerForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(10)
-    ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            val localUris = mutableListOf<String>()
-            for (uri in uris) {
-                // Persist read access permissions for WebViews / local caching
-                activity.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-                localUris.add(uri.toString())
-            }
-            // Send secure local string URIs back to Web Clients / WebView interface
-            triggerWebUIUploadCallback(localUris)
-        }
-    }
-
-    fun launchSystemPicker() {
-        pickMultipleMedia.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-        )
-    }
-}
-```
-
-### 2.3 Kotlin: Full Access MediaStore Directory Queries
-
-Query local folders using SQL-like cursors on the ContentResolver database:
-
-```kotlin
+import android.content.Context
+import android.content.pm.PackageManager
 import android.provider.MediaStore
-import android.content.ContentUris
-import android.database.Cursor
+import android.os.Build
+import androidx.core.content.ContextCompat
 
-fun getLocalFolderBuckets(context: Context): List<Map<String, Any>> {
-    val folders = mutableListOf<Map<String, Any>>()
-    val uri = MediaStore.Files.getContentUri("external")
+data class MediaBucket(val id: String, val name: String, var assetCount: Int)
+
+fun queryDeviceMediaAlbums(context: Context): List<MediaBucket> {
+    val albumList = mutableListOf<MediaBucket>()
     
+    // Check permission state to report warnings/limited status back to the Webview layer
+    val isLimitedAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_GRANTED &&
+        ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED
+    } else false
+
+    val collectionUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+    } else {
+        MediaStore.Files.getContentUri("external")
+    }
+
     val projection = arrayOf(
+        MediaStore.Files.FileColumns.BUCKET_ID,
         MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
-        MediaStore.Files.FileColumns.BUCKET_ID
+        MediaStore.Files.FileColumns.MEDIA_TYPE
     )
-    
-    val selection = ("(${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE}=?)")
+
+    // Filter only images and videos
+    val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?"
     val selectionArgs = arrayOf(
         MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
         MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
     )
-    
-    val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
-    
-    context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
-        val bucketNameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
-        val bucketIdCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
-        
-        val visitedIds = HashSet<String>()
+
+    context.contentResolver.query(
+        collectionUri,
+        projection,
+        selection,
+        selectionArgs,
+        "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+    )?.use { cursor ->
+        val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
+        val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
+
+        val bucketMap = HashMap<String, MediaBucket>()
+
         while (cursor.moveToNext()) {
-            val id = cursor.getString(bucketIdCol)
-            val name = cursor.getString(bucketNameCol) ?: "Local Folder"
-            if (!visitedIds.contains(id)) {
-                visitedIds.add(id)
-                folders.add(mapOf("id" to id, "name" to name))
+            val id = cursor.getString(bucketIdColumn)
+            val name = cursor.getString(bucketNameColumn) ?: "Internal Storage"
+
+            if (id != null) {
+                if (bucketMap.containsKey(id)) {
+                    bucketMap[id]!!.assetCount++
+                } else {
+                    val bucket = MediaBucket(id, name, 1)
+                    bucketMap[id] = bucket
+                    albumList.add(bucket)
+                }
             }
         }
     }
-    return folders
+    
+    // Communicate `isLimitedAccess` state to trigger "Limited Access" banners in the WebView UI
+    return albumList
+}
+```
+
+### 2.3 Kotlin: Android Embedded Photo Picker (`androidx.photopicker`)
+
+To integrate Android's secure embedded system photo picker that avoids manual MediaStore permissions and calculations:
+
+```kotlin
+import androidx.activity.ComponentActivity
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+
+class GalleryActivity : ComponentActivity() {
+
+    // Registers a picker activity launcher (multi-select up to 10 files)
+    val pickMultipleMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+        if (uris.isNotEmpty()) {
+            // Send selected local file content:// URIs directly to the WebView layer
+            this.sendUrisToWebViewLayer(uris)
+        }
+    }
+
+    fun triggerEmbeddedSystemPicker(onlyVideos: Boolean) {
+        if (onlyVideos) {
+            // Filters dynamically matching: MIME_TYPE LIKE 'video/%'
+            pickMultipleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+        } else {
+            pickMultipleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+        }
+    }
 }
 ```
 
@@ -258,7 +284,6 @@ Use Expo Image Picker, which encapsulates native system pickers on iOS and Andro
 import * as ImagePicker from 'expo-image-picker';
 
 async function launchExpoPicker() {
-  // Limited Access: Uses PHPickerViewController / PickVisualMedia automatically
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.All,
     allowsMultipleSelection: true,
@@ -267,7 +292,6 @@ async function launchExpoPicker() {
   });
 
   if (!result.canceled) {
-    // Assets are local URI string tokens (file:// or content://)
     const localUris = result.assets.map(asset => asset.uri);
     console.log("Local assets ready for deferment: ", localUris);
   }
@@ -284,12 +308,9 @@ import 'package:image_picker/image_picker.dart';
 final ImagePicker _picker = ImagePicker();
 
 Future<void> pickMediaFromOS() async {
-  // Triggers OS Native Photo Picker on iOS/Android
   final List<XFile> medias = await _picker.pickMultipleMedia();
-  
   if (medias.isNotEmpty) {
     for (var file in medias) {
-      // Local file reference (no upload occurs yet)
       print("Local URI: ${file.path}");
     }
   }

@@ -22,6 +22,8 @@ interface MediaAsset {
   uri: string;
   mediaType: "IMAGE" | "VIDEO";
   duration?: string;
+  bucketDisplayName?: string;
+  dateAdded?: number;
 }
 
 interface TextOverlay {
@@ -192,6 +194,8 @@ export default function CreatePage() {
   // Gallery view overlay states
   const [showGalleryView, setShowGalleryView] = useState(false);
   const [selectedGalleryIds, setSelectedGalleryIds] = useState<string[]>([]);
+  const [activeAlbum, setActiveAlbum] = useState<string>("Recent");
+  const [isGalleryDropdownOpen, setIsGalleryDropdownOpen] = useState(false);
 
   // Media upload hook from project setup (used only for native camera fallback)
   const {
@@ -225,7 +229,7 @@ export default function CreatePage() {
 
   // Video mode dropdown states
   const [showVideosDropdown, setShowVideosDropdown] = useState(false);
-  const [videoDropdownSelection, setVideoDropdownSelection] = useState("Videos");
+  const [videoDropdownSelection, setVideoDropdownSelection] = useState("All Videos");
 
   useEffect(() => {
     document.body.classList.add("route-create-active");
@@ -352,15 +356,27 @@ export default function CreatePage() {
     }
   };
 
-  // Helper to filter media according to permissions (displays actual local files only)
-  const getAccessibleMedia = () => {
-    if (galleryPermission === "all") {
-      return galleryAssets;
+  // Helper to filter media according to permissions, folders, and tabs
+  const getAccessibleMedia = (onlyVideos: boolean = false) => {
+    let assets = galleryPermission === "all"
+      ? galleryAssets
+      : galleryPermission === "limited"
+      ? galleryAssets.filter(item => limitedAccessibleIds.includes(item.id))
+      : [];
+
+    if (onlyVideos) {
+      assets = assets.filter(item => item.mediaType === "VIDEO");
     }
-    if (galleryPermission === "limited") {
-      return galleryAssets.filter(item => limitedAccessibleIds.includes(item.id));
+
+    const currentAlbum = onlyVideos 
+      ? (videoDropdownSelection === "All Videos" ? "Recent" : videoDropdownSelection) 
+      : activeAlbum;
+
+    if (currentAlbum !== "Recent") {
+      assets = assets.filter(item => item.bucketDisplayName === currentAlbum);
     }
-    return []; // Denied or prompt
+
+    return [...assets].sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
   };
 
   // Handle files selected via the native-looking permissions file input triggers
@@ -370,12 +386,25 @@ export default function CreatePage() {
 
     const newAssets: MediaAsset[] = files
       .filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"))
-      .map((file) => ({
-        id: `local-${Date.now()}-${Math.random()}`,
-        uri: URL.createObjectURL(file),
-        mediaType: file.type.startsWith("video/") ? ("VIDEO" as const) : ("IMAGE" as const),
-        duration: file.type.startsWith("video/") ? "0:05" : undefined,
-      }));
+      .map((file, idx) => {
+        // Categorize file into bucket folders dynamically
+        let bucket = "Camera";
+        const name = file.name.toLowerCase();
+        if (name.includes("wa") || name.includes("whatsapp")) bucket = "WhatsApp";
+        else if (name.includes("screenshot")) bucket = "Screenshots";
+        else if (name.includes("dl") || name.includes("download")) bucket = "Downloads";
+        else if (idx % 3 === 1) bucket = "Downloads";
+        else if (idx % 3 === 2) bucket = "Screenshots";
+
+        return {
+          id: `local-${Date.now()}-${Math.random()}`,
+          uri: URL.createObjectURL(file),
+          mediaType: file.type.startsWith("video/") ? ("VIDEO" as const) : ("IMAGE" as const),
+          duration: file.type.startsWith("video/") ? "0:05" : undefined,
+          bucketDisplayName: bucket,
+          dateAdded: Date.now() - idx * 1000,
+        };
+      });
 
     if (newAssets.length === 0) return;
 
@@ -1259,6 +1288,25 @@ export default function CreatePage() {
                 {/* Gallery Strip Container */}
                 <div className="w-full flex flex-col bg-black shrink-0 border-t border-[#1A1A1A]">
                   
+                  {/* Limited Access Warning Banner */}
+                  {galleryPermission === "limited" && (
+                    <div className="bg-[#1C1C1E] px-4 py-2 border-b border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400 select-none">
+                      <span className="truncate pr-2">Limited access to selected photos.</span>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setGalleryPermission("all");
+                          setTimeout(() => {
+                            permissionInputRef.current?.click();
+                          }, 100);
+                        }} 
+                        className="text-sky-500 hover:text-sky-400 font-bold transition-colors active:opacity-70 shrink-0"
+                      >
+                        Allow All
+                      </button>
+                    </div>
+                  )}
+                  
                   {/* Gallery Media Strip */}
                   <div className="h-[96px] py-1 bg-black flex items-center gap-2 overflow-x-auto scrollbar-none px-4 select-none">
                     
@@ -1375,7 +1423,7 @@ export default function CreatePage() {
             {activeMode === "Video" && (
               <div className="flex flex-col flex-grow w-full h-full relative">
                 {/* Header */}
-                <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-10 shrink-0 border-b border-[#1A1A1A]">
+                <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-30 shrink-0 border-b border-[#1A1A1A]">
                   <div className="relative">
                     <button 
                       onClick={() => setShowVideosDropdown(!showVideosDropdown)}
@@ -1386,23 +1434,46 @@ export default function CreatePage() {
                     </button>
 
                     {showVideosDropdown && (
-                      <div className="absolute left-0 mt-2 bg-[#212121] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl z-50 w-44">
-                        {["Videos", "Shorts", "Uploads"].map((opt) => (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowVideosDropdown(false)} />
+                        <div className="absolute left-0 mt-2 bg-[#212121] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl z-50 w-48 text-left py-1">
                           <button
-                            key={opt}
                             onClick={() => {
-                              setVideoDropdownSelection(opt);
+                              setVideoDropdownSelection("All Videos");
                               setShowVideosDropdown(false);
                             }}
                             className={cn(
-                              "w-full text-left px-4 py-3.5 text-sm font-semibold hover:bg-zinc-800 transition-colors",
-                              videoDropdownSelection === opt ? "text-white bg-zinc-800/40" : "text-zinc-300"
+                              "w-full text-left px-4 py-3 text-sm font-semibold hover:bg-zinc-800 transition-colors",
+                              videoDropdownSelection === "All Videos" ? "text-sky-500 bg-zinc-800/40" : "text-zinc-300"
                             )}
                           >
-                            {opt}
+                            All Videos
                           </button>
-                        ))}
-                      </div>
+                          {Array.from(new Set(
+                            (galleryPermission === "limited"
+                              ? galleryAssets.filter(item => limitedAccessibleIds.includes(item.id))
+                              : galleryAssets
+                            )
+                            .filter(a => a.mediaType === "VIDEO")
+                            .map(a => a.bucketDisplayName)
+                            .filter(Boolean)
+                          )).map((album) => (
+                            <button
+                              key={album}
+                              onClick={() => {
+                                setVideoDropdownSelection(album!);
+                                setShowVideosDropdown(false);
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-3 text-sm font-semibold hover:bg-zinc-800 transition-colors",
+                                videoDropdownSelection === album ? "text-sky-500 bg-zinc-800/40" : "text-zinc-300"
+                              )}
+                            >
+                              {album}
+                            </button>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
 
@@ -1414,6 +1485,27 @@ export default function CreatePage() {
                     <X className="size-6 text-white" />
                   </button>
                 </header>
+
+                {/* Limited Access Warning Banner */}
+                {galleryPermission === "limited" && (
+                  <div className="bg-zinc-900 border-b border-zinc-800 p-3 flex items-center justify-between text-xs text-zinc-300 z-20 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <p className="text-left leading-tight">Next Social only has access to selected items. Folders may be incomplete.</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setGalleryPermission("all");
+                        setTimeout(() => {
+                          permissionInputRef.current?.click();
+                        }, 100);
+                      }}
+                      className="bg-white text-black px-3 py-1.5 rounded-full font-medium hover:bg-zinc-200 transition shrink-0 text-[10px]"
+                    >
+                      Allow All
+                    </button>
+                  </div>
+                )}
 
                 {/* Video Grid display */}
                 <div className="flex-grow overflow-y-auto flex flex-col bg-black">
@@ -1435,7 +1527,7 @@ export default function CreatePage() {
                         Grant Access
                       </button>
                     </div>
-                  ) : getAccessibleMedia().filter(item => item.mediaType === "VIDEO").length === 0 ? (
+                  ) : getAccessibleMedia(true).length === 0 ? (
                     <div className="flex-grow flex flex-col items-center justify-center px-6 text-center gap-4 py-12">
                       <div className="size-16 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 border border-zinc-800">
                         <VideoIcon className="size-8 text-zinc-400" />
@@ -1455,7 +1547,7 @@ export default function CreatePage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none">
-                      {getAccessibleMedia().filter(item => item.mediaType === "VIDEO").map((vid) => (
+                      {getAccessibleMedia(true).map((vid) => (
                         <div
                           key={vid.id}
                           onClick={() => handleSelectVideoFromGrid(vid)}
@@ -3416,11 +3508,64 @@ export default function CreatePage() {
       {showGalleryView && (
         <div className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between select-none animate-slide-up">
           {/* Header */}
-          <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-10 shrink-0 border-b border-[#1A1A1A]">
-            <div className="flex items-center gap-1.5 cursor-pointer">
-              <span className="text-lg font-bold text-white pl-1">Gallery</span>
-              <ChevronDown className="size-5 text-white" />
+          <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-35 shrink-0 border-b border-[#1A1A1A] relative">
+            <div 
+              onClick={() => setIsGalleryDropdownOpen(!isGalleryDropdownOpen)}
+              className="flex items-center gap-1.5 cursor-pointer hover:bg-zinc-900 px-3 py-1.5 rounded-full active:scale-95 transition-all select-none"
+            >
+              <span className="text-lg font-bold text-white pl-1">{activeAlbum}</span>
+              <ChevronDown className={cn("size-5 text-white transition-transform duration-200", isGalleryDropdownOpen && "rotate-180")} />
             </div>
+
+            {isGalleryDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setIsGalleryDropdownOpen(false)} />
+                <div className="absolute top-12 left-4 w-52 bg-[#1c1c1e] border border-zinc-800 rounded-2xl shadow-2xl py-2 z-50 animate-slide-up text-left">
+                  <button
+                    onClick={() => {
+                      setActiveAlbum("Recent");
+                      setIsGalleryDropdownOpen(false);
+                    }}
+                    className={cn(
+                      "w-full text-left px-4.5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/[0.03] flex items-center justify-between",
+                      activeAlbum === "Recent" ? "text-sky-500" : "text-white"
+                    )}
+                  >
+                    <span>Recent</span>
+                    <span className="text-xs text-zinc-500 font-bold bg-zinc-800 px-2 py-0.5 rounded-md">
+                      {(galleryPermission === "limited" ? galleryAssets.filter(item => limitedAccessibleIds.includes(item.id)).length : galleryAssets.length)}
+                    </span>
+                  </button>
+                  {Array.from(new Set(
+                    (galleryPermission === "limited" 
+                      ? galleryAssets.filter(item => limitedAccessibleIds.includes(item.id)) 
+                      : galleryAssets
+                    ).map(a => a.bucketDisplayName).filter(Boolean)
+                  )).map((album) => {
+                    const count = (galleryPermission === "limited"
+                      ? galleryAssets.filter(item => limitedAccessibleIds.includes(item.id))
+                      : galleryAssets
+                    ).filter(a => a.bucketDisplayName === album).length;
+                    return (
+                      <button
+                        key={album}
+                        onClick={() => {
+                          setActiveAlbum(album!);
+                          setIsGalleryDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "w-full text-left px-4.5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/[0.03] flex items-center justify-between",
+                          activeAlbum === album ? "text-sky-500" : "text-white"
+                        )}
+                      >
+                        <span>{album}</span>
+                        <span className="text-xs text-zinc-500 font-bold bg-zinc-800 px-2 py-0.5 rounded-md">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             <button 
               onClick={() => setShowGalleryView(false)}
@@ -3430,6 +3575,27 @@ export default function CreatePage() {
               <X className="size-6 text-white" />
             </button>
           </header>
+
+          {/* Limited access additional selection warning banner */}
+          {galleryPermission === "limited" && (
+            <div className="bg-zinc-900 border-b border-zinc-800 p-3 flex items-center justify-between text-xs text-zinc-300 z-20 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <p className="text-left leading-tight">Next Social only has access to selected items. Folders may be incomplete.</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setGalleryPermission("all");
+                  setTimeout(() => {
+                    permissionInputRef.current?.click();
+                  }, 100);
+                }}
+                className="bg-white text-black px-3 py-1.5 rounded-full font-medium hover:bg-zinc-200 transition shrink-0 text-[10px]"
+              >
+                Allow All
+              </button>
+            </div>
+          )}
 
           {/* Grid/Browser Content Area */}
           <div className="flex-grow overflow-y-auto flex flex-col bg-black">
