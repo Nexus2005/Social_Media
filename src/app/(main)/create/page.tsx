@@ -1068,7 +1068,7 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-black flex flex-col justify-between select-none relative">
+    <div className="min-h-screen w-full bg-[#121212] flex flex-col justify-between select-none relative">
       {/* Inject styling overrides to remove layout sidebars/padding constraints */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Cinzel:wght@700&family=Fira+Code:wght@700&family=Outfit:wght@800&display=swap');
@@ -1142,7 +1142,7 @@ export default function CreatePage() {
       />
 
       {/* Main Composer Area */}
-      <div className="flex flex-col flex-grow w-full max-w-[600px] mx-auto bg-black text-white relative">
+      <div className="flex flex-col flex-grow w-full max-w-[600px] mx-auto bg-[#121212] text-white relative">
         
         {/* ==================== WIZARD STEP 1: COMPOSER ==================== */}
         {creatorStep === "composer" && (
@@ -1158,7 +1158,7 @@ export default function CreatePage() {
             {activeMode === "Video" && (
               <div className="flex flex-col flex-grow w-full h-full relative">
                 {/* Header */}
-                <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-30 shrink-0 border-b border-[#1A1A1A]">
+                <header className="h-14 flex items-center justify-between px-4 bg-[#121212] select-none z-30 shrink-0 border-b border-[#262626]">
                   <div className="relative">
                     <button 
                       onClick={() => setShowVideosDropdown(!showVideosDropdown)}
@@ -1243,7 +1243,7 @@ export default function CreatePage() {
                 )}
 
                 {/* Video Grid display */}
-                <div className="flex-grow overflow-y-auto flex flex-col bg-black">
+                <div className="flex-grow overflow-y-auto flex flex-col bg-[#121212]">
                   {galleryPermission === "denied" || galleryPermission === "prompt" ? (
                     <div className="flex-grow flex flex-col items-center justify-center px-6 text-center gap-4 py-12">
                       <div className="size-16 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 border border-zinc-800">
@@ -1307,7 +1307,7 @@ export default function CreatePage() {
 
             {/* 1.3 SHORT MODE */}
             {activeMode === "Short" && (
-              <div className="flex flex-col flex-grow w-full h-full relative overflow-hidden bg-black">
+              <div className="flex flex-col flex-grow w-full h-full relative overflow-hidden bg-[#121212]">
                 <div className="absolute inset-0 z-0">
                   <video
                     ref={videoRef}
@@ -1442,7 +1442,7 @@ export default function CreatePage() {
 
             {/* 1.4 LIVE MODE */}
             {activeMode === "Live" && (
-              <div className="flex flex-col flex-grow w-full h-full relative overflow-hidden bg-black">
+              <div className="flex flex-col flex-grow w-full h-full relative overflow-hidden bg-[#121212]">
                 <div className="absolute inset-0 z-0">
                   <video
                     ref={videoRef}
@@ -1588,7 +1588,7 @@ export default function CreatePage() {
             )}
 
             {/* Bottom Switcher */}
-            <div className="h-16 flex items-center justify-center gap-6 bg-black border-t border-[#1A1A1A] px-4 select-none shrink-0 z-30">
+            <div className="h-16 flex items-center justify-center gap-6 bg-[#121212] border-t border-[#262626] px-4 select-none shrink-0 z-30">
               {modes.map((m) => {
                 const isActive = activeMode === m;
                 return (
@@ -1618,9 +1618,9 @@ export default function CreatePage() {
 
         {/* ==================== WIZARD STEP 2: VIDEO/PHOTO TRIMMER (Image 2) ==================== */}
         {creatorStep === "trimmer" && selectedAsset && (
-          <div className="flex flex-col flex-grow w-full h-full bg-black relative select-none">
+          <div className="flex flex-col flex-grow w-full h-full bg-[#121212] relative select-none">
             {/* Header */}
-            <header className="h-14 flex items-center justify-between px-4 bg-black select-none shrink-0 z-20">
+            <header className="h-14 flex items-center justify-between px-4 bg-[#121212] select-none shrink-0 z-20">
               <button
                 onClick={() => {
                   setCreatorStep("composer");
@@ -1648,7 +1648,7 @@ export default function CreatePage() {
             </header>
 
             {/* Asset Preview Frame */}
-            <div className="flex-1 flex items-center justify-center bg-black px-4 relative overflow-hidden">
+            <div className="flex-1 flex items-center justify-center bg-[#121212] px-4 relative overflow-hidden">
               <div className="w-full max-w-[360px] aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-900 relative shadow-2xl">
                 {selectedAsset.mediaType === "VIDEO" ? (
                   <video
@@ -1670,7 +1670,7 @@ export default function CreatePage() {
             </div>
 
             {/* Trimming Control Panel */}
-            <div className="bg-black px-4 pb-6 flex flex-col gap-5.5 select-none z-10 shrink-0">
+            <div className="bg-[#121212] px-4 pb-6 flex flex-col gap-5.5 select-none z-10 shrink-0">
               
               {/* Timeline Container */}
               <div className="relative w-full flex flex-col gap-2">
@@ -1738,7 +1738,7 @@ export default function CreatePage() {
 
         {/* ==================== WIZARD STEP 3: SHORT EDITING COMPOSER (Image 1) ==================== */}
         {creatorStep === "shortEditor" && selectedAsset && (
-          <div className="flex flex-col flex-grow w-full h-full bg-black relative select-none">
+          <div className="flex flex-col flex-grow w-full h-full bg-[#121212] relative select-none">
             
             {/* Main Preview with Swipe-up gestures */}
             <div 
@@ -2052,7 +2052,7 @@ export default function CreatePage() {
             </div>
 
             {/* Bottom Action buttons (YouTube Short style matching) */}
-            <div className="absolute inset-x-0 bottom-0 z-20 min-h-[80px] px-6 pb-safe pt-2 flex items-center justify-between border-t border-zinc-900/60 bg-black/90 backdrop-blur-md shrink-0">
+            <div className="absolute inset-x-0 bottom-0 z-20 min-h-[80px] px-6 pb-safe pt-2 flex items-center justify-between border-t border-zinc-900/60 bg-[#121212]/90 backdrop-blur-md shrink-0">
               <button
                 onClick={() => setCreatorStep("timelineEditor")}
                 className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all border border-white/5 shadow-md active:scale-95 select-none"
@@ -2110,7 +2110,7 @@ export default function CreatePage() {
             </header>
 
             {/* Asset Preview Container */}
-            <div className="flex-1 flex items-center justify-center bg-[#0e0e0e] px-4 py-3 relative overflow-hidden">
+            <div className="flex-1 flex items-center justify-center bg-[#121212] px-4 py-3 relative overflow-hidden">
               <div className="w-full max-w-[280px] aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800/80 relative shadow-2xl">
                 {selectedAsset.mediaType === "VIDEO" ? (
                   <video
@@ -2779,9 +2779,9 @@ export default function CreatePage() {
 
         {/* ==================== WIZARD STEP 5: ADD DETAILS SCREEN (Image 2 & 3) ==================== */}
         {creatorStep === "addDetails" && selectedAsset && (
-          <div className="flex flex-col flex-grow w-full h-full bg-[#0F0F0F] text-white relative select-none overflow-y-auto">
+          <div className="flex flex-col flex-grow w-full h-full bg-[#121212] text-white relative select-none overflow-y-auto">
             {/* Header */}
-            <header className="h-14 flex items-center justify-between px-4 bg-[#0F0F0F] select-none shrink-0 sticky top-0 z-30 border-b border-zinc-800/80">
+            <header className="h-14 flex items-center justify-between px-4 bg-[#121212] select-none shrink-0 sticky top-0 z-30 border-b border-[#262626]">
               <button
                 onClick={() => setCreatorStep("shortEditor")}
                 className="p-2 hover:bg-zinc-800 rounded-full flex items-center justify-center transition-colors"
@@ -3080,7 +3080,7 @@ export default function CreatePage() {
             </div>
 
             {/* Footer fixed action buttons */}
-            <div className="absolute inset-x-0 bottom-0 z-30 bg-[#0F0F0F] border-t border-zinc-800/80 px-4 py-3 pb-safe flex items-center gap-3 justify-between shrink-0">
+            <div className="absolute inset-x-0 bottom-0 z-30 bg-[#121212] border-t border-zinc-800/80 px-4 py-3 pb-safe flex items-center gap-3 justify-between shrink-0">
               <button
                 onClick={() => {
                   toast({
@@ -3241,9 +3241,9 @@ export default function CreatePage() {
 
       {/* 3. Full-page Gallery Browser View Overlay (Image 1) */}
       {showGalleryView && (
-        <div className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between select-none animate-slide-up">
+        <div className="fixed inset-0 bg-[#121212] z-[9990] flex flex-col justify-between select-none animate-slide-up">
           {/* Header */}
-          <header className="h-14 flex items-center justify-between px-4 bg-black select-none z-35 shrink-0 border-b border-[#1A1A1A] relative">
+          <header className="h-14 flex items-center justify-between px-4 bg-[#121212] select-none z-35 shrink-0 border-b border-[#262626] relative">
             <div 
               onClick={() => setIsGalleryDropdownOpen(!isGalleryDropdownOpen)}
               className="flex items-center gap-1.5 cursor-pointer hover:bg-zinc-900 px-3 py-1.5 rounded-full active:scale-95 transition-all select-none"
@@ -3333,7 +3333,7 @@ export default function CreatePage() {
           )}
 
           {/* Grid/Browser Content Area */}
-          <div className="flex-grow overflow-y-auto flex flex-col bg-black">
+          <div className="flex-grow overflow-y-auto flex flex-col bg-[#121212]">
             
             {/* Quick Actions Row */}
             {galleryPermission !== "denied" && (
@@ -3399,7 +3399,7 @@ export default function CreatePage() {
                 </button>
               </div>
             ) : (
-              <div className="flex-grow grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none bg-black">
+              <div className="flex-grow grid grid-cols-3 gap-0.5 p-0.5 scrollbar-none bg-[#121212]">
                 {getAccessibleMedia().map((item) => {
                   const isSelected = selectedGalleryIds.includes(item.id);
                   return (
@@ -3443,7 +3443,7 @@ export default function CreatePage() {
 
           {/* Bottom Actions Row */}
           {galleryPermission !== "denied" && (
-            <div className="h-18 px-4 flex items-center justify-between border-t border-[#1A1A1A] bg-black shrink-0">
+            <div className="h-18 px-4 flex items-center justify-between border-t border-[#262626] bg-[#121212] shrink-0">
               <button
                 onClick={() => toast({ description: "AI editing features coming soon!" })}
                 className="bg-[#272727] hover:bg-[#3e3e3e] text-white font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-1.5 transition-colors"

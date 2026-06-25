@@ -992,8 +992,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
     switch (activePanel) {
       case "gif":
         return (
-          <div className="flex flex-col h-full bg-black text-white">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-[#121212] text-white">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0">
               <button 
                 onClick={() => setActivePanel("none")} 
                 className="p-2 hover:bg-[#121212] rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -1015,8 +1015,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "location":
         return (
-          <div className="flex flex-col h-full bg-black text-white">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-[#121212] text-white">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setActivePanel("none")} 
@@ -1036,7 +1036,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
               )}
             </div>
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
-              <div className="relative flex items-center border-b border-[#27272A]">
+              <div className="relative flex items-center border-b border-[#262626]">
                 <input
                   type="text"
                   placeholder="Search for a city or place..."
@@ -1083,7 +1083,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                           await provider.saveRecentLocation(loc);
                           setActivePanel("none");
                         }}
-                        className="w-full text-left p-3 hover:bg-[#121212] rounded-xl flex flex-col gap-0.5 border-b border-[#27272A]/40 transition-colors"
+                        className="w-full text-left p-3 hover:bg-[#1c1c1e] rounded-xl flex flex-col gap-0.5 border-b border-[#262626]/40 transition-colors"
                       >
                         <span className="text-[15px] font-bold text-white">{loc.name}</span>
                         {loc.description && (
@@ -1107,7 +1107,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                             await provider.saveRecentLocation(loc);
                             setActivePanel("none");
                           }}
-                          className="w-full text-left p-3 hover:bg-[#121212] rounded-xl flex items-center gap-3 border-b border-[#27272A]/40 transition-colors"
+                          className="w-full text-left p-3 hover:bg-[#1c1c1e] rounded-xl flex items-center gap-3 border-b border-[#262626]/40 transition-colors"
                         >
                           <IconLocation size={16} className="text-[#A1A1AA]" />
                           <span className="text-[15px] font-semibold text-white">{loc.name}</span>
@@ -1122,7 +1122,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "audience":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex justify-between items-center border-b border-[#27272A] pb-3">
               <div className="flex items-center gap-3">
                 <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
@@ -1144,7 +1144,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                   onClick={() => setAudience(opt.id)}
                   className={cn(
                     "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all",
-                    audience === opt.id ? "bg-[#121212] border-white" : "bg-black border-[#27272A] hover:border-zinc-800"
+                    audience === opt.id ? "bg-[#1c1c1e] border-white" : "bg-[#121212] border-[#262626] hover:border-zinc-800"
                   )}
                 >
                   <div className="flex items-center gap-3.5">
@@ -1167,7 +1167,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "schedule":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
                 <IconBack />
@@ -1221,7 +1221,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "collab":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
                 <IconBack />
@@ -1287,7 +1287,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "settings":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
                 <IconBack />
@@ -1334,7 +1334,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "alt-text":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
                 <IconBack />
@@ -1369,8 +1369,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
       case "media-edit":
         if (!activeFile) return null;
         return (
-          <div className="flex flex-col h-full bg-black text-white">
-            <div className="flex justify-between items-center px-4 py-3 border-b border-[#27272A] bg-black flex-shrink-0">
+          <div className="flex flex-col h-full bg-[#121212] text-white">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
                 <IconBack />
               </button>
@@ -1378,7 +1378,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
               <button onClick={() => setActivePanel("none")} className="bg-white text-black font-bold rounded-full px-4 py-1 text-xs">Done</button>
             </div>
 
-            <div className="bg-black p-4 space-y-4 flex-1 flex flex-col justify-between overflow-y-auto">
+            <div className="bg-[#121212] p-4 space-y-4 flex-1 flex flex-col justify-between overflow-y-auto">
               <div className="flex bg-[#121212] p-1 rounded-xl text-xs font-semibold gap-1 flex-shrink-0">
                 {(["filters", "adjustments", "cover"] as const).map((tab) => (
                   <button
@@ -1463,7 +1463,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "more":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex items-center gap-3 border-b border-[#27272A] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#121212] rounded-full">
                 <IconBack />
@@ -1737,7 +1737,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         );
       case "ai":
         return (
-          <div className="flex flex-col h-full bg-black text-white p-4 space-y-4">
+          <div className="flex flex-col h-full bg-[#121212] text-white p-4 space-y-4">
             <div className="flex items-center gap-3 border-b border-[#1A1A1A] pb-3">
               <button onClick={() => setActivePanel("none")} className="p-2 hover:bg-[#111111] rounded-full">
                 <ArrowLeft className="size-5" strokeWidth={1.75} />
@@ -1919,7 +1919,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
     return (
       <div 
         ref={containerRef}
-        className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
+        className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0 w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:min-h-0 flex flex-col bg-[#121212] text-white border-none sm:border border-[#262626] sm:rounded-3xl overflow-hidden select-none font-sans"
       >
         {(isProcessingAndSubmitting || mutation.isPending) && (
           <div className="absolute inset-0 bg-[#000000]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 text-white">
@@ -1937,7 +1937,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
       ref={containerRef}
       className={cn(
         className ? className : "fixed inset-0 z-40 sm:relative sm:inset-auto sm:z-0",
-        "w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:min-h-0 flex flex-col bg-black text-white border-none sm:border border-[#1A1A1A] sm:rounded-3xl overflow-hidden select-none font-sans"
+        "w-full h-[100dvh] max-h-[100dvh] min-h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:min-h-0 flex flex-col bg-[#121212] text-white border-none sm:border border-[#262626] sm:rounded-3xl overflow-hidden select-none font-sans"
       )}
     >
       <input 
@@ -1964,7 +1964,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
 
       {/* Main Composer View */}
       {/* Header Row */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A1A1A] bg-black flex-shrink-0 select-none">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#262626] bg-[#121212] flex-shrink-0 select-none">
         <button 
           type="button" 
           onClick={handleCloseAttempt} 
@@ -1986,17 +1986,17 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
 
       {/* Draft recovery banner if stored */}
       {showDraftBanner && (
-        <div className="flex items-center justify-between bg-[#0A0A0A] px-4 py-2 border-b border-[#1A1A1A] flex-shrink-0 animate-fade-in">
+        <div className="flex items-center justify-between bg-[#1c1c1e] px-4 py-2 border-b border-[#262626] flex-shrink-0 animate-fade-in">
           <span className="text-[13px] text-[#A1A1AA] font-semibold">Unsaved draft available</span>
           <div className="flex gap-2">
             <button onClick={handleDiscardDraft} className="text-xs text-zinc-500 hover:text-white px-2 py-1 font-bold">Discard</button>
-            <button onClick={handleResumeDraft} className="text-xs text-white hover:opacity-85 px-3 py-1 bg-[#111111] border border-[#1A1A1A] rounded-full font-bold">Resume</button>
+            <button onClick={handleResumeDraft} className="text-xs text-white hover:opacity-85 px-3 py-1 bg-[#121212] border border-[#262626] rounded-full font-bold">Resume</button>
           </div>
         </div>
       )}
 
       {/* Scrolling Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-black scrollbar-none select-text">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-[#121212] scrollbar-none select-text">
         {/* Side-by-Side Avatar + Textarea Layout */}
         <div className="flex gap-3 items-start w-full">
           <UserAvatar avatarUrl={user.avatarUrl} size={40} className="size-10 rounded-full bg-black border border-[#1A1A1A] shrink-0 select-none" />
@@ -2027,7 +2027,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         {/* Selected Location Indicator */}
         {selectedLocation && (
           <div className="pl-[52px] flex justify-start select-none">
-            <span className="flex items-center gap-2 text-xs bg-[#0A0A0A] border border-[#1A1A1A] text-white rounded-full py-1.5 px-3">
+            <span className="flex items-center gap-2 text-xs bg-[#1c1c1e] border border-[#262626] text-white rounded-full py-1.5 px-3">
               <span>📍 {selectedLocation.name}</span>
               <button 
                 onClick={() => setSelectedLocation(null)}
@@ -2041,7 +2041,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
 
         {/* Poll Inputs */}
         {postType === "poll" && (
-          <div className="relative ml-[52px] space-y-4 pt-2.5 max-w-[460px] animate-slide-up select-none bg-black border border-zinc-800 p-4.5 rounded-2xl">
+          <div className="relative ml-[52px] space-y-4 pt-2.5 max-w-[460px] animate-slide-up select-none bg-[#1c1c1e] border border-[#262626] p-4.5 rounded-2xl">
             {/* Remove Poll Close Button */}
             <button
               type="button"
@@ -2146,7 +2146,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
       </div>
 
       {/* Pinned Bottom Area (stays above bottom toolbar, outside the scrollable view) */}
-      <div className="flex flex-col bg-black border-t border-zinc-900 pb-3 pt-2 gap-3 flex-shrink-0 select-none">
+      <div className="flex flex-col bg-[#121212] border-t border-[#262626] pb-3 pt-2 gap-3 flex-shrink-0 select-none">
         {/* Media Preview Row (Horizontal scroll) */}
         <div className="pl-4 sm:pl-[52px] w-full">
           <div className="flex gap-3 overflow-x-auto py-1 scrollbar-none items-center">
@@ -2232,7 +2232,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
       </div>
 
       {/* Sticky Action Toolbar */}
-      <div className="sticky bottom-0 bg-black border-t border-zinc-900 px-4 py-2 flex justify-between items-center flex-shrink-0 z-30 pointer-events-auto select-none">
+      <div className="sticky bottom-0 bg-[#121212] border-t border-[#262626] px-4 py-2 flex justify-between items-center flex-shrink-0 z-30 pointer-events-auto select-none">
         <div className="flex items-center justify-between w-full">
           {/* Left Side Toolbar Icons */}
           <div className="flex items-center gap-1">
@@ -2354,8 +2354,8 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
 
       {/* Draft Recovery close confirmation sheet */}
       {activePanel === "draft-recovery" && (
-        <div className="absolute inset-0 bg-black/85 z-[120] flex flex-col justify-end pointer-events-auto select-none">
-          <div className="bg-[#0A0A0A] rounded-t-3xl p-6 space-y-4 text-center border-t border-[#1A1A1A] animate-slide-up w-full max-w-[680px] mx-auto">
+        <div className="absolute inset-0 bg-[#121212]/85 z-[120] flex flex-col justify-end pointer-events-auto select-none">
+          <div className="bg-[#1c1c1e] rounded-t-3xl p-6 space-y-4 text-center border-t border-[#262626] animate-slide-up w-full max-w-[680px] mx-auto">
             <h4 className="font-bold text-lg text-white">Save draft?</h4>
             <p className="text-sm text-[#A1A1AA]">You can save this post as a draft and finish it later, or discard it now.</p>
             <div className="flex flex-col gap-2 pt-2">
@@ -2389,7 +2389,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
           onClick={() => setActivePanel("none")}
         >
           <div 
-            className="bg-[#0A0A0A] rounded-t-3xl border-t border-[#1A1A1A] animate-slide-up w-full max-w-[680px] mx-auto overflow-hidden pb-6"
+            className="bg-[#1c1c1e] rounded-t-3xl border-t border-[#262626] animate-slide-up w-full max-w-[680px] mx-auto overflow-hidden pb-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Slide Indicator Line */}
