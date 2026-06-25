@@ -241,18 +241,20 @@ export default function Chat() {
       >
         {/* Chat List Sidebar (Split Pane on Desktop, Screen on Mobile) */}
         <div
-          className={`h-full w-full border-e md:flex md:w-80 lg:w-96 ${
-            mobileView === "list" ? "flex" : "hidden"
+          className={`h-full w-full border-e md:flex md:w-80 lg:w-96 transition-transform duration-300 ease-[cubic-bezier(0.1,0.76,0.55,0.94)] ${
+            mobileView === "chat" ? "translate-x-[-20%] md:translate-x-0" : "translate-x-0"
           }`}
         >
           <ChatSidebar />
         </div>
 
-        {/* Chat Screen (Split Pane on Desktop, Screen on Mobile) */}
+        {/* Chat Screen (Split Pane on Desktop, Screen on Mobile with horizontal slide-in) */}
         <div
-          className={`h-full flex-1 ${
-            mobileView === "chat" ? "flex" : "hidden"
-          } md:flex`}
+          className={`h-full flex-1 transition-transform duration-300 ease-[cubic-bezier(0.1,0.76,0.55,0.94)] bg-[#121212] shadow-[-10px_0_30px_rgba(0,0,0,0.6)] md:shadow-none absolute inset-0 z-40 md:relative md:inset-auto md:z-0 ${
+            mobileView === "chat"
+              ? "translate-x-0 pointer-events-auto"
+              : "translate-x-full md:translate-x-0 pointer-events-none md:pointer-events-auto"
+          } ${activeChannel ? "flex" : "hidden md:flex"}`}
         >
           {activeChannel ? (
             <ChatChannel />
