@@ -14,7 +14,10 @@ import {
   Code,
   Info,
   ShoppingBag,
+  ChevronLeft,
+  UserCircle2
 } from "lucide-react";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 
 interface ReelOptionsDialogProps {
   post: PostData;
@@ -33,6 +36,12 @@ export default function ReelOptionsDialog({
 }: ReelOptionsDialogProps) {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [view, setView] = useState<"menu" | "about_account">("menu");
+
+  const handleClose = () => {
+    setView("menu");
+    onOpenChange(false);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -52,20 +61,20 @@ export default function ReelOptionsDialog({
     toast({
       description: "Link copied to clipboard.",
     });
-    onOpenChange(false);
+    handleClose();
   };
 
   const handlePlaceholderAction = (action: string) => {
     toast({
       description: `${action} action is not implemented yet.`,
     });
-    onOpenChange(false);
+    handleClose();
   };
 
   const handleDragEnd = (event: any, info: any) => {
     const threshold = 100;
     if (info.offset.y > threshold) {
-      onOpenChange(false);
+      handleClose();
     }
   };
 
@@ -120,7 +129,7 @@ export default function ReelOptionsDialog({
     {
       label: "About this account",
       icon: Info,
-      onClick: () => handlePlaceholderAction("About this account"),
+      onClick: () => setView("about_account"),
     },
     {
       label: "Report Reel",
@@ -163,59 +172,99 @@ export default function ReelOptionsDialog({
         {/* Title */}
         <div className="sr-only">Post Options</div>
 
-        {/* Grid of Shortcut Options */}
-        <div className="grid grid-cols-4 gap-4 w-full py-4 justify-items-center">
-          {shortcuts.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={idx}
-                onClick={item.onClick}
-                className="flex flex-col items-center gap-2 group w-full cursor-pointer max-w-[70px]"
-              >
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 group-hover:scale-105 active:scale-95 shrink-0 shadow-md",
-                  item.highlight
-                    ? "bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25"
-                    : "bg-[#252c38] text-zinc-200 border border-[#2d3645] hover:bg-[#2e3747]"
-                )}>
-                  <Icon className="size-5" />
-                </div>
-                <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white transition-colors truncate w-full text-center">
-                  {item.label}
+        {view === "menu" ? (
+          <>
+            {/* Grid of Shortcut Options */}
+            <div className="grid grid-cols-4 gap-4 w-full py-4 justify-items-center">
+              {shortcuts.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={idx}
+                    onClick={item.onClick}
+                    className="flex flex-col items-center gap-2 group w-full cursor-pointer max-w-[70px]"
+                  >
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 group-hover:scale-105 active:scale-95 shrink-0 shadow-md",
+                      item.highlight
+                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25"
+                        : "bg-[#252c38] text-zinc-200 border border-[#2d3645] hover:bg-[#2e3747]"
+                    )}>
+                      <Icon className="size-5" />
+                    </div>
+                    <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white transition-colors truncate w-full text-center">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Vertical List of Options */}
+            <div className="w-full flex flex-col bg-[#252c38]/40 border border-[#2d3645]/45 rounded-2xl divide-y divide-[#2d3645]/40 overflow-hidden mt-2">
+              {listItems.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={idx}
+                    onClick={item.onClick}
+                    className={cn(
+                      "flex items-center gap-3.5 w-full py-4 px-4 text-left text-[14.5px] font-bold transition-all hover:bg-zinc-800/40 active:bg-zinc-800/70",
+                      item.color || "text-zinc-250 hover:text-white"
+                    )}
+                  >
+                    <Icon className={cn("size-4.5 shrink-0", item.iconColor || "text-zinc-400")} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Cancel Button */}
+            <button
+              onClick={handleClose}
+              className="w-full py-3.5 mt-4 bg-[#252c38]/80 hover:bg-[#252c38] rounded-xl text-center font-bold text-zinc-400 hover:text-white text-[15px] transition-colors border border-[#2d3645]/30 shadow-md"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          /* About this Account view matching feed section */
+          <div className="flex flex-col gap-4 py-2 text-start">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
+                <ChevronLeft className="size-5" />
+              </button>
+              <span className="text-[16px] font-bold">About this account</span>
+            </div>
+            <div className="flex flex-col items-center gap-4 py-6 px-4 rounded-2xl bg-[#252c38]/40 border border-[#2d3645]/45 text-start w-full">
+              <img src={post.user.avatarUrl || "/avatar-placeholder.png"} alt="avatar" className="size-16 rounded-full border border-[#2d3645] object-cover" />
+              <div className="flex flex-col text-center">
+                <span className="font-bold text-[17px] text-white flex items-center justify-center gap-1">
+                  {post.user.displayName}
+                  {post.user.verified && (
+                    <VerifiedBadge size={14} className="ml-1" />
+                  )}
                 </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Vertical List of Options */}
-        <div className="w-full flex flex-col bg-[#252c38]/40 border border-[#2d3645]/45 rounded-2xl divide-y divide-[#2d3645]/40 overflow-hidden mt-2">
-          {listItems.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={idx}
-                onClick={item.onClick}
-                className={cn(
-                  "flex items-center gap-3.5 w-full py-4 px-4 text-left text-[14.5px] font-bold transition-all hover:bg-zinc-800/40 active:bg-zinc-800/70",
-                  item.color || "text-zinc-250 hover:text-white"
-                )}
-              >
-                <Icon className={cn("size-4.5 shrink-0", item.iconColor || "text-zinc-400")} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Cancel Button */}
-        <button
-          onClick={() => onOpenChange(false)}
-          className="w-full py-3.5 mt-4 bg-[#252c38]/80 hover:bg-[#252c38] rounded-xl text-center font-bold text-zinc-400 hover:text-white text-[15px] transition-colors border border-[#2d3645]/30 shadow-md"
-        >
-          Cancel
-        </button>
+                <span className="text-sm text-zinc-400">@{post.user.username}</span>
+              </div>
+              <div className="w-full flex flex-col gap-3.5 border-t border-[#2d3645]/40 pt-4 mt-2">
+                <div className="flex justify-between items-center text-[14px]">
+                  <span className="text-zinc-400">Date joined</span>
+                  <span className="font-semibold text-white">June 2024</span>
+                </div>
+                <div className="flex justify-between items-center text-[14px]">
+                  <span className="text-zinc-400">Account location</span>
+                  <span className="font-semibold text-white">India</span>
+                </div>
+                <div className="flex justify-between items-center text-[14px]">
+                  <span className="text-zinc-400">Verified status</span>
+                  <span className="font-semibold text-white">{post.user.verified ? "Verified badge" : "Standard member"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
     </>,
     document.body

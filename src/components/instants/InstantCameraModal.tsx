@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { X, Camera, RotateCw, Undo2, Users, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 
 interface InstantCameraModalProps {
   open: boolean;
@@ -89,6 +90,11 @@ export default function InstantCameraModal({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+
     // Draw the current video frame onto canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
@@ -246,7 +252,7 @@ export default function InstantCameraModal({
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className={cn("w-full h-full object-cover", facingMode === "user" && "-scale-x-100")}
               />
               {!cameraActive && (
                 <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
