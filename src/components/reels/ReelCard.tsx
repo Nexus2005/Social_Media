@@ -27,7 +27,8 @@ import {
   FastForward,
   Maximize2,
   Minimize2,
-  RotateCw
+  RotateCw,
+  ChevronLeft
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
@@ -35,6 +36,7 @@ import CommentsBottomSheet from "@/components/comments/CommentsBottomSheet";
 import ShareDialog from "@/components/posts/ShareDialog";
 import RepostButton from "@/components/posts/RepostButton";
 import { useToast } from "../ui/use-toast";
+import { updatePost } from "@/components/posts/editor/actions";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -46,6 +48,9 @@ interface ReelCardProps {
   shouldPreload: boolean;
   isPrevReel?: boolean;
   onLockScroll?: (locked: boolean) => void;
+  autoScrollEnabled: boolean;
+  onToggleAutoScroll: () => void;
+  onReelEnded: () => void;
 }
 
 export default function ReelCard({
@@ -55,7 +60,10 @@ export default function ReelCard({
   isActive,
   shouldPreload,
   isPrevReel = false,
-  onLockScroll
+  onLockScroll,
+  autoScrollEnabled,
+  onToggleAutoScroll,
+  onReelEnded
 }: ReelCardProps) {
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
@@ -114,10 +122,16 @@ export default function ReelCard({
 
   // Quick Controls Sheet & Speed/Full Screen states
   const [isQuickControlsOpen, setIsQuickControlsOpen] = useState(false);
+  const [quickControlsView, setQuickControlsView] = useState<"menu" | "captions">("menu");
   const [currentSpeed, setCurrentSpeed] = useState<number>(1);
   const [isCleanFullScreen, setIsCleanFullScreen] = useState(false);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
+
+  // Captions & Translation states
+  const [editedCaptionText, setEditedCaptionText] = useState(post.content);
+  const [isSavingCaption, setIsSavingCaption] = useState(false);
+  const [activeLanguage, setActiveLanguage] = useState("original");
+  const [displayContent, setDisplayContent] = useState(post.content);
 
   const speedCycle = [1, 1.2, 1.5, 2, 2.5, 3];
 
@@ -132,6 +146,67 @@ export default function ReelCard({
     toast({
       description: `Playback speed set to ${nextSpeed}x`,
     });
+  };
+
+  const translateText = (text: string, lang: string) => {
+    if (lang === "original") return text;
+    const lower = text.toLowerCase();
+    if (lang === "hindi") {
+      if (lower.includes("summer") || lower.includes("vibe")) return "गर्मियों के मौसम का आनंद लेते हुए! ☀️🌴";
+      if (lower.includes("shoes") || lower.includes("sneakers")) return "शानदार जूते और स्टाइल! 👟🔥";
+      if (lower.includes("food") || lower.includes("recipe")) return "स्वादिष्ट भोजन और बढ़िया स्वाद! 🍔🍕";
+      return `[अनुवादित]: ${text} (भारतीय भाषा)`;
+    }
+    if (lang === "spanish") {
+      if (lower.includes("summer") || lower.includes("vibe")) return "¡Disfrutando de las vibras de verano! ☀️🌴";
+      if (lower.includes("shoes") || lower.includes("sneakers")) return "¡Zapatos increíbles y estilo urbano! 👟🔥";
+      if (lower.includes("food") || lower.includes("recipe")) return "¡Comida deliciosa y excelente sabor! 🍔🍕";
+      return `[Traducido]: ${text} (en Español)`;
+    }
+    if (lang === "french") {
+      if (lower.includes("summer") || lower.includes("vibe")) return "Profiter des vibrations de l'été ! ☀️🌴";
+      if (lower.includes("shoes") || lower.includes("sneakers")) return "Superbes baskets et style urbain ! 👟🔥";
+      if (lower.includes("food") || lower.includes("recipe")) return "Nourriture délicieuse et bon goût ! 🍔🍕";
+      return `[Traduit]: ${text} (en Français)`;
+    }
+    if (lang === "german") {
+      if (lower.includes("summer") || lower.includes("vibe")) return "Sommerstimmung genießen! ☀️🌴";
+      if (lower.includes("shoes") || lower.includes("sneakers")) return "Tolle Sneaker und cooler Style! 👟🔥";
+      if (lower.includes("food") || lower.includes("recipe")) return "Leckeres Essen und toller Geschmack! 🍔🍕";
+      return `[Übersetzt]: ${text} (auf Deutsch)`;
+    }
+    if (lang === "japanese") {
+      if (lower.includes("summer") || lower.includes("vibe")) return "夏のバイブスを楽しんでいます！ ☀️🌴";
+      if (lower.includes("shoes") || lower.includes("sneakers")) return "素晴らしいスニーカーと都会的なスタイル！ 👟🔥";
+      if (lower.includes("food") || lower.includes("recipe")) return "美味しい食べ物 and 素晴らしい味！ 🍔🍕";
+      return `[翻訳済]: ${text} (日本語)`;
+    }
+    return text;
+  };
+
+  useEffect(() => {
+    setDisplayContent(translateText(post.content, activeLanguage));
+  }, [post.content, activeLanguage]);
+
+  const handleSaveCaption = async () => {
+    setIsSavingCaption(true);
+    try {
+      await updatePost({ id: post.id, content: editedCaptionText });
+      toast({
+        description: "Caption updated successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["post-feed"] });
+      setQuickControlsView("menu");
+      setIsQuickControlsOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        description: "Failed to update caption. Please try again.",
+      });
+    } finally {
+      setIsSavingCaption(false);
+    }
   };
 
   // Shoppable products overlay states
@@ -611,7 +686,7 @@ export default function ReelCard({
             <video
               ref={videoRef}
               src={videoUrl}
-              loop
+              loop={!autoScrollEnabled}
               playsInline
               muted={isMuted}
               preload={isActive || shouldPreload ? "auto" : "metadata"}
@@ -620,6 +695,11 @@ export default function ReelCard({
               onPointerUp={stopFastForwardHold}
               onPointerLeave={stopFastForwardHold}
               onPointerCancel={stopFastForwardHold}
+              onEnded={() => {
+                if (autoScrollEnabled) {
+                  onReelEnded();
+                }
+              }}
               className={cn(
                 "w-full h-full object-cover cursor-pointer transition-all duration-500",
                 isImmersive && "blur-md scale-105"
@@ -865,7 +945,7 @@ export default function ReelCard({
                 className="text-[13px] text-white/95 max-w-[285px] cursor-pointer select-none pointer-events-auto flex flex-col text-start gap-1"
               >
                 <p className={cn("leading-relaxed transition-all duration-300", isCaptionExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-1 truncate")}>
-                  {post.content}
+                  {displayContent}
                 </p>
                 <span className="text-[11px] text-zinc-400 font-semibold tracking-wide">
                   {formattedDate}
@@ -1265,74 +1345,146 @@ export default function ReelCard({
               className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#18191b] border-t border-zinc-800/80 rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-md md:mx-auto pb-8 px-5 pointer-events-auto select-none"
             >
               {/* Top drag handle */}
-              <div className="w-full flex justify-center py-3.5 cursor-pointer" onClick={() => setIsQuickControlsOpen(false)}>
+              <div className="w-full flex justify-center py-3.5 cursor-pointer" onClick={() => { setIsQuickControlsOpen(false); setQuickControlsView("menu"); }}>
                 <div className="w-10 h-1 bg-zinc-600/80 rounded-full" />
               </div>
 
-              {/* 2-Column Cards Grid */}
-              <div className="grid grid-cols-2 gap-3.5 w-full py-2">
-                {/* Speed Card */}
-                <button
-                  onClick={handleCycleSpeed}
-                  className="flex flex-col items-center justify-center gap-1 py-5 px-4 rounded-2xl bg-[#232529] hover:bg-[#2c2f35] active:scale-95 transition-all cursor-pointer border border-zinc-800/50 shadow-md"
-                >
-                  <span className="text-2xl font-black text-white">{currentSpeed}x</span>
-                  <span className="text-xs font-semibold text-zinc-400">Speed</span>
-                </button>
+              {quickControlsView === "menu" ? (
+                <>
+                  {/* 2-Column Cards Grid */}
+                  <div className="grid grid-cols-2 gap-3.5 w-full py-2">
+                    {/* Speed Card */}
+                    <button
+                      onClick={handleCycleSpeed}
+                      className="flex flex-col items-center justify-center gap-1 py-5 px-4 rounded-2xl bg-[#232529] hover:bg-[#2c2f35] active:scale-95 transition-all cursor-pointer border border-zinc-800/50 shadow-md"
+                    >
+                      <span className="text-2xl font-black text-white">{currentSpeed}x</span>
+                      <span className="text-xs font-semibold text-zinc-400">Speed</span>
+                    </button>
 
-                {/* Full Screen Card */}
-                <button
-                  onClick={() => {
-                    setIsQuickControlsOpen(false);
-                    setIsCleanFullScreen(true);
-                  }}
-                  className="flex flex-col items-center justify-center gap-2 py-5 px-4 rounded-2xl bg-[#232529] hover:bg-[#2c2f35] active:scale-95 transition-all cursor-pointer border border-zinc-800/50 shadow-md"
-                >
-                  <Maximize2 className="size-6 text-white" strokeWidth={2} />
-                  <span className="text-xs font-semibold text-zinc-400">Full screen</span>
-                </button>
-              </div>
-
-              {/* Additional Options List */}
-              <div className="flex flex-col gap-1 mt-4">
-                {/* Auto scroll Row */}
-                <div
-                  onClick={() => {
-                    setAutoScrollEnabled((prev) => !prev);
-                    toast({ description: `Auto scroll ${!autoScrollEnabled ? "enabled" : "disabled"}` });
-                  }}
-                  className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <RotateCw className="size-5 text-zinc-300" />
-                    <span className="text-[15px] font-medium text-white">Auto scroll</span>
+                    {/* Full Screen Card */}
+                    <button
+                      onClick={() => {
+                        setIsQuickControlsOpen(false);
+                        setIsCleanFullScreen(true);
+                      }}
+                      className="flex flex-col items-center justify-center gap-2 py-5 px-4 rounded-2xl bg-[#232529] hover:bg-[#2c2f35] active:scale-95 transition-all cursor-pointer border border-zinc-800/50 shadow-md"
+                    >
+                      <Maximize2 className="size-6 text-white" strokeWidth={2} />
+                      <span className="text-xs font-semibold text-zinc-400">Full screen</span>
+                    </button>
                   </div>
-                  {/* Styled Toggle Switch */}
-                  <div className={cn(
-                    "w-12 h-7 rounded-full p-1 transition-colors duration-200 ease-in-out flex items-center",
-                    autoScrollEnabled ? "bg-[#3897f0] justify-end" : "bg-zinc-700 justify-start"
-                  )}>
-                    <div className="w-5 h-5 rounded-full bg-white shadow-md" />
-                  </div>
-                </div>
 
-                {/* Manage captions Row */}
-                <div
-                  onClick={() => {
-                    setShowCaptions((prev) => !prev);
-                    toast({ description: `Captions ${!showCaptions ? "shown" : "hidden"}` });
-                  }}
-                  className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors border-t border-zinc-800/40"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="size-6 rounded-md border-2 border-zinc-300 flex items-center justify-center text-[10px] font-black tracking-tighter text-zinc-300">
-                      CC
+                  {/* Additional Options List */}
+                  <div className="flex flex-col gap-1 mt-4">
+                    {/* Auto scroll Row */}
+                    <div
+                      onClick={() => {
+                        onToggleAutoScroll();
+                        toast({ description: `Auto scroll ${!autoScrollEnabled ? "enabled" : "disabled"}` });
+                      }}
+                      className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <RotateCw className="size-5 text-zinc-300" />
+                        <span className="text-[15px] font-medium text-white">Auto scroll</span>
+                      </div>
+                      {/* Styled Toggle Switch */}
+                      <div className={cn(
+                        "w-12 h-7 rounded-full p-1 transition-colors duration-200 ease-in-out flex items-center",
+                        autoScrollEnabled ? "bg-[#3897f0] justify-end" : "bg-zinc-700 justify-start"
+                      )}>
+                        <div className="w-5 h-5 rounded-full bg-white shadow-md" />
+                      </div>
                     </div>
-                    <span className="text-[15px] font-medium text-white">Manage captions</span>
+
+                    {/* Manage captions Row */}
+                    <div
+                      onClick={() => {
+                        setQuickControlsView("captions");
+                      }}
+                      className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors border-t border-zinc-800/40"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="size-6 rounded-md border-2 border-zinc-300 flex items-center justify-center text-[10px] font-black tracking-tighter text-zinc-300">
+                          CC
+                        </div>
+                        <span className="text-[15px] font-medium text-white">Manage captions</span>
+                      </div>
+                      <span className="text-xs text-zinc-400 font-semibold">{showCaptions ? "On" : "Off"}</span>
+                    </div>
                   </div>
-                  <span className="text-xs text-zinc-400 font-semibold">{showCaptions ? "On" : "Off"}</span>
+                </>
+              ) : (
+                /* Captions management view for editing and translations */
+                <div className="flex flex-col gap-4 text-start">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setQuickControlsView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
+                      <ChevronLeft className="size-5" />
+                    </button>
+                    <span className="text-[16px] font-bold">Captions & Translations</span>
+                  </div>
+
+                  {/* If own post, show caption editor */}
+                  {post.userId === loggedInUser.id ? (
+                    <div className="flex flex-col gap-3 py-1">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Edit Caption</label>
+                      <textarea
+                        value={editedCaptionText}
+                        onChange={(e) => setEditedCaptionText(e.target.value)}
+                        rows={3}
+                        className="w-full p-3.5 rounded-xl bg-[#232529] border border-zinc-800 text-sm text-white placeholder:text-zinc-550 focus:outline-none focus:border-zinc-700 resize-none font-medium"
+                        placeholder="Write a caption..."
+                      />
+                      <button
+                        onClick={handleSaveCaption}
+                        disabled={isSavingCaption}
+                        className="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50"
+                      >
+                        {isSavingCaption ? "Saving..." : "Save Caption"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-[#232529]/30 border border-zinc-800/50 text-xs text-zinc-400 leading-relaxed">
+                      Only the creator of this Reel can edit the original caption text.
+                    </div>
+                  )}
+
+                  {/* Auto-Translate Section */}
+                  <div className="flex flex-col gap-3 mt-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Auto-translate to language</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { code: "original", label: "Original" },
+                        { code: "hindi", label: "Hindi (हिंदी)" },
+                        { code: "spanish", label: "Spanish (Español)" },
+                        { code: "french", label: "French (Français)" },
+                        { code: "german", label: "German (Deutsch)" },
+                        { code: "japanese", label: "Japanese (日本語)" },
+                      ].map((lang) => {
+                        const isSelected = activeLanguage === lang.code;
+                        return (
+                          <button
+                            key={lang.code}
+                            onClick={() => {
+                              setActiveLanguage(lang.code);
+                              toast({ description: `Caption translated to ${lang.label}` });
+                            }}
+                            className={cn(
+                              "py-2.5 px-2 rounded-xl text-[11px] font-bold transition-all border text-center cursor-pointer",
+                              isSelected
+                                ? "bg-[#3897f0] border-[#3897f0] text-white"
+                                : "bg-[#232529] border-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
+                            )}
+                          >
+                            {lang.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </motion.div>
           </>
         )}

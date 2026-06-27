@@ -14,6 +14,7 @@ export default function ReelsFeed() {
   const [activeReelIndex, setActiveReelIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [isScrollLocked, setIsScrollLocked] = useState(false);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
 
   const searchParams = useSearchParams();
   const params = useParams();
@@ -155,6 +156,9 @@ export default function ReelsFeed() {
                 setIsScrollLocked(locked);
               }
             }}
+            autoScrollEnabled={autoScrollEnabled}
+            onToggleAutoScroll={() => setAutoScrollEnabled(!autoScrollEnabled)}
+            onReelEnded={scrollDown}
           />
         ))}
         {isFetchingNextPage && (
