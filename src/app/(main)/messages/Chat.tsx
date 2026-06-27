@@ -79,6 +79,7 @@ export default function Chat() {
 
     const handleResize = () => {
       setViewportHeight(`${visualViewport.height}px`);
+      document.documentElement.style.setProperty("--visual-viewport-height", `${visualViewport.height}px`);
     };
 
     visualViewport.addEventListener("resize", handleResize);

@@ -1839,10 +1839,10 @@ export default function ChatChannel() {
   const latestPinned = pinnedMessages[pinnedMessages.length - 1];
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#121212] select-none relative">
+    <div className="flex h-full w-full flex-col bg-[#121212] select-none relative overflow-hidden">
       {/* Header Panel */}
       {selectedMessage && isSelectionMode ? (
-        <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md">
+        <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSelectedMessage(null)}
@@ -1979,7 +1979,7 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : isSelectionMode ? (
-        <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-primary/10 px-3 z-10 animate-fade-in shrink-0">
+        <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-primary/10 px-3 z-20 animate-fade-in shrink-0 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={handleExitSelectionMode}
@@ -2023,7 +2023,7 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-[#121212] border-b border-zinc-800/60 px-4 z-10 shrink-0">
+        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-[#121212] border-b border-zinc-800/60 px-4 z-20 shrink-0 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -2154,7 +2154,7 @@ export default function ChatChannel() {
       {/* Scrollable Messages Panel with Outline Doodle Background */}
       <div
         ref={parentRef}
-        className="flex-1 overflow-y-auto px-4 py-4 relative"
+        className="flex-1 overflow-y-auto px-4 py-4 relative overscroll-contain"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d='M20 35h8l3-4h12l3 4h8a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V39a4 4 0 0 1 4-4z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Ccircle cx='34' cy='47' r='5' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M95 25c-4-4-10-4-14 0l-2 2-2-2c-4-4-10-4-14 0-4 4-4 10 0 14l16 16 16-16c4-4 4-10 0-14z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M30 90l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M85 85h15a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-8l-5 5v-5h-2a3 3 0 0 1-3-3V88a3 3 0 0 1 3-3z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'repeat',
@@ -2335,7 +2335,7 @@ export default function ChatChannel() {
       )}
 
       {/* Input Message Composer Bar (Social Commerce Theme) */}
-      <div className={cn("flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25 shrink-0", !showStickerPicker && "pb-[env(safe-area-inset-bottom)]")}>
+      <div className={cn("flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25 shrink-0 sticky bottom-0", !showStickerPicker && "pb-[env(safe-area-inset-bottom)]")}>
         <div className="flex items-center gap-2.5 p-3 select-none max-w-full">
           {/* Circular plus button on the left */}
           <button
@@ -2356,6 +2356,9 @@ export default function ChatChannel() {
               placeholder="Message..."
               value={inputText}
               onChange={handleInputChange}
+              onFocus={() => {
+                if (window.scrollY !== 0) window.scrollTo(0, 0);
+              }}
               rows={1}
               style={{ maxHeight: "120px" }}
               className="flex-1 resize-none bg-transparent py-1.5 text-[15px] text-white placeholder:text-zinc-500 outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
