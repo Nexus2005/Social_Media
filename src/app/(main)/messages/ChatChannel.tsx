@@ -4,7 +4,7 @@ import Script from "next/script";
 
 import { createPortal } from "react-dom";
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, MicOff, VideoOff, PhoneOff, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search } from "lucide-react";
+import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, MicOff, VideoOff, PhoneOff, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search, Users, List, Heart, Key, Link, Shield, Lock } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -956,6 +956,23 @@ export default function ChatChannel() {
   const [showLeaveGroupDialog, setShowLeaveGroupDialog] = useState(false);
   const [leaveDeleteForAll, setLeaveDeleteForAll] = useState(false);
 
+  // Group Edit Suite states
+  const [showGroupEditPage, setShowGroupEditPage] = useState(false);
+  const [showGroupSettingsSubPage, setShowGroupSettingsSubPage] = useState(false);
+  const [showChatHistorySheet, setShowChatHistorySheet] = useState(false);
+  const [showTopicsSubPage, setShowTopicsSubPage] = useState(false);
+
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupDesc, setEditGroupDesc] = useState("");
+  const [editGroupPhotoUrl, setEditGroupPhotoUrl] = useState<string | null>(null);
+  const [groupTypeVal, setGroupTypeVal] = useState<"Private" | "Public">("Private");
+  const [chatHistoryVal, setChatHistoryVal] = useState<"Hidden" | "Visible">("Hidden");
+  const [topicsEnabled, setTopicsEnabled] = useState(false);
+  const [approveMembersVal, setApproveMembersVal] = useState(false);
+  const [restrictContentVal, setRestrictContentVal] = useState(false);
+
+  const groupPhotoInputRef = useRef<HTMLInputElement>(null);
+
   // Group details displays and active call states
   const [videoJoinAsPersonal, setVideoJoinAsPersonal] = useState(true);
   const [showScheduleDrawer, setShowScheduleDrawer] = useState(false);
@@ -1255,12 +1272,25 @@ export default function ChatChannel() {
   useEffect(() => {
     if (displayName) {
       setCallTitle(displayName);
+      setEditGroupName(displayName);
     }
-  }, [displayName]);
+    if (channel?.data?.description) {
+      setEditGroupDesc(channel.data.description as string);
+    }
+  }, [displayName, channel?.data?.description]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleGroupPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setEditGroupPhotoUrl(url);
+      toast({ description: "Group photo selected" });
+    }
+  };
 
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2700,7 +2730,10 @@ export default function ChatChannel() {
                     <ArrowLeft className="size-6" />
                   </button>
                   <div className="flex items-center gap-3">
-                    <button className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
+                    <button 
+                      onClick={() => setShowGroupEditPage(true)}
+                      className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                    >
                       <Edit2 className="size-[20px]" />
                     </button>
                     <button className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
@@ -2910,11 +2943,10 @@ export default function ChatChannel() {
                 <AnimatePresence>
                   {showVideoChatDrawer && (
                     <div className="fixed inset-0 z-[60] overflow-hidden flex flex-col justify-end">
-                      {/* Script loader for dotlottie-player */}
+                      {/* Script loader for standard lottie-player */}
                       <Script
-                        src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs"
-                        type="module"
-                        strategy="lazyOnload"
+                        src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"
+                        strategy="afterInteractive"
                       />
                       
                       {/* Drawer Backdrop */}
@@ -2938,21 +2970,25 @@ export default function ChatChannel() {
                         <div className="w-12 h-1 bg-zinc-700 rounded-full mb-4 shrink-0" />
 
                         {/* Animated Lottie Emoji / Sound Wave */}
-                        {isClient ? (
-                          <div className="relative flex flex-col items-center justify-center w-full py-4 bg-transparent min-h-[140px]">
-                            {/* @ts-ignore */}
-                            <dotlottie-player
-                              src="https://assets5.lottiefiles.com/packages/lf20_jg6mqpxr.json"
-                              background="transparent"
-                              speed="1"
-                              style={{ width: "160px", height: "110px" }}
-                              loop
-                              autoplay
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-[160px] h-[110px] bg-transparent" />
-                        )}
+                        <div className="relative flex flex-col items-center justify-center w-full py-2 bg-transparent min-h-[120px]">
+                          {isClient ? (
+                            <>
+                              {/* @ts-ignore */}
+                              <lottie-player
+                                src="https://assets2.lottiefiles.com/packages/lf20_myejig9g.json"
+                                background="transparent"
+                                speed="1"
+                                style={{ width: "160px", height: "110px" }}
+                                loop
+                                autoplay
+                              />
+                            </>
+                          ) : (
+                            <div className="w-[160px] h-[110px] bg-transparent flex items-center justify-center">
+                              <span className="text-4xl animate-bounce">🎧</span>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Text description */}
                         <h4 className="text-xl font-bold text-white mt-2">Video Chat</h4>
@@ -3864,6 +3900,551 @@ export default function ChatChannel() {
                 </AnimatePresence>
               </motion.div>
             )}
+
+            {/* Fullscreen Group Edit Page */}
+            <AnimatePresence>
+              {showGroupEditPage && (
+                <motion.div
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                  className="fixed inset-0 z-[70] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                >
+                  {/* Hidden File Input for Photo */}
+                  <input
+                    type="file"
+                    ref={groupPhotoInputRef}
+                    onChange={handleGroupPhotoUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+
+                  {/* Top Header panel */}
+                  <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowGroupEditPage(false)}
+                        className="rounded-full p-1.5 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                      >
+                        <ArrowLeft className="size-6" />
+                      </button>
+                      <span className="text-lg font-bold text-white">Edit</span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setShowGroupEditPage(false);
+                        toast({ description: "Group settings saved successfully." });
+                        if (channel && editGroupName.trim() !== "") {
+                          try {
+                            await channel.update({ name: editGroupName, description: editGroupDesc });
+                          } catch (e) {
+                            console.warn(e);
+                          }
+                        }
+                      }}
+                      className="rounded-full p-2 hover:bg-zinc-800/60 text-[#0095f6] transition-colors"
+                    >
+                      <Check className="size-6 stroke-[2.5]" />
+                    </button>
+                  </div>
+
+                  {/* Main Form Body */}
+                  <div className="flex-1 py-4 px-3 overflow-y-auto space-y-4">
+                    {/* Top Group Info Card */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 flex flex-col gap-4">
+                      <div className="flex items-center gap-4">
+                        {/* Avatar with Set Photo link */}
+                        <div className="flex flex-col items-center gap-1 shrink-0">
+                          <div 
+                            onClick={() => groupPhotoInputRef.current?.click()}
+                            className="relative size-16 rounded-full bg-[#0095f6] flex items-center justify-center text-xl font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-md overflow-hidden"
+                          >
+                            {editGroupPhotoUrl ? (
+                              <img src={editGroupPhotoUrl} alt="Group" className="w-full h-full object-cover" />
+                            ) : (
+                              (editGroupName || displayName || "G").slice(0, 2).toUpperCase()
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Name Input with underline & smiley */}
+                        <div className="flex-1 flex flex-col justify-center">
+                          <div className="relative flex items-center border-b border-[#0095f6] pb-1.5">
+                            <input
+                              type="text"
+                              value={editGroupName}
+                              onChange={(e) => setEditGroupName(e.target.value)}
+                              placeholder="Group Name"
+                              className="w-full bg-transparent text-base font-semibold text-white outline-none pr-7"
+                            />
+                            <Smile className="size-5 text-zinc-400 absolute right-0 shrink-0 cursor-pointer hover:text-white" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Set Photo Link Row */}
+                      <button
+                        onClick={() => groupPhotoInputRef.current?.click()}
+                        className="flex items-center gap-2.5 text-[#0095f6] font-semibold text-sm hover:underline pt-1"
+                      >
+                        <div className="relative size-6 flex items-center justify-center">
+                          <ImageIcon className="size-5 text-[#0095f6]" />
+                          <Plus className="size-3 text-[#0095f6] absolute -top-1 -right-1 stroke-[3]" />
+                        </div>
+                        <span>Set Photo</span>
+                      </button>
+
+                      {/* Description Input */}
+                      <div className="pt-2 border-t border-zinc-800/30">
+                        <input
+                          type="text"
+                          value={editGroupDesc}
+                          onChange={(e) => setEditGroupDesc(e.target.value)}
+                          placeholder="Description (optional)"
+                          className="w-full bg-transparent text-sm text-zinc-300 placeholder:text-zinc-500 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Group Settings Card (Type, History, Topics) */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] overflow-hidden border border-zinc-800/30 divide-y divide-zinc-850">
+                      {/* Group Type */}
+                      <div
+                        onClick={() => setShowGroupSettingsSubPage(true)}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Users className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Group Type</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">{groupTypeVal}</span>
+                      </div>
+
+                      {/* Chat History */}
+                      <div
+                        onClick={() => setShowChatHistorySheet(true)}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <MessageSquare className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Chat History</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">{chatHistoryVal}</span>
+                      </div>
+
+                      {/* Topics */}
+                      <div>
+                        <div
+                          onClick={() => setShowTopicsSubPage(true)}
+                          className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <List className="size-5 text-zinc-400" />
+                            <div className="flex items-center gap-2">
+                              <span className="text-[15px] font-semibold text-white">Topics</span>
+                              <span className="bg-[#0095f6] text-white text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">NEW</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTopicsEnabled(!topicsEnabled);
+                            }}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              topicsEnabled ? "bg-[#0095f6]" : "bg-zinc-700"
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                topicsEnabled ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-500 px-3 leading-relaxed">
+                      The group chat will be divided into topics created by admins or users.
+                    </p>
+
+                    {/* Action List Card */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] overflow-hidden border border-zinc-800/30 divide-y divide-zinc-850">
+                      <div 
+                        onClick={() => toast({ description: "Reactions settings" })}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Heart className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Reactions</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">All</span>
+                      </div>
+
+                      <div 
+                        onClick={() => toast({ description: "Permissions settings" })}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Key className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Permissions</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">14/15</span>
+                      </div>
+
+                      <div 
+                        onClick={() => setShowGroupSettingsSubPage(true)}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Link className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Invite Links</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">1</span>
+                      </div>
+
+                      <div 
+                        onClick={() => toast({ description: "Administrators list" })}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Shield className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Administrators</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">1</span>
+                      </div>
+
+                      <div 
+                        onClick={() => setShowGroupProfile(true)}
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Users className="size-5 text-zinc-400" />
+                          <span className="text-[15px] font-semibold text-white">Members</span>
+                        </div>
+                        <span className="text-[14px] text-[#0095f6] font-medium">{members.length}</span>
+                      </div>
+                    </div>
+
+                    {/* Red Action Button */}
+                    <button
+                      onClick={() => {
+                        setShowGroupEditPage(false);
+                        setShowLeaveGroupDialog(true);
+                      }}
+                      className="w-full bg-[#1c1c1e] hover:bg-zinc-850 rounded-[20px] py-4 text-center font-semibold text-red-500 text-[15px] border border-zinc-800/30 transition-colors mt-4"
+                    >
+                      Delete and leave group
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Sub-page 1: Group Settings Page */}
+            <AnimatePresence>
+              {showGroupSettingsSubPage && (
+                <motion.div
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                  className="fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                >
+                  {/* Header panel */}
+                  <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowGroupSettingsSubPage(false)}
+                        className="rounded-full p-1.5 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                      >
+                        <ArrowLeft className="size-6" />
+                      </button>
+                      <span className="text-lg font-bold text-white">Group Settings</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowGroupSettingsSubPage(false);
+                        toast({ description: "Group settings saved." });
+                      }}
+                      className="rounded-full p-2 hover:bg-zinc-800/60 text-[#0095f6] transition-colors"
+                    >
+                      <Check className="size-6 stroke-[2.5]" />
+                    </button>
+                  </div>
+
+                  {/* Settings Body */}
+                  <div className="flex-1 py-4 px-3 overflow-y-auto space-y-4">
+                    {/* Group Type Options Card */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 space-y-4">
+                      <h4 className="text-sm font-semibold text-[#0095f6]">Group type</h4>
+                      
+                      {/* Private option */}
+                      <div
+                        onClick={() => setGroupTypeVal("Private")}
+                        className="flex items-start gap-3 cursor-pointer group"
+                      >
+                        <div className={`mt-0.5 size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          groupTypeVal === "Private" ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-600"
+                        }`}>
+                          {groupTypeVal === "Private" && <div className="size-2 rounded-full bg-white" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-semibold text-white">Private Group</span>
+                          <span className="text-xs text-zinc-400 leading-relaxed mt-0.5">
+                            Private groups can only be joined if you were invited or have an invite link.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Public option */}
+                      <div
+                        onClick={() => setGroupTypeVal("Public")}
+                        className="flex items-start gap-3 cursor-pointer group pt-2 border-t border-zinc-850"
+                      >
+                        <div className={`mt-0.5 size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          groupTypeVal === "Public" ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-600"
+                        }`}>
+                          {groupTypeVal === "Public" && <div className="size-2 rounded-full bg-white" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-semibold text-white">Public Group</span>
+                          <span className="text-xs text-zinc-400 leading-relaxed mt-0.5">
+                            Public groups can be found in search, chat history is available to everyone and anyone can join.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Invite Link Card */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 space-y-3">
+                      <h4 className="text-sm font-semibold text-[#0095f6]">Invite Link</h4>
+                      <div className="flex items-center justify-between bg-[#121212] rounded-xl px-3.5 py-2.5 border border-zinc-800/40">
+                        <span className="text-xs text-zinc-300 font-mono select-all">
+                          nextsocial.app/join/L337fpFJA2FiNTQ1
+                        </span>
+                        <button className="text-zinc-400 hover:text-white">
+                          <MoreVertical className="size-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 pt-1">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText("https://nextsocial.app/join/L337fpFJA2FiNTQ1");
+                            toast({ description: "Invite link copied to clipboard" });
+                          }}
+                          className="flex-1 bg-[#0095f6] hover:bg-[#0081d6] text-white py-2 rounded-full font-semibold text-xs text-center transition-colors"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => {
+                            toast({ description: "Share dialog opened" });
+                          }}
+                          className="flex-1 bg-[#0095f6] hover:bg-[#0081d6] text-white py-2 rounded-full font-semibold text-xs text-center transition-colors"
+                        >
+                          Share
+                        </button>
+                      </div>
+                      <p className="text-xs text-zinc-400 leading-relaxed pt-1">
+                        People can join your group by following this link. You can revoke the link at any time.
+                      </p>
+                    </div>
+
+                    {/* Manage Invite Links Button Card */}
+                    <div
+                      onClick={() => toast({ description: "Manage invite links" })}
+                      className="bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 cursor-pointer hover:bg-zinc-850 transition-colors space-y-1"
+                    >
+                      <span className="text-[15px] font-semibold text-white block">Manage Invite Links</span>
+                      <span className="text-xs text-zinc-400 block leading-relaxed">
+                        You can create additional invite links that have a limited time or number of users.
+                      </span>
+                    </div>
+
+                    {/* Approve New Members Toggle Card */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[15px] font-semibold text-white">Approve new members</span>
+                        <button
+                          onClick={() => setApproveMembersVal(!approveMembersVal)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            approveMembersVal ? "bg-[#0095f6]" : "bg-zinc-700"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              approveMembersVal ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <p className="text-xs text-zinc-400 leading-relaxed">
+                        An admin must approve users who want to join the group.
+                      </p>
+                    </div>
+
+                    {/* Content Protection Card */}
+                    <div className="bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 space-y-1.5">
+                      <h4 className="text-sm font-semibold text-[#0095f6]">Content protection</h4>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[15px] font-semibold text-white">Restrict saving content</span>
+                        <button
+                          onClick={() => setRestrictContentVal(!restrictContentVal)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            restrictContentVal ? "bg-[#0095f6]" : "bg-zinc-700"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              restrictContentVal ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <p className="text-xs text-zinc-400 leading-relaxed">
+                        Members won&apos;t be able to copy, save or forward content from this group.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Sub-page 2: Topics Page */}
+            <AnimatePresence>
+              {showTopicsSubPage && (
+                <motion.div
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                  className="fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                >
+                  {/* Header panel */}
+                  <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowTopicsSubPage(false)}
+                        className="rounded-full p-1.5 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                      >
+                        <ArrowLeft className="size-6" />
+                      </button>
+                      <span className="text-lg font-bold text-white">Topics</span>
+                    </div>
+                  </div>
+
+                  {/* Center Content */}
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto space-y-6">
+                    {/* Dual Chat Bubbles Illustration */}
+                    <div className="relative size-28 flex items-center justify-center">
+                      {/* Left Blue Bubble */}
+                      <div className="absolute top-2 left-2 size-16 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg transform -rotate-12">
+                        <div className="size-6 rounded bg-white/20 flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">◆</span>
+                        </div>
+                      </div>
+                      {/* Right Purple Bubble */}
+                      <div className="absolute bottom-2 right-2 size-16 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg transform rotate-12">
+                        <CornerUpLeft className="size-7 text-white" />
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-zinc-300 leading-relaxed font-medium px-2">
+                      The group chat will be divided into topics created by admins or users.
+                    </p>
+
+                    {/* Enable Topics Card */}
+                    <div className="w-full bg-[#1c1c1e] rounded-[20px] p-4 border border-zinc-800/30 flex items-center justify-between">
+                      <span className="text-[15px] font-semibold text-white">Enable Topics</span>
+                      <button
+                        onClick={() => setTopicsEnabled(!topicsEnabled)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          topicsEnabled ? "bg-[#0095f6]" : "bg-zinc-700"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            topicsEnabled ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Chat History Bottom Sheet Drawer */}
+            <AnimatePresence>
+              {showChatHistorySheet && (
+                <div className="fixed inset-0 z-[80] overflow-hidden flex flex-col justify-end">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowChatHistorySheet(false)}
+                    className="fixed inset-0 bg-black/70 backdrop-blur-[1px]"
+                  />
+                  <motion.div
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                    className="relative z-50 bg-[#1c222b] border-t border-[#262626] rounded-t-3xl pb-8 pt-4 px-6 flex flex-col max-w-md mx-auto w-full select-none"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="w-12 h-1 bg-zinc-700 rounded-full mb-4 shrink-0 mx-auto" />
+                    <h4 className="text-base font-bold text-white mb-4 text-start">Chat history for new members</h4>
+
+                    <div className="space-y-4 text-start">
+                      {/* Visible Option */}
+                      <div
+                        onClick={() => {
+                          setChatHistoryVal("Visible");
+                          setShowChatHistorySheet(false);
+                        }}
+                        className="flex items-start gap-3 cursor-pointer group"
+                      >
+                        <div className={`mt-0.5 size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          chatHistoryVal === "Visible" ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-600"
+                        }`}>
+                          {chatHistoryVal === "Visible" && <div className="size-2 rounded-full bg-white" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-semibold text-white">Visible</span>
+                          <span className="text-xs text-zinc-400 leading-relaxed mt-0.5">
+                            New members will see messages that were sent before they joined.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Hidden Option */}
+                      <div
+                        onClick={() => {
+                          setChatHistoryVal("Hidden");
+                          setShowChatHistorySheet(false);
+                        }}
+                        className="flex items-start gap-3 cursor-pointer group pt-2 border-t border-zinc-800/40"
+                      >
+                        <div className={`mt-0.5 size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          chatHistoryVal === "Hidden" ? "border-[#0095f6] bg-[#0095f6]" : "border-zinc-600"
+                        }`}>
+                          {chatHistoryVal === "Hidden" && <div className="size-2 rounded-full bg-white" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-semibold text-white">Hidden</span>
+                          <span className="text-xs text-zinc-400 leading-relaxed mt-0.5">
+                            New members won&apos;t see more than 100 previous messages.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* Schedule Video Chat Drawer (Bottom Sheet) */}
             {showScheduleDrawer && (

@@ -50,7 +50,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-instagram-lightBg dark:bg-instagram-darkBg" suppressHydrationWarning>
       <head>
+        {/* @ts-ignore */}
         <meta name="impact-site-verification" value="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
+        <meta name="impact-site-verification" content="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
         <ReactQueryProvider>
