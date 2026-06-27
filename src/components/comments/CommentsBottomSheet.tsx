@@ -3,7 +3,8 @@
 import { useSession } from "@/app/(main)/SessionProvider";
 import { CommentsPage, PostData } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient, useMutation, QueryKey } from "@tanstack/react-query";
+import useFollowerInfo from "@/hooks/useFollowerInfo";
 import {
   X,
   Heart,
@@ -58,6 +59,85 @@ interface CommentsBottomSheetProps {
 }
 
 type SortOption = "top" | "newest" | "oldest";
+
+function CommentFollowOption({
+  user,
+  loggedInUserId,
+  onDone,
+}: {
+  user: any;
+  loggedInUserId: string;
+  onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const initialState = {
+    followers: user._count?.followers || 0,
+    isFollowedByUser: Array.isArray(user.followers)
+      ? user.followers.some((f: any) => f.followerId === loggedInUserId)
+      : false,
+  };
+
+  const { data } = useFollowerInfo(user.id, initialState);
+  const queryKey: QueryKey = ["follower-info", user.id];
+
+  const { mutate } = useMutation({
+    mutationFn: () =>
+      data.isFollowedByUser
+        ? kyInstance.delete(`/api/users/${user.id}/followers`)
+        : kyInstance.post(`/api/users/${user.id}/followers`),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey });
+      const previousState = queryClient.getQueryData<any>(queryKey);
+
+      const nextState = {
+        followers: (previousState?.followers || 0) + (previousState?.isFollowedByUser ? -1 : 1),
+        isFollowedByUser: !previousState?.isFollowedByUser,
+      };
+
+      queryClient.setQueryData(queryKey, nextState);
+
+      toast({
+        description: previousState?.isFollowedByUser
+          ? `Unfollowed @${user.username}`
+          : `Followed @${user.username}`,
+      });
+
+      return { previousState };
+    },
+    onError(error, variables, context) {
+      queryClient.setQueryData(queryKey, context?.previousState);
+      toast({
+        variant: "destructive",
+        description: "Something went wrong updating follow state.",
+      });
+    },
+  });
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        mutate();
+        onDone();
+      }}
+      className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
+    >
+      {data.isFollowedByUser ? (
+        <>
+          <UserMinus className="size-5 text-zinc-400" />
+          <span>Unfollow @{user.username}</span>
+        </>
+      ) : (
+        <>
+          <UserPlus className="size-5 text-zinc-400" />
+          <span>Follow @{user.username}</span>
+        </>
+      )}
+    </button>
+  );
+}
 
 export default function CommentsBottomSheet({
   post,
@@ -494,40 +574,11 @@ export default function CommentsBottomSheet({
               {/* Menu items */}
               <div className="flex flex-col mt-2 divide-y divide-zinc-900/60">
                 {/* Follow / Unfollow */}
-                <button
-                  onClick={async () => {
-                    const isFollowed = optionComment.user.followers.some(
-                      (f: any) => f.followerId === loggedInUser?.id
-                    );
-                    try {
-                      if (isFollowed) {
-                        await kyInstance.delete(`/api/users/${optionComment.user.id}/followers`);
-                        toast({ description: `Unfollowed @${optionComment.user.username}` });
-                      } else {
-                        await kyInstance.post(`/api/users/${optionComment.user.id}/followers`);
-                        toast({ description: `Followed @${optionComment.user.username}` });
-                      }
-                      queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
-                    } catch (err) {
-                      console.error(err);
-                      toast({ variant: "destructive", description: "Failed to update follow state." });
-                    }
-                    setOptionComment(null);
-                  }}
-                  className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
-                >
-                  {optionComment.user.followers.some((f: any) => f.followerId === loggedInUser?.id) ? (
-                    <>
-                      <UserMinus className="size-5 text-zinc-400" />
-                      <span>Unfollow @{optionComment.user.username}</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="size-5 text-zinc-400" />
-                      <span>Follow @{optionComment.user.username}</span>
-                    </>
-                  )}
-                </button>
+                <CommentFollowOption
+                  user={optionComment.user}
+                  loggedInUserId={loggedInUser?.id || ""}
+                  onDone={() => setOptionComment(null)}
+                />
 
                 {/* Mute user */}
                 <button

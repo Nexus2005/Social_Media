@@ -152,9 +152,18 @@ function PostCaption({ username, text }: PostCaptionProps) {
   const displayText = isExpanded || !shouldTruncate ? text : text.slice(0, 90);
 
   return (
-    <div className="py-0.5 text-sm text-instagram-lightText dark:text-instagram-darkText leading-tight">
+    <div 
+      onClick={() => {
+        if (shouldTruncate && isExpanded) {
+          setIsExpanded(false);
+        }
+      }}
+      className={`py-0.5 text-sm text-instagram-lightText dark:text-instagram-darkText leading-tight ${
+        shouldTruncate && isExpanded ? "cursor-pointer" : ""
+      }`}
+    >
       <p>
-        <Link href={`/users/${username}`} className="font-semibold mr-2 hover:underline">
+        <Link href={`/users/${username}`} className="font-semibold mr-2 hover:underline" onClick={(e) => e.stopPropagation()}>
           {username}
         </Link>
         <Linkify>
@@ -173,6 +182,17 @@ function PostCaption({ username, text }: PostCaptionProps) {
               more
             </button>
           </>
+        )}
+        {shouldTruncate && isExpanded && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(false);
+            }}
+            className="text-zinc-500 dark:text-zinc-400 font-normal ml-1 focus:outline-none hover:underline"
+          >
+            less
+          </button>
         )}
       </p>
     </div>
@@ -357,8 +377,8 @@ export default function Post({ post }: PostProps) {
       )}
 
       {/* Action Center - Placed immediately beneath the media/content */}
-      <div className="flex justify-between items-center w-full px-3 pt-1.5 pb-0 text-instagram-lightText dark:text-instagram-darkText">
-        <div className="flex items-center gap-2">
+      <div className="flex justify-between items-center w-full px-1.5 sm:px-3 pt-1.5 pb-0 text-instagram-lightText dark:text-instagram-darkText">
+        <div className="flex items-center gap-1 sm:gap-2">
           <LikeButton
             postId={post.id}
             initialState={{
@@ -575,7 +595,7 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="relative w-full aspect-[4/5] bg-zinc-900 rounded-xl sm:rounded-2xl overflow-hidden group select-none flex items-center justify-center border border-border/5"
+      className="relative w-full aspect-[4/5] bg-zinc-900 rounded-none sm:rounded-xl overflow-hidden group select-none flex items-center justify-center border-0 sm:border sm:border-border/5"
     >
       {/* Media Element */}
       <div
