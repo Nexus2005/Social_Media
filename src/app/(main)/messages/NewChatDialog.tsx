@@ -2,7 +2,6 @@
 
 import { useSession } from "../SessionProvider";
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import UserAvatar from "@/components/UserAvatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +26,7 @@ import {
 import { useState, useMemo, useRef, useEffect } from "react";
 import { StreamChat, UserResponse } from "stream-chat";
 import { DefaultStreamChatGenerics } from "stream-chat-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface NewChatDialogProps {
@@ -80,6 +80,7 @@ export default function NewChatDialog({
       if (!response.ok) throw new Error("Failed to fetch suggestions");
       return response.json();
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   // 2. Fetch followers list for "All Contacts"
@@ -90,6 +91,7 @@ export default function NewChatDialog({
       if (!response.ok) throw new Error("Failed to fetch followers");
       return response.json();
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   // 3. Query Stream Chat channels for active DMs, groups, channels, and communities
@@ -104,6 +106,7 @@ export default function NewChatDialog({
       });
       return list;
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Filter Stream channels in memory
@@ -529,20 +532,36 @@ export default function NewChatDialog({
     };
   }, []);
 
+  // Push history state when New Chat opens for smooth back button navigation
+  useEffect(() => {
+    window.history.pushState({ newChatPage: true }, "");
+    const handlePopState = () => {
+      onOpenChange(false);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [onOpenChange]);
+
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="fixed inset-0 w-full h-full max-w-none p-0 overflow-hidden bg-[#121212] border-none text-white flex flex-col [&>button]:hidden font-sans select-none translate-x-0 translate-y-0 left-0 top-0 md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:h-[90vh] md:max-w-md md:rounded-3xl border-[#262626] shadow-2xl pb-[env(safe-area-inset-bottom)]">
-        
-        {/* Dynamic Headers */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#262626] shrink-0 bg-[#121212]">
-          <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60">
-            <X className="size-6" />
-          </button>
-          <span className="text-[17px] font-bold text-white">New Chat</span>
-          <button className="p-1 rounded-lg text-[#2a87d0] hover:bg-zinc-800/60">
-            <UserPlus className="size-6" />
-          </button>
-        </div>
+    <motion.div
+      initial={{ x: "-100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "-100%" }}
+      transition={{ type: "spring", stiffness: 350, damping: 35 }}
+      className="fixed inset-0 z-50 flex flex-col bg-[#121212] text-white w-full h-full overflow-hidden font-sans select-none pb-[env(safe-area-inset-bottom)]"
+    >
+      {/* Dynamic Headers */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[#262626] shrink-0 bg-[#121212]">
+        <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors">
+          <ArrowLeft className="size-6 text-zinc-300" />
+        </button>
+        <span className="text-[17px] font-bold text-white">New Chat</span>
+        <button className="p-1 rounded-lg text-[#2a87d0] hover:bg-zinc-800/60">
+          <UserPlus className="size-6" />
+        </button>
+      </div>
 
         {/* Input & Action buttons */}
         <div className="flex flex-col gap-4 p-4 shrink-0 border-b border-[#262626] bg-[#121212]">
@@ -1396,7 +1415,6 @@ export default function NewChatDialog({
           </div>
         )}
 
-      </DialogContent>
-    </Dialog>
+      </motion.div>
   );
 }

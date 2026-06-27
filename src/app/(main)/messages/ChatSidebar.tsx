@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Search, FolderDown, Pin, VolumeX, Check, CheckCheck, Loader2, LogOut, Volume2, Trash2, X, Sun, Moon, Users, FolderHeart, Menu, SquarePen, Plus, Star, Sparkles } from "lucide-react";
 import { Channel } from "stream-chat";
+import { motion, AnimatePresence } from "framer-motion";
 import { useChat } from "../ChatProvider";
 import { useChatUI } from "./Chat";
 import UserAvatar from "@/components/UserAvatar";
@@ -890,17 +891,19 @@ export default function ChatSidebar() {
       </div>
 
       {/* Compose Dialog overlay */}
-      {showNewChatDialog && chatClient && (
-        <NewChatDialog
-          onOpenChange={setShowNewChatDialog}
-          onChatCreated={() => setShowNewChatDialog(false)}
-          chatClient={chatClient}
-          onChannelCreated={(channel) => {
-            setActiveChannel(channel);
-            setMobileView("chat");
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {showNewChatDialog && chatClient && (
+          <NewChatDialog
+            onOpenChange={setShowNewChatDialog}
+            onChatCreated={() => setShowNewChatDialog(false)}
+            chatClient={chatClient}
+            onChannelCreated={(channel) => {
+              setActiveChannel(channel);
+              setMobileView("chat");
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Create Story Dialog overlay */}
       {createStoryOpen && (
