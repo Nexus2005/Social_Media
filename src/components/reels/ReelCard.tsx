@@ -23,7 +23,8 @@ import {
   ExternalLink,
   Loader2,
   ShoppingBag,
-  AlertTriangle
+  AlertTriangle,
+  FastForward
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
@@ -69,6 +70,39 @@ export default function ReelCard({
   const [isPlaying, setIsPlaying] = useState(false);
   const [overlayIcon, setOverlayIcon] = useState<"play" | "pause" | null>(null);
   const [tapHearts, setTapHearts] = useState<{ id: number }[]>([]);
+
+  // 2x Fast Forward on Hold states
+  const [isFastForwarding, setIsFastForwarding] = useState(false);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const didFastForwardRef = useRef(false);
+
+  const startFastForwardHold = () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    didFastForwardRef.current = false;
+
+    holdTimerRef.current = setTimeout(() => {
+      const video = videoRef.current;
+      if (video && !video.paused) {
+        video.playbackRate = 2.0;
+        setIsFastForwarding(true);
+        didFastForwardRef.current = true;
+      }
+    }, 250);
+  };
+
+  const stopFastForwardHold = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (isFastForwarding) {
+      const video = videoRef.current;
+      if (video) {
+        video.playbackRate = 1.0;
+      }
+      setIsFastForwarding(false);
+    }
+  };
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -454,6 +488,10 @@ export default function ReelCard({
 
   // Single/Double Click Video handler
   const handleVideoClick = (e: React.MouseEvent) => {
+    if (didFastForwardRef.current) {
+      didFastForwardRef.current = false;
+      return;
+    }
     if (isShoppingDrawerOpen) {
       // If shopping drawer is open, close it and resume video play
       setIsShoppingDrawerOpen(false);
@@ -577,6 +615,10 @@ export default function ReelCard({
               muted={isMuted}
               preload={isActive || shouldPreload ? "auto" : "metadata"}
               onClick={handleVideoClick}
+              onPointerDown={startFastForwardHold}
+              onPointerUp={stopFastForwardHold}
+              onPointerLeave={stopFastForwardHold}
+              onPointerCancel={stopFastForwardHold}
               className={cn(
                 "w-full h-full object-cover cursor-pointer transition-all duration-500",
                 isImmersive && "blur-md scale-105"
@@ -592,6 +634,23 @@ export default function ReelCard({
               )}
             </div>
           )}
+
+          {/* 2x Fast Forwarding Badge Overlay */}
+          <AnimatePresence>
+            {isFastForwarding && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-yellow-500/30 text-white shadow-2xl pointer-events-none select-none"
+              >
+                <FastForward className="size-4 fill-yellow-400 text-yellow-400 animate-pulse" />
+                <span className="text-xs font-black tracking-wider uppercase text-yellow-400">
+                  2x Speed
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Admin Debug Overlay (Development only, in Top Left Corner) */}
           {process.env.NODE_ENV === "development" && isAdmin && !isImmersive && (
@@ -802,7 +861,7 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className={cn("absolute right-2 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
+          <div className={cn("absolute right-2 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-2.5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
             {/* Like */}
             <div className="flex flex-col items-center">
               <motion.button
@@ -991,7 +1050,7 @@ export default function ReelCard({
         </div>
 
         {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
-        <div className={cn("hidden md:flex flex-col items-center justify-center gap-5 w-16 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
+        <div className={cn("hidden md:flex flex-col items-center justify-center gap-2.5 w-16 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
           {/* Like */}
           <div className="flex flex-col items-center">
             <motion.button
