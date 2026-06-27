@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -56,6 +57,19 @@ export default function RootLayout({
         {/* @ts-ignore */}
         <meta name="impact-site-verification" value="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
         <meta name="impact-site-verification" content="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
+        <Script
+          id="impact-tracking"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7440804-9415-4ac8-a5ee-7ddfc9d9452a1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');`,
+          }}
+        />
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7440804-9415-4ac8-a5ee-7ddfc9d9452a1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');`,
+          }}
+        />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
         <ReactQueryProvider>
