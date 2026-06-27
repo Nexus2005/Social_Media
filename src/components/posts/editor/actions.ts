@@ -317,8 +317,68 @@ export async function translateCaption(text: string, targetLanguage: string): Pr
 
   const prompt = `Translate this social media caption into ${targetLanguage}. Return ONLY the translation, nothing else. Do not add quotes, markdown, explanations, or preface text. Here is the caption: "${text}"`;
 
-  try {
-    if (apiKey) {
+  // 1. Try NVIDIA API key first (mostly Qwen models)
+  if (nvidiaKey) {
+    try {
+      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${nvidiaKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "qwen/qwen2.5-7b-instruct",
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.2,
+          max_tokens: 1024
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const translation = data.choices?.[0]?.message?.content?.trim();
+        if (translation) return translation;
+      } else {
+        console.warn(`NVIDIA Qwen model translation failed with status ${response.status}. Trying fallback model...`);
+        // Fallback model on NVIDIA integrate API
+        const fallbackResponse = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${nvidiaKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "meta/llama-3.1-8b-instruct",
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 1024
+          })
+        });
+
+        if (fallbackResponse.ok) {
+          const data = await fallbackResponse.json();
+          const translation = data.choices?.[0]?.message?.content?.trim();
+          if (translation) return translation;
+        }
+      }
+    } catch (error) {
+      console.error("NVIDIA API translation error:", error);
+    }
+  }
+
+  // 2. Try OpenRouter API key as fallback
+  if (apiKey) {
+    try {
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -344,35 +404,9 @@ export async function translateCaption(text: string, targetLanguage: string): Pr
         const translation = data.choices?.[0]?.message?.content?.trim();
         if (translation) return translation;
       }
+    } catch (error) {
+      console.error("OpenRouter API translation error:", error);
     }
-
-    if (nvidiaKey) {
-      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${nvidiaKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "meta/llama-3.2-11b-vision-instruct",
-          messages: [
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          temperature: 0.3
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const translation = data.choices?.[0]?.message?.content?.trim();
-        if (translation) return translation;
-      }
-    }
-  } catch (error) {
-    console.error("Translation API error, falling back:", error);
   }
 
   return text;

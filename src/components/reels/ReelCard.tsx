@@ -134,14 +134,51 @@ export default function ReelCard({
   const [activeLanguage, setActiveLanguage] = useState("original");
   const [displayContent, setDisplayContent] = useState(post.content);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isCurrentlyTranslated, setIsCurrentlyTranslated] = useState(false);
   const [captionsSubView, setCaptionsSubView] = useState<"main" | "languages">("main");
   const [tempSelectedLanguage, setTempSelectedLanguage] = useState("original");
+
+  // Load language preference from LocalStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("user-preferred-translation-lang");
+      if (savedLang) {
+        setActiveLanguage(savedLang);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (captionsSubView === "languages") {
       setTempSelectedLanguage(activeLanguage);
     }
   }, [captionsSubView, activeLanguage]);
+
+  const toggleTranslation = async () => {
+    if (isCurrentlyTranslated) {
+      setIsCurrentlyTranslated(false);
+    } else {
+      // If we haven't fetched the translated content for this post yet
+      if (displayContent === post.content && activeLanguage !== "original") {
+        setIsTranslating(true);
+        try {
+          const translated = await translateCaption(post.content, activeLanguage);
+          setDisplayContent(translated);
+          setIsCurrentlyTranslated(true);
+        } catch (error) {
+          console.error(error);
+          toast({
+            variant: "destructive",
+            description: "Failed to translate caption."
+          });
+        } finally {
+          setIsTranslating(false);
+        }
+      } else {
+        setIsCurrentlyTranslated(true);
+      }
+    }
+  };
 
   const speedCycle = [1, 1.2, 1.5, 2, 2.5, 3];
 
@@ -160,8 +197,13 @@ export default function ReelCard({
 
   const handleLanguageChange = async (langCode: string) => {
     setActiveLanguage(langCode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user-preferred-translation-lang", langCode);
+    }
+
     if (langCode === "original") {
       setDisplayContent(post.content);
+      setIsCurrentlyTranslated(false);
       toast({ description: "Restored original caption" });
       return;
     }
@@ -170,6 +212,7 @@ export default function ReelCard({
     try {
       const translated = await translateCaption(post.content, langCode);
       setDisplayContent(translated);
+      setIsCurrentlyTranslated(true);
       toast({ description: `Caption translated to ${langCode}` });
     } catch (error) {
       console.error(error);
@@ -941,20 +984,39 @@ export default function ReelCard({
               </div>
 
               {/* 4. Caption */}
-              <div 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsCaptionExpanded((prev) => !prev);
-                }}
-                className="text-[13px] text-white/95 max-w-[285px] cursor-pointer select-none pointer-events-auto flex flex-col text-start gap-1"
-              >
-                <p className={cn("leading-relaxed transition-all duration-300", isCaptionExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-1 truncate")}>
-                  {displayContent}
-                </p>
-                <span className="text-[11px] text-zinc-400 font-semibold tracking-wide">
-                  {formattedDate}
-                </span>
-              </div>
+              {showCaptions && (
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCaptionExpanded((prev) => !prev);
+                  }}
+                  className="text-[13px] text-white/95 max-w-[285px] cursor-pointer select-none pointer-events-auto flex flex-col text-start gap-1"
+                >
+                  <p className={cn("leading-relaxed transition-all duration-300", isCaptionExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-1")}>
+                    {isTranslating ? (
+                      <span className="flex items-center gap-1.5 text-zinc-400 italic">
+                        <Loader2 className="size-3.5 animate-spin text-zinc-400" /> Translating to {activeLanguage}...
+                      </span>
+                    ) : (
+                      isCurrentlyTranslated ? displayContent : post.content
+                    )}
+                    {activeLanguage !== "original" && !isTranslating && (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTranslation();
+                        }}
+                        className="font-black text-white hover:text-zinc-300 ml-2 cursor-pointer text-[12px] inline-block transition-transform active:scale-95 hover:underline whitespace-nowrap"
+                      >
+                        {isCurrentlyTranslated ? "See original" : "See translation"}
+                      </span>
+                    )}
+                  </p>
+                  <span className="text-[11px] text-zinc-400 font-semibold tracking-wide">
+                    {formattedDate}
+                  </span>
+                </div>
+              )}
 
             </div>
           </div>
