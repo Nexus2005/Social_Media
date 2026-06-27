@@ -24,7 +24,10 @@ import {
   Loader2,
   ShoppingBag,
   AlertTriangle,
-  FastForward
+  FastForward,
+  Maximize2,
+  Minimize2,
+  RotateCw
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
@@ -98,7 +101,7 @@ export default function ReelCard({
     if (isFastForwarding) {
       const video = videoRef.current;
       if (video) {
-        video.playbackRate = 1.0;
+        video.playbackRate = currentSpeed;
       }
       setIsFastForwarding(false);
     }
@@ -108,6 +111,28 @@ export default function ReelCard({
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+
+  // Quick Controls Sheet & Speed/Full Screen states
+  const [isQuickControlsOpen, setIsQuickControlsOpen] = useState(false);
+  const [currentSpeed, setCurrentSpeed] = useState<number>(1);
+  const [isCleanFullScreen, setIsCleanFullScreen] = useState(false);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
+
+  const speedCycle = [1, 1.2, 1.5, 2, 2.5, 3];
+
+  const handleCycleSpeed = () => {
+    const currentIndex = speedCycle.indexOf(currentSpeed);
+    const nextIndex = currentIndex === -1 || currentIndex === speedCycle.length - 1 ? 0 : currentIndex + 1;
+    const nextSpeed = speedCycle[nextIndex];
+    setCurrentSpeed(nextSpeed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = nextSpeed;
+    }
+    toast({
+      description: `Playback speed set to ${nextSpeed}x`,
+    });
+  };
 
   // Shoppable products overlay states
   const [isShoppingDrawerOpen, setIsShoppingDrawerOpen] = useState(false);
@@ -521,38 +546,14 @@ export default function ReelCard({
       clickTimeoutRef.current = setTimeout(() => {
         clickTimeoutRef.current = null;
         
-        // Single click -> Toggle Play/Pause
-        const video = videoRef.current;
-        if (!video) return;
-        if (video.paused) {
-          video.play()
-            .then(() => {
-              setIsPlaying(true);
-              setOverlayIcon("play");
-              setTimeout(() => setOverlayIcon(null), 800);
-            })
-            .catch((err) => console.error(err));
-        } else {
-          video.pause();
-          setIsPlaying(false);
-          setOverlayIcon("pause");
-          setTimeout(() => setOverlayIcon(null), 800);
+        if (isCleanFullScreen) {
+          setIsCleanFullScreen(false);
+          return;
         }
 
-        // Toggle hotspots visibility (auto-hide after 4 seconds)
-        setShowHotspots((prev) => {
-          const next = !prev;
-          if (next) {
-            if (hotspotTimeoutRef.current) clearTimeout(hotspotTimeoutRef.current);
-            hotspotTimeoutRef.current = setTimeout(() => {
-              setShowHotspots(false);
-            }, 4000);
-          } else {
-            if (hotspotTimeoutRef.current) clearTimeout(hotspotTimeoutRef.current);
-          }
-          return next;
-        });
-      }, 250); // 250ms is standard double-click delay threshold
+        // Single click -> Open Instagram Reel Quick Controls Sheet
+        setIsQuickControlsOpen((prev) => !prev);
+      }, 250);
     }
   };
 
@@ -701,6 +702,20 @@ export default function ReelCard({
             );
           })}
 
+          {/* Floating Minimize Button in Clean Full Screen Mode */}
+          {isCleanFullScreen && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCleanFullScreen(false);
+              }}
+              className="absolute top-4 right-4 z-50 p-2.5 bg-black/70 hover:bg-black/90 rounded-full text-white transition-all shadow-xl border border-white/20 cursor-pointer active:scale-95"
+              title="Exit Full Screen"
+            >
+              <Minimize2 className="size-5 text-white" />
+            </button>
+          )}
+
           {/* Mute Indicator overlay in top-right corner of player */}
           <button
             onClick={(e) => {
@@ -709,7 +724,7 @@ export default function ReelCard({
             }}
             className={cn(
               "absolute top-4 right-4 z-30 p-2 bg-black/60 hover:bg-black/85 rounded-full text-white transition",
-              isImmersive && "hidden"
+              (isImmersive || isCleanFullScreen) && "hidden"
             )}
           >
             {isMuted ? <VolumeX className="size-4.5" /> : <Volume2 className="size-4.5" />}
@@ -756,7 +771,7 @@ export default function ReelCard({
 
           {/* Center play state hint overlay */}
           {!isPlaying && !overlayIcon && (
-            <div className={cn("absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none transition-opacity duration-300", isImmersive && "hidden")}>
+            <div className={cn("absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none transition-opacity duration-300", (isImmersive || isCleanFullScreen) && "hidden")}>
               <div className="p-4 bg-black/40 rounded-full text-white">
                 <Play className="size-10 fill-white translate-x-[2px]" />
               </div>
@@ -764,10 +779,10 @@ export default function ReelCard({
           )}
 
           {/* Smooth bottom gradient overlay */}
-          <div className={cn("absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none z-10", isImmersive && "hidden")} />
+          <div className={cn("absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none z-10", (isImmersive || isCleanFullScreen) && "hidden")} />
 
           {/* Left Bottom Video Details Overlay */}
-          <div className={cn("absolute bottom-0 left-0 right-0 p-4 pb-6 z-20 flex flex-col gap-3.5 text-white bg-transparent pointer-events-none", isImmersive && "hidden")}>
+          <div className={cn("absolute bottom-0 left-0 right-0 p-4 pb-6 z-20 flex flex-col gap-3.5 text-white bg-transparent pointer-events-none", (isImmersive || isCleanFullScreen) && "hidden")}>
             <div className="flex flex-col gap-2.5 pointer-events-auto">
               
               {/* 1. Shop CTA Button */}
@@ -861,7 +876,7 @@ export default function ReelCard({
           </div>
 
           {/* Floating Right-Edge Action Tray Layer (Mobile Overlay: < md) */}
-          <div className={cn("absolute right-2 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-2.5 text-white md:hidden pointer-events-auto", isImmersive && "hidden")}>
+          <div className={cn("absolute right-2 bottom-20 z-20 w-16 flex flex-col items-center justify-center gap-2.5 text-white md:hidden pointer-events-auto", (isImmersive || isCleanFullScreen) && "hidden")}>
             {/* Like */}
             <div className="flex flex-col items-center">
               <motion.button
@@ -1050,7 +1065,7 @@ export default function ReelCard({
         </div>
 
         {/* 3. Right Sidebar Control Actions Stack (Desktop only: md and above) */}
-        <div className={cn("hidden md:flex flex-col items-center justify-center gap-2.5 w-16 ml-4 sm:ml-5 text-white z-20 shrink-0", isImmersive && "hidden")}>
+        <div className={cn("hidden md:flex flex-col items-center justify-center gap-2.5 w-16 ml-4 sm:ml-5 text-white z-20 shrink-0", (isImmersive || isCleanFullScreen) && "hidden")}>
           {/* Like */}
           <div className="flex flex-col items-center">
             <motion.button
@@ -1227,6 +1242,101 @@ export default function ReelCard({
           onOpenChange={setIsShareOpen}
         />
       )}
+
+      {/* Instagram Reel Quick Controls Bottom Sheet */}
+      <AnimatePresence>
+        {isQuickControlsOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsQuickControlsOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] pointer-events-auto"
+            />
+
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 280 }}
+              className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#18191b] border-t border-zinc-800/80 rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-md md:mx-auto pb-8 px-5 pointer-events-auto select-none"
+            >
+              {/* Top drag handle */}
+              <div className="w-full flex justify-center py-3.5 cursor-pointer" onClick={() => setIsQuickControlsOpen(false)}>
+                <div className="w-10 h-1 bg-zinc-600/80 rounded-full" />
+              </div>
+
+              {/* 2-Column Cards Grid */}
+              <div className="grid grid-cols-2 gap-3.5 w-full py-2">
+                {/* Speed Card */}
+                <button
+                  onClick={handleCycleSpeed}
+                  className="flex flex-col items-center justify-center gap-1 py-5 px-4 rounded-2xl bg-[#232529] hover:bg-[#2c2f35] active:scale-95 transition-all cursor-pointer border border-zinc-800/50 shadow-md"
+                >
+                  <span className="text-2xl font-black text-white">{currentSpeed}x</span>
+                  <span className="text-xs font-semibold text-zinc-400">Speed</span>
+                </button>
+
+                {/* Full Screen Card */}
+                <button
+                  onClick={() => {
+                    setIsQuickControlsOpen(false);
+                    setIsCleanFullScreen(true);
+                  }}
+                  className="flex flex-col items-center justify-center gap-2 py-5 px-4 rounded-2xl bg-[#232529] hover:bg-[#2c2f35] active:scale-95 transition-all cursor-pointer border border-zinc-800/50 shadow-md"
+                >
+                  <Maximize2 className="size-6 text-white" strokeWidth={2} />
+                  <span className="text-xs font-semibold text-zinc-400">Full screen</span>
+                </button>
+              </div>
+
+              {/* Additional Options List */}
+              <div className="flex flex-col gap-1 mt-4">
+                {/* Auto scroll Row */}
+                <div
+                  onClick={() => {
+                    setAutoScrollEnabled((prev) => !prev);
+                    toast({ description: `Auto scroll ${!autoScrollEnabled ? "enabled" : "disabled"}` });
+                  }}
+                  className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <RotateCw className="size-5 text-zinc-300" />
+                    <span className="text-[15px] font-medium text-white">Auto scroll</span>
+                  </div>
+                  {/* Styled Toggle Switch */}
+                  <div className={cn(
+                    "w-12 h-7 rounded-full p-1 transition-colors duration-200 ease-in-out flex items-center",
+                    autoScrollEnabled ? "bg-[#3897f0] justify-end" : "bg-zinc-700 justify-start"
+                  )}>
+                    <div className="w-5 h-5 rounded-full bg-white shadow-md" />
+                  </div>
+                </div>
+
+                {/* Manage captions Row */}
+                <div
+                  onClick={() => {
+                    setShowCaptions((prev) => !prev);
+                    toast({ description: `Captions ${!showCaptions ? "shown" : "hidden"}` });
+                  }}
+                  className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors border-t border-zinc-800/40"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="size-6 rounded-md border-2 border-zinc-300 flex items-center justify-center text-[10px] font-black tracking-tighter text-zinc-300">
+                      CC
+                    </div>
+                    <span className="text-[15px] font-medium text-white">Manage captions</span>
+                  </div>
+                  <span className="text-xs text-zinc-400 font-semibold">{showCaptions ? "On" : "Off"}</span>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
