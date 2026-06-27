@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   other: {
-    "impact-site-verification": "295a53f1-da3e-45bb-94ee-bfd7cb7f70ea",
+    "impact-site-verification": "065bee49-82d2-48ec-975f-501f037968d7",
   },
 };
 
@@ -50,6 +50,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-instagram-lightBg dark:bg-instagram-darkBg" suppressHydrationWarning>
       <head>
+        {/* @ts-ignore */}
+        <meta name="impact-site-verification" value="065bee49-82d2-48ec-975f-501f037968d7" />
+        <meta name="impact-site-verification" content="065bee49-82d2-48ec-975f-501f037968d7" />
         {/* @ts-ignore */}
         <meta name="impact-site-verification" value="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
         <meta name="impact-site-verification" content="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
