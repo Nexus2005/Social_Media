@@ -28,7 +28,8 @@ import {
   Maximize2,
   Minimize2,
   RotateCw,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import ReelOptionsDialog from "./ReelOptionsDialog";
@@ -36,7 +37,7 @@ import CommentsBottomSheet from "@/components/comments/CommentsBottomSheet";
 import ShareDialog from "@/components/posts/ShareDialog";
 import RepostButton from "@/components/posts/RepostButton";
 import { useToast } from "../ui/use-toast";
-import { updatePost } from "@/components/posts/editor/actions";
+import { updatePost, translateCaption } from "@/components/posts/editor/actions";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -132,6 +133,8 @@ export default function ReelCard({
   const [isSavingCaption, setIsSavingCaption] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState("original");
   const [displayContent, setDisplayContent] = useState(post.content);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [captionsSubView, setCaptionsSubView] = useState<"main" | "languages">("main");
 
   const speedCycle = [1, 1.2, 1.5, 2, 2.5, 3];
 
@@ -148,45 +151,29 @@ export default function ReelCard({
     });
   };
 
-  const translateText = (text: string, lang: string) => {
-    if (lang === "original") return text;
-    const lower = text.toLowerCase();
-    if (lang === "hindi") {
-      if (lower.includes("summer") || lower.includes("vibe")) return "गर्मियों के मौसम का आनंद लेते हुए! ☀️🌴";
-      if (lower.includes("shoes") || lower.includes("sneakers")) return "शानदार जूते और स्टाइल! 👟🔥";
-      if (lower.includes("food") || lower.includes("recipe")) return "स्वादिष्ट भोजन और बढ़िया स्वाद! 🍔🍕";
-      return `[अनुवादित]: ${text} (भारतीय भाषा)`;
+  const handleLanguageChange = async (langCode: string) => {
+    setActiveLanguage(langCode);
+    if (langCode === "original") {
+      setDisplayContent(post.content);
+      toast({ description: "Restored original caption" });
+      return;
     }
-    if (lang === "spanish") {
-      if (lower.includes("summer") || lower.includes("vibe")) return "¡Disfrutando de las vibras de verano! ☀️🌴";
-      if (lower.includes("shoes") || lower.includes("sneakers")) return "¡Zapatos increíbles y estilo urbano! 👟🔥";
-      if (lower.includes("food") || lower.includes("recipe")) return "¡Comida deliciosa y excelente sabor! 🍔🍕";
-      return `[Traducido]: ${text} (en Español)`;
-    }
-    if (lang === "french") {
-      if (lower.includes("summer") || lower.includes("vibe")) return "Profiter des vibrations de l'été ! ☀️🌴";
-      if (lower.includes("shoes") || lower.includes("sneakers")) return "Superbes baskets et style urbain ! 👟🔥";
-      if (lower.includes("food") || lower.includes("recipe")) return "Nourriture délicieuse et bon goût ! 🍔🍕";
-      return `[Traduit]: ${text} (en Français)`;
-    }
-    if (lang === "german") {
-      if (lower.includes("summer") || lower.includes("vibe")) return "Sommerstimmung genießen! ☀️🌴";
-      if (lower.includes("shoes") || lower.includes("sneakers")) return "Tolle Sneaker und cooler Style! 👟🔥";
-      if (lower.includes("food") || lower.includes("recipe")) return "Leckeres Essen und toller Geschmack! 🍔🍕";
-      return `[Übersetzt]: ${text} (auf Deutsch)`;
-    }
-    if (lang === "japanese") {
-      if (lower.includes("summer") || lower.includes("vibe")) return "夏のバイブスを楽しんでいます！ ☀️🌴";
-      if (lower.includes("shoes") || lower.includes("sneakers")) return "素晴らしいスニーカーと都会的なスタイル！ 👟🔥";
-      if (lower.includes("food") || lower.includes("recipe")) return "美味しい食べ物 and 素晴らしい味！ 🍔🍕";
-      return `[翻訳済]: ${text} (日本語)`;
-    }
-    return text;
-  };
 
-  useEffect(() => {
-    setDisplayContent(translateText(post.content, activeLanguage));
-  }, [post.content, activeLanguage]);
+    setIsTranslating(true);
+    try {
+      const translated = await translateCaption(post.content, langCode);
+      setDisplayContent(translated);
+      toast({ description: `Caption translated to ${langCode}` });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        description: "Failed to translate caption. Please try again."
+      });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   const handleSaveCaption = async () => {
     setIsSavingCaption(true);
@@ -196,6 +183,16 @@ export default function ReelCard({
         description: "Caption updated successfully!",
       });
       queryClient.invalidateQueries({ queryKey: ["post-feed"] });
+      
+      if (activeLanguage !== "original") {
+        setIsTranslating(true);
+        const translated = await translateCaption(editedCaptionText, activeLanguage);
+        setDisplayContent(translated);
+        setIsTranslating(false);
+      } else {
+        setDisplayContent(editedCaptionText);
+      }
+
       setQuickControlsView("menu");
       setIsQuickControlsOpen(false);
     } catch (err) {
@@ -1347,9 +1344,7 @@ export default function ReelCard({
               {/* Top drag handle */}
               <div className="w-full flex justify-center py-3.5 cursor-pointer" onClick={() => { setIsQuickControlsOpen(false); setQuickControlsView("menu"); }}>
                 <div className="w-10 h-1 bg-zinc-600/80 rounded-full" />
-              </div>
-
-              {quickControlsView === "menu" ? (
+              </div>              {quickControlsView === "menu" ? (
                 <>
                   {/* 2-Column Cards Grid */}
                   <div className="grid grid-cols-2 gap-3.5 w-full py-2">
@@ -1402,6 +1397,7 @@ export default function ReelCard({
                     <div
                       onClick={() => {
                         setQuickControlsView("captions");
+                        setCaptionsSubView("main");
                       }}
                       className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-800/40 cursor-pointer transition-colors border-t border-zinc-800/40"
                     >
@@ -1416,73 +1412,163 @@ export default function ReelCard({
                   </div>
                 </>
               ) : (
-                /* Captions management view for editing and translations */
+                /* Captions management view matching IG Closed captions style */
                 <div className="flex flex-col gap-4 text-start">
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setQuickControlsView("menu")} className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60">
-                      <ChevronLeft className="size-5" />
-                    </button>
-                    <span className="text-[16px] font-bold">Captions & Translations</span>
-                  </div>
+                  {captionsSubView === "main" ? (
+                    <>
+                      {/* Title Header */}
+                      <div className="relative flex items-center justify-center py-2.5">
+                        <button
+                          onClick={() => { setQuickControlsView("menu"); }}
+                          className="absolute left-0 p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60"
+                        >
+                          <ChevronLeft className="size-6" />
+                        </button>
+                        <span className="text-[16px] font-bold tracking-tight">Closed captions</span>
+                      </div>
 
-                  {/* If own post, show caption editor */}
-                  {post.userId === loggedInUser.id ? (
-                    <div className="flex flex-col gap-3 py-1">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Edit Caption</label>
-                      <textarea
-                        value={editedCaptionText}
-                        onChange={(e) => setEditedCaptionText(e.target.value)}
-                        rows={3}
-                        className="w-full p-3.5 rounded-xl bg-[#232529] border border-zinc-800 text-sm text-white placeholder:text-zinc-550 focus:outline-none focus:border-zinc-700 resize-none font-medium"
-                        placeholder="Write a caption..."
-                      />
-                      <button
-                        onClick={handleSaveCaption}
-                        disabled={isSavingCaption}
-                        className="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50"
+                      {/* Row 1: Turn on closed captions */}
+                      <div
+                        onClick={() => {
+                          setShowCaptions((prev) => !prev);
+                          toast({ description: `Closed captions ${!showCaptions ? "turned on" : "turned off"}` });
+                        }}
+                        className="flex items-center justify-between py-4 border-b border-zinc-850 cursor-pointer"
                       >
-                        {isSavingCaption ? "Saving..." : "Save Caption"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl bg-[#232529]/30 border border-zinc-800/50 text-xs text-zinc-400 leading-relaxed">
-                      Only the creator of this Reel can edit the original caption text.
-                    </div>
-                  )}
+                        <div className="flex flex-col gap-0.5 max-w-[80%]">
+                          <span className="text-[15px] font-semibold text-white">Turn on closed captions</span>
+                          <span className="text-[12.5px] text-zinc-450 font-medium leading-tight">
+                            {showCaptions 
+                              ? "Captions will be shown on the reel in the display language." 
+                              : "Captions are unavailable for this reel."}
+                          </span>
+                        </div>
+                        {/* Styled Toggle Switch */}
+                        <div className={cn(
+                          "w-12 h-7 rounded-full p-1 transition-colors duration-200 ease-in-out flex items-center",
+                          showCaptions ? "bg-[#3897f0] justify-end" : "bg-zinc-700 justify-start"
+                        )}>
+                          <div className="w-5 h-5 rounded-full bg-white shadow-md" />
+                        </div>
+                      </div>
 
-                  {/* Auto-Translate Section */}
-                  <div className="flex flex-col gap-3 mt-2">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Auto-translate to language</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { code: "original", label: "Original" },
-                        { code: "hindi", label: "Hindi (हिंदी)" },
-                        { code: "spanish", label: "Spanish (Español)" },
-                        { code: "french", label: "French (Français)" },
-                        { code: "german", label: "German (Deutsch)" },
-                        { code: "japanese", label: "Japanese (日本語)" },
-                      ].map((lang) => {
-                        const isSelected = activeLanguage === lang.code;
-                        return (
+                      {/* Row 2: Display language selection (only shown if captions are enabled) */}
+                      {showCaptions && (
+                        <div
+                          onClick={() => setCaptionsSubView("languages")}
+                          className="flex items-center justify-between py-4 cursor-pointer hover:bg-zinc-800/20 rounded-xl px-1 transition-colors"
+                        >
+                          <span className="text-[15px] font-semibold text-white">Display language</span>
+                          <div className="flex items-center gap-1 text-[14px] text-zinc-400">
+                            <span>{activeLanguage === "original" ? "Original" : activeLanguage}</span>
+                            <ChevronRight className="size-4 text-zinc-400" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Creator Caption Editing Section */}
+                      {post.userId === loggedInUser.id && (
+                        <div className="flex flex-col gap-3 py-3 border-t border-zinc-850">
+                          <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Edit Caption</label>
+                          <textarea
+                            value={editedCaptionText}
+                            onChange={(e) => setEditedCaptionText(e.target.value)}
+                            rows={2}
+                            className="w-full p-3 rounded-xl bg-[#232529] border border-zinc-800 text-sm text-white placeholder:text-zinc-550 focus:outline-none focus:border-zinc-700 resize-none font-medium"
+                            placeholder="Edit the original caption text..."
+                          />
                           <button
-                            key={lang.code}
-                            onClick={() => {
-                              setActiveLanguage(lang.code);
-                              toast({ description: `Caption translated to ${lang.label}` });
-                            }}
-                            className={cn(
-                              "py-2.5 px-2 rounded-xl text-[11px] font-bold transition-all border text-center cursor-pointer",
-                              isSelected
-                                ? "bg-[#3897f0] border-[#3897f0] text-white"
-                                : "bg-[#232529] border-zinc-800/80 text-zinc-300 hover:bg-zinc-800"
-                            )}
+                            onClick={handleSaveCaption}
+                            disabled={isSavingCaption}
+                            className="w-full py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50"
                           >
-                            {lang.label}
+                            {isSavingCaption ? "Saving..." : "Save Caption"}
                           </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Display language list view */
+                    <>
+                      {/* Back & Title Header */}
+                      <div className="relative flex items-center justify-start py-2.5 gap-3 border-b border-zinc-850">
+                        <button
+                          onClick={() => setCaptionsSubView("main")}
+                          className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60"
+                        >
+                          <ChevronLeft className="size-6" />
+                        </button>
+                        <span className="text-[16px] font-bold">Display language</span>
+                      </div>
+
+                      {/* Scrollable Language List */}
+                      <div className="flex flex-col max-h-[360px] overflow-y-auto pr-1 select-none mt-2 scrollbar-none">
+                        {[
+                          { code: "original", label: "Original" },
+                          { code: "Arabic", label: "Arabic" },
+                          { code: "Bengali", label: "Bengali" },
+                          { code: "German", label: "German" },
+                          { code: "English", label: "English" },
+                          { code: "Spanish", label: "Spanish" },
+                          { code: "Persian", label: "Persian" },
+                          { code: "Finnish", label: "Finnish" },
+                          { code: "French", label: "French" },
+                          { code: "Gujarati", label: "Gujarati" },
+                          { code: "Hebrew", label: "Hebrew" },
+                          { code: "Hindi", label: "Hindi" },
+                          { code: "Indonesian", label: "Indonesian" },
+                          { code: "Italian", label: "Italian" },
+                          { code: "Japanese", label: "Japanese" },
+                          { code: "Kannada", label: "Kannada" },
+                          { code: "Korean", label: "Korean" },
+                          { code: "Malay", label: "Malay" },
+                          { code: "Burmese", label: "Burmese" },
+                          { code: "Dutch", label: "Dutch" },
+                          { code: "Polish", label: "Polish" },
+                          { code: "Portuguese", label: "Portuguese" },
+                          { code: "Russian", label: "Russian" },
+                          { code: "Sinhala", label: "Sinhala" },
+                          { code: "Swedish", label: "Swedish" },
+                          { code: "Tamil", label: "Tamil" },
+                          { code: "Telugu", label: "Telugu" },
+                          { code: "Tagalog", label: "Tagalog" },
+                          { code: "Thai", label: "Thai" },
+                          { code: "Turkish", label: "Turkish" },
+                          { code: "Urdu", label: "Urdu" },
+                          { code: "Vietnamese", label: "Vietnamese" },
+                          { code: "Chinese", label: "Chinese" },
+                          { code: "Marathi", label: "Marathi" }
+                        ].map((lang) => {
+                          const isSelected = activeLanguage === lang.code;
+                          return (
+                            <div
+                              key={lang.code}
+                              onClick={() => {
+                                handleLanguageChange(lang.code);
+                              }}
+                              className="flex items-center justify-between py-3.5 px-1 cursor-pointer hover:bg-zinc-800/20 rounded-lg transition-all"
+                            >
+                              <span className={cn(
+                                "text-[15px] font-medium transition-colors",
+                                isSelected ? "text-[#3897f0]" : "text-white"
+                              )}>
+                                {lang.label}
+                              </span>
+                              {/* Circle Check Radio Style */}
+                              <div className={cn(
+                                "size-5.5 rounded-full border-2 flex items-center justify-center transition-colors",
+                                isSelected ? "border-[#3897f0]" : "border-zinc-650"
+                              )}>
+                                {isSelected && (
+                                  <div className="size-3 rounded-full bg-[#3897f0]" />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>

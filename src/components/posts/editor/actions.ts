@@ -304,4 +304,78 @@ export async function updatePost(input: {
   return toPlainObject(updatedPost);
 }
 
+export async function translateCaption(text: string, targetLanguage: string): Promise<string> {
+  const { user } = await validateRequest();
+  if (!user) throw new Error("Unauthorized");
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const nvidiaKey = process.env.NVIDIA_API_KEY;
+
+  if (!apiKey && !nvidiaKey) {
+    return text;
+  }
+
+  const prompt = `Translate this social media caption into ${targetLanguage}. Return ONLY the translation, nothing else. Do not add quotes, markdown, explanations, or preface text. Here is the caption: "${text}"`;
+
+  try {
+    if (apiKey) {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "http://localhost:3000",
+          "X-Title": "Next Social Media Translation"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.3
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const translation = data.choices?.[0]?.message?.content?.trim();
+        if (translation) return translation;
+      }
+    }
+
+    if (nvidiaKey) {
+      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${nvidiaKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "meta/llama-3.2-11b-vision-instruct",
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.3
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const translation = data.choices?.[0]?.message?.content?.trim();
+        if (translation) return translation;
+      }
+    }
+  } catch (error) {
+    console.error("Translation API error, falling back:", error);
+  }
+
+  return text;
+}
+
 
