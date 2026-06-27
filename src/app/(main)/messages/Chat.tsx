@@ -8,6 +8,7 @@ import ChatSidebar from "./ChatSidebar";
 import ChatChannel from "./ChatChannel";
 import MediaViewer, { MediaViewerState } from "./MediaViewer";
 import ChatProfile from "./ChatProfile";
+import { AnimatePresence } from "framer-motion";
 import kyInstance from "@/lib/ky";
 import { useSession } from "../SessionProvider";
 
@@ -168,6 +169,20 @@ export default function Chat() {
     };
   }, [activeChannel, mobileView]);
 
+  // Push history state when profile overlay opens to support smooth back navigation
+  useEffect(() => {
+    if (profileOverlayChannel) {
+      window.history.pushState({ chatProfile: true }, "");
+      const handlePopState = () => {
+        setProfileOverlayChannel(null);
+      };
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    }
+  }, [profileOverlayChannel]);
+
   // Toggle Preference Helper
   const togglePreference = async (
     action: "pin" | "unpin" | "archive" | "unarchive" | "mute" | "unmute" | "wallpaper" | "clear_history",
@@ -276,12 +291,14 @@ export default function Chat() {
         )}
 
         {/* Slide-out Chat Profile Details Overlay */}
-        {profileOverlayChannel && (
-          <ChatProfile
-            channel={profileOverlayChannel}
-            onClose={() => setProfileOverlayChannel(null)}
-          />
-        )}
+        <AnimatePresence>
+          {profileOverlayChannel && (
+            <ChatProfile
+              channel={profileOverlayChannel}
+              onClose={() => setProfileOverlayChannel(null)}
+            />
+          )}
+        </AnimatePresence>
       </main>
     </ChatUIContext.Provider>
   );

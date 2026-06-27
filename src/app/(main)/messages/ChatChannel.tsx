@@ -1330,6 +1330,20 @@ export default function ChatChannel() {
     }, 4000);
   };
 
+  // Push history state when group profile opens for smooth back navigation
+  useEffect(() => {
+    if (showGroupProfile) {
+      window.history.pushState({ groupProfile: true }, "");
+      const handlePopState = () => {
+        setShowGroupProfile(false);
+      };
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    }
+  }, [showGroupProfile]);
+
   // Reset selected message when switching channels
   useEffect(() => {
     setSelectedMessage(null);
@@ -2715,9 +2729,9 @@ export default function ChatChannel() {
             {/* Fullscreen Group Details Profile Overlay Page */}
             {showGroupProfile && (
               <motion.div
-                initial={{ x: "100%" }}
+                initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
-                exit={{ x: "100%" }}
+                exit={{ x: "-100%" }}
                 transition={{ type: "spring", stiffness: 380, damping: 36 }}
                 className="fixed inset-0 z-50 flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
               >
@@ -3905,9 +3919,9 @@ export default function ChatChannel() {
             <AnimatePresence>
               {showGroupEditPage && (
                 <motion.div
-                  initial={{ x: "100%" }}
+                  initial={{ x: "-100%" }}
                   animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
+                  exit={{ x: "-100%" }}
                   transition={{ type: "spring", stiffness: 380, damping: 36 }}
                   className="fixed inset-0 z-[70] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
                 >
@@ -4145,9 +4159,9 @@ export default function ChatChannel() {
             <AnimatePresence>
               {showGroupSettingsSubPage && (
                 <motion.div
-                  initial={{ x: "100%" }}
+                  initial={{ x: "-100%" }}
                   animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
+                  exit={{ x: "-100%" }}
                   transition={{ type: "spring", stiffness: 380, damping: 36 }}
                   className="fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
                 >
@@ -4316,9 +4330,9 @@ export default function ChatChannel() {
             <AnimatePresence>
               {showTopicsSubPage && (
                 <motion.div
-                  initial={{ x: "100%" }}
+                  initial={{ x: "-100%" }}
                   animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
+                  exit={{ x: "-100%" }}
                   transition={{ type: "spring", stiffness: 380, damping: 36 }}
                   className="fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
                 >

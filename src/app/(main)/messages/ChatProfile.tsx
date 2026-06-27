@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Bell, BellOff, Image as ImageIcon, FileText, Link as LinkIcon, Mic, Film, Users, Loader2, Ban, ShieldAlert } from "lucide-react";
+import { X, Bell, BellOff, Image as ImageIcon, FileText, Link as LinkIcon, Mic, Film, Users, Loader2, Ban, ShieldAlert, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { Channel, MessageResponse } from "stream-chat";
 import { useChatUI } from "./Chat";
@@ -109,6 +109,12 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
   const handleClearHistory = async () => {
     try {
       await togglePreference("clear_history", channel.id!);
+      try {
+        await channel.truncate();
+      } catch (truncateErr) {
+        console.warn("Stream channel truncate error:", truncateErr);
+      }
+      setMessages([]);
       toast({ description: "Chat history cleared." });
     } catch (e) {
       console.error(e);
@@ -159,18 +165,19 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
 
   return (
     <motion.div
-      initial={{ x: "100%" }}
+      initial={{ x: "-100%" }}
       animate={{ x: 0 }}
-      exit={{ x: "100%" }}
+      exit={{ x: "-100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="absolute bottom-0 right-0 top-0 z-30 flex h-full w-full flex-col border-s bg-background shadow-2xl md:w-80 lg:w-96"
+      className="fixed inset-0 z-50 flex h-full w-full flex-col border-e bg-[#121212] text-white shadow-2xl md:w-80 lg:w-96"
     >
       {/* Header Panel */}
-      <div className="flex h-14 items-center justify-between border-b px-4">
-        <h2 className="text-lg font-bold">User Profile</h2>
-        <button onClick={onClose} className="rounded-full p-1.5 hover:bg-muted">
-          <X className="size-5" />
+      <div className="flex h-14 items-center justify-between border-b border-zinc-800/80 px-4 shrink-0">
+        <button onClick={onClose} className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
+          <ArrowLeft className="size-6" />
         </button>
+        <h2 className="text-lg font-bold text-white">User Profile</h2>
+        <div className="size-6" />
       </div>
 
       {/* Info Card Panel */}
