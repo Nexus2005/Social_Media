@@ -135,6 +135,13 @@ export default function ReelCard({
   const [displayContent, setDisplayContent] = useState(post.content);
   const [isTranslating, setIsTranslating] = useState(false);
   const [captionsSubView, setCaptionsSubView] = useState<"main" | "languages">("main");
+  const [tempSelectedLanguage, setTempSelectedLanguage] = useState("original");
+
+  useEffect(() => {
+    if (captionsSubView === "languages") {
+      setTempSelectedLanguage(activeLanguage);
+    }
+  }, [captionsSubView, activeLanguage]);
 
   const speedCycle = [1, 1.2, 1.5, 2, 2.5, 3];
 
@@ -1339,7 +1346,7 @@ export default function ReelCard({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 280 }}
-              className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#18191b] border-t border-zinc-800/80 rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-md md:mx-auto pb-8 px-5 pointer-events-auto select-none"
+              className="fixed left-0 right-0 bottom-0 z-[100] w-full bg-[#18191b] border-t border-zinc-800/80 rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden text-white md:max-w-md md:mx-auto pb-24 md:pb-8 px-5 pointer-events-auto select-none"
             >
               {/* Top drag handle */}
               <div className="w-full flex justify-center py-3.5 cursor-pointer" onClick={() => { setIsQuickControlsOpen(false); setQuickControlsView("menu"); }}>
@@ -1490,15 +1497,26 @@ export default function ReelCard({
                   ) : (
                     /* Display language list view */
                     <>
-                      {/* Back & Title Header */}
-                      <div className="relative flex items-center justify-start py-2.5 gap-3 border-b border-zinc-850">
+                      {/* Back & Title Header with Done option */}
+                      <div className="relative flex items-center justify-between py-2.5 border-b border-zinc-850">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setCaptionsSubView("main")}
+                            className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60"
+                          >
+                            <ChevronLeft className="size-6" />
+                          </button>
+                          <span className="text-[16px] font-bold">Display language</span>
+                        </div>
                         <button
-                          onClick={() => setCaptionsSubView("main")}
-                          className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800/60"
+                          onClick={() => {
+                            handleLanguageChange(tempSelectedLanguage);
+                            setCaptionsSubView("main");
+                          }}
+                          className="text-[14px] font-bold text-[#3897f0] hover:text-[#2574c2] px-2 py-1 transition-colors cursor-pointer"
                         >
-                          <ChevronLeft className="size-6" />
+                          Done
                         </button>
-                        <span className="text-[16px] font-bold">Display language</span>
                       </div>
 
                       {/* Scrollable Language List */}
@@ -1539,12 +1557,12 @@ export default function ReelCard({
                           { code: "Chinese", label: "Chinese" },
                           { code: "Marathi", label: "Marathi" }
                         ].map((lang) => {
-                          const isSelected = activeLanguage === lang.code;
+                          const isSelected = tempSelectedLanguage === lang.code;
                           return (
                             <div
                               key={lang.code}
                               onClick={() => {
-                                handleLanguageChange(lang.code);
+                                setTempSelectedLanguage(lang.code);
                               }}
                               className="flex items-center justify-between py-3.5 px-1 cursor-pointer hover:bg-zinc-800/20 rounded-lg transition-all"
                             >
