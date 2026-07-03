@@ -128,6 +128,66 @@ const COMPARE_PRODUCTS = [
   }
 ];
 
+const CATEGORY_ITEMS = [
+  { id: "tops", label: "Tops", count: "2 products", imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200&q=80" },
+  { id: "bottoms", label: "Bottoms", count: "1 product", imageUrl: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=200&q=80" },
+  { id: "footwear", label: "Footwear", count: "2 products", imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&q=80" },
+  { id: "watches", label: "Watches", count: "1 product", imageUrl: "https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=200&q=80" },
+  { id: "accessories", label: "Accessories", count: "3 products", imageUrl: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=200&q=80" },
+  { id: "jewellery", label: "Jewellery", count: "2 products", imageUrl: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&q=80" },
+  { id: "bags", label: "Bags", count: "1 product", imageUrl: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200&q=80" }
+];
+
+const CATEGORY_PRODUCTS_MAP = {
+  tops: [
+    {
+      id: "cat-top-1",
+      label: "Zara Halter Neck Top",
+      brand: "Zara",
+      price: "₹1,990",
+      rating: "4.6",
+      reviewsCount: "1,248",
+      imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80",
+      colors: ["#ffffff", "#27272a"],
+      isBestMatch: true
+    },
+    {
+      id: "cat-top-2",
+      label: "H&M Ribbed Tank Top",
+      brand: "H&M",
+      price: "₹1,499",
+      rating: "4.3",
+      reviewsCount: "892",
+      imageUrl: "https://images.unsplash.com/photo-1554412933-514a83d2f3c8?w=400&q=80",
+      colors: ["#d7ccc8", "#27272a", "#ffffff"]
+    }
+  ],
+  bottoms: [
+    {
+      id: "cat-bot-1",
+      label: "Zara High-Waist Trousers",
+      brand: "Zara",
+      price: "₹2,990",
+      rating: "4.5",
+      reviewsCount: "530",
+      imageUrl: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&q=80",
+      colors: ["#1a237e", "#ffffff"]
+    }
+  ],
+  footwear: [
+    {
+      id: "cat-foot-1",
+      label: "Nike Pegasus 41",
+      brand: "Nike",
+      price: "₹13,995",
+      rating: "4.6",
+      reviewsCount: "2,432",
+      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80",
+      colors: ["#27272a", "#ffffff"]
+    }
+  ]
+};
+
 interface CartItem {
   product: DetectedProduct;
   bestMatch: ProductMatch;
@@ -164,6 +224,8 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
 
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isCategoriesPageOpen, setIsCategoriesPageOpen] = useState(false);
+  const [selectedCategoryCarousel, setSelectedCategoryCarousel] = useState("tops");
 
   // Sync cart from LocalStorage
   useEffect(() => {
@@ -713,6 +775,8 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
               onClick={() => {
                 if (isCompareOpen) {
                   setIsCompareOpen(false);
+                } else if (isCategoriesPageOpen) {
+                  setIsCategoriesPageOpen(false);
                 } else {
                   onClose();
                 }
@@ -746,6 +810,12 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                 <span className={cn("cursor-pointer transition-colors", isLight ? "hover:text-zinc-800" : "hover:text-white")} onClick={() => setIsCompareOpen(false)}>All products</span>
                 <span className={isLight ? "text-zinc-400 font-normal" : "text-zinc-650 font-normal"}>/</span>
                 <span className={isLight ? "text-zinc-800 font-bold" : "text-white"}>Compare</span>
+              </>
+            ) : isCategoriesPageOpen ? (
+              <>
+                <span className={cn("cursor-pointer transition-colors", isLight ? "hover:text-zinc-800" : "hover:text-white")} onClick={() => setIsCategoriesPageOpen(false)}>All products</span>
+                <span className={isLight ? "text-zinc-400 font-normal" : "text-zinc-650 font-normal"}>/</span>
+                <span className={isLight ? "text-zinc-800 font-bold" : "text-white"}>Categories</span>
               </>
             ) : (
               <span className={isLight ? "text-zinc-800 font-bold" : "text-white"}>All products</span>
@@ -1168,6 +1238,422 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
 
             </div>
           </div>
+        ) : isCategoriesPageOpen ? (
+          /* Categories Page View layout */
+          <div className="w-full flex overflow-hidden bg-[#050608]">
+            {/* Left Area: categories row carousel + category product sections */}
+            <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+              
+              {/* Title & Subtitle */}
+              <div className="text-left select-none mb-8">
+                <h1 className="text-2xl font-black tracking-tight text-white leading-none">Shop by categories</h1>
+                <p className="text-xs font-semibold text-zinc-500 mt-2">
+                  Find products from the reel, organized for you
+                </p>
+              </div>
+
+              {/* Horizontal Category Cards Carousel Row */}
+              <div className="relative flex items-center mb-10 group/carousel">
+                <div className="flex items-center gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2 flex-1 pr-12 select-none">
+                  {CATEGORY_ITEMS.map((catItem) => {
+                    const isSelected = selectedCategoryCarousel === catItem.id;
+                    return (
+                      <div
+                        key={catItem.id}
+                        onClick={() => setSelectedCategoryCarousel(catItem.id)}
+                        className={cn(
+                          "relative w-[130px] h-[130px] rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 shrink-0 select-none",
+                          isSelected 
+                            ? "border-[#007ACC] shadow-lg shadow-blue-500/10" 
+                            : "border-[#1b1c26]/60 hover:border-[#1b1c26]/90"
+                        )}
+                      >
+                        {/* Image background */}
+                        <img 
+                          src={catItem.imageUrl} 
+                          alt={catItem.label} 
+                          className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500" 
+                        />
+                        
+                        {/* Dark gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/10" />
+
+                        {/* Selected check circle at top right */}
+                        {isSelected && (
+                          <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-[#007ACC] border border-white/25 flex items-center justify-center">
+                            <Check className="size-3 text-white" strokeWidth={3.5} />
+                          </div>
+                        )}
+
+                        {/* Text labels at bottom left */}
+                        <div className="absolute bottom-3.5 left-3.5 text-left">
+                          <span className="text-xs font-black text-white">{catItem.label}</span>
+                          <span className="block text-[9px] text-zinc-400 font-bold mt-0.5">{catItem.count}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Right Arrow Button to slide */}
+                <button className="absolute right-0 p-2.5 rounded-full border border-zinc-800 bg-[#0c0d14]/80 hover:bg-[#12131a] text-zinc-300 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95">
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+
+              {/* Sub-sections rendering (e.g. Tops, Bottoms) */}
+              <div className="flex flex-col gap-10">
+                {/* 1. Selected Category Section (e.g. Tops or whichever is selected) */}
+                {Object.keys(CATEGORY_PRODUCTS_MAP)
+                  .filter((catKey) => catKey === selectedCategoryCarousel)
+                  .map((catKey) => {
+                    const productsList = CATEGORY_PRODUCTS_MAP[catKey as keyof typeof CATEGORY_PRODUCTS_MAP] || [];
+                    const catTitle = catKey.charAt(0).toUpperCase() + catKey.slice(1);
+                    
+                    return (
+                      <div key={catKey} className="flex flex-col gap-6">
+                        
+                        {/* Sub-section Header and Sort Dropdown */}
+                        <div className="flex items-center justify-between select-none">
+                          <div className="text-left">
+                            <h2 className="text-lg font-black text-white leading-none">
+                              {catTitle} <span className="text-sm font-bold text-zinc-500 ml-1">({productsList.length})</span>
+                            </h2>
+                            <p className="text-[11px] font-semibold text-zinc-500 mt-1.5">
+                              Stylish {catKey} from the reel
+                            </p>
+                          </div>
+
+                          {/* Relevance Sort dropdown */}
+                          <div className="relative">
+                            <select
+                              className="border text-xs font-bold rounded-xl px-4 py-2 focus:outline-none transition-all cursor-pointer bg-[#12131a]/40 border-[#1b1c26]/60 text-zinc-300 hover:bg-zinc-800/40 appearance-none pr-8"
+                            >
+                              <option value="Relevance">Sort: Relevance</option>
+                              <option value="Price: Low to High">Sort: Price: Low to High</option>
+                              <option value="Price: High to Low">Sort: Price: High to Low</option>
+                            </select>
+                            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-[9px]">&darr;</div>
+                          </div>
+                        </div>
+
+                        {/* Two Columns Grid for Products */}
+                        <div className="grid grid-cols-2 gap-6">
+                          {productsList.map((prod) => (
+                            <div 
+                              key={prod.id}
+                              onClick={() => setFullProductDetailId(prod.id)}
+                              className="flex flex-col border border-zinc-900 bg-[#12131a]/30 rounded-[28px] overflow-hidden group/pcard cursor-pointer hover:border-indigo-500/40 transition-all duration-300 relative shadow-2xl h-[450px]"
+                            >
+                              
+                              {/* Product Image */}
+                              <div className="w-full h-[320px] bg-zinc-950 relative overflow-hidden shrink-0">
+                                <img 
+                                  src={prod.imageUrl} 
+                                  alt={prod.label} 
+                                  className="w-full h-full object-cover group-hover/pcard:scale-105 transition-transform duration-500" 
+                                />
+
+                                {/* Dark overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+
+                                {/* Best match tag */}
+                                {"isBestMatch" in prod && prod.isBestMatch && (
+                                  <span className="absolute top-4 left-4 text-[9px] font-black text-white bg-emerald-600 px-2.5 py-0.5 rounded-md uppercase tracking-wider select-none">
+                                    Best match
+                                  </span>
+                                )}
+
+                                {/* Favorite Heart button */}
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleWishlist(prod.id);
+                                  }}
+                                  className="absolute top-4 right-4 p-1.5 bg-black/60 hover:bg-black/85 rounded-full border border-white/5 text-zinc-200 transition-colors duration-200"
+                                >
+                                  <Heart className={cn("size-3.5", wishlist[prod.id] ? "fill-rose-500 text-rose-500" : "text-zinc-200")} strokeWidth={2.5} />
+                                </button>
+
+                                {/* Color badge dots at bottom left of image */}
+                                <div className="absolute bottom-4 left-4 flex items-center gap-1.5 select-none">
+                                  {prod.colors.map((color, cIdx) => (
+                                    <div 
+                                      key={cIdx} 
+                                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-md"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Meta Info */}
+                              <div className="p-5 flex-1 flex flex-col justify-between text-left select-none bg-[#12131a]/10">
+                                <div>
+                                  <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider">{prod.brand}</span>
+                                  <h4 className="text-sm font-black text-white leading-tight mt-0.5 line-clamp-1">{prod.label}</h4>
+                                  
+                                  {/* Price & Rating */}
+                                  <div className="flex items-center justify-between mt-2.5">
+                                    <span className="text-base font-black text-white">{prod.price}</span>
+                                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-bold">
+                                      <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
+                                      <span className="text-zinc-200">{prod.rating}</span>
+                                      <span className="text-[9px] opacity-60">({prod.reviewsCount})</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* View Details & Cart row */}
+                                <div className="flex items-center gap-2 mt-4">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFullProductDetailId(prod.id);
+                                    }}
+                                    className="flex-1 py-2.5 border border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 hover:bg-zinc-800/40 rounded-xl text-[10.5px] font-black text-zinc-300 hover:text-white transition-all cursor-pointer text-center uppercase tracking-wider"
+                                  >
+                                    View details
+                                  </button>
+
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToCart(
+                                        { id: prod.id, label: prod.label, category: catTitle } as any, 
+                                        { id: prod.id, price: prod.price, productUrl: "#" }
+                                      );
+                                    }}
+                                    className="p-2.5 border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/40 rounded-xl text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+                                  >
+                                    <ShoppingCart className="size-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+
+                      </div>
+                    );
+                  })}
+
+                {/* 2. Other categories shown for continuity (e.g. Bottoms (1)) */}
+                {selectedCategoryCarousel !== "bottoms" && (
+                  <div className="flex flex-col gap-6 opacity-65 hover:opacity-100 transition-opacity">
+                    
+                    {/* Header */}
+                    <div className="text-left select-none">
+                      <h2 className="text-lg font-black text-white leading-none">
+                        Bottoms <span className="text-sm font-bold text-zinc-500 ml-1">(1)</span>
+                      </h2>
+                      <p className="text-[11px] font-semibold text-zinc-500 mt-1.5">
+                        Bottoms that complete the look
+                      </p>
+                    </div>
+
+                    {/* One product card preview */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div 
+                        onClick={() => setFullProductDetailId("cat-bot-1")}
+                        className="flex flex-col border border-zinc-900 bg-[#12131a]/30 rounded-[28px] overflow-hidden group/pcard cursor-pointer hover:border-indigo-500/40 transition-all duration-300 relative shadow-2xl h-[450px]"
+                      >
+                        <div className="w-full h-[320px] bg-zinc-950 relative overflow-hidden shrink-0">
+                          <img 
+                            src={CATEGORY_PRODUCTS_MAP.bottoms[0].imageUrl} 
+                            alt={CATEGORY_PRODUCTS_MAP.bottoms[0].label} 
+                            className="w-full h-full object-cover group-hover/pcard:scale-105 transition-transform duration-500" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+                          <button className="absolute top-4 right-4 p-1.5 bg-black/60 rounded-full border border-white/5 text-zinc-200">
+                            <Heart className="size-3.5 text-zinc-200" />
+                          </button>
+                          <div className="absolute bottom-4 left-4 flex items-center gap-1.5">
+                            {CATEGORY_PRODUCTS_MAP.bottoms[0].colors.map((c, cIdx) => (
+                              <div key={cIdx} className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="p-5 flex-1 flex flex-col justify-between text-left select-none bg-[#12131a]/10">
+                          <div>
+                            <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider">{CATEGORY_PRODUCTS_MAP.bottoms[0].brand}</span>
+                            <h4 className="text-sm font-black text-white leading-tight mt-0.5 line-clamp-1">{CATEGORY_PRODUCTS_MAP.bottoms[0].label}</h4>
+                            <div className="flex items-center justify-between mt-2.5">
+                              <span className="text-base font-black text-white">{CATEGORY_PRODUCTS_MAP.bottoms[0].price}</span>
+                              <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-bold">
+                                <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
+                                <span className="text-zinc-200">{CATEGORY_PRODUCTS_MAP.bottoms[0].rating}</span>
+                                <span className="text-[9px] opacity-60">({CATEGORY_PRODUCTS_MAP.bottoms[0].reviewsCount})</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-4">
+                            <button className="flex-1 py-2.5 border border-zinc-800 bg-zinc-900/40 rounded-xl text-[10.5px] font-black text-zinc-300 text-center uppercase tracking-wider">
+                              View details
+                            </button>
+                            <button className="p-2.5 border border-zinc-800 bg-zinc-900/40 rounded-xl text-zinc-300 flex items-center justify-center shrink-0">
+                              <ShoppingCart className="size-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Right Sidebar: Filters */}
+            <div className="w-[300px] shrink-0 border-l border-[#1b1c26]/60 bg-[#0c0d14]/40 p-6 overflow-y-auto text-left select-none">
+              
+              {/* Filter title */}
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-sm font-black text-white uppercase tracking-wider">Filter</span>
+                <button className="text-[11px] font-black text-[#007ACC] hover:underline cursor-pointer">
+                  Clear all
+                </button>
+              </div>
+
+              {/* Category section */}
+              <div className="border-b border-[#1b1c26]/30 pb-5 mb-5 flex flex-col gap-3">
+                <div className="flex items-center justify-between text-xs font-black text-white cursor-pointer">
+                  <span>Category</span>
+                  <span>v</span>
+                </div>
+
+                <div className="flex flex-col gap-2.5 mt-2">
+                  {[
+                    { label: "All Categories", count: 6, checked: true },
+                    { label: "Tops", count: 2 },
+                    { label: "Bottoms", count: 1 },
+                    { label: "Footwear", count: 2 },
+                    { label: "Watches", count: 1 },
+                    { label: "Accessories", count: 3 },
+                    { label: "Jewellery", count: 2 },
+                    { label: "Bags", count: 1 }
+                  ].map((catFilter, fIdx) => (
+                    <label key={fIdx} className="flex items-center justify-between text-[11px] font-bold text-zinc-350 cursor-pointer group/label">
+                      <div className="flex items-center gap-2">
+                        <div className="brand-cb-container">
+                          <input type="checkbox" defaultChecked={catFilter.checked} />
+                          <span className="brand-checkmark" />
+                        </div>
+                        <span className="group-hover/label:text-white transition-colors">{catFilter.label}</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500">{catFilter.count}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range section */}
+              <div className="border-b border-[#1b1c26]/30 pb-5 mb-5 flex flex-col gap-3">
+                <div className="text-xs font-black text-white">
+                  <span>Price Range</span>
+                </div>
+                
+                {/* Double Slider mockup */}
+                <div className="flex flex-col gap-3 mt-2">
+                  <div className="relative w-full h-1 bg-[#1b1c26] rounded-full">
+                    <div className="absolute left-0 right-0 h-full bg-[#007ACC] rounded-full" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#007ACC] border-2 border-white shadow cursor-pointer" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#007ACC] border-2 border-white shadow cursor-pointer" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-[10px] text-zinc-550 font-bold">
+                    <span>₹0</span>
+                    <span>₹20,000+</span>
+                  </div>
+
+                  {/* Input boxes */}
+                  <div className="flex items-center gap-2.5 mt-1 select-none">
+                    <div className="flex-1 flex items-center border border-[#1b1c26] bg-[#0c0d14]/45 rounded-xl px-3 py-1.5 text-[10.5px] font-semibold text-zinc-300">
+                      <span className="opacity-40 mr-1.5">₹</span>
+                      <input type="text" defaultValue="0" className="w-full bg-transparent focus:outline-none text-white text-[10.5px]" />
+                    </div>
+                    <div className="flex-1 flex items-center border border-[#1b1c26] bg-[#0c0d14]/45 rounded-xl px-3 py-1.5 text-[10.5px] font-semibold text-zinc-300">
+                      <span className="opacity-40 mr-1.5">₹</span>
+                      <input type="text" defaultValue="20000" className="w-full bg-transparent focus:outline-none text-white text-[10.5px]" />
+                    </div>
+                  </div>
+
+                  <button className="w-full py-2.5 bg-[#007ACC] hover:bg-[#007ACC]/90 text-[10.5px] font-black text-white rounded-xl transition-all cursor-pointer mt-1">
+                    Apply
+                  </button>
+                </div>
+              </div>
+
+              {/* Brand section */}
+              <div className="border-b border-[#1b1c26]/30 pb-5 mb-5 flex flex-col gap-3">
+                <div className="text-xs font-black text-white">
+                  <span>Brand</span>
+                </div>
+                
+                <div className="relative mt-1">
+                  <input 
+                    type="text" 
+                    placeholder="Search brand" 
+                    className="w-full bg-[#0c0d14]/50 border border-[#1b1c26] rounded-xl py-2 pl-3 pr-8 text-[10px] focus:outline-none text-zinc-300 placeholder-zinc-550"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2.5 mt-2">
+                  {[
+                    { label: "Nike", count: 2 },
+                    { label: "Zara", count: 2 },
+                    { label: "H&M", count: 1 },
+                    { label: "Fossil", count: 1 },
+                    { label: "Mango", count: 1 }
+                  ].map((brandFilter, bIdx) => (
+                    <label key={bIdx} className="flex items-center justify-between text-[11px] font-bold text-zinc-300 cursor-pointer group/label">
+                      <div className="flex items-center gap-2">
+                        <div className="brand-cb-container">
+                          <input type="checkbox" />
+                          <span className="brand-checkmark" />
+                        </div>
+                        <span className="group-hover/label:text-white transition-colors">{brandFilter.label}</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500">{brandFilter.count}</span>
+                    </label>
+                  ))}
+                  
+                  <span className="text-[10.5px] font-black text-[#007ACC] hover:underline cursor-pointer w-fit mt-1">
+                    Show more &darr;
+                  </span>
+                </div>
+              </div>
+
+              {/* Rating section */}
+              <div className="flex flex-col gap-3">
+                <div className="text-xs font-black text-white">
+                  <span>Rating</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {[
+                    { label: "4★ & above", value: "4" },
+                    { label: "4★ & above", value: "4" },
+                    { label: "3★ & above", value: "3" },
+                    { label: "2★ & above", value: "2" }
+                  ].map((ratingFilter, rIdx) => (
+                    <button 
+                      key={rIdx}
+                      className="py-2 border border-zinc-800 hover:border-zinc-700 bg-[#0c0d14]/30 hover:bg-[#12131a] rounded-xl text-[10px] font-bold text-zinc-300 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Star className="size-2.5 text-amber-500 fill-amber-500 shrink-0" />
+                      <span>{ratingFilter.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
         ) : (
           /* Products Catalog Area - full width */
           <div className={cn(
@@ -1191,41 +1677,13 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                 {/* Dropdown controls */}
                 <div className="flex items-center gap-4">
                   {/* Shop by Category Button */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-                      className="uiverse-shop-btn"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                      <span className="text">Shop by Category</span>
-                    </button>
-
-                    {/* Category Dropdown Popover */}
-                    {isCategoryDropdownOpen && (
-                      <div className={cn(
-                        "absolute right-0 mt-2 w-48 rounded-xl shadow-2xl border py-2.5 z-50 text-left select-none text-[12px] font-bold transition-all duration-200 animate-in fade-in slide-in-from-top-2",
-                        isLight ? "bg-white border-zinc-200 text-zinc-800" : "bg-[#0c0d14]/95 backdrop-blur-md border-[#1b1c26]/80 text-zinc-200"
-                      )}>
-                        {Object.keys(categories).map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => {
-                              handleCategorySelect(cat);
-                              setIsCategoryDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-4 py-2.5 transition-colors flex items-center justify-between",
-                              isLight ? "hover:bg-zinc-100 text-zinc-700" : "hover:bg-[#12131a] text-zinc-300",
-                              selectedCategory === cat && "text-indigo-400 font-extrabold"
-                            )}
-                          >
-                            <span>{cat}</span>
-                            <span className="text-[10px] opacity-60">({categories[cat]})</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => setIsCategoriesPageOpen(true)}
+                    className="uiverse-shop-btn"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span className="text">Shop by Category</span>
+                  </button>
 
                   {/* Compare Button */}
                   <button
