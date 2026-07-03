@@ -2,19 +2,31 @@ import { ConfigManager } from "./configManager";
 
 export class VisionProviderManager {
   private static cooldownKeys = new Map<string, number>(); // key -> expiration timestamp
+  private static currentKeyIndex = 0;
 
-  private static getHealthyGeminiKey(): string | null {
+  private static getHealthyGeminiKey(excludeKeys: Set<string>): string | null {
     const keys = ConfigManager.getGeminiKeys();
     const now = Date.now();
+    const len = keys.length;
 
-    for (const key of keys) {
+    if (len === 0) return null;
+
+    for (let i = 0; i < len; i++) {
+      const idx = (this.currentKeyIndex + i) % len;
+      const key = keys[idx];
+
+      if (excludeKeys.has(key)) {
+        continue;
+      }
+
       const cooldownUntil = this.cooldownKeys.get(key) || 0;
       if (cooldownUntil <= now) {
-        // Key recovered or never rate-limited
         if (cooldownUntil > 0) {
           this.cooldownKeys.delete(key);
           console.log(`[VisionProviderManager] Gemini key ending in ...${key.slice(-5)} recovered from cooldown.`);
         }
+        // Save the index for next round-robin selection to advance
+        this.currentKeyIndex = (idx + 1) % len;
         return key;
       }
     }
@@ -29,14 +41,16 @@ export class VisionProviderManager {
     const startTime = Date.now();
 
     // 1. Try Gemini key rotation
-    let geminiKey = this.getHealthyGeminiKey();
+    const usedKeys = new Set<string>();
+    let geminiKey = this.getHealthyGeminiKey(usedKeys);
     let attempts = 0;
     const maxAttempts = ConfigManager.getGeminiKeys().length;
 
     while (geminiKey && attempts < maxAttempts) {
       attempts++;
+      usedKeys.add(geminiKey);
       try {
-        console.log(`[VisionProviderManager] Querying Gemini using key ending in ...${geminiKey.slice(-5)}`);
+        console.log(`[VisionProviderManager] Querying Gemini using key ending in ...${geminiKey.slice(-5)} (Attempt ${attempts}/${maxAttempts})`);
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
           method: "POST",
           headers: {
@@ -74,22 +88,29 @@ export class VisionProviderManager {
           throw new Error("Empty response structure from Gemini API");
         }
 
-        // Handle rate limits (429) or quota issues
+        // Handle rate limits (429) or quota issues vs server overloads (503)
         if (response.status === 429 || response.status === 403) {
           const errorText = await response.text();
           console.warn(`[VisionProviderManager] Gemini key rate limited/quota issue (status ${response.status}): ${errorText}`);
-          // Put key on 60-second cooldown
+          // Put key on a strict 60-second cooldown block
           this.cooldownKeys.set(geminiKey, Date.now() + 60000);
+        } else if (response.status === 503) {
+          console.warn(`[VisionProviderManager] Gemini server overloaded (status 503). Proceeding to rotate immediately.`);
+          // Do not cooldown, just let it loop and rotate keys immediately
         } else {
           const errorText = await response.text();
-          throw new Error(`Gemini API returned code ${response.status}: ${errorText}`);
+          console.warn(`[VisionProviderManager] Gemini request failed with status ${response.status}: ${errorText}`);
+          // Put key on a brief 15-second cooldown block
+          this.cooldownKeys.set(geminiKey, Date.now() + 15000);
         }
       } catch (err) {
-        console.error(`[VisionProviderManager] Attempt ${attempts} using Gemini key failed:`, err);
+        console.error(`[VisionProviderManager] Network/Unexpected error with Gemini key:`, err);
+        // Put key on a brief 15-second cooldown block
+        this.cooldownKeys.set(geminiKey, Date.now() + 15000);
       }
 
-      // Fetch next healthy key
-      geminiKey = this.getHealthyGeminiKey();
+      // Fetch next healthy, unused key
+      geminiKey = this.getHealthyGeminiKey(usedKeys);
     }
 
     // 2. Fallback to NVIDIA Vision
@@ -97,7 +118,7 @@ export class VisionProviderManager {
     const nvidiaKey = process.env.NVIDIA_API_KEY;
 
     if (nvidiaConfig.enabled && nvidiaKey) {
-      console.log("[VisionProviderManager] All Gemini keys exhausted. Falling back to NVIDIA Vision API...");
+      console.log("[VisionProviderManager] All Gemini keys exhausted or overloaded. Falling back to NVIDIA Vision API...");
       try {
         const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
           method: "POST",

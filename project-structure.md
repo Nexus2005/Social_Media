@@ -99,6 +99,8 @@ nextjs-15-social-media-app/
   * *Dependencies:* `fluent-ffmpeg`, `sharp`
 - **[videoProductWorker.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/workers/videoProductWorker.ts):** Processes video frames through VLM and query matching to detect product items.
   * *Dependencies:* `prisma`, `supabase-js`, `fluent-ffmpeg`
+- **[reprocess.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/workers/reprocess.ts):** Developer CLI command tool to manually reset job states and push payloads back onto Redis queues.
+  * *Dependencies:* `prisma`
 
 ### Marketplace Providers & Querying
 - **[types.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/types.ts):** Defines unified model structures and interfaces for products and marketplace providers.
@@ -127,7 +129,9 @@ nextjs-15-social-media-app/
 ---
 
 ### [2026-07-03] Update
-- **Modified:** `src/lib/workers/videoProductWorker.ts` -> Refactored frame scanning loop to use local DetectionPipeline and ProductResolver before falling back to VisionProviderManager.
+- **Modified:** `src/lib/workers/videoProductWorker.ts` -> Added Python CV microservice auto-start daemon, concurrent parallel batch frame processing (3 at a time), and queue worker.
+- **Modified:** `src/lib/ai/visionProviderManager.ts` -> Upgraded VLM client with index round-robin key rotation, 429 rate limit vs 503 overloaded status failover, and healthy NVIDIA routing.
+- **Added:** `src/lib/workers/reprocess.ts` -> Created CLI command script to manually reset jobs to pending and push payloads to Redis queue.
 - **Modified:** `src/app/api/shopping-lookup/route.ts` -> Migrated SerpAPI queries to the central SearchManager client with caching.
 - **Added:** `src/lib/ai/` -> Centralized Configuration Manager and dynamic Vision Provider Manager with automatic rate-limit cooldown handling.
 - **Added:** `src/lib/detection/` -> Local computer vision pipeline with Python microservice host, MD5 image caching, Product Resolver, and weighted confidence rules.

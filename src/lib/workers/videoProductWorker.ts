@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import sharp from "sharp";
 import crypto from "crypto";
+import { spawn } from "child_process";
 import { extractFramesFromVideo } from "../videoProcessor";
 import { SearchManager } from "../marketplace/searchManager";
 import { VisionProviderManager } from "../ai/visionProviderManager";
@@ -390,125 +391,128 @@ async function runVideoProcessor(videoId: string, jobId: string) {
     let vlmCalls = 0;
     const maxVlmCalls = 6;
 
-    // 3. Analyze frames sequentially using local DetectionPipeline -> optional VLM
-    for (const frame of extractedFrames) {
-      console.log(`Processing frame at ${frame.timestamp}s...`);
-      const frameBuffer = await fs.promises.readFile(frame.path);
-      const base64Frame = frameBuffer.toString("base64");
+    // 3. Analyze frames in parallel batches of 3 using local DetectionPipeline -> optional VLM
+    const batchSize = 3;
+    for (let i = 0; i < extractedFrames.length; i += batchSize) {
+      const batch = extractedFrames.slice(i, i + batchSize);
+      console.log(`Processing frame batch of ${batch.length} items (index ${i} to ${i + batch.length - 1})...`);
 
-      // Run local GPU-accelerated CV Detection Pipeline first!
-      const detectionResult = await DetectionPipeline.run(frameBuffer);
-      let productsToProcess: any[] = [];
+      await Promise.all(
+        batch.map(async (frame) => {
+          console.log(`Processing frame at ${frame.timestamp}s...`);
+          const frameBuffer = await fs.promises.readFile(frame.path);
+          const base64Frame = frameBuffer.toString("base64");
 
-      if (!detectionResult.needCloudVision && detectionResult.objects.length > 0) {
-        console.log(`[videoProductWorker] Local detection confidence is high (${detectionResult.overallConfidence}). Skipping Cloud VLM.`);
-        // Convert detected objects directly into standard formats using ProductResolver
-        productsToProcess = detectionResult.objects.map((obj) => {
-          const resolvedQuery = ProductResolver.resolveQuery(obj);
-          return {
-            category: obj.label || "Clothing",
-            description: resolvedQuery,
-            color: obj.attributes?.color || "unknown",
-            material: obj.attributes?.material || "unknown",
-            confidence: obj.confidence || 0.90,
-            gender: "Unisex",
-            style: "Casual",
-            season: "All-Season",
-            keywords: [obj.label],
-          };
-        });
-      } else {
-        if (vlmCalls >= maxVlmCalls) {
-          console.log(`Reached max VLM calls limit of ${maxVlmCalls}. Skipping sequential VLM fallback.`);
-          continue;
-        }
-        console.log(`[videoProductWorker] Local confidence is low/insufficient (${detectionResult.overallConfidence}). Falling back to Cloud VLM...`);
-        vlmCalls++;
-        const vlmResponse = await queryVisionLLM(base64Frame, (calls) => {
-          openrouterCalls += calls.openrouter;
-          nvidiaCalls += calls.nvidia;
-        });
+          // Run local GPU-accelerated CV Detection Pipeline first!
+          const detectionResult = await DetectionPipeline.run(frameBuffer);
+          let productsToProcess: any[] = [];
 
-        if (vlmResponse && Array.isArray(vlmResponse.products)) {
-          productsToProcess = vlmResponse.products;
-          openrouterResults.push({ timestamp: frame.timestamp, products: vlmResponse.products });
-        }
-      }
+          if (!detectionResult.needCloudVision && detectionResult.objects.length > 0) {
+            console.log(`[videoProductWorker] Local detection confidence is high (${detectionResult.overallConfidence}). Skipping Cloud VLM.`);
+            productsToProcess = detectionResult.objects.map((obj) => {
+              const resolvedQuery = ProductResolver.resolveQuery(obj);
+              return {
+                category: obj.label || "Clothing",
+                description: resolvedQuery,
+                color: obj.attributes?.color || "unknown",
+                material: obj.attributes?.material || "unknown",
+                confidence: obj.confidence || 0.90,
+                gender: "Unisex",
+                style: "Casual",
+                season: "All-Season",
+                keywords: [obj.label],
+              };
+            });
+          } else {
+            if (vlmCalls >= maxVlmCalls) {
+              console.log(`Reached max VLM calls limit of ${maxVlmCalls}. Skipping Cloud VLM fallback.`);
+              return;
+            }
+            console.log(`[videoProductWorker] Local confidence is low/insufficient (${detectionResult.overallConfidence}). Falling back to Cloud VLM...`);
+            vlmCalls++;
+            const vlmResponse = await queryVisionLLM(base64Frame, (calls) => {
+              openrouterCalls += calls.openrouter;
+              nvidiaCalls += calls.nvidia;
+            });
 
-      for (const prod of productsToProcess) {
-        const category = prod.category?.trim();
-        const description = prod.description?.trim();
-        const color = prod.color?.trim() || "unknown";
-        const material = prod.material?.trim() || "unknown";
-        const confidence = prod.confidence ?? 0.85;
-
-        if (!description) continue;
-
-        // Strict category validation
-        if (!ALLOWED_CATEGORIES.has(category)) {
-          console.log(`Skipping item "${description}": Category "${category}" is not in whitelist.`);
-          continue;
-        }
-
-        // Deduplication: category + color + description similarity >= 0.85
-        let isDuplicate = false;
-        for (const existing of detectedProductsToSave) {
-          const isSameCategory = existing.category === category;
-          const isSameColor = existing.color?.toLowerCase() === color.toLowerCase();
-          const textSim = getStringSimilarity(existing.label, description);
-
-          if (isSameCategory && isSameColor && textSim >= 0.85) {
-            isDuplicate = true;
-            break;
+            if (vlmResponse && Array.isArray(vlmResponse.products)) {
+              productsToProcess = vlmResponse.products;
+              openrouterResults.push({ timestamp: frame.timestamp, products: vlmResponse.products });
+            }
           }
-        }
 
-        if (isDuplicate) {
-          console.log(`Skipping duplicate item: "${description}"`);
-          continue;
-        }
+          for (const prod of productsToProcess) {
+            const category = prod.category?.trim();
+            const description = prod.description?.trim();
+            const color = prod.color?.trim() || "unknown";
+            const material = prod.material?.trim() || "unknown";
+            const confidence = prod.confidence ?? 0.85;
 
-        // Confidence filtering (>= 0.80) BEFORE SerpApi queries
-        if (confidence < 0.80) {
-          console.log(`Skipping item "${description}" below confidence threshold (score: ${confidence}).`);
-          continue;
-        }
+            if (!description) continue;
 
-        // Capping products limit to 10 (keep highest confidence)
-        if (detectedProductsToSave.length >= 10) {
-          detectedProductsToSave.sort((a, b) => a.confidence - b.confidence);
-          if (confidence > detectedProductsToSave[0].confidence) {
-            console.log(`Replacing low confidence product "${detectedProductsToSave[0].label}" (${detectedProductsToSave[0].confidence}) with higher confidence product "${description}" (${confidence}).`);
-            detectedProductsToSave[0] = {
-              label: description,
-              category,
-              color,
-              material,
-              confidence,
-              gender: prod.gender?.trim() || "Unisex",
-              style: prod.style?.trim() || "Casual",
-              season: prod.season?.trim() || "All-Season",
-              keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
-              frameTimestamp: frame.timestamp,
-              framePath: frame.path,
-            };
+            if (!ALLOWED_CATEGORIES.has(category)) {
+              console.log(`Skipping item "${description}": Category "${category}" is not in whitelist.`);
+              continue;
+            }
+
+            let isDuplicate = false;
+            for (const existing of detectedProductsToSave) {
+              const isSameCategory = existing.category === category;
+              const isSameColor = existing.color?.toLowerCase() === color.toLowerCase();
+              const textSim = getStringSimilarity(existing.label, description);
+
+              if (isSameCategory && isSameColor && textSim >= 0.85) {
+                isDuplicate = true;
+                break;
+              }
+            }
+
+            if (isDuplicate) {
+              console.log(`Skipping duplicate item: "${description}"`);
+              continue;
+            }
+
+            if (confidence < 0.80) {
+              console.log(`Skipping item "${description}" below confidence threshold (score: ${confidence}).`);
+              continue;
+            }
+
+            if (detectedProductsToSave.length >= 10) {
+              detectedProductsToSave.sort((a, b) => a.confidence - b.confidence);
+              if (confidence > detectedProductsToSave[0].confidence) {
+                console.log(`Replacing low confidence product "${detectedProductsToSave[0].label}" (${detectedProductsToSave[0].confidence}) with higher confidence product "${description}" (${confidence}).`);
+                detectedProductsToSave[0] = {
+                  label: description,
+                  category,
+                  color,
+                  material,
+                  confidence,
+                  gender: prod.gender?.trim() || "Unisex",
+                  style: prod.style?.trim() || "Casual",
+                  season: prod.season?.trim() || "All-Season",
+                  keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
+                  frameTimestamp: frame.timestamp,
+                  framePath: frame.path,
+                };
+              }
+            } else {
+              detectedProductsToSave.push({
+                label: description,
+                category,
+                color,
+                material,
+                confidence,
+                gender: prod.gender?.trim() || "Unisex",
+                style: prod.style?.trim() || "Casual",
+                season: prod.season?.trim() || "All-Season",
+                keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
+                frameTimestamp: frame.timestamp,
+                framePath: frame.path,
+              });
+            }
           }
-        } else {
-          detectedProductsToSave.push({
-            label: description,
-            category,
-            color,
-            material,
-            confidence,
-            gender: prod.gender?.trim() || "Unisex",
-            style: prod.style?.trim() || "Casual",
-            season: prod.season?.trim() || "All-Season",
-            keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
-            frameTimestamp: frame.timestamp,
-            framePath: frame.path,
-          });
-        }
-      }
+        })
+      );
     }
 
     // 4. Query SerpApi Shopping Matches and Upload Frame to Supabase
@@ -803,8 +807,42 @@ async function processNextQueueItem(): Promise<boolean> {
 const BACKOFF_STEPS = [1000, 2000, 5000, 10000, 30000];
 let backoffIndex = 0;
 
+async function verifyAndStartCVServer() {
+  const checkUrl = "http://localhost:5000/detect";
+  try {
+    const response = await fetch(checkUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: "mock" }),
+    });
+    if (response.ok || response.status === 500) {
+      console.log("[videoProductWorker] Local Computer Vision microservice is already running.");
+      return;
+    }
+  } catch (err) {
+    console.log("[videoProductWorker] Local Computer Vision microservice not detected. Launching daemon...");
+  }
+
+  const pythonCmd = process.platform === "win32" ? "python" : "python3";
+  const serverScript = path.join(process.cwd(), "src/lib/detection/py-service/cv_server.py");
+
+  try {
+    const pyProcess = spawn(pythonCmd, [serverScript], {
+      detached: true,
+      stdio: "ignore",
+    });
+    pyProcess.unref();
+    console.log("[videoProductWorker] Spawned cv_server.py daemon. Waiting 3 seconds for boot...");
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  } catch (e) {
+    console.error("[videoProductWorker] Failed to launch local Python CV microservice:", e);
+  }
+}
+
 async function startWorker() {
-  console.log("Cartly Video Product Detection Background Worker started.");
+  console.log("Cartly Video Product Detection Background Worker starting...");
+  await verifyAndStartCVServer();
+  console.log("Cartly Video Product Detection Background Worker fully initialized.");
   while (true) {
     let jobProcessed = false;
     try {
