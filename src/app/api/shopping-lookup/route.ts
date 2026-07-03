@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SearchManager } from "../../../lib/marketplace/searchManager";
 
 export const dynamic = "force-dynamic";
 
@@ -10,29 +11,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing search query parameter 'q'" }, { status: 400 });
     }
 
-    const serpApiKey = process.env.SERPAPI_KEY;
+    console.log(`Fetching marketplace results (eBay/AliExpress) for: "${query}"`);
+    const results = await SearchManager.search(query, 8);
 
-    if (!serpApiKey) {
-      console.log(`SerpApi API key is not configured. Returning mock products for query: "${query}"`);
-      const mockProducts = getMockProducts(query);
-      return NextResponse.json({ products: mockProducts });
-    }
-
-    console.log(`Fetching SerpApi Google Shopping results for: "${query}"`);
-    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(
-      query
-    )}&google_domain=google.co.in&gl=in&hl=en&api_key=${serpApiKey}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`SerpApi search request failed with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const products = (data.shopping_results || []).slice(0, 8).map((item: any) => ({
+    const products = results.map((item) => ({
       title: item.title,
       price: item.price,
-      merchant: item.source || item.merchant || "Online Retailer",
+      merchant: item.merchant,
       thumbnail: item.thumbnail,
       link: item.link,
     }));

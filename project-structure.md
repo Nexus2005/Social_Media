@@ -39,6 +39,7 @@ nextjs-15-social-media-app/
 │   │   ├── useFollowerInfo.ts         # Hook tracking follow relationships & state updates
 │   │   └── useRealtimeNotifications.ts# Hook subscribing to realtime push streams
 │   ├── lib/                           # Core utilities, workers, & services
+│   │   ├── marketplace/               # Unified eBay & AliExpress provider clients
 │   │   ├── providers/                 # React Context providers (Location, Chat, etc.)
 │   │   ├── workers/                   # Async job background workers (e.g. video processing)
 │   │   ├── notification-center.ts     # Central service sending dynamic alerts
@@ -94,5 +95,23 @@ nextjs-15-social-media-app/
   * *Dependencies:* `prisma`
 - **[videoProcessor.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/videoProcessor.ts):** Service using FFmpeg to split video uploads into structural frame screenshots for shop-the-look matches.
   * *Dependencies:* `fluent-ffmpeg`, `sharp`
-- **[videoProductWorker.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/workers/videoProductWorker.ts):** Processes video frames through VLM and Google Shopping SerpApi to detect product items.
+- **[videoProductWorker.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/workers/videoProductWorker.ts):** Processes video frames through VLM and query matching to detect product items.
   * *Dependencies:* `prisma`, `supabase-js`, `fluent-ffmpeg`
+
+### Marketplace Providers & Querying
+- **[types.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/types.ts):** Defines unified model structures and interfaces for products and marketplace providers.
+  * *Dependencies:* None
+- **[eBayProvider.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/eBayProvider.ts):** Integrates eBay Browse API utilizing OAuth client credentials token flow and search querying.
+  * *Dependencies:* `types.ts`
+- **[aliexpressProvider.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/aliexpressProvider.ts):** Integrates AliExpress affiliate product search with secure request signature generation.
+  * *Dependencies:* `types.ts`
+- **[searchManager.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/searchManager.ts):** Central manager that coordinates providers, deduplicates products via title similarity, and ranks matches.
+  * *Dependencies:* `types.ts`, `eBayProvider.ts`, `aliexpressProvider.ts`
+
+---
+
+### [2026-07-03] Update
+- **Modified:** `src/lib/workers/videoProductWorker.ts` -> Migrated shopping matches lookup from SerpAPI to SearchManager.
+- **Modified:** `src/app/api/shopping-lookup/route.ts` -> Swapped legacy SerpAPI query endpoint with new modular SearchManager.
+- **Added:** `src/lib/marketplace/` -> Created provider interfaces, eBay/AliExpress clients, and consolidated SearchManager.
+- **Removed/Deprecated:** SerpAPI dependency from video worker and API lookup route.

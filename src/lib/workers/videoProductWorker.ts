@@ -6,6 +6,7 @@ import path from "path";
 import sharp from "sharp";
 import crypto from "crypto";
 import { extractFramesFromVideo } from "../videoProcessor";
+import { SearchManager } from "../marketplace/searchManager";
 
 // Load environment variables manually to support independent execution
 function loadEnv() {
@@ -242,29 +243,18 @@ function getMockProducts(query: string) {
 }
 
 async function fetchShoppingMatches(query: string): Promise<any[]> {
-  const serpApiKey = process.env.SERPAPI_KEY;
-  if (!serpApiKey) {
-    console.log(`SerpApi key not configured. Returning mock matches for: "${query}"`);
-    return getMockProducts(query);
-  }
   try {
-    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(
-      query
-    )}&google_domain=google.co.in&gl=in&hl=en&api_key=${serpApiKey}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`SerpApi status: ${response.status}`);
-    }
-    const data = await response.json();
-    return (data.shopping_results || []).slice(0, 5).map((item: any) => ({
+    console.log(`Fetching marketplace matches (eBay/AliExpress) for: "${query}"`);
+    const results = await SearchManager.search(query, 5);
+    return results.map((item) => ({
       title: item.title,
       price: item.price || "Contact Store",
-      merchant: item.source || item.merchant || "Online Retailer",
+      merchant: item.merchant,
       thumbnail: item.thumbnail || null,
-      link: item.link || item.product_link || item.shopping_link || item.serpapi_product_api || `https://www.google.com/search?q=${encodeURIComponent(item.title)}`,
+      link: item.link,
     }));
   } catch (err) {
-    console.error(`Failed to fetch SerpApi shopping matches for "${query}":`, err);
+    console.error(`Failed to fetch marketplace shopping matches for "${query}":`, err);
     return getMockProducts(query);
   }
 }
