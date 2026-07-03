@@ -3,59 +3,76 @@ import base64
 import json
 import logging
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import io
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cv_server")
 
-# Try to import computer vision dependencies, warning if missing
+# ─────────────────────────────────────────────
+# Optional dependency guards
+# ─────────────────────────────────────────────
 try:
     from ultralytics import YOLO
     YOLO_AVAILABLE = True
+    logger.info("ultralytics (YOLO) is available.")
 except ImportError:
     YOLO_AVAILABLE = False
-    logger.warning("ultralytics package not installed. YOLO object detection will use fallback mock predictions.")
+    logger.warning("ultralytics not installed. YOLO detection disabled — Cloud VLM will be used instead.")
 
 try:
     import easyocr
     OCR_AVAILABLE = True
+    logger.info("easyocr is available.")
 except ImportError:
     OCR_AVAILABLE = False
-    logger.warning("easyocr package not installed. OCR will use mock detections.")
+    logger.warning("easyocr not installed. OCR disabled.")
 
 try:
     from pyzbar import pyzbar
+    from PIL import Image
+    import io
     BARCODE_AVAILABLE = True
+    logger.info("pyzbar is available.")
 except ImportError:
     BARCODE_AVAILABLE = False
-    logger.warning("pyzbar package not installed. Barcode decoding will use mock detections.")
+    logger.warning("pyzbar or Pillow not installed. Barcode detection disabled.")
 
-# Initialize global models
+# ─────────────────────────────────────────────
+# Global model instances
+# ─────────────────────────────────────────────
 yolo_model = None
 ocr_reader = None
 
+# YOLO classes relevant to fashion/shopping (COCO dataset labels)
+FASHION_LABELS = {
+    "person", "backpack", "umbrella", "handbag", "tie",
+    "suitcase", "sneaker", "boot", "sandal", "shoe",
+    "glasses", "sunglasses", "watch", "clock",
+    "cell phone", "laptop", "remote",
+    "book", "vase",
+}
+
 def init_models():
     global yolo_model, ocr_reader
+
     if YOLO_AVAILABLE:
         try:
-            # Load standard nano YOLO model for quick CPU/GPU inference
             yolo_model = YOLO("yolov8n.pt")
-            logger.info("YOLOv8 Nano model initialized successfully.")
+            logger.info("YOLOv8 Nano model loaded.")
         except Exception as e:
-            logger.error(f"Failed to load YOLO model: {e}")
-            
+            logger.error(f"Failed to load YOLO: {e}")
+
     if OCR_AVAILABLE:
         try:
-            ocr_reader = easyocr.Reader(['en'])
-            logger.info("EasyOCR Reader initialized successfully.")
+            ocr_reader = easyocr.Reader(['en'], gpu=False)
+            logger.info("EasyOCR Reader loaded.")
         except Exception as e:
-            logger.error(f"Failed to load EasyOCR reader: {e}")
+            logger.error(f"Failed to load EasyOCR: {e}")
+
 
 class CVRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Override to suppress standard HTTP request spam logging
-        return
+        return  # Suppress noisy HTTP request logs
 
     def do_POST(self):
         if self.path != '/detect':
@@ -63,7 +80,7 @@ class CVRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        content_length = int(self.headers['Content-Length'])
+        content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
 
         try:
@@ -73,11 +90,20 @@ class CVRequestHandler(BaseHTTPRequestHandler):
                 self.send_error_response("Missing base64 image in 'image' payload.")
                 return
 
-            # Decode base64 image
             img_bytes = base64.b64decode(img_b64)
-            
-            # Perform pipeline detection tasks
             detections = self.run_pipeline(img_bytes)
+
+            # ── Stage summary log ───────────────────────────────────────
+            logger.info(f"[cv_server] Pipeline result: {len(detections)} object(s) detected.")
+            for i, d in enumerate(detections):
+                logger.info(
+                    f"  [{i+1}] label={d.get('label')}  conf={d.get('confidence'):.2f}"
+                    f"  barcode={d.get('barcode')}  logo={d.get('logo')}"
+                    f"  ocr=\"{d.get('ocrText','')[:60]}\""
+                )
+            if not detections:
+                logger.info("  [cv_server] No objects detected — Cloud VLM will be invoked.")
+            # ─────────────────────────────────────────────────────────────
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -94,30 +120,23 @@ class CVRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps({"error": msg}).encode('utf-8'))
 
-    def run_pipeline(self, img_bytes):
-        # 1. Run YOLO (or fallback mocks)
+    def run_pipeline(self, img_bytes: bytes) -> list:
         objects = []
-        
-        # Simple local heuristic attributes extraction
-        color_detected = "black"  # default placeholder
-        
+
+        # ── Stage 1: YOLO detection ───────────────────────────────────
         if YOLO_AVAILABLE and yolo_model:
             try:
-                # Save temp image for YOLO processing
-                temp_path = "temp_frame.jpg"
+                temp_path = "tmp_cv_frame.jpg"
                 with open(temp_path, "wb") as f:
                     f.write(img_bytes)
 
                 results = yolo_model(temp_path, verbose=False)
                 for r in results:
-                    boxes = r.boxes
-                    for box in boxes:
-                        coords = box.xyxy[0].tolist() # [xmin, ymin, xmax, ymax]
+                    for box in r.boxes:
+                        label = r.names[int(box.cls[0])]
                         conf = float(box.conf[0])
-                        cls_idx = int(box.cls[0])
-                        label = r.names[cls_idx]
+                        coords = box.xyxy[0].tolist()
 
-                        # We only care about buyable items
                         objects.append({
                             "box": coords,
                             "label": label,
@@ -125,63 +144,87 @@ class CVRequestHandler(BaseHTTPRequestHandler):
                             "ocrText": "",
                             "barcode": None,
                             "logo": None,
-                            "attributes": {"color": color_detected}
+                            "attributes": {"color": "unknown"}
                         })
-                
+
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
+
+                logger.info(f"[YOLO] Detected {len(objects)} raw objects.")
             except Exception as e:
-                logger.error(f"YOLO detection failed: {e}")
+                logger.error(f"[YOLO] Detection failed: {e}")
+        else:
+            logger.info("[YOLO] Not available — skipping.")
 
-        # Fallback to realistic mock items if no objects are detected or library is missing
-        if not objects:
-            objects.append({
-                "box": [10.0, 15.0, 90.0, 85.0],
-                "label": "shoes",
-                "confidence": 0.92,
-                "ocrText": "AIR MAX",
-                "barcode": "884966820542",
-                "logo": "Nike",
-                "attributes": {"color": "white", "style": "Sporty"}
-            })
-
-        # 2. Run OCR on detections if available
-        if OCR_AVAILABLE and ocr_reader:
+        # ── Stage 2: Barcode detection ────────────────────────────────
+        if BARCODE_AVAILABLE and objects:
             try:
+                pil_img = Image.open(io.BytesIO(img_bytes))
+                barcodes = pyzbar.decode(pil_img)
+                if barcodes:
+                    bc_value = barcodes[0].data.decode("utf-8")
+                    logger.info(f"[Barcode] Detected: {bc_value}")
+                    # Attach barcode to first matched object (or all if only one)
+                    for obj in objects[:1]:
+                        obj["barcode"] = bc_value
+                else:
+                    logger.info("[Barcode] No barcode found.")
+            except Exception as e:
+                logger.error(f"[Barcode] Detection failed: {e}")
+        else:
+            logger.info("[Barcode] Skipped (pyzbar unavailable or no objects).")
+
+        # ── Stage 3: OCR on full frame ────────────────────────────────
+        if OCR_AVAILABLE and ocr_reader and objects:
+            try:
+                ocr_results = ocr_reader.readtext(img_bytes)
+                words = [res[1] for res in ocr_results if res[2] > 0.4]
+                ocr_text = " ".join(words)
+                logger.info(f"[OCR] Extracted text: \"{ocr_text[:80]}\"")
+
+                known_brands = {"nike", "adidas", "puma", "reebok", "new balance",
+                                "rolex", "casio", "apple", "samsung", "sony", "gucci",
+                                "louis vuitton", "zara", "h&m", "under armour", "champion"}
+
+                detected_logo = None
+                for w in words:
+                    if w.lower().strip() in known_brands:
+                        detected_logo = w
+                        logger.info(f"[Logo] Detected brand from OCR: {w}")
+                        break
+
                 for obj in objects:
-                    # In a full setup, we would crop using obj['box'] first,
-                    # but to keep it simple and robust, we can run OCR on the main image bytes
-                    ocr_results = ocr_reader.readtext(img_bytes)
-                    words = [res[1] for res in ocr_results if res[2] > 0.4]
-                    if words:
-                        obj["ocrText"] = " ".join(words)
-                        # Heuristic logo detection from OCR words
-                        for w in words:
-                            if w.lower() in ["nike", "adidas", "puma", "rolex", "apple", "samsung", "sony"]:
-                                obj["logo"] = w
+                    if ocr_text:
+                        obj["ocrText"] = ocr_text
+                    if detected_logo:
+                        obj["logo"] = detected_logo
             except Exception as e:
-                logger.error(f"OCR reading failed: {e}")
+                logger.error(f"[OCR] Failed: {e}")
+        else:
+            logger.info("[OCR] Skipped (easyocr unavailable or no objects).")
 
-        # 3. Run Barcode detection if available
-        if BARCODE_AVAILABLE:
-            try:
-                # Mock scanner or real decoding using pyzbar on image bytes
-                pass
-            except Exception as e:
-                logger.error(f"Barcode extraction failed: {e}")
+        # ── NO MOCK FALLBACK ──────────────────────────────────────────
+        # If no libraries are available and nothing was detected,
+        # return an empty list. The Node.js DetectionPipeline will
+        # see confidence = 0.0 and correctly invoke Cloud VLM.
+        if not objects:
+            logger.info("[cv_server] No detections — returning empty. Node.js will invoke Cloud VLM.")
 
         return objects
+
 
 def run_server(port=5000):
     init_models()
     server_address = ('', port)
     httpd = HTTPServer(server_address, CVRequestHandler)
-    logger.info(f"CV Service HTTP Server running locally on port {port}...")
+    logger.info(f"[cv_server] Listening on http://localhost:{port}/detect")
+    logger.info(f"[cv_server] Capabilities: YOLO={YOLO_AVAILABLE}, OCR={OCR_AVAILABLE}, Barcode={BARCODE_AVAILABLE}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        logger.info("Shutting down CV Server...")
+        logger.info("[cv_server] Shutting down.")
         httpd.server_close()
+
 
 if __name__ == "__main__":
     run_server()

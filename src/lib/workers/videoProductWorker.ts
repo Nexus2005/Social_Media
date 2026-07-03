@@ -404,18 +404,46 @@ async function runVideoProcessor(videoId: string, jobId: string) {
 
       await Promise.all(
         batch.map(async (frame) => {
-          console.log(`Processing frame at ${frame.timestamp}s...`);
+          console.log(`\n--- Frame @ ${frame.timestamp}s ---`);
           const frameBuffer = await fs.promises.readFile(frame.path);
           const base64Frame = frameBuffer.toString("base64");
 
-          // Run local GPU-accelerated CV Detection Pipeline first!
+          // Run local CV Detection Pipeline first
           const detectionResult = await DetectionPipeline.run(frameBuffer);
+
+          // ── Stage Audit Log ─────────────────────────────────────────────
+          console.log(`[PIPELINE] Objects detected: ${detectionResult.objects.length}`);
+          for (const obj of detectionResult.objects) {
+            console.log(`  ├─ YOLO label="${obj.label}"  conf=${obj.confidence?.toFixed(2)}`);
+            console.log(`  ├─ OCR="${obj.ocrText || "(none)"}"`);
+            console.log(`  ├─ Logo="${obj.logo || "(none)"}"`);
+            console.log(`  ├─ Barcode="${obj.barcode || "(none)"}"`);
+            if (obj.barcode && BARCODE_REGISTRY[obj.barcode]) {
+              console.log(`  │   └─ Barcode RESOLVED → "${BARCODE_REGISTRY[obj.barcode].label}"`);
+            } else if (obj.barcode) {
+              console.log(`  │   └─ Barcode NOT in registry — will use VLM`);
+            }
+          }
+          if (detectionResult.objects.length === 0) {
+            console.log(`  └─ No local detections. Confidence = ${detectionResult.overallConfidence}`);
+          }
+          console.log(`[PIPELINE] Overall confidence=${detectionResult.overallConfidence.toFixed(2)}  needCloudVision=${detectionResult.needCloudVision}`);
+          if (detectionResult.confidenceReasons?.length) {
+            console.log(`[PIPELINE] Evidence: ${detectionResult.confidenceReasons.join(' | ')}`);
+          }
+          // ───────────────────────────────────────────────────────────────
+
           let productsToProcess: any[] = [];
 
           if (!detectionResult.needCloudVision && detectionResult.objects.length > 0) {
-            console.log(`[videoProductWorker] Local detection confidence is high (${detectionResult.overallConfidence}). Skipping Cloud VLM.`);
-            productsToProcess = detectionResult.objects.map((obj) => {
+            const resolvedProducts = detectionResult.objects.map((obj) => {
               const resolvedQuery = ProductResolver.resolveQuery(obj);
+              console.log(`[ProductResolver] Input: label="${obj.label}" logo="${obj.logo}" barcode="${obj.barcode}" ocr="${obj.ocrText?.slice(0,40)}"`);
+              console.log(`[ProductResolver] Output query: "${resolvedQuery}"`);
+              if (!resolvedQuery || resolvedQuery.length < 3) {
+                console.log(`[ProductResolver] Query too vague — skipping this object.`);
+                return null;
+              }
               return {
                 category: obj.label || "Clothing",
                 description: resolvedQuery,
@@ -427,13 +455,16 @@ async function runVideoProcessor(videoId: string, jobId: string) {
                 season: "All-Season",
                 keywords: [obj.label],
               };
-            });
+            }).filter(Boolean);
+
+            productsToProcess = resolvedProducts as any[];
           } else {
             if (vlmCalls >= maxVlmCalls) {
               console.log(`Reached max VLM calls limit of ${maxVlmCalls}. Skipping Cloud VLM fallback.`);
               return;
             }
-            console.log(`[videoProductWorker] Local confidence is low/insufficient (${detectionResult.overallConfidence}). Falling back to Cloud VLM...`);
+            const reasonSummary = detectionResult.confidenceReasons?.join(" | ") || "insufficient evidence";
+            console.log(`[videoProductWorker] Evidence insufficient (conf=${detectionResult.overallConfidence.toFixed(2)}). Reason: ${reasonSummary}. → Invoking Cloud VLM...`);
 
             // Construct localScansHint to pass visual features & resolved names to Cloud VLM
             const localScansHint = detectionResult.objects.map((obj, index) => {
