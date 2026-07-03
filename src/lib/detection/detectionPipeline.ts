@@ -18,6 +18,14 @@ export interface PipelineResult {
   overallConfidence: number;
 }
 
+// Canonical Barcode Registry to map GTIN/UPC directly to product names
+export const BARCODE_REGISTRY: Record<string, { label: string; category: string }> = {
+  "884966820542": { label: "Nike Air Max SYSTM Men's Sneakers", category: "Shoes" },
+  "190228392182": { label: "Adidas Originals Men Stan Smith Shoes", category: "Shoes" },
+  "019123456789": { label: "Levi's Men's 501 Original Fit Jeans", category: "Clothing" },
+  "888241604561": { label: "Casio G-Shock Classic Digital Watch", category: "Watches" },
+};
+
 // Lightweight file-based cache in the tmp folder to persist hash lookups across execution
 const CACHE_DIR = path.join(process.cwd(), "tmp");
 const CACHE_FILE = path.join(CACHE_DIR, "cv_image_cache.json");
@@ -110,7 +118,6 @@ export class DetectionPipeline {
       };
     } catch (error) {
       console.warn("[DetectionPipeline] Local CV microservice query failed. Forcing VLM fallback. Error:", error);
-      // If service is offline, return default mock representing low confidence to trigger cloud fallback
       return {
         objects: [],
         needCloudVision: true,
@@ -121,10 +128,11 @@ export class DetectionPipeline {
 
   /**
    * Evidence-based overall confidence scoring.
-   * - Barcode match: 1.00 (Skip VLM)
+   * - Barcode mapped to known product: 1.00 (Skip VLM)
+   * - Barcode unmapped: 0.50 (Requires VLM)
    * - OCR + Logo: 0.92 (Skip VLM)
-   * - YOLO only: 0.40 (Triggers VLM)
-   * - Nothing: 0.10 (Triggers VLM)
+   * - Generic label (e.g. shoe): 0.30 (Requires VLM)
+   * - Nothing: 0.10 (Requires VLM)
    */
   private static calculateConfidence(objects: DetectedItem[]): { score: number; needCloud: boolean } {
     if (objects.length === 0) {
@@ -142,13 +150,14 @@ export class DetectionPipeline {
       const yoloConf = obj.confidence || 0.0;
 
       if (hasBarcode) {
-        score = 1.00;
+        const isResolved = !!BARCODE_REGISTRY[obj.barcode!];
+        score = isResolved ? 1.00 : 0.50; // Set to 0.50 if barcode cannot be locally resolved
       } else if (hasLogo && hasOcr) {
         score = 0.92;
       } else if (hasOcr) {
         score = 0.65;
       } else {
-        score = yoloConf * 0.45; // scale raw YOLO detection confidence
+        score = yoloConf * 0.35; // Generic label is low confidence (e.g. 0.35 * 0.9 = 0.315)
       }
 
       if (score > highestScore) {

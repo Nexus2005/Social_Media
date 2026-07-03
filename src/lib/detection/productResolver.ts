@@ -1,4 +1,4 @@
-import { DetectedItem } from "./detectionPipeline";
+import { DetectedItem, BARCODE_REGISTRY } from "./detectionPipeline";
 
 export class ProductResolver {
   /**
@@ -6,9 +6,12 @@ export class ProductResolver {
    * search query optimized for marketplace queries (eBay/AliExpress).
    */
   static resolveQuery(item: DetectedItem): string {
-    // 1. If barcode is present, the barcode number is the highest precision search target
+    // 1. Check if barcode is mapped in local registry
     if (item.barcode) {
-      return item.barcode;
+      const resolved = BARCODE_REGISTRY[item.barcode];
+      if (resolved) {
+        return resolved.label;
+      }
     }
 
     const queryParts: string[] = [];
@@ -27,7 +30,7 @@ export class ProductResolver {
     }
 
     // 4. Add the core YOLO category label (e.g. shoes, watch, handbag)
-    if (item.label) {
+    if (item.label && item.label.toLowerCase() !== "shoes" && item.label.toLowerCase() !== "clothing") {
       queryParts.push(item.label);
     }
 

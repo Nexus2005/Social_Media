@@ -85,6 +85,7 @@ export class EBayProvider implements MarketplaceProvider {
 
       const data = await response.json();
       const items = data.itemSummaries || [];
+      console.log(`[EBayProvider] Successfully fetched ${items.length} live products.`);
 
       return items.map((item: any) => {
         const priceVal = parseFloat(item.price?.value || "0");

@@ -9,7 +9,7 @@ import { spawn } from "child_process";
 import { extractFramesFromVideo } from "../videoProcessor";
 import { SearchManager } from "../marketplace/searchManager";
 import { VisionProviderManager } from "../ai/visionProviderManager";
-import { DetectionPipeline } from "../detection/detectionPipeline";
+import { DetectionPipeline, BARCODE_REGISTRY } from "../detection/detectionPipeline";
 import { ProductResolver } from "../detection/productResolver";
 
 // Load environment variables manually to support independent execution
@@ -266,9 +266,10 @@ async function fetchShoppingMatches(query: string): Promise<any[]> {
 // Vision VLM call helper for full-frame analysis
 async function queryVisionLLM(
   base64Image: string,
-  onCallIncrement: (calls: { openrouter: number; nvidia: number }) => void
+  onCallIncrement: (calls: { openrouter: number; nvidia: number }) => void,
+  localScansHint?: string
 ): Promise<any> {
-  const promptText = `Analyze this image and identify all visible, purchaseable fashion products. Return ONLY a JSON object matching this structure:
+  let promptText = `Analyze this image and identify all visible, purchaseable fashion products. Return ONLY a JSON object matching this structure:
 {
   "products": [
     {
@@ -287,6 +288,10 @@ async function queryVisionLLM(
 
 Only return products a user could realistically purchase online.
 Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.`;
+
+  if (localScansHint) {
+    promptText += `\n\nAdditionally, the local scanners detected the following metadata in crops of this frame: ${localScansHint}. Use this scanned metadata (like logo brands, detected barcodes, and OCR model codes) to construct the exact specific descriptions (e.g., matching the exact brand or style) for the detected products!`;
+  }
 
   try {
     const results = await VisionProviderManager.analyzeImage(base64Image, promptText);
@@ -429,11 +434,29 @@ async function runVideoProcessor(videoId: string, jobId: string) {
               return;
             }
             console.log(`[videoProductWorker] Local confidence is low/insufficient (${detectionResult.overallConfidence}). Falling back to Cloud VLM...`);
+
+            // Construct localScansHint to pass visual features & resolved names to Cloud VLM
+            const localScansHint = detectionResult.objects.map((obj, index) => {
+              const parts = [];
+              if (obj.label) parts.push(`item_${index + 1}: ${obj.label}`);
+              if (obj.logo) parts.push(`logo: ${obj.logo}`);
+              if (obj.ocrText) parts.push(`ocr_text: ${obj.ocrText}`);
+              if (obj.barcode) {
+                const resolved = BARCODE_REGISTRY[obj.barcode];
+                parts.push(`barcode: ${obj.barcode}${resolved ? ` (resolved locally to product: ${resolved.label})` : ""}`);
+              }
+              return parts.join(", ");
+            }).filter(Boolean).join(" | ");
+
             vlmCalls++;
-            const vlmResponse = await queryVisionLLM(base64Frame, (calls) => {
-              openrouterCalls += calls.openrouter;
-              nvidiaCalls += calls.nvidia;
-            });
+            const vlmResponse = await queryVisionLLM(
+              base64Frame,
+              (calls) => {
+                openrouterCalls += calls.openrouter;
+                nvidiaCalls += calls.nvidia;
+              },
+              localScansHint
+            );
 
             if (vlmResponse && Array.isArray(vlmResponse.products)) {
               productsToProcess = vlmResponse.products;
