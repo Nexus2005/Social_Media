@@ -442,7 +442,8 @@ async function runVideoProcessor(videoId: string, jobId: string) {
           }
 
           for (const prod of productsToProcess) {
-            const category = prod.category?.trim();
+            const category = prod.category?.trim() || "";
+            const cleanCategory = category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : "";
             const description = prod.description?.trim();
             const color = prod.color?.trim() || "unknown";
             const material = prod.material?.trim() || "unknown";
@@ -450,14 +451,14 @@ async function runVideoProcessor(videoId: string, jobId: string) {
 
             if (!description) continue;
 
-            if (!ALLOWED_CATEGORIES.has(category)) {
+            if (!ALLOWED_CATEGORIES.has(cleanCategory)) {
               console.log(`Skipping item "${description}": Category "${category}" is not in whitelist.`);
               continue;
             }
 
             let isDuplicate = false;
             for (const existing of detectedProductsToSave) {
-              const isSameCategory = existing.category === category;
+              const isSameCategory = existing.category === cleanCategory;
               const isSameColor = existing.color?.toLowerCase() === color.toLowerCase();
               const textSim = getStringSimilarity(existing.label, description);
 
@@ -483,7 +484,7 @@ async function runVideoProcessor(videoId: string, jobId: string) {
                 console.log(`Replacing low confidence product "${detectedProductsToSave[0].label}" (${detectedProductsToSave[0].confidence}) with higher confidence product "${description}" (${confidence}).`);
                 detectedProductsToSave[0] = {
                   label: description,
-                  category,
+                  category: cleanCategory,
                   color,
                   material,
                   confidence,
@@ -498,7 +499,7 @@ async function runVideoProcessor(videoId: string, jobId: string) {
             } else {
               detectedProductsToSave.push({
                 label: description,
-                category,
+                category: cleanCategory,
                 color,
                 material,
                 confidence,
