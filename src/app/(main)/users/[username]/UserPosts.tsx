@@ -8,18 +8,16 @@ import { useSession } from "@/app/(main)/SessionProvider";
 import Post from "@/components/posts/Post";
 import PostsLoadingSkeleton from "@/components/posts/PostsLoadingSkeleton";
 import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
-import { Loader2, Grid, Repeat2, MessageSquare, Image as ImageIcon, Film, ShoppingBag, Bookmark, Heart, FolderOpen } from "lucide-react";
-import SavedProductsGrid from "@/components/profile/SavedProductsGrid";
-import StorefrontGrid from "@/components/profile/StorefrontGrid";
+import { Loader2, Grid, Repeat2, MessageSquare, Image as ImageIcon, Film, Heart } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface UserPostsProps {
   userId: string;
 }
 
-type ProfileTab = "posts" | "reels" | "reposts" | "storefront";
+type ProfileTab = "posts" | "reels" | "reposts";
 
-const ALLOWED_PROFILE_TABS: ProfileTab[] = ["posts", "reels", "reposts", "storefront"];
+const ALLOWED_PROFILE_TABS: ProfileTab[] = ["posts", "reels", "reposts"];
 
 export default function UserPosts({ userId }: UserPostsProps) {
   const { user: loggedInUser } = useSession();
@@ -43,7 +41,6 @@ export default function UserPosts({ userId }: UserPostsProps) {
   };
 
   const isOwner = userId === loggedInUser.id;
-  const isPostTab = activeTab !== "storefront";
 
   const {
     data,
@@ -67,12 +64,12 @@ export default function UserPosts({ userId }: UserPostsProps) {
         .json<PostsPage>(),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: isPostTab,
+    enabled: true,
   });
 
   const posts = data?.pages.flatMap((page) => page.posts) || [];
 
-  if (isPostTab && status === "pending") {
+  if (status === "pending") {
     return (
       <div className="space-y-4">
         <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
@@ -81,7 +78,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
     );
   }
 
-  if (isPostTab && status === "error") {
+  if (status === "error") {
     return (
       <div className="space-y-4">
         <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
@@ -99,9 +96,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
     <div className="space-y-0 select-none">
       <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
 
-      {activeTab === "storefront" ? (
-        <StorefrontGrid userId={userId} isOwner={isOwner} />
-      ) : !posts.length && !hasNextPage ? (
+      {!posts.length && !hasNextPage ? (
         <div className="flex flex-col items-center justify-center py-16 text-center select-none px-4">
           {activeTab === "reels" ? (
             <>
@@ -267,7 +262,6 @@ function TabsSelector({ activeTab, onTabChange }: TabsSelectorProps) {
     { value: "posts", icon: Grid, label: "Posts" },
     { value: "reels", icon: Film, label: "Reels" },
     { value: "reposts", icon: Repeat2, label: "Reposts" },
-    { value: "storefront", icon: ShoppingBag, label: "Shop" },
   ];
 
   return (

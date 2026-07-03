@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
 export default function FloatingChat() {
   const pathname = usePathname();
 
-  // Hide on full message page or create page
-  if (pathname.startsWith("/messages") || pathname === "/create") {
+  // Hide on full message page, create page, or reels feed
+  if (pathname.startsWith("/messages") || pathname === "/create" || pathname.startsWith("/reels")) {
     return null;
   }
 

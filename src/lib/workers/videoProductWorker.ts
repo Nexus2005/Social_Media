@@ -180,75 +180,9 @@ function parsePriceToFloat(priceStr: string): number | null {
   return isNaN(val) ? null : val;
 }
 
-// SerpApi Google Shopping matches fetcher
-function getMockProducts(query: string) {
-  const q = query.toLowerCase();
-  if (q.includes("jacket") || q.includes("coat") || q.includes("outerwear") || q.includes("jersey")) {
-    return [
-      {
-        title: "Roadster Men Navy Blue Solid Hooded Padded Jacket",
-        price: "₹1,899",
-        merchant: "Myntra",
-        thumbnail: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60",
-        link: "https://www.myntra.com",
-      },
-      {
-        title: "Puma Full Sleeve Solid Men Sporty Sweatshirt Jacket",
-        price: "₹3,499",
-        merchant: "Flipkart",
-        thumbnail: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=500&auto=format&fit=crop&q=60",
-        link: "https://www.flipkart.com",
-      },
-      {
-        title: "Zara Water Repellent Puffer Jacket India Collection",
-        price: "₹5,990",
-        merchant: "Zara India",
-        thumbnail: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&auto=format&fit=crop&q=60",
-        link: "https://www.zara.com/in",
-      },
-    ];
-  }
-
-  if (q.includes("shoes") || q.includes("footwear") || q.includes("sneaker") || q.includes("boots")) {
-    return [
-      {
-        title: "Nike Air Max SYSTM Men's Running Sneakers",
-        price: "₹8,595",
-        merchant: "Nike.com/in",
-        thumbnail: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60",
-        link: "https://www.nike.com/in",
-      },
-      {
-        title: "Red Tape Men Memory Foam Cushioned Walking Shoes",
-        price: "₹1,499",
-        merchant: "Amazon.in",
-        thumbnail: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=500&auto=format&fit=crop&q=60",
-        link: "https://www.amazon.in",
-      },
-    ];
-  }
-
-  return [
-    {
-      title: `Premium Style ${query} Matching Trend Collection`,
-      price: "₹2,499",
-      merchant: "Ajio",
-      thumbnail: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&auto=format&fit=crop&q=60",
-      link: "https://www.ajio.com",
-    },
-    {
-      title: `Casual Wear ${query} Comfort Fit Everyday Edition`,
-      price: "₹1,299",
-      merchant: "Amazon.in",
-      thumbnail: "https://images.unsplash.com/photo-1495105787522-5334e3ffa0ef?w=500&auto=format&fit=crop&q=60",
-      link: "https://www.amazon.in",
-    },
-  ];
-}
-
 async function fetchShoppingMatches(query: string): Promise<any[]> {
   try {
-    console.log(`Fetching marketplace matches (eBay/AliExpress) for: "${query}"`);
+    console.log(`[SearchManager] Fetching marketplace matches (eBay/AliExpress) for: "${query}"`);
     const results = await SearchManager.search(query, 5);
     return results.map((item) => ({
       title: item.title,
@@ -258,10 +192,11 @@ async function fetchShoppingMatches(query: string): Promise<any[]> {
       link: item.link,
     }));
   } catch (err) {
-    console.error(`Failed to fetch marketplace shopping matches for "${query}":`, err);
-    return getMockProducts(query);
+    console.error(`[SearchManager] Failed to fetch matches for "${query}":`, err);
+    return [];
   }
 }
+
 
 // Vision VLM call helper for full-frame analysis
 async function queryVisionLLM(
@@ -338,7 +273,6 @@ async function runVideoProcessor(videoId: string, jobId: string) {
 
   let openrouterCalls = 0;
   let nvidiaCalls = 0;
-  let serpapiCalls = 0;
   let openrouterResults: any[] = [];
 
   // Strict Fashion Category Whitelist for Phase 1
@@ -570,10 +504,8 @@ async function runVideoProcessor(videoId: string, jobId: string) {
       );
     }
 
-    // 4. Query SerpApi Shopping Matches and Upload Frame to Supabase
+    // 4. Fetch Marketplace Matches (eBay/AliExpress) and Upload Frame to Supabase
     for (const prod of detectedProductsToSave) {
-      console.log(`Google Shopping lookup for: "${prod.label}"`);
-      serpapiCalls++;
       const matches = await fetchShoppingMatches(prod.label);
 
       let uploadedSourceFrameUrl: string | null = null;
@@ -671,34 +603,6 @@ async function runVideoProcessor(videoId: string, jobId: string) {
       });
     }
 
-    // Estimate processing costs
-    const processingTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(2));
-    const processingCost = parseFloat(
-      (
-        openrouterCalls * 0.015 +
-        nvidiaCalls * 0.005 +
-        serpapiCalls * 0.01
-      ).toFixed(5)
-    );
-
-    // Save Video Log
-    await prisma.videoProcessingLog.create({
-      data: {
-        videoId,
-        processingTime,
-        visionCalls: 0,
-        openrouterCalls,
-        nvidiaCalls,
-        serpapiCalls,
-        processingCost,
-        visionResults: undefined,
-        openrouterResults: openrouterResults || undefined,
-        nvidiaFallbackUsage: nvidiaCalls > 0,
-        shoppingResultsCount: detectedProductsToSave.reduce((acc, p) => acc + (p.matches?.length || 0), 0),
-        errorMessages: null,
-      },
-    });
-
     // Set job status
     const finalStatus = detectedProductsToSave.length === 0 ? "no_products" : "completed";
 
@@ -712,23 +616,7 @@ async function runVideoProcessor(videoId: string, jobId: string) {
 
     console.log(`Video processing completed for ${videoId}. Products: ${detectedProductsToSave.length}. Status: ${finalStatus}`);
   } catch (err: any) {
-    const processingTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(2));
-    await prisma.videoProcessingLog.create({
-      data: {
-        videoId,
-        processingTime,
-        visionCalls: 0,
-        openrouterCalls,
-        nvidiaCalls,
-        serpapiCalls,
-        processingCost: 0.0,
-        visionResults: undefined,
-        openrouterResults: openrouterResults || undefined,
-        nvidiaFallbackUsage: false,
-        shoppingResultsCount: 0,
-        errorMessages: err.message || String(err),
-      },
-    });
+    console.error(`[videoProductWorker] Error processing video ${videoId}:`, err);
     throw err;
   } finally {
     // Cleanup temporary files

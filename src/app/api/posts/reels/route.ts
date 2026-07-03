@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 50,
     });
 
     // Priority mapping for statuses

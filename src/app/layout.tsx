@@ -57,6 +57,9 @@ export default function RootLayout({
         {/* @ts-ignore */}
         <meta name="impact-site-verification" value="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
         <meta name="impact-site-verification" content="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;950&display=swap" rel="stylesheet" />
         <Script
           id="impact-tracking"
           strategy="afterInteractive"

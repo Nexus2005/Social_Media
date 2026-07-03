@@ -146,6 +146,7 @@ model Post {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([contentFormat])
   @@map("posts")
 }
 

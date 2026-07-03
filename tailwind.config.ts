@@ -21,9 +21,9 @@ const config = {
     extend: {
       colors: {
         instagram: {
-          darkBg: "#121212",
-          darkPostBg: "#1c1c1e",
-          darkBorder: "#262626",
+          darkBg: "#07080d",
+          darkPostBg: "#0e101a",
+          darkBorder: "#181b2a",
           lightBg: "#ffffff",
           lightBorder: "#dbdbdb",
           darkText: "#f5f5f5",

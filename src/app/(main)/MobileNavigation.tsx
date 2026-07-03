@@ -10,7 +10,6 @@ import {
   Mail,
   ChevronDown,
   Menu,
-  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -112,16 +111,8 @@ export default function MobileNavigation({
               </Link>
 
               <div className="flex items-center gap-1">
-                {/* Shop Hub */}
-                <Link
-                  href="/shop"
-                  className="relative flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
-                  title="Shop Hub"
-                >
-                  <ShoppingBag className="size-6 text-current" strokeWidth={1.75} />
-                </Link>
 
-                {/* Notifications */}
+              {/* Notifications */}
                 <Link
                   href="/notifications"
                   className="relative flex h-11 w-11 items-center justify-center text-instagram-lightText dark:text-instagram-darkText"
