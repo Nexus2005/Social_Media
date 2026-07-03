@@ -9,7 +9,8 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "seed:social": "npx tsx prisma/seed-social-network.ts",
-    "worker": "npx tsx src/lib/workers/videoProductWorker.ts"
+    "worker": "npx tsx src/lib/workers/videoProductWorker.ts",
+    "reprocess": "npx tsx src/lib/workers/reprocess.ts"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.7",
