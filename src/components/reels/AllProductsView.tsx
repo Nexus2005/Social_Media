@@ -76,6 +76,9 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
   // Full Screen product detail overlay state
   const [fullProductDetailId, setFullProductDetailId] = useState<string | number | null>(null);
 
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+
   // Sync cart from LocalStorage
   useEffect(() => {
     const savedCart = localStorage.getItem("cartly_cart");
@@ -260,6 +263,51 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
       {/* Back Button, Double Slider, and Checkbox Styling */}
       <style dangerouslySetInnerHTML={{
         __html: `
+          .uiverse-shop-btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 18px;
+            gap: 10px;
+            background-color: #007ACC;
+            outline: 3px #007ACC solid;
+            outline-offset: -3px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: 400ms;
+            position: relative;
+          }
+
+          .uiverse-shop-btn .text {
+            color: white;
+            font-weight: 750;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: 400ms;
+          }
+
+          .uiverse-shop-btn svg {
+            transition: 400ms;
+            color: white;
+            stroke-width: 2.5;
+          }
+
+          .uiverse-shop-btn:hover {
+            background-color: transparent;
+            outline-color: #007ACC;
+          }
+
+          .uiverse-shop-btn:hover .text {
+            color: #007ACC;
+          }
+
+          .uiverse-shop-btn:hover svg {
+            color: #007ACC !important;
+            stroke: #007ACC !important;
+          }
+
           .styled-wrapper .back-btn {
             display: block;
             position: relative;
@@ -674,33 +722,52 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                 </div>
 
                 {/* Dropdown controls */}
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "flex items-center border rounded-xl px-3.5 py-2 transition-all select-none",
-                    isLight ? "bg-white border-zinc-200 hover:bg-zinc-50 text-zinc-600" : "bg-[#12131a]/40 border-[#1b1c26]/60 hover:bg-zinc-800/40 text-zinc-300"
-                  )}>
-                    <Filter className="size-3.5 text-zinc-450 mr-2" />
-                    <span className="text-xs font-bold">Filter</span>
+                <div className="flex items-center gap-4">
+                  {/* Shop by Category Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
+                      className="uiverse-shop-btn"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                      <span className="text">Shop by Category</span>
+                    </button>
+
+                    {/* Category Dropdown Popover */}
+                    {isCategoryDropdownOpen && (
+                      <div className={cn(
+                        "absolute right-0 mt-2 w-48 rounded-xl shadow-2xl border py-2.5 z-50 text-left select-none text-[12px] font-bold transition-all duration-200 animate-in fade-in slide-in-from-top-2",
+                        isLight ? "bg-white border-zinc-200 text-zinc-800" : "bg-[#0c0d14]/95 backdrop-blur-md border-[#1b1c26]/80 text-zinc-200"
+                      )}>
+                        {Object.keys(categories).map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              handleCategorySelect(cat);
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-4 py-2.5 transition-colors flex items-center justify-between",
+                              isLight ? "hover:bg-zinc-100 text-zinc-700" : "hover:bg-[#12131a] text-zinc-300",
+                              selectedCategory === cat && "text-indigo-400 font-extrabold"
+                            )}
+                          >
+                            <span>{cat}</span>
+                            <span className="text-[10px] opacity-60">({categories[cat]})</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Sort Relevance dropdown */}
-                  <div className="relative">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className={cn(
-                        "border text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none transition-all cursor-pointer appearance-none pr-8",
-                        isLight
-                          ? "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                          : "bg-[#12131a]/40 border-[#1b1c26]/60 text-zinc-300 hover:bg-zinc-800/40"
-                      )}
-                    >
-                      <option value="Relevance">Sort: Relevance</option>
-                      <option value="Price: Low to High">Sort: Price: Low to High</option>
-                      <option value="Price: High to Low">Sort: Price: High to Low</option>
-                    </select>
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-450 font-bold text-[10px]">&darr;</div>
-                  </div>
+                  {/* Compare Button */}
+                  <button
+                    onClick={() => setIsCompareOpen(true)}
+                    className="uiverse-shop-btn"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M16 3h5v5"></path><path d="M8 21H3v-5"></path><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M21 3L14 10"></path><path d="M3 21l7-7"></path></svg>
+                    <span className="text">Compare</span>
+                  </button>
                 </div>
               </div>
 
@@ -1089,6 +1156,107 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
             detectedProducts={products}
             onClose={() => setFullProductDetailId(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Product Comparison Modal */}
+      <AnimatePresence>
+        {isCompareOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className={cn(
+                "w-full max-w-4xl max-h-[85vh] rounded-[32px] border shadow-2xl flex flex-col overflow-hidden relative",
+                isLight ? "bg-white border-zinc-200 text-zinc-800" : "bg-[#0c0d14] border-[#1b1c26] text-white"
+              )}
+            >
+              {/* Modal Header */}
+              <div className={cn(
+                "p-6 flex items-center justify-between border-b shrink-0",
+                isLight ? "border-zinc-200" : "border-[#1b1c26]"
+              )}>
+                <div className="text-left">
+                  <h3 className="text-xl font-black tracking-tight leading-none">Product Comparison</h3>
+                  <p className={cn("text-xs mt-1.5 font-semibold", isLight ? "text-zinc-500" : "text-zinc-400")}>
+                    Compare prices, categories, and matching merchants side by side
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsCompareOpen(false)}
+                  className={cn(
+                    "p-2 rounded-full border transition-all cursor-pointer",
+                    isLight ? "hover:bg-zinc-100 border-zinc-200 text-zinc-700" : "hover:bg-white/10 border-white/10 text-white"
+                  )}
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Modal Body (Scrollable Table) */}
+              <div className="flex-1 overflow-auto p-6">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className={cn(
+                      "border-b text-[11px] font-black uppercase tracking-wider",
+                      isLight ? "border-zinc-200 text-zinc-500" : "border-[#1b1c26] text-zinc-400"
+                    )}>
+                      <th className="pb-3 pl-4">Product Info</th>
+                      <th className="pb-3">Category</th>
+                      <th className="pb-3">Top Merchant</th>
+                      <th className="pb-3 text-right pr-4">Best Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((prod) => {
+                      const bm = getBestMatch(prod);
+                      const brandName = getBrandName(bm, prod);
+                      return (
+                        <tr
+                          key={prod.id}
+                          className={cn(
+                            "border-b transition-colors hover:bg-[#12131a]/10",
+                            isLight ? "border-zinc-100 hover:bg-zinc-50" : "border-zinc-900/60 hover:bg-[#12131a]/40"
+                          )}
+                        >
+                          <td className="py-4 pl-4 flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-lg bg-zinc-950 border border-white/5 overflow-hidden shrink-0">
+                              <img
+                                src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=60"}
+                                alt={prod.label}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex flex-col text-left">
+                              <span className="text-[10px] font-bold text-[#007ACC] uppercase tracking-wider">{brandName}</span>
+                              <span className="text-xs font-extrabold line-clamp-1 max-w-[250px]">{prod.label}</span>
+                            </div>
+                          </td>
+                          <td className="py-4">
+                            <span className="text-xs font-bold bg-[#007ACC]/15 text-[#007ACC] px-2.5 py-1 rounded-full uppercase tracking-wider text-[10px]">
+                              {prod.category || "Top"}
+                            </span>
+                          </td>
+                          <td className="py-4 text-xs font-semibold">
+                            {bm?.merchant?.name || bm?.merchant || "Unknown"}
+                          </td>
+                          <td className="py-4 text-right pr-4 text-sm font-black">
+                            {bm ? bm.price : "N/A"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
