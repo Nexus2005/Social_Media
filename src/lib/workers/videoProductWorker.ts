@@ -7,6 +7,9 @@ import sharp from "sharp";
 import crypto from "crypto";
 import { extractFramesFromVideo } from "../videoProcessor";
 import { SearchManager } from "../marketplace/searchManager";
+import { VisionProviderManager } from "../ai/visionProviderManager";
+import { DetectionPipeline } from "../detection/detectionPipeline";
+import { ProductResolver } from "../detection/productResolver";
 
 // Load environment variables manually to support independent execution
 function loadEnv() {
@@ -264,9 +267,6 @@ async function queryVisionLLM(
   base64Image: string,
   onCallIncrement: (calls: { openrouter: number; nvidia: number }) => void
 ): Promise<any> {
-  const openrouterApiKey = process.env.OPENROUTER_API_KEY;
-  const openrouterModel = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen-2-vl-7b-instruct";
-
   const promptText = `Analyze this image and identify all visible, purchaseable fashion products. Return ONLY a JSON object matching this structure:
 {
   "products": [
@@ -287,104 +287,13 @@ async function queryVisionLLM(
 Only return products a user could realistically purchase online.
 Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.`;
 
-  if (openrouterApiKey) {
-    try {
-      onCallIncrement({ openrouter: 1, nvidia: 0 });
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openrouterApiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "http://localhost:3000",
-          "X-Title": "Cartly Visual Commerce",
-        },
-        body: JSON.stringify({
-          model: openrouterModel,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: promptText },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-                },
-              ],
-            },
-          ],
-        }),
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        const content = json.choices?.[0]?.message?.content?.trim();
-        if (content) {
-          const cleaned = content.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(cleaned);
-          if (parsed && Array.isArray(parsed.products)) {
-            return parsed;
-          }
-        }
-      } else {
-        const errText = await response.text();
-        console.error(`OpenRouter Vision VLM API responded with status ${response.status}: ${errText}`);
-      }
-    } catch (err) {
-      console.error("OpenRouter Vision VLM query failed, checking fallback:", err);
-    }
+  try {
+    const results = await VisionProviderManager.analyzeImage(base64Image, promptText);
+    return results;
+  } catch (err) {
+    console.error("VLM query using VisionProviderManager failed:", err);
+    return null;
   }
-
-  // Fallback: NVIDIA Vision API
-  const nvidiaApiKey = process.env.NVIDIA_API_KEY;
-  const nvidiaModel = process.env.NVIDIA_VISION_MODEL || "nvidia/llama-3.2-11b-vision-instruct";
-
-  if (nvidiaApiKey) {
-    try {
-      onCallIncrement({ openrouter: 0, nvidia: 1 });
-      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${nvidiaApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: nvidiaModel,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: promptText },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-                },
-              ],
-            },
-          ],
-        }),
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        const content = json.choices?.[0]?.message?.content?.trim();
-        if (content) {
-          const cleaned = content.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(cleaned);
-          if (parsed && Array.isArray(parsed.products)) {
-            return parsed;
-          }
-        }
-      } else {
-        const errText = await response.text();
-        console.error(`NVIDIA Vision VLM API responded with status ${response.status}: ${errText}`);
-      }
-    } catch (err) {
-      console.error("NVIDIA Vision VLM fallback query failed:", err);
-    }
-  }
-
-  return null;
 }
 
 // Upstash Redis client REST calls
@@ -481,31 +390,52 @@ async function runVideoProcessor(videoId: string, jobId: string) {
     let vlmCalls = 0;
     const maxVlmCalls = 6;
 
-    // 3. Analyze frames sequentially using VLM
+    // 3. Analyze frames sequentially using local DetectionPipeline -> optional VLM
     for (const frame of extractedFrames) {
-      if (vlmCalls >= maxVlmCalls) {
-        console.log(`Reached max VLM calls limit of ${maxVlmCalls}. Stopping sequential VLM scanning.`);
-        break;
-      }
-
-      console.log(`Querying VLM for frame at ${frame.timestamp}s...`);
+      console.log(`Processing frame at ${frame.timestamp}s...`);
       const frameBuffer = await fs.promises.readFile(frame.path);
       const base64Frame = frameBuffer.toString("base64");
 
-      vlmCalls++;
-      const vlmResponse = await queryVisionLLM(base64Frame, (calls) => {
-        openrouterCalls += calls.openrouter;
-        nvidiaCalls += calls.nvidia;
-      });
+      // Run local GPU-accelerated CV Detection Pipeline first!
+      const detectionResult = await DetectionPipeline.run(frameBuffer);
+      let productsToProcess: any[] = [];
 
-      if (!vlmResponse || !Array.isArray(vlmResponse.products)) {
-        console.log(`VLM returned no valid products array for frame at ${frame.timestamp}s.`);
-        continue;
+      if (!detectionResult.needCloudVision && detectionResult.objects.length > 0) {
+        console.log(`[videoProductWorker] Local detection confidence is high (${detectionResult.overallConfidence}). Skipping Cloud VLM.`);
+        // Convert detected objects directly into standard formats using ProductResolver
+        productsToProcess = detectionResult.objects.map((obj) => {
+          const resolvedQuery = ProductResolver.resolveQuery(obj);
+          return {
+            category: obj.label || "Clothing",
+            description: resolvedQuery,
+            color: obj.attributes?.color || "unknown",
+            material: obj.attributes?.material || "unknown",
+            confidence: obj.confidence || 0.90,
+            gender: "Unisex",
+            style: "Casual",
+            season: "All-Season",
+            keywords: [obj.label],
+          };
+        });
+      } else {
+        if (vlmCalls >= maxVlmCalls) {
+          console.log(`Reached max VLM calls limit of ${maxVlmCalls}. Skipping sequential VLM fallback.`);
+          continue;
+        }
+        console.log(`[videoProductWorker] Local confidence is low/insufficient (${detectionResult.overallConfidence}). Falling back to Cloud VLM...`);
+        vlmCalls++;
+        const vlmResponse = await queryVisionLLM(base64Frame, (calls) => {
+          openrouterCalls += calls.openrouter;
+          nvidiaCalls += calls.nvidia;
+        });
+
+        if (vlmResponse && Array.isArray(vlmResponse.products)) {
+          productsToProcess = vlmResponse.products;
+          openrouterResults.push({ timestamp: frame.timestamp, products: vlmResponse.products });
+        }
       }
 
-      openrouterResults.push({ timestamp: frame.timestamp, products: vlmResponse.products });
-
-      for (const prod of vlmResponse.products) {
+      for (const prod of productsToProcess) {
         const category = prod.category?.trim();
         const description = prod.description?.trim();
         const color = prod.color?.trim() || "unknown";

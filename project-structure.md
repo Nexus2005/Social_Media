@@ -39,6 +39,8 @@ nextjs-15-social-media-app/
 │   │   ├── useFollowerInfo.ts         # Hook tracking follow relationships & state updates
 │   │   └── useRealtimeNotifications.ts# Hook subscribing to realtime push streams
 │   ├── lib/                           # Core utilities, workers, & services
+│   │   ├── ai/                        # Configuration & dynamic AI vision rotating providers
+│   │   ├── detection/                 # Computer Vision & local pre-processing pipeline
 │   │   ├── marketplace/               # Unified eBay & AliExpress provider clients
 │   │   ├── providers/                 # React Context providers (Location, Chat, etc.)
 │   │   ├── workers/                   # Async job background workers (e.g. video processing)
@@ -105,13 +107,29 @@ nextjs-15-social-media-app/
   * *Dependencies:* `types.ts`
 - **[aliexpressProvider.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/aliexpressProvider.ts):** Integrates AliExpress affiliate product search with secure request signature generation.
   * *Dependencies:* `types.ts`
-- **[searchManager.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/searchManager.ts):** Central manager that coordinates providers, deduplicates products via title similarity, and ranks matches.
+- **[searchManager.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/marketplace/searchManager.ts):** Central manager that coordinates providers, deduplicates products via title similarity, ranks matches, and caches search results.
   * *Dependencies:* `types.ts`, `eBayProvider.ts`, `aliexpressProvider.ts`
+
+### AI Provider Management
+- **[configManager.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/ai/configManager.ts):** Centralized secrets registry resolving dynamic API key lists and active configurations.
+  * *Dependencies:* None
+- **[visionProviderManager.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/ai/visionProviderManager.ts):** Vision VLM coordinator that rotates Gemini keys, manages cooldown states, and handles NVIDIA fallbacks.
+  * *Dependencies:* `configManager.ts`
+
+### Computer Vision Detection Pipeline
+- **[cv_server.py](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/detection/py-service/cv_server.py):** Python microservice executing local GPU YOLO, pyzbar, EasyOCR, and color extraction.
+  * *Dependencies:* `ultralytics`, `easyocr`
+- **[detectionPipeline.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/detection/detectionPipeline.ts):** Client pipeline executing image MD5 hashing, persistent file cache lookup, and weighted evidence confidence checks.
+  * *Dependencies:* `cv_server.py`
+- **[productResolver.ts](file:///c:/Users/Omkar%2520Ahirrao/Desktop/Next%2520Social/nextjs-15-social-media-app/src/lib/detection/productResolver.ts):** Translates visual attributes and OCR fragments into descriptive query strings for product lookups.
+  * *Dependencies:* None
 
 ---
 
 ### [2026-07-03] Update
-- **Modified:** `src/lib/workers/videoProductWorker.ts` -> Migrated shopping matches lookup from SerpAPI to SearchManager.
-- **Modified:** `src/app/api/shopping-lookup/route.ts` -> Swapped legacy SerpAPI query endpoint with new modular SearchManager.
-- **Added:** `src/lib/marketplace/` -> Created provider interfaces, eBay/AliExpress clients, and consolidated SearchManager.
-- **Removed/Deprecated:** SerpAPI dependency from video worker and API lookup route.
+- **Modified:** `src/lib/workers/videoProductWorker.ts` -> Refactored frame scanning loop to use local DetectionPipeline and ProductResolver before falling back to VisionProviderManager.
+- **Modified:** `src/app/api/shopping-lookup/route.ts` -> Migrated SerpAPI queries to the central SearchManager client with caching.
+- **Added:** `src/lib/ai/` -> Centralized Configuration Manager and dynamic Vision Provider Manager with automatic rate-limit cooldown handling.
+- **Added:** `src/lib/detection/` -> Local computer vision pipeline with Python microservice host, MD5 image caching, Product Resolver, and weighted confidence rules.
+- **Added:** `src/lib/marketplace/` -> Integrated eBay Browse API adapter, AliExpress query signed client, unified types, duplicate matches merging, and search manager caching.
+- **Removed/Deprecated:** SerpAPI dependency from the background worker and API route.

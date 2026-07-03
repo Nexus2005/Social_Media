@@ -55,11 +55,20 @@ export class SearchManager {
     return relevanceScore * 0.5 + ratingScore * 0.3 + isFreeShipping * 0.2;
   }
 
+  private static searchCache = new Map<string, { results: MarketplaceProduct[]; expiresAt: number }>();
+
   /**
    * Search all configured marketplaces in parallel, deduplicate results, and rank them.
    */
   static async search(query: string, limit = 10): Promise<MarketplaceProduct[]> {
     if (!query) return [];
+
+    const cacheKey = `${query.toLowerCase().trim()}_limit_${limit}`;
+    const cached = this.searchCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      console.log(`[SearchManager] Search cache hit for query: "${query}"`);
+      return cached.results;
+    }
 
     // Step 2: Query all providers in parallel
     const searchPromises = this.providers.map(async (provider) => {
@@ -106,7 +115,7 @@ export class SearchManager {
     }
 
     // Step 5: Rank results based on match quality, shipping, and rating
-    return mergedProducts
+    const rankedResults = mergedProducts
       .map((prod) => ({
         product: prod,
         score: this.calculateScore(prod, query),
@@ -114,5 +123,12 @@ export class SearchManager {
       .sort((a, b) => b.score - a.score)
       .map((item) => item.product)
       .slice(0, limit);
+
+    this.searchCache.set(cacheKey, {
+      results: rankedResults,
+      expiresAt: Date.now() + 300000,
+    });
+
+    return rankedResults;
   }
 }
