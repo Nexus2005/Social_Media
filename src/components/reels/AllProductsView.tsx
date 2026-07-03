@@ -343,449 +343,6 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
     setCurrentPage(1);
   };
 
-  if (isCompareOpen) {
-    return (
-      <div className="absolute inset-0 bg-[#050608] z-30 flex flex-col overflow-hidden text-white animate-in slide-in-from-right duration-300">
-        {/* 1. Header Section */}
-        <div className={cn(
-          "flex items-center justify-between px-8 py-2 border-b sticky top-0 z-20 transition-colors duration-300",
-          isLight ? "border-zinc-205/85 bg-white/85 backdrop-blur-md" : "border-[#1b1c26]/60 bg-[#050608]/80 backdrop-blur-md"
-        )}>
-
-          {/* Left: Breadcrumbs & Back */}
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setIsCompareOpen(false)} 
-              className="flex items-center justify-center p-2 rounded-full border border-white/10 hover:bg-white/10 text-white transition-all cursor-pointer mr-2 active:scale-95" 
-              title="Back"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-
-            <div className={cn(
-              "flex items-center gap-2 text-xs font-semibold select-none transition-colors",
-              isLight ? "text-zinc-500" : "text-zinc-400"
-            )}>
-              <span className="cursor-pointer hover:text-white" onClick={() => setIsCompareOpen(false)}>Reels</span>
-              <span className="opacity-40">/</span>
-              <span className="cursor-pointer hover:text-white" onClick={() => setIsCompareOpen(false)}>Shop</span>
-              <span className="opacity-40">/</span>
-              <span className="cursor-pointer hover:text-white" onClick={() => setIsCompareOpen(false)}>All products</span>
-              <span className="opacity-40">/</span>
-              <span className="text-white font-bold">Compare</span>
-            </div>
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex items-center gap-3">
-            {/* Search bar */}
-            <div className="relative w-[280px]">
-              <input
-                type="text"
-                placeholder="Search products, brands..."
-                className={cn(
-                  "w-full backdrop-blur-md border rounded-full py-2 pl-10 pr-4 text-[12px] focus:outline-none transition-all shadow-sm duration-300",
-                  isLight
-                    ? "bg-white border-zinc-200 text-zinc-800 placeholder-zinc-400 focus:border-indigo-500/50"
-                    : "bg-[#12131a]/40 border-[#1b1c26]/80 text-zinc-200 placeholder-zinc-500 focus:border-zinc-700/60 focus:bg-[#12131a]/80"
-                )}
-              />
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-450" />
-            </div>
-
-            {/* Cart Icon */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="uiverse-btn cart-btn group"
-              title="Cart"
-            >
-              <ShoppingCart className={cn("size-4.5 svgIcon transition-all", isLight ? "text-zinc-700 group-hover:text-white" : "text-zinc-200")} />
-              {cart.length > 0 && (
-                <span className="absolute top-1 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[8px] font-bold text-white border border-[#07080d] shadow-sm select-none">
-                  {cart.reduce((total, item) => total + item.quantity, 0)}
-                </span>
-              )}
-            </button>
-
-            {/* Notifications bell */}
-            <button className="uiverse-btn alerts-btn group" title="Alerts">
-              <Bell className={cn("size-4.5 svgIcon transition-all", isLight ? "text-zinc-700 group-hover:text-white" : "text-zinc-200")} />
-              <span className="absolute top-1 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[8px] font-bold text-white border border-[#07080d] shadow-sm select-none">
-                3
-              </span>
-            </button>
-
-            {/* Profile Avatar */}
-            <UserAvatar avatarUrl={user?.avatarUrl} size={36} className="border border-white/20 ml-1 rounded-full cursor-pointer hover:opacity-85 transition-opacity" />
-          </div>
-        </div>
-
-        {/* Compare Content View */}
-        <div className="flex-1 overflow-y-auto bg-[#050608]">
-          <div className="w-full grid grid-cols-12 gap-8 p-8 max-w-[1440px] mx-auto">
-            
-            {/* Left Section: Table (9 columns) */}
-            <div className="col-span-9 flex flex-col gap-6 text-left">
-              
-              {/* Header Title & Subtitle + Top right actions */}
-              <div className="flex items-center justify-between select-none">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight text-white leading-none">Compare products</h1>
-                  <p className="text-xs font-semibold text-zinc-500 mt-2">
-                    Compare up to 4 products to find the best for you
-                  </p>
-                </div>
-                
-                {/* Actions group */}
-                <div className="flex items-center gap-3">
-                  {/* Share comparison */}
-                  <button className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-[#0c0d14]/40 hover:bg-[#12131a] rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer">
-                    <Share2 className="size-3.5" />
-                    <span>Share comparison</span>
-                  </button>
-                  {/* Clear all */}
-                  <button className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-[#0c0d14]/40 hover:bg-[#12131a] rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer">
-                    <Trash2 className="size-3.5" />
-                    <span>Clear all</span>
-                  </button>
-                  {/* + Add product */}
-                  <button className="flex items-center gap-2 px-4 py-2 bg-[#007ACC] hover:bg-[#007ACC]/90 border-none rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-blue-500/10">
-                    <Plus className="size-3.5 text-white" />
-                    <span>Add product</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Compare Table Grid */}
-              <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/30 backdrop-blur-md rounded-[32px] overflow-hidden shadow-2xl p-6 flex flex-col gap-4">
-                
-                {/* Table Header Row (Products Info cards) */}
-                <div className="flex w-full items-stretch">
-                  {/* Left Label column */}
-                  <div className="w-[180px] shrink-0 pr-4 flex flex-col justify-end pb-6 select-none">
-                    <span className="text-[15px] font-black text-white">Products</span>
-                    <span className="text-[12px] text-zinc-500 mt-1 font-semibold">4 selected</span>
-                    <button className="mt-3 w-fit px-4 py-1.5 border border-zinc-800 hover:bg-[#12131a] text-[11px] font-bold text-zinc-300 rounded-xl transition-all cursor-pointer">
-                      Change
-                    </button>
-                  </div>
-
-                  {/* Compared products columns */}
-                  <div className="flex-1 grid grid-cols-4 gap-4">
-                    {COMPARE_PRODUCTS.map((prod) => (
-                      <div key={prod.id} className="flex flex-col relative group/card border border-[#1b1c26]/40 bg-[#0c0d14]/45 rounded-2xl overflow-hidden p-3.5">
-                        
-                        {/* Remove X button */}
-                        <button className="absolute top-2.5 right-2.5 z-10 p-1.5 bg-black/60 hover:bg-black/85 border border-white/5 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer">
-                          <X className="size-3" />
-                        </button>
-
-                        {/* Image wrapper */}
-                        <div className="w-full h-[105px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 shrink-0">
-                          <img src={prod.imageUrl} alt={prod.label} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500" />
-                        </div>
-
-                        {/* Text detail */}
-                        <div className="mt-3 flex-1 flex flex-col justify-between">
-                          <div>
-                            <h4 className="text-xs font-black text-white leading-tight line-clamp-1">{prod.label}</h4>
-                            <p className="text-[9.5px] text-zinc-500 font-semibold mt-0.5 line-clamp-1 leading-tight">{prod.subtitle}</p>
-                          </div>
-                          
-                          <div className="mt-3 flex flex-col gap-2.5">
-                            <div className="flex items-baseline gap-1.5">
-                              <span className="text-xs font-black text-white">{prod.price}</span>
-                              {prod.listPrice && (
-                                <span className="text-[9.5px] line-through font-semibold text-zinc-550">{prod.listPrice}</span>
-                              )}
-                              {prod.discount && (
-                                <span className="text-[9px] text-[#007ACC] font-black uppercase">{prod.discount}</span>
-                              )}
-                            </div>
-
-                            <button className="w-full py-1.5 border border-[#007ACC]/30 hover:border-[#007ACC]/60 text-[10.5px] font-bold text-[#007ACC] hover:text-[#007ACC]/85 hover:bg-[#007ACC]/5 rounded-xl transition-all cursor-pointer">
-                              View product
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="h-[1px] bg-[#1b1c26]/60 my-2" />
-
-                {/* Feature Rows */}
-                <div className="flex flex-col gap-2">
-                  
-                  {/* Rating */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Star className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Rating</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <div key={prod.id} className="text-xs font-bold text-white flex items-center gap-1.5 pl-3.5">
-                          <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
-                          <span className="text-zinc-100">{prod.rating}</span>
-                          <span className="text-[10px] text-zinc-500">({prod.reviewsCount})</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Best for */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Heart className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Best for</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
-                          {prod.bestFor}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Cushioning */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Sparkles className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Cushioning</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                          {prod.cushioning}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Weight */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Scale className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Weight (UK 9)</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                          {prod.weight}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Heel Drop */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Ruler className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Heel Drop</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                          {prod.heelDrop}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Breathability */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Wind className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Breathability</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                          {prod.breathability}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Durability */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <Shield className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Durability</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                          {prod.durability}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Price Row */}
-                  <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <ShoppingBag className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Price</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <span key={prod.id} className="text-[12.5px] font-black text-white pl-3.5">
-                          {prod.price}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Buy from */}
-                  <div className="flex w-full items-center py-3.5">
-                    <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                      <ShoppingCart className="size-4 text-zinc-450" />
-                      <span className="text-xs font-bold">Buy from</span>
-                    </div>
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <div key={prod.id} className="flex items-center gap-1.5 pl-3.5 select-none pointer-events-auto">
-                          {/* Amazon logo mockup */}
-                          <div className="w-6 h-6 rounded bg-amber-400 flex items-center justify-center font-black text-[10px] text-black border border-white/5 shadow" title="Buy from Amazon">
-                            a
-                          </div>
-                          {/* Flipkart logo mockup */}
-                          <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-black text-[10px] text-white border border-white/5 shadow" title="Buy from Flipkart">
-                            F
-                          </div>
-                          {/* Nike swoosh mockup */}
-                          <div className="w-6 h-6 rounded bg-black flex items-center justify-center border border-white/20 shadow" title="Buy from Nike Store">
-                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white text-white"><path d="M21 6.5c-2.3 1.7-5.5 3.3-8.5 4.3-2.5.8-4.5.8-6.1.4-1.3-.3-2.1-.9-2.4-1.7-.2-.5-.1-1 .3-1.4.3-.3.8-.5 1.5-.5 1.1 0 2.5.4 4.1 1.2 2.6 1.3 5.4 1.5 7.8.8l3.3-3.1z"/></svg>
-                          </div>
-                          <span className="text-zinc-550 text-[10px] ml-1 font-semibold">&gt;</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Right Section: Sidebar (3 columns) */}
-            <div className="col-span-3 flex flex-col gap-6 text-left select-none">
-              
-              {/* Card 1: Which one is best for you? */}
-              <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
-                <div>
-                  <h3 className="text-sm font-black text-white tracking-tight">Which one is best for you?</h3>
-                  <p className="text-[10px] font-semibold text-zinc-500 mt-1 leading-tight">Based on your preferences</p>
-                </div>
-
-                <div className="border border-[#1b1c26]/30 bg-[#0c0d14]/30 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden">
-                  {/* Best match tag */}
-                  <span className="absolute top-3 left-3 bg-[#007ACC] text-white text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
-                    Best match
-                  </span>
-
-                  {/* Best match Image */}
-                  <div className="w-full h-[110px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mt-4 shrink-0">
-                    <img src={COMPARE_PRODUCTS[0].imageUrl} alt="Best Match" className="w-full h-full object-cover" />
-                  </div>
-
-                  <h4 className="text-xs font-black text-white mt-1">{COMPARE_PRODUCTS[0].label}</h4>
-
-                  {/* Bullets with checkmarks */}
-                  <div className="flex flex-col gap-2 mt-1">
-                    <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
-                      <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
-                      <span>Great for daily running</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
-                      <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
-                      <span>Lightweight & responsive</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
-                      <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
-                      <span>High customer rating</span>
-                    </div>
-                  </div>
-
-                  <button className="flex items-center gap-1.5 text-[10.5px] font-black text-[#007ACC] hover:text-[#007ACC]/80 mt-3 group cursor-pointer w-fit">
-                    <span>View product</span>
-                    <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Card 2: Similar alternatives */}
-              <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-white tracking-tight">Similar alternatives</h3>
-                  <button className="text-[10px] font-black text-[#007ACC] hover:underline cursor-pointer">
-                    View all
-                  </button>
-                </div>
-
-                {/* Alternatives List */}
-                <div className="flex flex-col gap-3">
-                  {[
-                    { label: "Brooks Ghost 16", price: "₹14,990", rating: "4.6", reviews: "802", img: "https://images.unsplash.com/photo-1539185441755-769473a23570?w=100&q=80" },
-                    { label: "New Balance 880 v14", price: "₹13,499", rating: "4.5", reviews: "760", img: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=100&q=80" },
-                    { label: "Adidas Ultraboost Light", price: "₹17,999", rating: "4.4", reviews: "540", img: "https://images.unsplash.com/photo-1587563871167-1ee9c731aefb?w=100&q=80" }
-                  ].map((alt, idx) => (
-                    <div key={idx} className="flex items-center gap-3 border-b border-[#1b1c26]/10 pb-3 last:border-0 last:pb-0 group/alt">
-                      {/* Image */}
-                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-950 border border-white/5 shrink-0">
-                        <img src={alt.img} alt={alt.label} className="w-full h-full object-cover group-hover/alt:scale-105 transition-transform duration-300" />
-                      </div>
-                      
-                      {/* Info */}
-                      <div className="flex-1 flex flex-col min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[11px] font-bold text-white truncate">{alt.label}</span>
-                          <Heart className="size-3 text-zinc-550 hover:text-rose-500 hover:fill-rose-500 cursor-pointer shrink-0" />
-                        </div>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-[10px] font-black text-zinc-300">{alt.price}</span>
-                          <div className="flex items-center gap-0.5 text-[9.5px] text-zinc-400 font-bold">
-                            <Star className="size-2.5 text-amber-500 fill-amber-500 shrink-0" />
-                            <span>{alt.rating}</span>
-                            <span className="text-[8.5px] opacity-60">({alt.reviews})</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Card 3: Need help choosing? */}
-              <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
-                <div>
-                  <h3 className="text-sm font-black text-white tracking-tight">Need help choosing?</h3>
-                  <p className="text-[10.5px] font-semibold text-zinc-500 mt-1 leading-normal">
-                    Answer a few questions and we'll recommend the perfect shoe for you.
-                  </p>
-                </div>
-                
-                <button className="w-full py-3 bg-[#007ACC] hover:bg-[#007ACC]/90 text-[11px] font-black text-white rounded-2xl flex items-center justify-center gap-2 group cursor-pointer shadow-lg shadow-blue-500/10 transition-transform active:scale-[0.98]">
-                  <span>Find my perfect shoe</span>
-                  <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-    );
-  }
-
   return (
     <div className="absolute inset-0 bg-[#07080d] z-30 flex flex-col overflow-hidden text-white animate-in slide-in-from-right duration-300">
 
@@ -1152,7 +709,17 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
         {/* Left: Breadcrumbs & Back */}
         <div className="flex items-center gap-2">
           <div className="styled-wrapper -ml-3">
-            <button onClick={onClose} className={cn("back-btn", isLight ? "text-zinc-800" : "text-zinc-100")} title="Back">
+            <button 
+              onClick={() => {
+                if (isCompareOpen) {
+                  setIsCompareOpen(false);
+                } else {
+                  onClose();
+                }
+              }} 
+              className={cn("back-btn", isLight ? "text-zinc-800" : "text-zinc-100")} 
+              title="Back"
+            >
               <div className="button-box">
                 {/* Arrow icon 1 */}
                 <svg className="button-elem" viewBox="0 0 24 24">
@@ -1174,7 +741,15 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
             <span className={isLight ? "text-zinc-400 font-normal" : "text-zinc-650 font-normal"}>/</span>
             <span className={cn("cursor-pointer transition-colors", isLight ? "hover:text-zinc-800" : "hover:text-white")} onClick={onClose}>Shop</span>
             <span className={isLight ? "text-zinc-400 font-normal" : "text-zinc-650 font-normal"}>/</span>
-            <span className={isLight ? "text-zinc-800 font-bold" : "text-white"}>All products</span>
+            {isCompareOpen ? (
+              <>
+                <span className={cn("cursor-pointer transition-colors", isLight ? "hover:text-zinc-800" : "hover:text-white")} onClick={() => setIsCompareOpen(false)}>All products</span>
+                <span className={isLight ? "text-zinc-400 font-normal" : "text-zinc-650 font-normal"}>/</span>
+                <span className={isLight ? "text-zinc-800 font-bold" : "text-white"}>Compare</span>
+              </>
+            ) : (
+              <span className={isLight ? "text-zinc-800 font-bold" : "text-white"}>All products</span>
+            )}
           </div>
         </div>
 
@@ -1220,22 +795,385 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
             </span>
           </button>
 
+          {/* Profile Avatar */}
+          <UserAvatar avatarUrl={user?.avatarUrl} size={36} className="border border-white/20 ml-1 rounded-full cursor-pointer hover:opacity-85 transition-opacity shrink-0" />
         </div>
       </div>
 
       {/* 2. Main Content Grid Wrapper */}
       <div className={cn(
         "flex-1 flex overflow-hidden transition-colors duration-300",
-        isLight ? "bg-[#f8f9fc]" : "bg-[#07080d]"
+        isLight ? "bg-[#f8f9fc]" : (isCompareOpen ? "bg-[#050608]" : "bg-[#07080d]")
       )}>
 
+        {isCompareOpen ? (
+          /* Compare content layout */
+          <div className="w-full overflow-y-auto bg-[#050608]">
+            <div className="w-full grid grid-cols-12 gap-8 p-8 max-w-[1440px] mx-auto">
+              
+              {/* Left Section: Table (9 columns) */}
+              <div className="col-span-9 flex flex-col gap-6 text-left">
+                
+                {/* Header Title & Subtitle + Top right actions */}
+                <div className="flex items-center justify-between select-none">
+                  <div>
+                    <h1 className="text-2xl font-black tracking-tight text-white leading-none">Compare products</h1>
+                    <p className="text-xs font-semibold text-zinc-500 mt-2">
+                      Compare up to 4 products to find the best for you
+                    </p>
+                  </div>
+                  
+                  {/* Actions group */}
+                  <div className="flex items-center gap-3">
+                    {/* Share comparison */}
+                    <button className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-[#0c0d14]/40 hover:bg-[#12131a] rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer">
+                      <Share2 className="size-3.5" />
+                      <span>Share comparison</span>
+                    </button>
+                    {/* Clear all */}
+                    <button className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-[#0c0d14]/40 hover:bg-[#12131a] rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer">
+                      <Trash2 className="size-3.5" />
+                      <span>Clear all</span>
+                    </button>
+                    {/* + Add product */}
+                    <button className="flex items-center gap-2 px-4 py-2 bg-[#007ACC] hover:bg-[#007ACC]/90 border-none rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-blue-500/10">
+                      <Plus className="size-3.5 text-white" />
+                      <span>Add product</span>
+                    </button>
+                  </div>
+                </div>
 
+                {/* Compare Table Grid */}
+                <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/30 backdrop-blur-md rounded-[32px] overflow-hidden shadow-2xl p-6 flex flex-col gap-4">
+                  
+                  {/* Table Header Row (Products Info cards) */}
+                  <div className="flex w-full items-stretch">
+                    {/* Left Label column */}
+                    <div className="w-[180px] shrink-0 pr-4 flex flex-col justify-end pb-6 select-none">
+                      <span className="text-[15px] font-black text-white">Products</span>
+                      <span className="text-[12px] text-zinc-500 mt-1 font-semibold">4 selected</span>
+                      <button className="mt-3 w-fit px-4 py-1.5 border border-zinc-800 hover:bg-[#12131a] text-[11px] font-bold text-zinc-300 rounded-xl transition-all cursor-pointer">
+                        Change
+                      </button>
+                    </div>
 
-        {/* Products Catalog Area - full width */}
-        <div className={cn(
-          "w-full flex flex-col p-8 overflow-y-auto transition-colors duration-300",
-          isLight ? "bg-[#f1f3f9]" : "bg-[#07080d]"
-        )}>
+                    {/* Compared products columns */}
+                    <div className="flex-1 grid grid-cols-4 gap-4">
+                      {COMPARE_PRODUCTS.map((prod) => (
+                        <div key={prod.id} className="flex flex-col relative group/card border border-[#1b1c26]/40 bg-[#0c0d14]/45 rounded-2xl overflow-hidden p-3.5">
+                          
+                          {/* Remove X button */}
+                          <button className="absolute top-2.5 right-2.5 z-10 p-1.5 bg-black/60 hover:bg-black/85 border border-white/5 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer">
+                            <X className="size-3" />
+                          </button>
+
+                          {/* Image wrapper */}
+                          <div className="w-full h-[105px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 shrink-0">
+                            <img src={prod.imageUrl} alt={prod.label} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500" />
+                          </div>
+
+                          {/* Text detail */}
+                          <div className="mt-3 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h4 className="text-xs font-black text-white leading-tight line-clamp-1">{prod.label}</h4>
+                              <p className="text-[9.5px] text-zinc-500 font-semibold mt-0.5 line-clamp-1 leading-tight">{prod.subtitle}</p>
+                            </div>
+                            
+                            <div className="mt-3 flex flex-col gap-2.5">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-xs font-black text-white">{prod.price}</span>
+                                {prod.listPrice && (
+                                  <span className="text-[9.5px] line-through font-semibold text-zinc-550">{prod.listPrice}</span>
+                                )}
+                                {prod.discount && (
+                                  <span className="text-[9px] text-[#007ACC] font-black uppercase">{prod.discount}</span>
+                                )}
+                              </div>
+
+                              <button className="w-full py-1.5 border border-[#007ACC]/30 hover:border-[#007ACC]/60 text-[10.5px] font-bold text-[#007ACC] hover:text-[#007ACC]/85 hover:bg-[#007ACC]/5 rounded-xl transition-all cursor-pointer">
+                                View product
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-[1px] bg-[#1b1c26]/60 my-2" />
+
+                  {/* Feature Rows */}
+                  <div className="flex flex-col gap-2">
+                    
+                    {/* Rating */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <Star className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Rating</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <div key={prod.id} className="text-xs font-bold text-white flex items-center gap-1.5 pl-3.5">
+                            <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
+                            <span className="text-zinc-100">{prod.rating}</span>
+                            <span className="text-[10px] text-zinc-500">({prod.reviewsCount})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Best for */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <Heart className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Best for</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                            {prod.bestFor}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cushioning */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <Sparkles className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Cushioning</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
+                            {prod.cushioning}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Weight */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <Scale className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Weight (UK 9)</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
+                            {prod.weight}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Heel Drop */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-450">
+                        <Ruler className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Heel Drop</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
+                            {prod.heelDrop}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Breathability */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <Wind className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Breathability</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
+                            {prod.breathability}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Durability */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <Shield className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Durability</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
+                            {prod.durability}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price Row */}
+                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <ShoppingBag className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Price</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <span key={prod.id} className="text-[12.5px] font-black text-white pl-3.5">
+                            {prod.price}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Buy from */}
+                    <div className="flex w-full items-center py-3.5">
+                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                        <ShoppingCart className="size-4 text-zinc-450" />
+                        <span className="text-xs font-bold">Buy from</span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-4 gap-4">
+                        {COMPARE_PRODUCTS.map((prod) => (
+                          <div key={prod.id} className="flex items-center gap-1.5 pl-3.5 select-none pointer-events-auto">
+                            {/* Amazon logo mockup */}
+                            <div className="w-6 h-6 rounded bg-amber-400 flex items-center justify-center font-black text-[10px] text-black border border-white/5 shadow" title="Buy from Amazon">
+                              a
+                            </div>
+                            {/* Flipkart logo mockup */}
+                            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-black text-[10px] text-white border border-white/5 shadow" title="Buy from Flipkart">
+                              F
+                            </div>
+                            {/* Nike swoosh mockup */}
+                            <div className="w-6 h-6 rounded bg-black flex items-center justify-center border border-white/20 shadow" title="Buy from Nike Store">
+                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white text-white"><path d="M21 6.5c-2.3 1.7-5.5 3.3-8.5 4.3-2.5.8-4.5.8-6.1.4-1.3-.3-2.1-.9-2.4-1.7-.2-.5-.1-1 .3-1.4.3-.3.8-.5 1.5-.5 1.1 0 2.5.4 4.1 1.2 2.6 1.3 5.4 1.5 7.8.8l3.3-3.1z"/></svg>
+                            </div>
+                            <span className="text-zinc-550 text-[10px] ml-1 font-semibold">&gt;</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Right Section: Sidebar (3 columns) */}
+              <div className="col-span-3 flex flex-col gap-6 text-left select-none">
+                
+                {/* Card 1: Which one is best for you? */}
+                <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
+                  <div>
+                    <h3 className="text-sm font-black text-white tracking-tight">Which one is best for you?</h3>
+                    <p className="text-[10px] font-semibold text-zinc-500 mt-1 leading-tight">Based on your preferences</p>
+                  </div>
+
+                  <div className="border border-[#1b1c26]/30 bg-[#0c0d14]/30 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden">
+                    {/* Best match tag */}
+                    <span className="absolute top-3 left-3 bg-[#007ACC] text-white text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                      Best match
+                    </span>
+
+                    {/* Best match Image */}
+                    <div className="w-full h-[110px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mt-4 shrink-0">
+                      <img src={COMPARE_PRODUCTS[0].imageUrl} alt="Best Match" className="w-full h-full object-cover" />
+                    </div>
+
+                    <h4 className="text-xs font-black text-white mt-1">{COMPARE_PRODUCTS[0].label}</h4>
+
+                    {/* Bullets with checkmarks */}
+                    <div className="flex flex-col gap-2 mt-1">
+                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
+                        <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
+                        <span>Great for daily running</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
+                        <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
+                        <span>Lightweight & responsive</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
+                        <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
+                        <span>High customer rating</span>
+                      </div>
+                    </div>
+
+                    <button className="flex items-center gap-1.5 text-[10.5px] font-black text-[#007ACC] hover:text-[#007ACC]/80 mt-3 group cursor-pointer w-fit">
+                      <span>View product</span>
+                      <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card 2: Similar alternatives */}
+                <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white tracking-tight">Similar alternatives</h3>
+                    <button className="text-[10px] font-black text-[#007ACC] hover:underline cursor-pointer">
+                      View all
+                    </button>
+                  </div>
+
+                  {/* Alternatives List */}
+                  <div className="flex flex-col gap-3">
+                    {[
+                      { label: "Brooks Ghost 16", price: "₹14,990", rating: "4.6", reviews: "802", img: "https://images.unsplash.com/photo-1539185441755-769473a23570?w=100&q=80" },
+                      { label: "New Balance 880 v14", price: "₹13,499", rating: "4.5", reviews: "760", img: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=100&q=80" },
+                      { label: "Adidas Ultraboost Light", price: "₹17,999", rating: "4.4", reviews: "540", img: "https://images.unsplash.com/photo-1587563871167-1ee9c731aefb?w=100&q=80" }
+                    ].map((alt, idx) => (
+                      <div key={idx} className="flex items-center gap-3 border-b border-[#1b1c26]/10 pb-3 last:border-0 last:pb-0 group/alt">
+                        {/* Image */}
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-950 border border-white/5 shrink-0">
+                          <img src={alt.img} alt={alt.label} className="w-full h-full object-cover group-hover/alt:scale-105 transition-transform duration-300" />
+                        </div>
+                        
+                        {/* Info */}
+                        <div className="flex-1 flex flex-col min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-bold text-white truncate">{alt.label}</span>
+                            <Heart className="size-3 text-zinc-550 hover:text-rose-500 hover:fill-rose-500 cursor-pointer shrink-0" />
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] font-black text-zinc-300">{alt.price}</span>
+                            <div className="flex items-center gap-0.5 text-[9.5px] text-zinc-400 font-bold">
+                              <Star className="size-2.5 text-amber-500 fill-amber-500 shrink-0" />
+                              <span>{alt.rating}</span>
+                              <span className="text-[8.5px] opacity-60">({alt.reviews})</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Card 3: Need help choosing? */}
+                <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
+                  <div>
+                    <h3 className="text-sm font-black text-white tracking-tight">Need help choosing?</h3>
+                    <p className="text-[10.5px] font-semibold text-zinc-550 mt-1 leading-normal">
+                      Answer a few questions and we'll recommend the perfect shoe for you.
+                    </p>
+                  </div>
+                  
+                  <button className="w-full py-3 bg-[#007ACC] hover:bg-[#007ACC]/90 text-[11px] font-black text-white rounded-2xl flex items-center justify-center gap-2 group cursor-pointer shadow-lg shadow-blue-500/10 transition-transform active:scale-[0.98]">
+                    <span>Find my perfect shoe</span>
+                    <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        ) : (
+          /* Products Catalog Area - full width */
+          <div className={cn(
+            "w-full flex flex-col p-8 overflow-y-auto transition-colors duration-300",
+            isLight ? "bg-[#f1f3f9]" : "bg-[#07080d]"
+          )}>
 
           <div className="flex-1 flex flex-col justify-between min-h-full">
             <div>
@@ -1500,7 +1438,8 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
 
           </div>
         </div>
-      </div>
+      )}
+    </div>
 
       {/* 5. Cart Sidebar Drawer Component */}
       <AnimatePresence>
