@@ -1,6 +1,7 @@
 import { EBayProvider } from "./eBayProvider";
 import { AliExpressProvider } from "./aliexpressProvider";
 import { MarketplaceProduct, MarketplaceProvider } from "./types";
+import { SearchQueryOptimizer } from "./searchQueryOptimizer";
 
 export class SearchManager {
   private static providers: MarketplaceProvider[] = [
@@ -58,42 +59,80 @@ export class SearchManager {
   private static searchCache = new Map<string, { results: MarketplaceProduct[]; expiresAt: number }>();
 
   /**
-   * Search all configured marketplaces in parallel, deduplicate results, and rank them.
+   * Search all configured marketplaces in parallel with progressive query fallback.
+   * If a query returns zero live results, progressively broader fallbacks are attempted.
    */
-  static async search(query: string, limit = 10): Promise<MarketplaceProduct[]> {
-    if (!query) return [];
+  static async search(originalQuery: string, limit = 10): Promise<MarketplaceProduct[]> {
+    if (!originalQuery) return [];
 
-    const cacheKey = `${query.toLowerCase().trim()}_limit_${limit}`;
+    const cacheKey = `${originalQuery.toLowerCase().trim()}_limit_${limit}`;
     const cached = this.searchCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      console.log(`[SearchManager] Search cache hit for query: "${query}"`);
+      console.log(`[SearchManager] Cache hit for query: "${originalQuery}"`);
       return cached.results;
     }
 
-    // Step 2: Query all providers in parallel
-    const searchPromises = this.providers.map(async (provider) => {
-      try {
-        return await provider.search(query, limit);
-      } catch (err) {
-        console.error(`Provider ${provider.name} failed during search:`, err);
-        return [];
+    // Generate progressive fallback queries
+    const fallbacks = SearchQueryOptimizer.generateFallbacks(originalQuery);
+    console.log(`[SearchManager] Query fallback chain: ${fallbacks.map((q) => `"${q}"`).join(" → ")}`);
+
+    for (const query of fallbacks) {
+      console.log(`[SearchManager] Trying query: "${query}"`);
+
+      // Query all providers in parallel
+      const searchPromises = this.providers.map(async (provider) => {
+        try {
+          return await provider.search(query, limit);
+        } catch (err) {
+          console.error(`[SearchManager] Provider ${provider.name} failed during search:`, err);
+          return [] as MarketplaceProduct[];
+        }
+      });
+
+      const resultsArray = await Promise.all(searchPromises);
+      const allProducts = resultsArray.flat();
+
+      // Count only non-mock results (mock results use generic placeholder titles)
+      const liveProducts = allProducts.filter(
+        (p) => !p.title.startsWith("Direct Factory") &&
+                !p.title.startsWith("Universal Multi-purpose") &&
+                !p.title.startsWith("Trendy") &&
+                !p.title.startsWith("Authentic Retro") &&
+                !p.title.startsWith("Premium Wearable") &&
+                !p.title.startsWith("Imported Custom")
+      );
+
+      if (liveProducts.length > 0) {
+        console.log(`[SearchManager] Got ${liveProducts.length} live results for query "${query}". Stopping fallback chain.`);
+        const ranked = this.rankAndDeduplicate(allProducts, query, limit);
+        this.searchCache.set(cacheKey, { results: ranked, expiresAt: Date.now() + 300000 });
+        return ranked;
       }
-    });
 
-    const resultsArray = await Promise.all(searchPromises);
-    const allProducts = resultsArray.flat();
+      console.log(`[SearchManager] Zero live results for "${query}". Trying next fallback...`);
+    }
 
-    // Step 4: Merge duplicates using Title Similarity >= 0.85
-    const mergedProducts: MarketplaceProduct[] = [];
+    // All fallbacks exhausted — return whatever we have from the last attempt (mocks)
+    console.warn(`[SearchManager] All query fallbacks exhausted for "${originalQuery}". Returning mock results.`);
+    const mockResults = this.providers.reduce<MarketplaceProduct[]>((acc, _) => acc, []);
+    const lastQuery = fallbacks[fallbacks.length - 1];
+    const lastResults = await Promise.all(
+      this.providers.map((p) => p.search(lastQuery, limit).catch(() => [] as MarketplaceProduct[]))
+    ).then((r) => r.flat());
+    const ranked = this.rankAndDeduplicate(lastResults, lastQuery, limit);
+    this.searchCache.set(cacheKey, { results: ranked, expiresAt: Date.now() + 60000 }); // shorter cache for fallbacks
+    return ranked;
+  }
 
-    for (const prod of allProducts) {
+  private static rankAndDeduplicate(products: MarketplaceProduct[], query: string, limit: number): MarketplaceProduct[] {
+    // Merge duplicates using Title Similarity >= 0.85
+    const merged: MarketplaceProduct[] = [];
+    for (const prod of products) {
       let isDuplicate = false;
-
-      for (const existing of mergedProducts) {
+      for (const existing of merged) {
         const similarity = this.getTitleSimilarity(existing.title, prod.title);
         if (similarity >= 0.85) {
           isDuplicate = true;
-          // Combine offers: keep the cheaper offer or the one with higher rating
           if (prod.numericPrice < existing.numericPrice || (prod.rating || 0) > (existing.rating || 0)) {
             existing.price = prod.price;
             existing.numericPrice = prod.numericPrice;
@@ -108,27 +147,16 @@ export class SearchManager {
           break;
         }
       }
-
       if (!isDuplicate) {
-        mergedProducts.push(prod);
+        merged.push(prod);
       }
     }
 
-    // Step 5: Rank results based on match quality, shipping, and rating
-    const rankedResults = mergedProducts
-      .map((prod) => ({
-        product: prod,
-        score: this.calculateScore(prod, query),
-      }))
+    // Rank by relevance, rating, and shipping
+    return merged
+      .map((prod) => ({ product: prod, score: this.calculateScore(prod, query) }))
       .sort((a, b) => b.score - a.score)
       .map((item) => item.product)
       .slice(0, limit);
-
-    this.searchCache.set(cacheKey, {
-      results: rankedResults,
-      expiresAt: Date.now() + 300000,
-    });
-
-    return rankedResults;
   }
 }
