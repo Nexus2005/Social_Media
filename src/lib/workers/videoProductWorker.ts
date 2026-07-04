@@ -225,15 +225,16 @@ async function downloadAndCacheGallery(
   if (targetUrls.length === 0) {
     return { imageUrl: null, galleryImageUrls: [] };
   }
-  const downloadedPaths = await limitConcurrency(targetUrls, 3, async (url, i) => {
+  // Still download them locally so local cache exists on worker machine
+  await limitConcurrency(targetUrls, 3, async (url, i) => {
     const destFileName = `${matchId}_gallery_${i}.jpg`;
     const destPath = path.join(process.cwd(), "public", "uploads", "products", destFileName);
-    const success = await downloadProductImage(url, destPath);
-    return success ? `/uploads/products/${destFileName}` : url;
+    await downloadProductImage(url, destPath);
+    return url;
   });
   return {
-    imageUrl: downloadedPaths[0] || null,
-    galleryImageUrls: downloadedPaths,
+    imageUrl: targetUrls[0] || null,
+    galleryImageUrls: targetUrls,
   };
 }
 

@@ -2624,7 +2624,7 @@ export default function ReelCard({
 
               {/* Grid of Product Cards */}
               <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-3 scrollbar-none bg-[#07080d] content-start">
-                {(showAllProducts ? desktopFilteredProducts : desktopFilteredProducts.slice(0, 4)).map((prod) => {
+                {desktopFilteredProducts.slice(0, 4).map((prod) => {
                   const itemBestMatch = [...(prod.matches || [])].sort((a, b) => {
                     const priceA = parsePrice(a.price);
                     const priceB = parsePrice(b.price);
@@ -2697,11 +2697,13 @@ export default function ReelCard({
               </div>
 
               {/* Sticky Bottom Actions */}
-              {desktopFilteredProducts.length > 4 && !showAllProducts && (
+              {desktopFilteredProducts.length > 4 && (
                 <div className="border-t border-zinc-900/60 bg-[#07080d] p-4 flex flex-col gap-3.5 shrink-0 select-none">
                   <button
                     onClick={() => {
-                      setShowAllProducts(true);
+                      if (onViewAllProducts) {
+                        onViewAllProducts(desktopFilteredProducts);
+                      }
                     }}
                     className="reel-view-all-btn w-full py-3.5"
                   >
