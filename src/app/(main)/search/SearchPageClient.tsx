@@ -1419,17 +1419,17 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
               </div>
 
               {/* 3. Spot. Shop. Share. Banner Card */}
-              <div className="bg-gradient-to-br from-indigo-900/40 to-purple-950/40 border border-black/10 dark:border-white/5 rounded-[30px] p-5.5 text-start flex flex-col gap-4 relative overflow-hidden select-none">
-                {/* Floating animated 3D cubes / shapes representation */}
-                <div className="absolute -right-12 -top-12 size-36 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full blur-3xl opacity-20 z-0 pointer-events-none" />
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-3 opacity-80 z-0 pointer-events-none">
-                  {/* Floating pure CSS shapes simulating 3D preview */}
-                  <div className="size-7 bg-gradient-to-tr from-indigo-500 to-indigo-600 rotate-12 rounded-lg shadow-lg shadow-indigo-500/20" />
-                  <div className="size-5 bg-gradient-to-br from-purple-500 to-pink-500 -rotate-12 rounded shadow-lg shadow-purple-500/20 translate-x-2" />
-                  <div className="size-8 bg-gradient-to-tr from-cyan-400 to-blue-500 rotate-45 rounded-xl shadow-lg shadow-cyan-500/20 -translate-x-3" />
-                </div>
+              <div className="relative border border-black/10 dark:border-white/5 rounded-[30px] p-5.5 text-start flex flex-col gap-4 overflow-hidden select-none min-h-[220px] bg-zinc-950">
+                {/* Full cover background image */}
+                <img
+                  src="/spot_share_promo.png"
+                  alt="Spot Shop Share"
+                  className="absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none"
+                />
+                {/* Dark Vignette Overlay for readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
 
-                <div className="relative z-10 space-y-2 max-w-[200px]">
+                <div className="relative z-20 space-y-2 max-w-[200px]">
                   <span className="font-extrabold text-[16px] text-white block leading-tight">
                     Spot. Shop. Share.
                   </span>
@@ -1438,15 +1438,24 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   </span>
                 </div>
 
-                <div className="flex gap-3 text-white/80 py-1 relative z-10">
+                <div className="flex gap-3 text-white/80 py-1 relative z-20">
                   <Instagram className="size-4 hover:text-white cursor-pointer transition-colors" />
                   <Youtube className="size-4 hover:text-white cursor-pointer transition-colors" />
                   <Tv className="size-4 hover:text-white cursor-pointer transition-colors" />
                 </div>
 
-                <button className="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-extrabold text-[10.5px] py-2.5 px-4 rounded-full hover:shadow-lg transition-all cursor-pointer relative z-10 w-fit">
-                  Try Spot Something
-                </button>
+                <Link href="/spots" className="relative z-20 w-fit">
+                  <button className="animated-button select-none">
+                    <span className="text">Try Spotting Something</span>
+                    <svg className="arr-1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z" />
+                    </svg>
+                    <svg className="arr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z" />
+                    </svg>
+                    <div className="circle" />
+                  </button>
+                </Link>
               </div>
 
             </div>
