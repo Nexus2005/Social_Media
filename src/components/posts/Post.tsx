@@ -189,8 +189,16 @@ interface PostCaptionProps {
 function PostCaption({ username, text }: PostCaptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const shouldTruncate = text.length > 90;
-  const displayText = isExpanded || !shouldTruncate ? text : text.slice(0, 90);
+  // Clean duplicate username/handle prefix if already in database content
+  let cleanText = text;
+  if (text.startsWith(username)) {
+    cleanText = text.slice(username.length).trim();
+  } else if (text.startsWith(`@${username}`)) {
+    cleanText = text.slice(username.length + 1).trim();
+  }
+
+  const shouldTruncate = cleanText.length > 90;
+  const displayText = isExpanded || !shouldTruncate ? cleanText : cleanText.slice(0, 90);
 
   return (
     <div 
@@ -204,9 +212,6 @@ function PostCaption({ username, text }: PostCaptionProps) {
       }`}
     >
       <p>
-        <Link href={`/users/${username}`} className="font-semibold mr-2 hover:underline" onClick={(e) => e.stopPropagation()}>
-          {username}
-        </Link>
         <Linkify>
           <span className="whitespace-pre-line break-words">{displayText}</span>
         </Linkify>

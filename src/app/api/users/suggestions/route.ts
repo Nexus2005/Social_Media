@@ -79,7 +79,7 @@ export async function GET(req: Request) {
           take: 5,
         },
       },
-      take: 50,
+      take: 150,
     });
 
     // Calculate dynamic recommendation score for each candidate
@@ -146,8 +146,14 @@ export async function GET(req: Request) {
     // Sort by score descending
     scored.sort((a, b) => b.score - a.score);
 
+    // Get pagination parameters
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "8", 10);
+    const offset = (page - 1) * limit;
+
     // Format output matching shape expected by suggestions queries
-    const finalSuggestions = scored.slice(0, 8).map((item) => ({
+    const finalSuggestions = scored.slice(offset, offset + limit).map((item) => ({
       id: item.user.id,
       username: item.user.username,
       displayName: item.user.displayName,

@@ -890,7 +890,7 @@ aside:not(.minimized-sidebar) .more-btn-animated:hover .more-text {
 /* Neumorphic Card - From Uiverse.io by Yaseen549 (Theme-Aware) */
 .uiverse-neumorphic-card {
   border-radius: 30px;
-  background: #1b1c26;
+  background: hsl(var(--card));
   box-shadow: 12px 12px 24px rgb(10, 10, 15),
               -12px -12px 24px rgb(40, 40, 50);
   transition: all 0.3s cubic-bezier(0.2, 0, 0.2, 1);
@@ -906,7 +906,7 @@ aside:not(.minimized-sidebar) .more-btn-animated:hover .more-text {
 /* Light Theme overrides for Neumorphic Card */
 .light .uiverse-neumorphic-card,
 [data-theme="light"] .uiverse-neumorphic-card {
-  background: #f0f0f5;
+  background: hsl(var(--card));
   box-shadow: 12px 12px 24px #d1d1d6,
               -12px -12px 24px #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.02);
@@ -916,4 +916,184 @@ aside:not(.minimized-sidebar) .more-btn-animated:hover .more-text {
 [data-theme="light"] .uiverse-neumorphic-card:hover {
   box-shadow: 15px 15px 30px #c7c7cc,
               -15px -15px 30px #ffffff;
+}
+
+/* Custom Flags for Sports Scorecard */
+.flag {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.flag-rma {
+  background-color: #ffffff;
+  background-image: linear-gradient(135deg, #ffffff 70%, #000080 100%);
+}
+
+.flag-bar {
+  background-color: #004d98;
+  background-image: repeating-linear-gradient(90deg, #004d98, #004d98 6px, #a50044 6px, #a50044 12px);
+}
+
+/* Animated India Flag Micro-Scale */
+.india-flag-canvas {
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 
+    0 0 0 1px rgba(255,255,255,0.1),
+    0 2px 4px rgba(0,0,0,0.15);
+  animation: micro-flutter 6s ease-in-out infinite;
+  transform-style: preserve-3d;
+  flex-shrink: 0;
+}
+
+.india-flag-stripe {
+  height: 33.33%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.india-flag-stripe.saffron { background: #FF9933; }
+.india-flag-stripe.white { background: #FFFFFF; }
+.india-flag-stripe.green { background: #138808; }
+
+.india-flag-chakra {
+  width: 7px;
+  height: 7px;
+  animation: flag-rotate 10s linear infinite;
+}
+
+/* Animated Pakistan Flag Micro-Scale */
+.pakistan-flag-canvas {
+  width: 24px;
+  height: 24px;
+  background: #006600;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  box-shadow: 
+    0 0 0 1px rgba(255,255,255,0.1),
+    0 2px 4px rgba(0,0,0,0.15);
+  animation: micro-ripple 8s ease-in-out infinite;
+  transform-style: preserve-3d;
+  flex-shrink: 0;
+}
+
+.pakistan-hoist-stripe {
+  width: 25%;
+  height: 100%;
+  background: #ffffff;
+  z-index: 2;
+}
+
+.pakistan-fly-field {
+  width: 75%;
+  height: 100%;
+  background: #006600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
+
+/* Common Flag FX Layers */
+.micro-mesh-distortion {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.03) 10%,
+    rgba(255,255,255,0) 20%
+  );
+  background-size: 200% 100%;
+  animation: micro-wave-flow 3s linear infinite;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+
+.micro-lens-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg, 
+    rgba(255, 255, 255, 0.35) 0%, 
+    transparent 40%, 
+    transparent 60%, 
+    rgba(255, 255, 255, 0.35) 100%
+  );
+  mix-blend-mode: overlay;
+}
+
+.micro-lighting-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: linear-gradient(
+    105deg,
+    rgba(255,255,255,0.05) 0%,
+    rgba(0,0,0,0.1) 25%,
+    rgba(255,255,255,0.1) 50%,
+    rgba(0,0,0,0.2) 75%,
+    rgba(255,255,255,0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: micro-move-gradient 12s linear infinite;
+  pointer-events: none;
+}
+
+/* Animations */
+@keyframes micro-flutter {
+  0%, 100% {
+    transform: rotateY(-6deg) rotateX(2deg) scale(1);
+    clip-path: polygon(0 0, 100% 1%, 100% 99%, 0 100%);
+  }
+  50% {
+    transform: rotateY(6deg) rotateX(-2deg) scale(1.01);
+    clip-path: polygon(0 1%, 100% 0, 100% 100%, 0 99%);
+  }
+}
+
+@keyframes micro-ripple {
+  0%, 100% {
+    transform: rotateX(1.5deg) rotateY(-0.5deg) skewY(0deg);
+    clip-path: polygon(0% 0%, 100% 1%, 100% 99%, 0% 100%);
+  }
+  50% {
+    transform: rotateX(-1.5deg) rotateY(0.5deg) skewY(0.2deg);
+    clip-path: polygon(0% 1%, 100% 0%, 100% 100%, 0% 99%);
+  }
+}
+
+@keyframes flag-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes micro-wave-flow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: -200% 0%; }
+}
+
+@keyframes micro-move-gradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }

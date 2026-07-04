@@ -8,16 +8,17 @@ import UserTooltip from "@/components/UserTooltip";
 import FollowButton from "@/components/FollowButton";
 import { Loader2 } from "lucide-react";
 import TrendingAndSportsCard from "@/components/TrendingAndSportsCard";
+import SuggestedFollowsCard from "@/components/SuggestedFollowsCard";
 
 export default function SuggestedSidebar() {
   return (
     <div className="sticky top-6 hidden w-[380px] flex-none flex-col gap-6 xl:flex">
       <Suspense fallback={<Loader2 className="mx-auto animate-spin" />}>
-        <SuggestionsList />
+        <TrendingSection />
       </Suspense>
 
       <Suspense fallback={<Loader2 className="mx-auto animate-spin" />}>
-        <TrendingSection />
+        <SuggestionsList />
       </Suspense>
     </div>
   );
@@ -70,47 +71,10 @@ async function SuggestionsList() {
   if (!suggestions.length) return null;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[14px] font-bold text-muted-foreground">Suggested for you</span>
-        <Link href="#" className="text-[12px] font-bold hover:text-muted-foreground/80 transition-colors">
-          See all
-        </Link>
-      </div>
-
-      {/* Suggested Users */}
-      <div className="flex flex-col gap-3">
-        {suggestions.map((suggestedUser) => (
-          <div key={suggestedUser.id} className="flex items-center justify-between gap-3 px-1 py-1">
-            <UserTooltip user={suggestedUser}>
-              <Link href={`/users/${suggestedUser.username}`} className="flex items-center gap-3">
-                <UserAvatar avatarUrl={suggestedUser.avatarUrl} size={36} />
-                <div className="flex flex-col text-start">
-                  <span className="font-bold text-[14px] leading-tight hover:underline text-foreground">
-                    {suggestedUser.username}
-                  </span>
-                  <span className="text-[12px] leading-none text-muted-foreground">
-                    Suggested for you
-                  </span>
-                </div>
-              </Link>
-            </UserTooltip>
-            
-            <FollowButton
-              userId={suggestedUser.id}
-              initialState={{
-                followers: suggestedUser._count.followers,
-                isFollowedByUser: suggestedUser.followers.some(
-                  ({ followerId }) => followerId === user.id
-                ),
-              }}
-              variant="text"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
+    <SuggestedFollowsCard
+      initialSuggestions={suggestions as any[]}
+      currentUserId={user.id}
+    />
   );
 }
 

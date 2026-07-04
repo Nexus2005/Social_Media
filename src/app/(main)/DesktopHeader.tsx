@@ -13,7 +13,7 @@ export default function DesktopHeader() {
   }
 
   return (
-    <header className="hidden sm:flex items-center justify-between w-full py-2 pl-4 pr-12 md:pl-8 md:pr-16 bg-transparent border-b border-instagram-lightBorder dark:border-instagram-darkBorder flex-shrink-0">
+    <header className="hidden sm:flex items-center justify-between w-full py-2 pl-4 pr-3 md:pl-8 md:pr-4 bg-transparent border-b border-instagram-lightBorder dark:border-instagram-darkBorder flex-shrink-0">
       <form action="/search" method="GET" className="flex-grow max-w-[600px] w-full">
         <div className="InputContainer">
           <input

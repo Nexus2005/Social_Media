@@ -2082,13 +2082,24 @@ export default function ReelCard({
                   className="text-[13px] text-white/95 max-w-[285px] cursor-pointer select-none pointer-events-auto flex flex-col text-start gap-1"
                 >
                   <p className={cn("leading-relaxed transition-all duration-300", isCaptionExpanded ? "whitespace-pre-wrap break-words" : "line-clamp-1")}>
-                    {isTranslating ? (
-                      <span className="flex items-center gap-1.5 text-zinc-400 italic">
-                        <Loader2 className="size-3.5 animate-spin text-zinc-400" /> Translating to {activeLanguage}...
-                      </span>
-                    ) : (
-                      isCurrentlyTranslated ? displayContent : post.content
-                    )}
+                    {(() => {
+                      if (isTranslating) {
+                        return (
+                          <span className="flex items-center gap-1.5 text-zinc-400 italic">
+                            <Loader2 className="size-3.5 animate-spin text-zinc-400" /> Translating to {activeLanguage}...
+                          </span>
+                        );
+                      }
+                      const rawContent = isCurrentlyTranslated ? displayContent : post.content;
+                      const username = post.user.username;
+                      let cleanContent = rawContent;
+                      if (rawContent.startsWith(username)) {
+                        cleanContent = rawContent.slice(username.length).trim();
+                      } else if (rawContent.startsWith(`@${username}`)) {
+                        cleanContent = rawContent.slice(username.length + 1).trim();
+                      }
+                      return cleanContent;
+                    })()}
                     {activeLanguage !== "original" && !isTranslating && (
                       <span
                         onClick={(e) => {
