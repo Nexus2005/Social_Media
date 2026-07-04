@@ -540,9 +540,9 @@ export default function Post({ post }: PostProps) {
   }
 
   return (
-    <div className="flex w-full items-stretch relative">
+    <div className="flex w-full items-stretch relative mb-4">
       <article className={cn(
-        "flex-grow group/post w-full bg-white dark:bg-[#0c0d14] border-b border-instagram-lightBorder dark:border-zinc-800 mt-0 mb-0 pb-1 transition-all duration-300 min-w-0",
+        "flex-grow group/post w-full bg-[#ffffff]/60 dark:bg-[#0c0d14]/40 border border-zinc-200/50 dark:border-zinc-800/85 rounded-3xl pb-3 transition-all duration-300 min-w-0 shadow-sm backdrop-blur-md overflow-hidden",
         activeRightDrawer && "rounded-l-[24px]"
       )}>
         {/* Track Post View */}
@@ -632,7 +632,7 @@ export default function Post({ post }: PostProps) {
               e.stopPropagation();
               setActiveRightDrawer(activeRightDrawer === "options" ? null : "options");
             }}
-            className="opacity-100 transition-opacity text-zinc-400 hover:text-white h-9 w-9 flex items-center justify-center rounded-full hover:bg-zinc-800/40 cursor-pointer"
+            className="text-zinc-650 dark:text-zinc-350 hover:text-zinc-950 dark:hover:text-white h-9 w-9 flex items-center justify-center rounded-full hover:bg-zinc-150 dark:hover:bg-zinc-800/60 border border-zinc-200/40 dark:border-zinc-800/40 transition-all cursor-pointer"
             title="Options"
           >
             <MoreVertical className="size-5" />

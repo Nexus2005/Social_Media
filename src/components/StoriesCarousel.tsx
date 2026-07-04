@@ -27,6 +27,17 @@ interface UserStories {
   stories: Story[];
 }
 
+const storyGradients = [
+  "from-[#f58529] via-[#dd2a7b] to-[#8134af]", // Instagram classic
+  "from-yellow-400 via-emerald-500 to-teal-500", // Yellow/Green
+  "from-blue-400 via-indigo-500 to-purple-600",  // Blue/Indigo
+  "from-pink-400 via-rose-500 to-red-600",       // Pink/Red
+  "from-teal-400 via-cyan-500 to-blue-600",      // Teal/Cyan/Blue
+  "from-[#ff758c] to-[#ff7eb3]",                 // Rose
+  "from-[#8ec5fc] to-[#e0c3fc]",                 // Lavender
+  "from-amber-400 via-orange-500 to-red-600",    // Amber/Orange
+];
+
 export default function StoriesCarousel() {
   const { user: sessionUser } = useSession();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +76,7 @@ export default function StoriesCarousel() {
 
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto p-4 sm:bg-card sm:rounded-xl sm:border sm:border-border/40 w-full">
+      <div className="flex gap-4 overflow-x-auto p-4 w-full">
         {Array.from({ length: 6 }).map((_, idx) => (
           <div key={idx} className="flex flex-col items-center gap-2 flex-shrink-0">
             <Skeleton className="size-14 rounded-full" />
@@ -78,7 +89,7 @@ export default function StoriesCarousel() {
 
   if (error) {
     return (
-      <div className="p-4 sm:bg-card text-destructive text-sm sm:rounded-xl sm:border sm:border-border/40 text-center">
+      <div className="p-4 text-destructive text-sm text-center">
         Failed to load stories
       </div>
     );
@@ -94,7 +105,7 @@ export default function StoriesCarousel() {
     : otherStories;
 
   return (
-    <div className="relative group/carousel w-full bg-white dark:bg-instagram-darkBg border-b border-instagram-lightBorder dark:border-instagram-darkBorder select-none pt-3 pb-1 px-4 sm:py-3 sm:px-0 transition-colors duration-200">
+    <div className="relative group/carousel w-full bg-transparent border-none select-none py-1 px-4 sm:py-0 sm:px-0 transition-colors duration-200">
       {/* Scroll Left Button */}
       {canScrollLeft && (
         <button
@@ -140,11 +151,11 @@ export default function StoriesCarousel() {
             <div
               className={`rounded-full p-[3px] transition-transform duration-200 active:scale-95 ${
                 loggedInUserStories
-                  ? "bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]"
-                  : "bg-neutral-800"
+                  ? "bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500"
+                  : "bg-zinc-200 dark:bg-zinc-800"
               }`}
             >
-              <div className="bg-white dark:bg-instagram-darkBg p-[2px] rounded-full">
+              <div className="bg-white dark:bg-zinc-950 p-[2px] rounded-full">
                 <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                   {sessionUser.avatarUrl ? (
                     <Image
@@ -167,7 +178,7 @@ export default function StoriesCarousel() {
                 e.stopPropagation(); // Prevent opening viewer
                 setCreateStoryOpen(true);
               }}
-              className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-instagram-darkBg text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
+              className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-zinc-950 text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
               title="Add Story"
             >
               <Plus className="size-3.5 stroke-[3px]" />
@@ -190,8 +201,8 @@ export default function StoriesCarousel() {
               className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
             >
               {/* Gradient Outline Border Ring */}
-              <div className="bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] p-[3px] rounded-full transition-transform duration-200 active:scale-95">
-                <div className="bg-white dark:bg-instagram-darkBg p-[2px] rounded-full">
+              <div className={`bg-gradient-to-tr ${storyGradients[idx % storyGradients.length]} p-[3px] rounded-full transition-transform duration-200 active:scale-95`}>
+                <div className="bg-white dark:bg-zinc-950 p-[2px] rounded-full">
                   <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
                     {item.user.avatarUrl ? (
                       <Image
