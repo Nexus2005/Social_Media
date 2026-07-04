@@ -2729,14 +2729,14 @@ export default function ChatChannel() {
               </div>
             )}
 
-            {/* Fullscreen Group Details Profile Overlay Page */}
+            {/* Group Details Profile Overlay (within chat area) */}
             {showGroupProfile && (
               <motion.div
-                initial={{ x: "-100%" }}
+                initial={{ x: "100%" }}
                 animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
+                exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 380, damping: 36 }}
-                className="fixed inset-0 z-50 flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                className="chat-area-overlay fixed inset-0 z-50 flex flex-col bg-[#121212] text-white overflow-y-auto select-none"
               >
                 {/* Header panel */}
                 <div className="flex h-12 items-center justify-between px-4 shrink-0 mt-2">
@@ -3918,15 +3918,15 @@ export default function ChatChannel() {
               </motion.div>
             )}
 
-            {/* Fullscreen Group Edit Page */}
+            {/* Group Edit Page (within chat area) */}
             <AnimatePresence>
               {showGroupEditPage && (
                 <motion.div
-                  initial={{ x: "-100%" }}
+                  initial={{ x: "100%" }}
                   animate={{ x: 0 }}
-                  exit={{ x: "-100%" }}
+                  exit={{ x: "100%" }}
                   transition={{ type: "spring", stiffness: 380, damping: 36 }}
-                  className="fixed inset-0 z-[70] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                  className="chat-area-overlay fixed inset-0 z-[70] flex flex-col bg-[#121212] text-white overflow-y-auto select-none"
                 >
                   {/* Hidden File Input for Photo */}
                   <input
@@ -4158,15 +4158,15 @@ export default function ChatChannel() {
               )}
             </AnimatePresence>
 
-            {/* Sub-page 1: Group Settings Page */}
+            {/* Group Settings Page (within chat area) */}
             <AnimatePresence>
               {showGroupSettingsSubPage && (
                 <motion.div
-                  initial={{ x: "-100%" }}
+                  initial={{ x: "100%" }}
                   animate={{ x: 0 }}
-                  exit={{ x: "-100%" }}
+                  exit={{ x: "100%" }}
                   transition={{ type: "spring", stiffness: 380, damping: 36 }}
-                  className="fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                  className="chat-area-overlay fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white overflow-y-auto select-none"
                 >
                   {/* Header panel */}
                   <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">
@@ -5401,6 +5401,32 @@ export default function ChatChannel() {
           document.body
         )
       )}
+      {/* CSS to constrain group profile overlays within the chat area on desktop */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (min-width: 768px) {
+            .chat-area-overlay {
+              left: auto !important;
+              right: 0 !important;
+              width: calc(100vw - 72px - 320px) !important;
+              max-width: none !important;
+            }
+          }
+          @media (min-width: 1024px) {
+            .chat-area-overlay {
+              width: calc(100vw - 72px - 384px) !important;
+            }
+          }
+          @media (min-width: 1280px) {
+            .chat-area-overlay {
+              width: calc(100vw - 244px - 384px) !important;
+            }
+            .minimized-sidebar ~ .main-content-wrapper .chat-area-overlay {
+              width: calc(100vw - 72px - 384px) !important;
+            }
+          }
+        `
+      }} />
     </div>
   );
 }
