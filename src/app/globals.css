@@ -1097,3 +1097,209 @@ aside:not(.minimized-sidebar) .more-btn-animated:hover .more-text {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
 }
+
+/* Search Page Explore Cards (Yaseen549 Neumorphic Customization) */
+.search-explore-card {
+  width: 190px;
+  height: 254px;
+  border-radius: 30px;
+  background: hsl(var(--card));
+  box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.search-explore-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 14px 14px 28px rgba(0, 0, 0, 0.5);
+}
+
+.light .search-explore-card,
+[data-theme="light"] .search-explore-card {
+  background: #ffffff;
+  box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.light .search-explore-card:hover,
+[data-theme="light"] .search-explore-card:hover {
+  box-shadow: 14px 14px 28px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom compact card for Live Now section */
+.live-now-card {
+  width: 160px;
+  height: 210px;
+  border-radius: 24px;
+  background: hsl(var(--card));
+  box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.live-now-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 12px 12px 24px rgba(0, 0, 0, 0.5);
+}
+
+.light .live-now-card,
+[data-theme="light"] .live-now-card {
+  background: #ffffff;
+  box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.light .live-now-card:hover,
+[data-theme="light"] .live-now-card:hover {
+  box-shadow: 12px 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Flag representation for Australia */
+.flag-aus {
+  background-color: #000080;
+  background-image: linear-gradient(135deg, #000080 70%, #ff0000 100%);
+}
+
+/* Explore Now Animated Button (Customized with Indigo/Blue colors) */
+.animated-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 24px;
+  border: 4px solid transparent;
+  font-size: 13px;
+  background-color: transparent;
+  border-radius: 100px;
+  font-weight: 800;
+  color: #6366f1;
+  box-shadow: 0 0 0 2px #6366f1;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  user-select: none;
+}
+
+.animated-button svg {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  fill: #6366f1;
+  z-index: 9;
+  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.animated-button .arr-1 {
+  right: 16px;
+}
+
+.animated-button .arr-2 {
+  left: -25%;
+}
+
+.animated-button .circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background-color: #6366f1;
+  border-radius: 50%;
+  opacity: 0;
+  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.animated-button .text {
+  position: relative;
+  z-index: 1;
+  transform: translateX(-6px);
+  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  color: #6366f1;
+}
+
+.animated-button:hover {
+  box-shadow: 0 0 0 12px transparent;
+  color: white;
+  border-radius: 20px;
+}
+
+.animated-button:hover .text {
+  color: white;
+  transform: translateX(6px);
+}
+
+.animated-button:hover .arr-1 {
+  right: -25%;
+}
+
+.animated-button:hover .arr-2 {
+  left: 16px;
+}
+
+.animated-button:hover svg {
+  fill: white;
+}
+
+.animated-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 0 4px #6366f1;
+}
+
+.animated-button:hover .circle {
+  width: 280px;
+  height: 280px;
+  opacity: 1;
+}
+
+/* Pill Expand Hover Button (Uiverse.io pseudo-fill adaptation) */
+.pill-expand-button {
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pill-expand-button::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  background-color: #6366f1; /* active indigo color */
+  border-radius: 50%;
+  transform: translate(-50%, 50%) scale(1);
+  z-index: -1;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  opacity: 0;
+}
+
+.pill-expand-button:hover {
+  color: white !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.pill-expand-button:hover::after {
+  transform: translate(-50%, 50%) scale(35);
+  opacity: 1;
+}
+
+.pill-expand-button.active {
+  background-color: #6366f1 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
