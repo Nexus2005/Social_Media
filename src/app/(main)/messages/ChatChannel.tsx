@@ -1868,7 +1868,19 @@ export default function ChatChannel() {
   const handleDeleteMessage = async (messageId: string) => {
     if (!chatClient) return;
     try {
-      await chatClient.deleteMessage(messageId);
+      try {
+        await chatClient.deleteMessage(messageId);
+      } catch (clientErr) {
+        console.warn("Client-side deletion failed, falling back to server-side API:", clientErr);
+        const res = await fetch("/api/messages/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageId }),
+        });
+        if (!res.ok) {
+          throw new Error("Failed to delete message via server API");
+        }
+      }
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     } catch (err) {
       console.error("Failed to delete message:", err);
