@@ -640,7 +640,12 @@ export default function Post({ post }: PostProps) {
         </div>
       </div>
 
-      {/* Caption moved below action row / likes banner for Instagram layout */}
+      {/* Caption */}
+      {post.content && (
+        <div className="px-3 pb-2 pt-1">
+          <PostCaption username={post.user.username} text={post.content} />
+        </div>
+      )}
 
       {/* POLL WIDGET */}
       {post.poll && (
@@ -869,10 +874,7 @@ export default function Post({ post }: PostProps) {
           </div>
         )}
 
-        {/* Caption */}
-        {post.content && (
-          <PostCaption username={post.user.username} text={post.content} />
-        )}
+
       </div>
 
       {/* Quote Post Card */}
