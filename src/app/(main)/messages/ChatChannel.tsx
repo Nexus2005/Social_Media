@@ -769,7 +769,7 @@ const MessageBubbleContainer = React.memo(({
               "grid gap-4 w-full justify-center items-center",
               gridMediaViewerPhotos.length === 1 ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-2"
             )}>
-              {gridMediaViewerPhotos.map((url, idx) => {
+              {gridMediaViewerPhotos.filter((url): url is string => typeof url === "string").map((url, idx) => {
                 const isVideo = url.includes(".mp4") || url.includes(".mov") || url.includes("video") || url.includes("stream-chat-uploads");
                 return isVideo ? (
                   <video
