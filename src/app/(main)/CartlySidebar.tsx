@@ -40,6 +40,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  List,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -136,6 +137,12 @@ export default function CartlySidebar({
       active: pathname === "/",
     },
     {
+      icon: (props: any) => <Compass {...props} />,
+      label: "Explore",
+      href: "/explore",
+      active: pathname === "/explore",
+    },
+    {
       icon: (props: any) => <Search {...props} />,
       label: "Search",
       href: "/search",
@@ -147,7 +154,6 @@ export default function CartlySidebar({
       href: "/reels",
       active: pathname === "/reels",
     },
-
     {
       icon: (props: any) => <Mail {...props} />,
       label: "Messages",
@@ -156,20 +162,26 @@ export default function CartlySidebar({
       badge: messagesData.unreadCount,
     },
     {
-      icon: (props: any) => <Heart {...props} />,
+      icon: (props: any) => <Bell {...props} />,
       label: "Notifications",
       href: "/notifications",
       active: pathname.startsWith("/notifications"),
       badge: notificationsData.unreadCount,
     },
     {
-      icon: (props: any) => <PlusSquare {...props} />,
-      label: "Create",
-      href: "/create",
-      active: pathname === "/create",
+      icon: (props: any) => <Bookmark {...props} />,
+      label: "Bookmarks",
+      href: "/bookmarks",
+      active: pathname === "/bookmarks",
     },
     {
-      icon: (props: any) => <UserAvatar avatarUrl={user.avatarUrl} size={24} {...props} />,
+      icon: (props: any) => <List {...props} />,
+      label: "Lists",
+      href: "/lists",
+      active: pathname === "/lists",
+    },
+    {
+      icon: (props: any) => <User {...props} />,
       label: "Profile",
       href: `/users/${user.username}`,
       active: pathname === `/users/${user.username}`,
@@ -184,7 +196,7 @@ export default function CartlySidebar({
     <>
       {/* Sidebar Navigation */}
       <aside className={cn(
-        "fixed left-0 top-0 z-20 hidden h-screen flex-col justify-between border-e bg-card px-3 py-6 transition-all duration-300 sm:flex",
+        "fixed left-3 top-3 z-20 hidden h-[calc(100vh-24px)] flex-col justify-between border bg-[#ffffff]/90 dark:bg-[#0c0d14]/90 backdrop-blur-md px-3 py-6 rounded-[24px] transition-all duration-300 sm:flex shadow-xl border-zinc-200/50 dark:border-zinc-800/80",
         isMinimized ? "w-[72px] minimized-sidebar" : "w-[72px] xl:w-[244px]"
       )}>
         <div className="flex flex-col gap-6">
@@ -226,7 +238,7 @@ export default function CartlySidebar({
               </>
             )}
           </Link>
-
+ 
           {/* Toggle Minimize/Maximize Arrow Button just below Logo */}
           <div className="px-2">
             <button
@@ -241,9 +253,9 @@ export default function CartlySidebar({
               )}
             </button>
           </div>
- 
+  
           {/* Navigation Items */}
-          <nav className="flex flex-col gap-2">
+          <nav className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto scrollbar-none pr-0.5">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const content = (
@@ -266,13 +278,13 @@ export default function CartlySidebar({
                   )}
                 </div>
               );
- 
+  
               const btnClass = cn(
                 "flex items-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200",
                 isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3",
                 item.active ? "bg-indigo-600/15 text-indigo-400 font-bold" : "text-muted-foreground"
               );
- 
+  
               if (item.onClick) {
                 return (
                   <button key={index} onClick={item.onClick} className={btnClass}>
@@ -280,32 +292,49 @@ export default function CartlySidebar({
                   </button>
                 );
               }
- 
+  
               return (
                 <Link key={index} href={item.href || "#"} className={btnClass}>
                   {content}
                 </Link>
               );
             })}
-
-            {/* Create purple solid button */}
+ 
+            {/* Redesigned solid gradient Create Post button */}
             <Link
               href="/create"
               className={cn(
-                "hidden xl:flex items-center justify-center bg-[#4f46e5] text-white font-bold hover:bg-[#4338ca] active:scale-[0.98] transition-all shadow-lg mt-4",
+                "hidden xl:flex items-center justify-center bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-extrabold active:scale-[0.97] transition-all shadow-md shadow-indigo-550/10 mt-3",
                 isMinimized
                   ? "size-11 rounded-full p-0 mx-auto"
                   : "w-full py-3.5 rounded-xl gap-2 text-sm"
               )}
             >
               <PlusSquare className="size-5 flex-shrink-0" />
-              {!isMinimized && <span>Create</span>}
+              {!isMinimized && <span>Create Post</span>}
             </Link>
           </nav>
         </div>
  
         {/* Bottom Actions */}
         <div className="flex flex-col gap-2">
+          {/* Upgrade to Cartly Pro widget */}
+          {!isMinimized && (
+            <div className="mx-1 mb-2 p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-805/80 bg-zinc-50/50 dark:bg-zinc-950/40 backdrop-blur-sm flex flex-col gap-2.5 select-none animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <span className="text-[13px] font-extrabold text-foreground flex items-center gap-1.5">
+                👑 Upgrade to Cartly Pro
+              </span>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Unlock advanced analytics, higher reach & more.
+              </p>
+              <Link
+                href="/settings?tab=premium"
+                className="w-full text-center py-2.5 rounded-xl border border-indigo-500/35 hover:border-indigo-500/60 dark:border-zinc-800 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900/60 text-xs font-bold text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all duration-200 block"
+              >
+                Upgrade Now
+              </Link>
+            </div>
+          )}
           {/* More Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -427,9 +456,17 @@ export default function CartlySidebar({
 
       <style dangerouslySetInnerHTML={{
         __html: `
+          @media (min-width: 640px) {
+            .main-content-wrapper {
+              padding-left: 96px !important;
+            }
+          }
           @media (min-width: 1280px) {
+            .main-content-wrapper {
+              padding-left: 268px !important;
+            }
             aside.minimized-sidebar ~ .main-content-wrapper {
-              padding-left: 72px !important;
+              padding-left: 96px !important;
             }
           }
         `
