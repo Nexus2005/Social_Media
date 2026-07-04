@@ -7,6 +7,7 @@ import ChatProvider from "./ChatProvider";
 import { StoryViewerProvider } from "@/components/StoryViewerProvider";
 import CartlySidebar from "./CartlySidebar";
 import MobileNavigation from "./MobileNavigation";
+import DesktopHeader from "./DesktopHeader";
 
 export default async function Layout({
   children,
@@ -49,8 +50,10 @@ export default async function Layout({
           />
 
           {/* Main Content Area */}
-          <div className="main-content-wrapper flex-grow flex justify-center w-full pl-0 sm:pl-[72px] xl:pl-[244px] pb-14 sm:pb-0 has-[.chat-main-container]:pb-0 transition-all duration-300">
-            <main className="w-full">
+          <div className="main-content-wrapper flex-grow flex flex-col justify-start w-full pl-0 sm:pl-[72px] xl:pl-[244px] pb-14 sm:pb-0 has-[.chat-main-container]:pb-0 transition-all duration-300">
+            <DesktopHeader />
+
+            <main className="w-full flex-grow">
               {children}
             </main>
           </div>

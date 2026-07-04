@@ -94,7 +94,6 @@ export async function GET(req: NextRequest) {
 
     // 3. Fetch full data ONLY for the paginated reels
     const fullReels = await prisma.post.findMany({
-      relationLoadStrategy: "join",
       where: {
         id: { in: paginatedIds },
       },

@@ -243,7 +243,7 @@ export default function CartlySidebar({
           </div>
  
           {/* Navigation Items */}
-          <nav className="flex flex-col gap-2">
+          <nav className="sidebar-nav-container flex flex-col gap-2">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const content = (
@@ -268,7 +268,7 @@ export default function CartlySidebar({
               );
  
               const btnClass = cn(
-                "flex items-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200",
+                "sidebar-nav-item flex items-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200",
                 isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3",
                 item.active ? "bg-indigo-600/15 text-indigo-400 font-bold" : "text-muted-foreground"
               );
@@ -310,11 +310,13 @@ export default function CartlySidebar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className={cn(
-                "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
-                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3"
+                "more-btn-animated flex items-center text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
+                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start px-3 py-3"
               )}>
-                <Menu className="size-6 flex-shrink-0" />
-                {!isMinimized && <span className="hidden xl:inline">More</span>}
+                <span className={isMinimized ? "" : "more-icon"}>
+                  <Menu className="size-6 flex-shrink-0" />
+                </span>
+                {!isMinimized && <span className="more-text hidden xl:inline">More</span>}
               </button>
             </DropdownMenuTrigger>
 
@@ -429,7 +431,7 @@ export default function CartlySidebar({
         __html: `
           @media (min-width: 1280px) {
             aside.minimized-sidebar ~ .main-content-wrapper {
-              padding-left: 72px !important;
+              padding-left: 104px !important;
             }
           }
         `

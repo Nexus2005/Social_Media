@@ -10,73 +10,67 @@ datasource db {
 }
 
 model User {
-  id                    String              @id
-  username              String              @unique
-  displayName           String
-  email                 String?             @unique
-  passwordHash          String?
-  googleId              String?             @unique
-  avatarUrl             String?
-  bio                   String?
-  createdAt             DateTime            @default(now())
-  birthDate             DateTime?
-  headerBannerUrl       String?
-  location              String?
-  professionalCategory  String?
-  websiteUrl            String?
-  verified              Boolean             @default(false)
-  role                  String              @default("USER")
-  bookmarks             Bookmark[]
-  commentLikes          CommentLike[]
-  comments              Comment[]
-  drafts                DraftPost[]
-  following             Follow[]            @relation("Following")
-  followers             Follow[]            @relation("Followers")
-  likes                 Like[]
-  issuedNotifications   Notification[]      @relation("Issuer")
-  receivedNotifications Notification[]      @relation("Recipient")
-  pollVotes             PollVote[]
-  mentions              PostMention[]
-  views                 PostView[]
-  posts                 Post[]
-  productCollections    ProductCollection[]
-  reposts               Repost[]
-  collections           SavedCollection[]
-  sessions              Session[]
-  stories               Story[]
-  storyViews            StoryView[]
-  storyLikes            StoryLike[]
-  closeFriends          CloseFriend[]       @relation("UserCloseFriends")
-  designatedAsCloseFriend CloseFriend[]     @relation("FriendCloseFriends")
-  sentInstants          Instant[]           @relation("SentInstants")
-  instantViews          InstantView[]
-  isPrivate                Boolean             @default(false)
-  pinnedContent            PinnedContent[]
-  unreadNotificationCount  Int                 @default(0)
-  notificationPreference   NotificationPreference?
-
-  // Comment & User Interactions
-  commentReposts           CommentRepost[]
-  commentBookmarks         CommentBookmark[]
-  mutedConversations       MutedConversation[]
-  commentReports           CommentReport[]
-  mutes                    UserMute[]          @relation("UserMutes")
-  mutedBy                  UserMute[]          @relation("UserMutedBy")
-  blocks                   UserBlock[]         @relation("UserBlocks")
-  blockedBy                UserBlock[]         @relation("UserBlockedBy")
-
-  // Messaging Preferences V5
-  chatPins                 ChatPin[]
-  chatArchives             ChatArchive[]
-  chatMutes                ChatMute[]
-  conversationSettings     ConversationSettings[]
-
-  // Spots V3 Creator Commerce System
-  creatorProducts       DetectedProduct[]   @relation("CreatorProducts")
-  productEvents         ProductEvent[]
-  campaigns             Campaign[]
-  assignedAssignments   ProductAssignment[] @relation("AssignedProducts")
-  recentLocations       RecentLocation[]
+  id                      String                  @id
+  username                String                  @unique
+  displayName             String
+  email                   String?                 @unique
+  passwordHash            String?
+  googleId                String?                 @unique
+  avatarUrl               String?
+  bio                     String?
+  createdAt               DateTime                @default(now())
+  birthDate               DateTime?
+  headerBannerUrl         String?
+  location                String?
+  professionalCategory    String?
+  websiteUrl              String?
+  verified                Boolean                 @default(false)
+  role                    String                  @default("USER")
+  isPrivate               Boolean                 @default(false)
+  unreadNotificationCount Int                     @default(0)
+  bookmarks               Bookmark[]
+  campaigns               Campaign[]
+  chatArchives            ChatArchive[]
+  chatMutes               ChatMute[]
+  chatPins                ChatPin[]
+  designatedAsCloseFriend CloseFriend[]           @relation("FriendCloseFriends")
+  closeFriends            CloseFriend[]           @relation("UserCloseFriends")
+  commentBookmarks        CommentBookmark[]
+  commentLikes            CommentLike[]
+  commentReports          CommentReport[]
+  commentReposts          CommentRepost[]
+  comments                Comment[]
+  conversationSettings    ConversationSettings[]
+  creatorProducts         DetectedProduct[]       @relation("CreatorProducts")
+  drafts                  DraftPost[]
+  following               Follow[]                @relation("Following")
+  followers               Follow[]                @relation("Followers")
+  instantViews            InstantView[]
+  sentInstants            Instant[]               @relation("SentInstants")
+  likes                   Like[]
+  mutedConversations      MutedConversation[]
+  notificationPreference  NotificationPreference?
+  issuedNotifications     Notification[]          @relation("Issuer")
+  receivedNotifications   Notification[]          @relation("Recipient")
+  pinnedContent           PinnedContent[]
+  pollVotes               PollVote[]
+  mentions                PostMention[]
+  views                   PostView[]
+  posts                   Post[]
+  assignedAssignments     ProductAssignment[]     @relation("AssignedProducts")
+  productCollections      ProductCollection[]
+  productEvents           ProductEvent[]
+  recentLocations         RecentLocation[]
+  reposts                 Repost[]
+  collections             SavedCollection[]
+  sessions                Session[]
+  stories                 Story[]
+  storyLikes              StoryLike[]
+  storyViews              StoryView[]
+  blockedBy               UserBlock[]             @relation("UserBlockedBy")
+  blocks                  UserBlock[]             @relation("UserBlocks")
+  mutedBy                 UserMute[]              @relation("UserMutedBy")
+  mutes                   UserMute[]              @relation("UserMutes")
 
   @@map("users")
 }
@@ -94,8 +88,8 @@ model Follow {
   followerId  String
   followingId String
   status      FollowStatus @default(ACCEPTED)
-  follower    User   @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User   @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  follower    User         @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User         @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
   @@map("follows")
@@ -123,12 +117,14 @@ model Post {
   contentFormat       ContentFormat         @default(FEED)
   quotedPostId        String?
   bookmarks           Bookmark[]
+  reports             CommentReport[]
   comments            Comment[]
-  pinnedContent       PinnedContent[]
   detectedObjects     DetectedObject[]
   detectedProducts    DetectedProduct[]
+  detectionSessions   DetectionSession[]
   likes               Like[]
   linkedNotifications Notification[]
+  pinnedContent       PinnedContent[]
   poll                Poll?
   attachments         Media[]
   mentions            PostMention[]
@@ -136,14 +132,10 @@ model Post {
   quotedPost          Post?                 @relation("QuotePost", fields: [quotedPostId], references: [id])
   quotedIn            Post[]                @relation("QuotePost")
   user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments         ProductAssignment[]
   reposts             Repost[]
   collectionItems     SavedCollectionItem[]
   videoJob            VideoProcessingJob?
-  reports             CommentReport[]
-  detectionSessions   DetectionSession[]
-
-  // Spots V3 Creator Commerce System
-  assignments         ProductAssignment[]
 
   @@index([userId])
   @@index([createdAt])
@@ -167,22 +159,22 @@ model Media {
 }
 
 model Comment {
-  id              String              @id @default(cuid())
-  content         String
-  userId          String
-  postId          String
-  createdAt       DateTime            @default(now())
-  parentCommentId String?
-  viewsCount      Int                 @default(0) @map("views_count")
-  likes           CommentLike[]
-  reposts         CommentRepost[]
-  bookmarks       CommentBookmark[]
+  id                 String              @id @default(cuid())
+  content            String
+  userId             String
+  postId             String
+  createdAt          DateTime            @default(now())
+  parentCommentId    String?
+  viewsCount         Int                 @default(0) @map("views_count")
+  bookmarks          CommentBookmark[]
+  likes              CommentLike[]
+  reports            CommentReport[]
+  reposts            CommentRepost[]
+  parentComment      Comment?            @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies            Comment[]           @relation("CommentReplies")
+  post               Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   mutedConversations MutedConversation[]
-  reports         CommentReport[]
-  parentComment   Comment?            @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies         Comment[]           @relation("CommentReplies")
-  post            Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([postId])
   @@index([userId])
@@ -214,14 +206,14 @@ model Bookmark {
 
 model Notification {
   id          String           @id @default(cuid())
-  recipientId String
+  type        NotificationType
+  createdAt   DateTime         @default(now())
   issuerId    String
   postId      String?
-  type        NotificationType
   read        Boolean          @default(false)
-  metadata    Json?
+  recipientId String
   deepLink    String?
-  createdAt   DateTime         @default(now())
+  metadata    Json?
   issuer      User             @relation("Issuer", fields: [issuerId], references: [id], onDelete: Cascade)
   post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
   recipient   User             @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
@@ -234,14 +226,14 @@ model Notification {
 }
 
 model Story {
-  id        String    @id @default(cuid())
+  id        String      @id @default(cuid())
   userId    String
   mediaUrl  String
   mediaType MediaType
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  views     StoryView[]
+  createdAt DateTime    @default(now())
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes     StoryLike[]
+  views     StoryView[]
 
   @@index([userId])
   @@index([createdAt])
@@ -282,29 +274,6 @@ model DetectedProduct {
   shoppingMatchConfidence Float?                  @map("shopping_match_confidence")
   style                   String?
   visionConfidence        Float?                  @map("vision_confidence")
-  post                    Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  collectionItems         ProductCollectionItem[]
-  matches                 ShoppingMatch[]
-  timeline                ProductTimeline[]
-
-  // Cartly v3 Detection Layer (permanent identity)
-  detectionSessionId      String?                 @map("detection_session_id")
-  cropImageUrl            String?                 @map("crop_image_url")
-  cropQualityScore        Float?                  @map("crop_quality_score")
-  ocrText                 String?                 @map("ocr_text")
-  detectedLogo            String?                 @map("detected_logo")
-  detectedBarcode         String?                 @map("detected_barcode")
-  confidenceBreakdown     Json?                   @map("confidence_breakdown")
-  resolvedQueries         String[]                @default([]) @map("resolved_queries")
-  boundingBox             Json?                   @map("bounding_box")
-  trackingId              String?                 @map("tracking_id")
-  frameAppearances        Int                     @default(1) @map("frame_appearances")
-  detectionConfidence     Float?                  @map("detection_confidence")
-  marketplaceConfidence   Float?                  @map("marketplace_confidence")
-  verificationScore       Float?                  @map("verification_score")
-  visualEmbedding         Json?                   @map("visual_embedding")
-
-  // Spots V3 Creator Commerce System
   creatorId               String?                 @map("creator_id")
   images                  String[]                @default([]) @map("images")
   brand                   String?                 @map("brand")
@@ -314,77 +283,86 @@ model DetectedProduct {
   productClicksCount      Int                     @default(0) @map("product_clicks_count")
   retailerClicksCount     Int                     @default(0) @map("retailer_clicks_count")
   wishlistSavesCount      Int                     @default(0) @map("wishlist_saves_count")
+  boundingBox             Json?                   @map("bounding_box")
+  confidenceBreakdown     Json?                   @map("confidence_breakdown")
+  cropImageUrl            String?                 @map("crop_image_url")
+  cropQualityScore        Float?                  @map("crop_quality_score")
+  detectedBarcode         String?                 @map("detected_barcode")
+  detectedLogo            String?                 @map("detected_logo")
+  detectionConfidence     Float?                  @map("detection_confidence")
+  detectionSessionId      String?                 @map("detection_session_id")
+  frameAppearances        Int                     @default(1) @map("frame_appearances")
+  marketplaceConfidence   Float?                  @map("marketplace_confidence")
+  ocrText                 String?                 @map("ocr_text")
+  resolvedQueries         String[]                @default([]) @map("resolved_queries")
+  trackingId              String?                 @map("tracking_id")
+  verificationScore       Float?                  @map("verification_score")
+  visualEmbedding         Json?                   @map("visual_embedding")
   canonicalProductId      String?                 @map("canonical_product_id")
-  canonicalProduct        CanonicalProduct?       @relation(fields: [canonicalProductId], references: [id], onDelete: SetNull)
-
-  creator                 User?                   @relation("CreatorProducts", fields: [creatorId], references: [id], onDelete: SetNull)
-  events                  ProductEvent[]
-  collections             ProductCollection[]
+  canonicalProduct        CanonicalProduct?       @relation(fields: [canonicalProductId], references: [id])
+  creator                 User?                   @relation("CreatorProducts", fields: [creatorId], references: [id])
+  post                    Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
   assignments             ProductAssignment[]
+  collectionItems         ProductCollectionItem[]
+  events                  ProductEvent[]
+  timeline                ProductTimeline[]
+  matches                 ShoppingMatch[]
+  collections             ProductCollection[]     @relation("DetectedProductToProductCollection")
 
   @@index([postId])
   @@map("detected_products")
 }
 
 model ShoppingMatch {
-  id                String          @id @default(cuid())
-  detectedProductId String          @map("detected_product_id")
+  id                String              @id @default(cuid())
+  detectedProductId String              @map("detected_product_id")
   title             String
   price             String
-  currency          String          @default("INR")
-  sourceStore       String          @map("source_store")
-  productUrl        String          @map("product_url")
-  imageUrl          String?         @map("image_url")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  affiliateUrl      String?         @map("affiliate_url")
-  clickCount        Int             @default(0) @map("click_count")
-  priceHistories    PriceHistory[]
-  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
-
-  // Cartly v3 — Permanent product identity fields
-  galleryImageUrls  String[]            @default([]) @map("gallery_image_urls")
-  matchBrand        String?             @map("match_brand")
-  manufacturer      String?
-  modelNumber       String?             @map("model_number")
-  sku               String?
-  upc               String?
-  matchDescription  String?             @map("match_description")
-  features          String[]            @default([])
-  specifications    Json?               @map("specifications")
-  highlights        String[]            @default([])
-  categoryPath      String?             @map("category_path")
-  condition         String?             @default("New")
-  returnPolicy      String?             @map("return_policy")
-  warranty          String?
-  verificationScore Float?              @map("verification_score")
-  cleanedTitle      String?             @map("cleaned_title")
-
-  // Cartly v3 — Cached volatile fields (refresh every 6h)
-  rating            Float?
-  reviewCount       Int?                @map("review_count")
-  sellerName        String?             @map("seller_name")
-  sellerRating      Float?              @map("seller_rating")
-  sellerReviews     Int?                @map("seller_reviews")
-  shippingCost      String?             @map("shipping_cost")
-  estimatedDelivery String?             @map("estimated_delivery")
-  stockAvailability String?             @map("stock_availability")
-  originalPrice     String?             @map("original_price")
-  discountPercent   Float?              @map("discount_percent")
-  cachedAt          DateTime?           @map("cached_at")
-
-  // Cartly v3 — Variant support
-  variants          ProductVariant[]
-
-  // Spots V3 Creator Commerce System
+  currency          String              @default("INR")
+  sourceStore       String              @map("source_store")
+  productUrl        String              @map("product_url")
+  imageUrl          String?             @map("image_url")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  affiliateUrl      String?             @map("affiliate_url")
+  clickCount        Int                 @default(0) @map("click_count")
   merchantId        String?             @map("merchant_id")
   deliveryText      String?             @map("delivery_text")
   availability      ProductAvailability @default(IN_STOCK) @map("availability")
   retailerSource    RetailerSource      @default(AI_MATCH) @map("retailer_source")
   trackingCode      String?             @map("tracking_code")
   directUrl         String?             @map("direct_url")
-
-  merchant          Merchant?           @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  cachedAt          DateTime?           @map("cached_at")
+  categoryPath      String?             @map("category_path")
+  cleanedTitle      String?             @map("cleaned_title")
+  condition         String?             @default("New")
+  discountPercent   Float?              @map("discount_percent")
+  estimatedDelivery String?             @map("estimated_delivery")
+  features          String[]            @default([])
+  galleryImageUrls  String[]            @default([]) @map("gallery_image_urls")
+  highlights        String[]            @default([])
+  manufacturer      String?
+  matchBrand        String?             @map("match_brand")
+  matchDescription  String?             @map("match_description")
+  modelNumber       String?             @map("model_number")
+  originalPrice     String?             @map("original_price")
+  rating            Float?
+  returnPolicy      String?             @map("return_policy")
+  reviewCount       Int?                @map("review_count")
+  sellerName        String?             @map("seller_name")
+  sellerRating      Float?              @map("seller_rating")
+  sellerReviews     Int?                @map("seller_reviews")
+  shippingCost      String?             @map("shipping_cost")
+  sku               String?
+  specifications    Json?               @map("specifications")
+  stockAvailability String?             @map("stock_availability")
+  upc               String?
+  verificationScore Float?              @map("verification_score")
+  warranty          String?
   rawPayload        Json?               @map("raw_payload")
+  priceHistories    PriceHistory[]
+  variants          ProductVariant[]
+  detectedProduct   DetectedProduct     @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
+  merchant          Merchant?           @relation(fields: [merchantId], references: [id])
 
   @@index([detectedProductId])
   @@map("shopping_matches")
@@ -396,9 +374,9 @@ model CanonicalProduct {
   modelLine        String            @map("model_line")
   subcategory      String
   canonicalTitle   String            @unique @map("canonical_title")
-  detectedProducts DetectedProduct[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
+  detectedProducts DetectedProduct[]
 
   @@map("canonical_products")
 }
@@ -411,7 +389,7 @@ model MarketplaceSearchCache {
   country         String   @default("US")
   currency        String   @default("USD")
   language        String   @default("en")
-  results         Json     // Serialized MarketplaceProduct matches
+  results         Json
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -585,20 +563,18 @@ model PriceHistory {
 }
 
 model ProductCollection {
-  id        String                  @id @default(cuid())
-  name      String
-  userId    String
-  createdAt DateTime                @default(now()) @map("created_at")
-  items     ProductCollectionItem[]
-  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Spots V3 Creator Commerce System
+  id          String                  @id @default(cuid())
+  name        String
+  userId      String
+  createdAt   DateTime                @default(now()) @map("created_at")
   description String?                 @map("description")
   coverImage  String?                 @map("cover_image")
   isPublic    Boolean                 @default(true) @map("is_public")
   featured    Boolean                 @default(false) @map("featured")
   updatedAt   DateTime                @default(now()) @updatedAt @map("updated_at")
-  products    DetectedProduct[]
+  items       ProductCollectionItem[]
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products    DetectedProduct[]       @relation("DetectedProductToProductCollection")
 
   @@unique([userId, name])
   @@map("product_collections")
@@ -616,47 +592,43 @@ model ProductCollectionItem {
   @@map("product_collection_items")
 }
 
-// Spots V3 Creator Commerce System Models
-
 model ProductAssignment {
-  id                  String             @id @default(cuid())
-  postId              String             @map("post_id")
-  productId           String             @map("product_id")
-  assignedById        String?            @map("assigned_by_id")
-  displayOrder        Int                @default(0) @map("display_order")
-  featured            Boolean            @default(false) @map("featured")
-  status              ProductStatus      @default(PENDING_REVIEW) @map("status")
-  verificationSource  VerificationSource @default(AI_DETECTED) @map("verification_source")
-  sourceType          SourceType         @default(AI_DETECTED) @map("source_type")
-  manuallyAssigned    Boolean            @default(false) @map("manually_assigned")
-  reviewReason        String?            @map("review_reason")
-  aiConfidence        Float?             @map("ai_confidence")
-  createdAt           DateTime           @default(now()) @map("created_at")
-  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at")
-  productType         ProductType        @default(FEATURED) @map("product_type")
-  productSource       ProductSource      @default(AI) @map("product_source")
-
-  post                Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
-  product             DetectedProduct    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  assignedBy          User?              @relation("AssignedProducts", fields: [assignedById], references: [id], onDelete: SetNull)
-  events              ProductEvent[]
+  id                 String             @id @default(cuid())
+  postId             String             @map("post_id")
+  productId          String             @map("product_id")
+  assignedById       String?            @map("assigned_by_id")
+  displayOrder       Int                @default(0) @map("display_order")
+  featured           Boolean            @default(false) @map("featured")
+  status             ProductStatus      @default(PENDING_REVIEW) @map("status")
+  verificationSource VerificationSource @default(AI_DETECTED) @map("verification_source")
+  sourceType         SourceType         @default(AI_DETECTED) @map("source_type")
+  manuallyAssigned   Boolean            @default(false) @map("manually_assigned")
+  reviewReason       String?            @map("review_reason")
+  aiConfidence       Float?             @map("ai_confidence")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
+  productType        ProductType        @default(FEATURED) @map("product_type")
+  productSource      ProductSource      @default(AI) @map("product_source")
+  assignedBy         User?              @relation("AssignedProducts", fields: [assignedById], references: [id])
+  post               Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  product            DetectedProduct    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  events             ProductEvent[]
 
   @@unique([postId, productId])
   @@map("product_assignments")
 }
 
 model ProductEvent {
-  id            String            @id @default(cuid())
-  productId     String            @map("product_id")
-  assignmentId  String?           @map("assignment_id")
-  userId        String?           @map("user_id")
-  eventType     ProductEventType  @map("event_type")
-  metadata      Json?             @map("metadata")
-  createdAt     DateTime          @default(now()) @map("created_at")
-
-  product       DetectedProduct   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  assignment    ProductAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id           String             @id @default(cuid())
+  productId    String             @map("product_id")
+  assignmentId String?            @map("assignment_id")
+  userId       String?            @map("user_id")
+  eventType    ProductEventType   @map("event_type")
+  metadata     Json?              @map("metadata")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  assignment   ProductAssignment? @relation(fields: [assignmentId], references: [id])
+  product      DetectedProduct    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User?              @relation(fields: [userId], references: [id])
 
   @@map("product_events")
 }
@@ -674,11 +646,11 @@ model Merchant {
 }
 
 model Brand {
-  id          String      @id @default(cuid())
-  name        String      @unique
-  logoUrl     String?     @map("logo_url")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  campaigns   Campaign[]
+  id        String     @id @default(cuid())
+  name      String     @unique
+  logoUrl   String?    @map("logo_url")
+  createdAt DateTime   @default(now()) @map("created_at")
+  campaigns Campaign[]
 
   @@map("brands")
 }
@@ -692,14 +664,308 @@ model Campaign {
   commissionRate   Float?         @default(0) @map("commission_rate")
   commissionEarned Float?         @default(0) @map("commission_earned")
   createdAt        DateTime       @default(now()) @map("created_at")
-
   brand            Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
   creator          User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@map("campaigns")
 }
 
-// Spots V3 Commerce System Enums
+model LocationCache {
+  id          String   @id @default(cuid())
+  latRounded  Float    @map("lat_rounded")
+  lngRounded  Float    @map("lng_rounded")
+  osmId       String?  @map("osm_id")
+  displayName String   @map("display_name")
+  city        String?
+  state       String?
+  country     String?
+  expiresAt   DateTime @map("expires_at")
+
+  @@unique([latRounded, lngRounded])
+  @@map("location_cache")
+}
+
+model RecentLocation {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  locationName String   @map("location_name")
+  city         String?
+  state        String?
+  country      String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("recent_locations")
+}
+
+model PinnedContent {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  position  Int
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, position])
+  @@map("pinned_contents")
+}
+
+model NotificationPreference {
+  userId   String  @id
+  likes    Boolean @default(true)
+  comments Boolean @default(true)
+  mentions Boolean @default(true)
+  follows  Boolean @default(true)
+  reposts  Boolean @default(true)
+  quotes   Boolean @default(true)
+  shares   Boolean @default(true)
+  orders   Boolean @default(true)
+  products Boolean @default(true)
+  security Boolean @default(true)
+  system   Boolean @default(true)
+  messages Boolean @default(true)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model ChatPin {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  channelId String   @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("chat_pins")
+}
+
+model ChatArchive {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  channelId String   @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("chat_archives")
+}
+
+model ChatMute {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  channelId String    @map("channel_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime? @map("expires_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("chat_mutes")
+}
+
+model ConversationSettings {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  channelId     String    @map("channel_id")
+  wallpaper     String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastClearedAt DateTime? @map("last_cleared_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@map("conversation_settings")
+}
+
+model CloseFriend {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  friend    User     @relation("FriendCloseFriends", fields: [friendId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserCloseFriends", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@map("close_friends")
+}
+
+model Instant {
+  id        String        @id @default(cuid())
+  senderId  String        @map("sender_id")
+  mediaUrl  String        @map("media_url")
+  audience  String        @default("FRIENDS")
+  createdAt DateTime      @default(now()) @map("created_at")
+  views     InstantView[]
+  sender    User          @relation("SentInstants", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("instants")
+}
+
+model InstantView {
+  id        String   @id @default(cuid())
+  instantId String   @map("instant_id")
+  userId    String   @map("user_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+  instant   Instant  @relation(fields: [instantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([instantId, userId])
+  @@map("instant_views")
+}
+
+model CommentRepost {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("comment_reposts")
+}
+
+model CommentBookmark {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("comment_bookmarks")
+}
+
+model UserMute {
+  id        String   @id @default(cuid())
+  muterId   String
+  mutedId   String
+  createdAt DateTime @default(now())
+  muted     User     @relation("UserMutedBy", fields: [mutedId], references: [id], onDelete: Cascade)
+  muter     User     @relation("UserMutes", fields: [muterId], references: [id], onDelete: Cascade)
+
+  @@unique([muterId, mutedId])
+  @@map("user_mutes")
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocked   User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker   User     @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("user_blocks")
+}
+
+model MutedConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("muted_conversations")
+}
+
+model CommentReport {
+  id        String   @id @default(cuid())
+  commentId String?
+  postId    String?
+  userId    String
+  reason    String
+  createdAt DateTime @default(now())
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comment_reports")
+}
+
+model StoryView {
+  id       String   @id @default(cuid())
+  storyId  String   @map("story_id")
+  userId   String   @map("user_id")
+  viewedAt DateTime @default(now()) @map("viewed_at")
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@map("story_views")
+}
+
+model StoryLike {
+  id        String   @id @default(cuid())
+  storyId   String   @map("story_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@map("story_likes")
+}
+
+model DetectionSession {
+  id                 String    @id @default(cuid())
+  postId             String    @map("post_id")
+  sessionHash        String    @unique @map("session_hash")
+  frameCount         Int       @default(0) @map("frame_count")
+  sceneChangeCount   Int       @default(0) @map("scene_change_count")
+  rawObjectCount     Int       @default(0) @map("raw_object_count")
+  cropsPassedQuality Int       @default(0) @map("crops_passed_quality")
+  cropsFailedQuality Int       @default(0) @map("crops_failed_quality")
+  trackedObjectCount Int       @default(0) @map("tracked_object_count")
+  mergedProductCount Int       @default(0) @map("merged_product_count")
+  geminiCallCount    Int       @default(0) @map("gemini_call_count")
+  cacheHitCount      Int       @default(0) @map("cache_hit_count")
+  processingTimeMs   Int?      @map("processing_time_ms")
+  status             String    @default("processing")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  completedAt        DateTime? @map("completed_at")
+  post               Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("detection_sessions")
+}
+
+model ProductTimeline {
+  id                String          @id @default(cuid())
+  detectedProductId String          @map("detected_product_id")
+  timestamp         Float           @map("timestamp")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
+
+  @@index([detectedProductId])
+  @@map("product_timelines")
+}
+
+model ProductVariant {
+  id              String        @id @default(cuid())
+  shoppingMatchId String        @map("shopping_match_id")
+  variantType     String        @map("variant_type")
+  variantValue    String        @map("variant_value")
+  price           String?
+  sku             String?
+  imageUrl        String?       @map("image_url")
+  availability    String?       @default("in_stock")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  shoppingMatch   ShoppingMatch @relation(fields: [shoppingMatchId], references: [id], onDelete: Cascade)
+
+  @@index([shoppingMatchId])
+  @@map("product_variants")
+}
 
 enum MediaType {
   IMAGE
@@ -707,22 +973,19 @@ enum MediaType {
 }
 
 enum NotificationType {
-  // Social interactions
   LIKE
   FOLLOW
-  FOLLOW_REQUEST
-  FOLLOW_ACCEPTED
   COMMENT
-  COMMENT_LIKE
   REPOST
   QUOTE
   REPLY
   MENTION
+  FOLLOW_REQUEST
+  FOLLOW_ACCEPTED
+  COMMENT_LIKE
   STORY_MENTION
   SHARE
   COLLECTION_SAVE
-
-  // Commerce events
   PRODUCT_ORDER
   PRODUCT_SHIPPED
   PRODUCT_DELIVERED
@@ -730,13 +993,9 @@ enum NotificationType {
   PRODUCT_BACK_IN_STOCK
   PRODUCT_APPROVED
   POST_APPROVED
-
-  // Social groups
   COLLECTION_INVITE
   GROUP_INVITE
   MESSAGE
-
-  // Account & Security
   VERIFICATION_APPROVED
   VERIFICATION_REJECTED
   SECURITY_ALERT
@@ -803,53 +1062,6 @@ enum ProductSource {
   IMPORTED
 }
 
-model LocationCache {
-  id          String    @id @default(cuid())
-  latRounded  Float     @map("lat_rounded")
-  lngRounded  Float     @map("lng_rounded")
-  osmId       String?   @map("osm_id")
-  displayName String    @map("display_name")
-  city        String?
-  state       String?
-  country     String?
-  expiresAt   DateTime  @map("expires_at")
-
-  @@unique([latRounded, lngRounded])
-  @@map("location_cache")
-}
-
-model RecentLocation {
-  id           String   @id @default(cuid())
-  userId       String   @map("user_id")
-  locationName String   @map("location_name")
-  city         String?
-  state        String?
-  country      String?
-  latitude     Float?
-  longitude    Float?
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("recent_locations")
-}
-
-model PinnedContent {
-  id        String   @id @default(cuid())
-  userId    String
-  postId    String
-  position  Int
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, postId])
-  @@unique([userId, position])
-  @@map("pinned_contents")
-}
-
 enum ContentFormat {
   FEED
   SPOT
@@ -858,265 +1070,4 @@ enum ContentFormat {
 enum FollowStatus {
   PENDING
   ACCEPTED
-}
-
-model NotificationPreference {
-  userId    String  @id
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Social
-  likes     Boolean @default(true)
-  comments  Boolean @default(true)
-  mentions  Boolean @default(true)
-  follows   Boolean @default(true)
-  reposts   Boolean @default(true)
-  quotes    Boolean @default(true)
-  shares    Boolean @default(true)
-
-  // Commerce
-  orders    Boolean @default(true)
-  products  Boolean @default(true)
-
-  // System
-  security  Boolean @default(true)
-  system    Boolean @default(true)
-  messages  Boolean @default(true)
-
-  @@map("notification_preferences")
-}
-
-model ChatPin {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  channelId String   @map("channel_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, channelId])
-  @@map("chat_pins")
-}
-
-model ChatArchive {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  channelId String   @map("channel_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, channelId])
-  @@map("chat_archives")
-}
-
-model ChatMute {
-  id        String    @id @default(cuid())
-  userId    String    @map("user_id")
-  channelId String    @map("channel_id")
-  createdAt DateTime  @default(now()) @map("created_at")
-  expiresAt DateTime? @map("expires_at")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, channelId])
-  @@map("chat_mutes")
-}
-
-model ConversationSettings {
-  id            String    @id @default(cuid())
-  userId        String    @map("user_id")
-  channelId     String    @map("channel_id")
-  wallpaper     String?
-  lastClearedAt DateTime? @map("last_cleared_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, channelId])
-  @@map("conversation_settings")
-}
-
-model CloseFriend {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  friendId  String   @map("friend_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation("UserCloseFriends", fields: [userId], references: [id], onDelete: Cascade)
-  friend    User     @relation("FriendCloseFriends", fields: [friendId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, friendId])
-  @@map("close_friends")
-}
-
-model Instant {
-  id        String        @id @default(cuid())
-  senderId  String        @map("sender_id")
-  mediaUrl  String        @map("media_url")
-  audience  String        @default("FRIENDS") // "FRIENDS" or "CLOSE_FRIENDS"
-  createdAt DateTime      @default(now()) @map("created_at")
-  sender    User          @relation("SentInstants", fields: [senderId], references: [id], onDelete: Cascade)
-  views     InstantView[]
-
-  @@index([senderId])
-  @@index([createdAt])
-  @@map("instants")
-}
-
-model InstantView {
-  id        String   @id @default(cuid())
-  instantId String   @map("instant_id")
-  userId    String   @map("user_id")
-  viewedAt  DateTime @default(now()) @map("viewed_at")
-  instant   Instant  @relation(fields: [instantId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([instantId, userId])
-  @@map("instant_views")
-}
-
-model CommentRepost {
-  id        String   @id @default(cuid())
-  commentId String
-  userId    String
-  createdAt DateTime @default(now())
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, commentId])
-  @@map("comment_reposts")
-}
-
-model CommentBookmark {
-  id        String   @id @default(cuid())
-  commentId String
-  userId    String
-  createdAt DateTime @default(now())
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, commentId])
-  @@map("comment_bookmarks")
-}
-
-model UserMute {
-  id        String   @id @default(cuid())
-  muterId   String
-  mutedId   String
-  createdAt DateTime @default(now())
-  muter     User     @relation("UserMutes", fields: [muterId], references: [id], onDelete: Cascade)
-  muted     User     @relation("UserMutedBy", fields: [mutedId], references: [id], onDelete: Cascade)
-
-  @@unique([muterId, mutedId])
-  @@map("user_mutes")
-}
-
-model UserBlock {
-  id        String   @id @default(cuid())
-  blockerId String
-  blockedId String
-  createdAt DateTime @default(now())
-  blocker   User     @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked   User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
-
-  @@unique([blockerId, blockedId])
-  @@map("user_blocks")
-}
-
-model MutedConversation {
-  id        String   @id @default(cuid())
-  userId    String
-  commentId String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, commentId])
-  @@map("muted_conversations")
-}
-
-model CommentReport {
-  id        String   @id @default(cuid())
-  commentId String?
-  postId    String?
-  userId    String
-  reason    String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@map("comment_reports")
-}
-
-model StoryView {
-  id        String   @id @default(cuid())
-  storyId   String   @map("story_id")
-  userId    String   @map("user_id")
-  viewedAt  DateTime @default(now()) @map("viewed_at")
-  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([storyId, userId])
-  @@map("story_views")
-}
-
-model StoryLike {
-  id        String   @id @default(cuid())
-  storyId   String   @map("story_id")
-  userId    String   @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([storyId, userId])
-  @@map("story_likes")
-}
-
-// Cartly v3 — Detection Session (per-reel isolation)
-model DetectionSession {
-  id                 String    @id @default(cuid())
-  postId             String    @map("post_id")
-  sessionHash        String    @unique @map("session_hash")
-  frameCount         Int       @default(0) @map("frame_count")
-  sceneChangeCount   Int       @default(0) @map("scene_change_count")
-  rawObjectCount     Int       @default(0) @map("raw_object_count")
-  cropsPassedQuality Int       @default(0) @map("crops_passed_quality")
-  cropsFailedQuality Int       @default(0) @map("crops_failed_quality")
-  trackedObjectCount Int       @default(0) @map("tracked_object_count")
-  mergedProductCount Int       @default(0) @map("merged_product_count")
-  geminiCallCount    Int       @default(0) @map("gemini_call_count")
-  cacheHitCount      Int       @default(0) @map("cache_hit_count")
-  processingTimeMs   Int?      @map("processing_time_ms")
-  status             String    @default("processing")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  completedAt        DateTime? @map("completed_at")
-  post               Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@index([postId])
-  @@map("detection_sessions")
-}
-
-// Cartly v3 — Product Timeline (when each product appears in video)
-model ProductTimeline {
-  id                String          @id @default(cuid())
-  detectedProductId String          @map("detected_product_id")
-  timestamp         Float           @map("timestamp")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
-
-  @@index([detectedProductId])
-  @@map("product_timelines")
-}
-
-// Cartly v3 — Product Variants (color, size, storage options)
-model ProductVariant {
-  id              String        @id @default(cuid())
-  shoppingMatchId String        @map("shopping_match_id")
-  variantType     String        @map("variant_type")
-  variantValue    String        @map("variant_value")
-  price           String?
-  sku             String?
-  imageUrl        String?       @map("image_url")
-  availability    String?       @default("in_stock")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  shoppingMatch   ShoppingMatch @relation(fields: [shoppingMatchId], references: [id], onDelete: Cascade)
-
-  @@index([shoppingMatchId])
-  @@map("product_variants")
 }

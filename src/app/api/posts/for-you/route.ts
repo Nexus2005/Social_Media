@@ -61,9 +61,8 @@ export async function GET(req: NextRequest) {
     const paginatedSlice = paginatedPosts.slice(0, pageSize);
     const paginatedIds = paginatedSlice.map((p) => p.id);
 
-    // 5. Fetch full data ONLY for the paginated posts (using lateral JOINs)
+    // 5. Fetch full data ONLY for the paginated posts
     const fullPosts = await prisma.post.findMany({
-      relationLoadStrategy: "join",
       where: {
         id: { in: paginatedIds },
       },

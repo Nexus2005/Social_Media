@@ -3,11 +3,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FollowingFeed from "./FollowingFeed";
 import ForYouFeed from "./ForYouFeed";
 import SuggestedSidebar from "./SuggestedSidebar";
-import { Search, SlidersHorizontal } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="mx-auto flex w-full max-w-[935px] gap-0 sm:gap-8 px-0 sm:px-4 md:px-8 py-0 sm:py-6 justify-center bg-instagram-lightBg dark:bg-instagram-darkBg">
+    <div className="flex w-full max-w-[935px] gap-0 sm:gap-8 px-0 sm:px-4 md:px-8 py-0 sm:py-6 justify-start bg-instagram-lightBg dark:bg-instagram-darkBg ml-2 md:ml-4">
       {/* Column 2 (Center Feed) */}
       <div className="w-full max-w-[600px] space-y-1 sm:space-y-2">
         {/* Stories Carousel */}
@@ -30,23 +29,7 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Sticky Search Bar - sticks below the 56px (h-14) mobile header */}
-          <div className="sticky top-14 sm:top-0 z-20 bg-instagram-lightBg dark:bg-instagram-darkBg py-1.5 px-4 sm:py-2.5 sm:px-0">
-            <form action="/search" method="GET" className="w-full">
-              <div className="relative flex items-center h-11 w-full bg-zinc-100 dark:bg-[#121212] border border-zinc-200 dark:border-instagram-darkBorder rounded-xl px-3 gap-2">
-                <Search className="size-5 text-instagram-lightText dark:text-instagram-darkText shrink-0" />
-                <input
-                  name="q"
-                  type="text"
-                  placeholder="Search"
-                  className="flex-grow bg-transparent text-[15px] text-instagram-lightText dark:text-instagram-darkText placeholder-[#8e8e93] outline-none h-full"
-                />
-                <button type="button" className="text-instagram-lightText dark:text-instagram-darkText hover:opacity-85 transition-opacity shrink-0">
-                  <SlidersHorizontal className="size-5" />
-                </button>
-              </div>
-            </form>
-          </div>
+
 
           <TabsContent value="for-you" className="mt-1 outline-none">
             <ForYouFeed />

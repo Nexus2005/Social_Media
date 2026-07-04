@@ -253,7 +253,7 @@ export default function Chat() {
             ? "calc(100dvh - 56px)"
             : undefined
         }}
-        className="chat-main-container relative flex h-[calc(100dvh-56px)] w-full overflow-hidden border-none bg-[#121212] md:h-screen"
+        className="chat-main-container chat-main-container-neumorphic relative flex h-[calc(100dvh-56px)] overflow-hidden border-none bg-card md:h-screen"
       >
         {/* Chat List Sidebar (Split Pane on Desktop, Screen on Mobile) */}
         <div

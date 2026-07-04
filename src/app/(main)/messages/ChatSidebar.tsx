@@ -479,12 +479,12 @@ export default function ChatSidebar() {
   if (!loggedInUser) return null;
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#121212] select-none relative text-white">
+    <div className="flex h-full w-full flex-col bg-card select-none relative text-foreground">
       {/* iOS Styled Top Header Bar (Responsively sized) */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#121212] relative shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border/40 relative shrink-0">
         <button
           onClick={() => setShowAdminMenu(!showAdminMenu)}
-          className="p-1 rounded-lg hover:bg-zinc-900 transition-colors shrink-0 text-zinc-300 hover:text-white"
+          className="p-1 rounded-lg hover:bg-accent transition-colors shrink-0 text-muted-foreground hover:text-foreground"
           title="Menu"
         >
           <Menu className="size-6 sm:size-7" />
@@ -494,7 +494,7 @@ export default function ChatSidebar() {
 
         <button
           onClick={() => setShowNewChatDialog(true)}
-          className="p-1 rounded-lg hover:bg-zinc-900 transition-colors shrink-0 text-zinc-300 hover:text-white"
+          className="p-1 rounded-lg hover:bg-accent transition-colors shrink-0 text-muted-foreground hover:text-foreground"
           title="Compose"
         >
           <SquarePen className="size-6 sm:size-7" />
@@ -507,14 +507,14 @@ export default function ChatSidebar() {
               className="fixed inset-0 z-45 cursor-default" 
               onClick={() => setShowAdminMenu(false)}
             />
-            <div className="absolute left-4 top-[52px] z-50 w-56 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl p-1.5 flex flex-col gap-0.5 text-[14px]">
+            <div className="absolute left-4 top-[52px] z-50 w-56 rounded-2xl bg-popover border border-border shadow-2xl p-1.5 flex flex-col gap-0.5 text-[14px]">
               {/* Close Friends Manager option */}
               <button
                 onClick={() => {
                   setShowAdminMenu(false);
                   setFriendsOpen(true);
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent text-start w-full text-foreground"
               >
                 <Star className="size-4 text-green-400 fill-green-400" />
                 <span>Close Friends</span>
@@ -526,13 +526,13 @@ export default function ChatSidebar() {
                   setShowAdminMenu(false);
                   setArchiveOpen(true);
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent text-start w-full text-foreground"
               >
                 <Sparkles className="size-4 text-[#2a87d0]" />
                 <span>Instants Archive</span>
               </button>
 
-              <hr className="border-zinc-900 my-1" />
+              <hr className="border-border/40 my-1" />
 
               {/* Day / Night Mode Toggle */}
               <button
@@ -540,7 +540,7 @@ export default function ChatSidebar() {
                   setTheme(theme === "dark" ? "light" : "dark");
                   setShowAdminMenu(false);
                 }}
-                className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start text-zinc-200"
+                className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl hover:bg-accent text-start text-foreground"
               >
                 <div className="flex items-center gap-3">
                   {theme === "dark" ? (
@@ -550,7 +550,7 @@ export default function ChatSidebar() {
                   )}
                   <span>{theme === "dark" ? "Day Mode" : "Night Mode"}</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 uppercase font-bold bg-zinc-900 px-1.5 py-0.5 rounded-md">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold bg-muted px-1.5 py-0.5 rounded-md">
                   {theme === "dark" ? "Light" : "Dark"}
                 </span>
               </button>
@@ -561,9 +561,9 @@ export default function ChatSidebar() {
                   setShowAdminMenu(false);
                   setShowNewChatDialog(true);
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent text-start w-full text-foreground"
               >
-                <Users className="size-4 text-zinc-400" />
+                <Users className="size-4 text-muted-foreground" />
                 <span>New Group</span>
               </button>
 
@@ -583,9 +583,9 @@ export default function ChatSidebar() {
                     console.error("Failed to start Saved Messages:", error);
                   }
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-900 text-start w-full text-zinc-200"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent text-start w-full text-foreground"
               >
-                <FolderHeart className="size-4 text-zinc-400" />
+                <FolderHeart className="size-4 text-muted-foreground" />
                 <span>Saved Messages</span>
               </button>
             </div>
@@ -603,7 +603,7 @@ export default function ChatSidebar() {
             value={searchQuery}
             onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 sm:h-11 w-full rounded-full bg-zinc-900/90 pe-10 ps-10 text-sm sm:text-[15px] focus:outline-none border border-transparent focus:border-zinc-800 text-white placeholder-zinc-500"
+            className="h-10 sm:h-11 w-full rounded-full bg-zinc-100 dark:bg-zinc-900/90 pe-10 ps-10 text-sm sm:text-[15px] focus:outline-none border border-transparent focus:border-border text-foreground placeholder-zinc-500"
           />
           {isSearchFocused && (
             <button
@@ -761,7 +761,7 @@ export default function ChatSidebar() {
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all ${
                     activeFilter === "all"
                       ? "bg-[#2a87d0] text-white"
-                      : "bg-zinc-900/60 text-zinc-400 hover:text-white"
+                      : "bg-zinc-100 dark:bg-zinc-900/60 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-850"
                   }`}
                 >
                   All
@@ -771,7 +771,7 @@ export default function ChatSidebar() {
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all flex items-center gap-1.5 ${
                     activeFilter === "unread"
                       ? "bg-[#2a87d0] text-white"
-                      : "bg-zinc-900/60 text-zinc-400 hover:text-white"
+                      : "bg-zinc-100 dark:bg-zinc-900/60 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-850"
                   }`}
                 >
                   <span>Unread</span>
@@ -779,7 +779,7 @@ export default function ChatSidebar() {
                     <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
                       activeFilter === "unread"
                         ? "bg-[#2076b4] text-zinc-100"
-                        : "bg-zinc-800 text-zinc-300"
+                        : "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
                     }`}>
                       {totalUnreadChannelsCount}
                     </span>
@@ -790,7 +790,7 @@ export default function ChatSidebar() {
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all flex items-center gap-1.5 ${
                     activeFilter === "groups"
                       ? "bg-[#2a87d0] text-white"
-                      : "bg-zinc-900/60 text-zinc-400 hover:text-white"
+                      : "bg-zinc-100 dark:bg-zinc-900/60 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-850"
                   }`}
                 >
                   <span>Groups</span>
@@ -798,7 +798,7 @@ export default function ChatSidebar() {
                     <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
                       activeFilter === "groups"
                         ? "bg-[#2076b4] text-zinc-100"
-                        : "bg-zinc-800 text-zinc-300"
+                        : "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
                     }`}>
                       {totalGroupsCount}
                     </span>
@@ -809,7 +809,7 @@ export default function ChatSidebar() {
                   className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold sm:font-bold select-none transition-all ${
                     activeFilter === "channels"
                       ? "bg-[#2a87d0] text-white"
-                      : "bg-zinc-900/60 text-zinc-400 hover:text-white"
+                      : "bg-zinc-100 dark:bg-zinc-900/60 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-850"
                   }`}
                 >
                   Channels
@@ -819,23 +819,23 @@ export default function ChatSidebar() {
 
             {/* Archived Chats Folder Row (Responsively Sized) */}
             {!searchQuery && archivedChannels.length > 0 && (
-              <div className="border-b border-zinc-950">
+              <div className="border-b border-border/45">
                 <button
                   onClick={() => setShowArchived(!showArchived)}
-                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-zinc-950 transition-colors"
+                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="flex size-[48px] sm:size-[54px] shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-zinc-300">
+                    <div className="flex size-[48px] sm:size-[54px] shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300">
                       <FolderDown className="size-5" />
                     </div>
-                    <span className="text-[16px] sm:text-[17px] font-semibold sm:font-bold text-white">Archived</span>
+                    <span className="text-[16px] sm:text-[17px] font-semibold sm:font-bold text-foreground">Archived</span>
                   </div>
                   <span className="text-sm sm:text-[15px] font-semibold text-zinc-500 mr-2">{archivedChannels.length}</span>
                 </button>
 
                 {/* Collapsible Archived List */}
                 {showArchived && (
-                  <div className="bg-zinc-950/40 border-t border-zinc-900/60">
+                  <div className="bg-accent/5 border-t border-border/40">
                     {archivedChannels.map((channel) => (
                       <ChatRow
                         key={channel.id}
@@ -1269,8 +1269,8 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
-      className={`relative flex w-full items-center gap-3.5 px-4 h-[84px] sm:h-[96px] transition-colors border-b border-zinc-950/40 ${
-        isActive ? "bg-zinc-900/60" : "hover:bg-zinc-950/40"
+      className={`relative flex w-full items-center gap-3.5 px-4 h-[84px] sm:h-[96px] transition-colors border-b border-border/40 ${
+        isActive ? "bg-accent" : "hover:bg-accent/40"
       }`}
     >
       {/* Circle Avatar (58px on mobile, 64px on sm/desktop) */}
@@ -1289,35 +1289,35 @@ function ChatRow({ channel, draftText, isActive, isPinned, isMuted, instantsData
               : "bg-transparent"
           }`}
         >
-          <div className="bg-black p-[1px] rounded-full">
+          <div className="bg-background p-[1px] rounded-full">
             {avatarUrl ? (
               <UserAvatar 
                 avatarUrl={avatarUrl as string | null | undefined} 
                 size={58} 
-                className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
+                className="size-[58px] sm:size-[64px] rounded-full border border-border/40" 
               />
             ) : isGroup ? (
-              <div className="size-[58px] sm:size-[64px] rounded-full flex items-center justify-center text-lg font-bold text-white bg-[#2a87d0] border border-zinc-800">
+              <div className="size-[58px] sm:size-[64px] rounded-full flex items-center justify-center text-lg font-bold text-white bg-[#2a87d0] border border-border/40">
                 {(displayName || "G")[0].toUpperCase()}
               </div>
             ) : (
               <UserAvatar 
                 avatarUrl={undefined} 
                 size={58} 
-                className="size-[58px] sm:size-[64px] rounded-full border border-zinc-800" 
+                className="size-[58px] sm:size-[64px] rounded-full border border-border/40" 
               />
             )}
           </div>
         </div>
         {isOnline && (
-          <span className="absolute bottom-0.5 right-0.5 size-3.5 sm:size-4 rounded-full border-2 border-black bg-green-500" />
+          <span className="absolute bottom-0.5 right-0.5 size-3.5 sm:size-4 rounded-full border-2 border-background bg-green-500" />
         )}
       </div>
 
       {/* Row details */}
       <div className="flex flex-1 flex-col overflow-hidden text-start py-1">
         <div className="flex items-center justify-between">
-          <span className="text-[17px] sm:text-[19px] font-semibold sm:font-bold text-white truncate flex-1 pr-2 flex items-center gap-1.5">
+          <span className="text-[17px] sm:text-[19px] font-semibold sm:font-bold text-foreground truncate flex-1 pr-2 flex items-center gap-1.5">
             {displayName}
             {(otherMember as any)?.verified && (
               <VerifiedBadge size={14} className="text-[#8a3ffc] shrink-0" />

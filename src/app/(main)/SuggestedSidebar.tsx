@@ -12,26 +12,10 @@ export default function SuggestedSidebar() {
   return (
     <div className="sticky top-6 hidden w-[320px] flex-none flex-col gap-6 xl:flex">
       <Suspense fallback={<Loader2 className="mx-auto animate-spin" />}>
-        <UserProfileCard />
         <SuggestionsList />
       </Suspense>
 
-      {/* Footer Meta Links */}
-      <footer className="flex flex-col gap-4 px-1 text-[12px] text-muted-foreground/60">
-        <nav className="flex flex-wrap gap-x-1.5 gap-y-1">
-          {["About", "Help", "Press", "API", "Jobs", "Privacy", "Terms", "Locations", "Language", "Meta Verified"].map((link, i) => (
-            <span key={link}>
-              <Link href="#" className="hover:underline">
-                {link}
-              </Link>
-              {i < 9 && <span className="mx-0.5">·</span>}
-            </span>
-          ))}
-        </nav>
-        <p className="font-semibold uppercase tracking-wider text-[10px]">
-          © {new Date().getFullYear()} Cartly
-        </p>
-      </footer>
+
     </div>
   );
 }

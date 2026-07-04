@@ -94,7 +94,7 @@ export default function StoriesCarousel() {
     : otherStories;
 
   return (
-    <div className="relative group/carousel w-full bg-white dark:bg-instagram-darkBg border-b border-instagram-lightBorder dark:border-instagram-darkBorder select-none pt-3 pb-1 px-4 sm:py-3 sm:px-0 transition-colors duration-200">
+    <div className="neumorphic-stories-card relative group/carousel w-full select-none transition-all duration-200">
       {/* Scroll Left Button */}
       {canScrollLeft && (
         <button

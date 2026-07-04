@@ -379,8 +379,8 @@ const MessageBubbleContainer = React.memo(({
                     ? "bg-gradient-to-tr from-pink-500/95 to-purple-600/95 text-white"
                     : "bg-[#2a87d0] text-white"
                   : isStoryReply
-                  ? "bg-zinc-900/60 dark:bg-zinc-950/65 border border-zinc-800/50 text-white"
-                  : "bg-[#1c1c1e] border border-transparent text-zinc-100",
+                  ? "bg-zinc-200 dark:bg-zinc-950/65 border border-border/40 text-foreground dark:text-white"
+                  : "bg-zinc-200 dark:bg-zinc-800/95 border border-transparent text-zinc-800 dark:text-zinc-100",
                 message.id === highlightedMessageId ? "ring-2 ring-zinc-500/30" : "",
                 isSelected ? "ring-2 ring-zinc-500/20" : "",
                 getBubbleCorners(isOutgoing, position)
@@ -1931,7 +1931,7 @@ export default function ChatChannel() {
   const latestPinned = pinnedMessages[pinnedMessages.length - 1];
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#121212] select-none relative overflow-hidden">
+    <div className="flex h-full w-full flex-col bg-card select-none relative overflow-hidden text-foreground">
       {/* Header Panel */}
       {selectedMessage && isSelectionMode ? (
         <div className="flex min-h-[56px] h-auto pt-[env(safe-area-inset-top)] pb-2 items-center justify-between border-b bg-[#005c4b] text-white px-4 z-30 animate-fade-in shrink-0 shadow-md sticky top-0">
@@ -2115,7 +2115,7 @@ export default function ChatChannel() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-[#121212] border-b border-zinc-800/60 px-4 z-20 shrink-0 sticky top-0">
+        <div className="flex min-h-[64px] h-auto pt-[env(safe-area-inset-top)] pb-2.5 items-center justify-between bg-card border-b border-border/40 px-4 z-20 shrink-0 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -2153,7 +2153,7 @@ export default function ChatChannel() {
                 </div>
               </div>
               <div className="flex flex-col text-start leading-tight">
-                <span className="text-[16px] font-bold text-white flex items-center gap-1">
+                <span className="text-[16px] font-bold text-foreground flex items-center gap-1">
                   {displayName}
                   {!!(otherMember as any)?.verified && <VerifiedBadge size={14} className="text-[#0095f6] fill-[#0095f6]" />}
                 </span>
@@ -2180,14 +2180,14 @@ export default function ChatChannel() {
           {/* Header Action Icons */}
           <div className="flex items-center gap-1.5">
             <button
-              className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+              className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="Voice Call"
               type="button"
             >
               <Phone className="size-[20px]" />
             </button>
             <button
-              className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+              className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="Video Call"
               type="button"
             >
@@ -2201,7 +2201,7 @@ export default function ChatChannel() {
                   setProfileOverlayChannel(channel);
                 }
               }}
-              className="rounded-full p-2 text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+              className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="More Options"
               type="button"
             >
@@ -2243,15 +2243,9 @@ export default function ChatChannel() {
         </div>
       )}
 
-      {/* Scrollable Messages Panel with Outline Doodle Background */}
       <div
         ref={parentRef}
-        className="flex-1 overflow-y-auto px-4 py-4 relative overscroll-contain"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d='M20 35h8l3-4h12l3 4h8a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V39a4 4 0 0 1 4-4z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Ccircle cx='34' cy='47' r='5' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M95 25c-4-4-10-4-14 0l-2 2-2-2c-4-4-10-4-14 0-4 4-4 10 0 14l16 16 16-16c4-4 4-10 0-14z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M30 90l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3Cpath d='M85 85h15a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-8l-5 5v-5h-2a3 3 0 0 1-3-3V88a3 3 0 0 1 3-3z' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='0.8'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat',
-          backgroundColor: '#09090b',
-        }}
+        className="flex-1 overflow-y-auto px-4 py-4 relative overscroll-contain chat-scrollable-panel"
       >
         <div
           style={{
@@ -2427,7 +2421,7 @@ export default function ChatChannel() {
       )}
 
       {/* Input Message Composer Bar (Social Commerce Theme) */}
-      <div className={cn("flex flex-col bg-[#09090b] border-t border-zinc-800/60 relative z-25 shrink-0 sticky bottom-0", !showStickerPicker && "pb-[env(safe-area-inset-bottom)]")}>
+      <div className={cn("flex flex-col bg-card border-t border-border/40 relative z-25 shrink-0 sticky bottom-0", !showStickerPicker && "pb-[env(safe-area-inset-bottom)]")}>
         <div className="flex items-center gap-2.5 p-3 select-none max-w-full">
           {/* Circular plus button on the left */}
           <button
@@ -2435,14 +2429,14 @@ export default function ChatChannel() {
               setShowAttachmentPicker(true);
               setShowStickerPicker(false);
             }}
-            className="size-10 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 text-zinc-300 flex items-center justify-center transition-colors shrink-0 cursor-pointer shadow"
+            className="size-10 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 flex items-center justify-center transition-colors shrink-0 cursor-pointer shadow"
             type="button"
           >
             <Plus className="size-5" />
           </button>
 
-          {/* Pill-shaped dark input wrapper */}
-          <div className="flex-1 flex items-center bg-[#1c1c1e] border border-zinc-800/45 rounded-full px-3.5 py-1 min-w-0 transition-all">
+          {/* Pill-shaped input wrapper */}
+          <div className="flex-1 flex items-center bg-zinc-100 dark:bg-zinc-800 border border-border/45 rounded-full px-3.5 py-1 min-w-0 transition-all">
             <textarea
               ref={textareaRef}
               placeholder="Message..."
@@ -2453,7 +2447,7 @@ export default function ChatChannel() {
               }}
               rows={1}
               style={{ maxHeight: "120px" }}
-              className="flex-1 resize-none bg-transparent py-1.5 text-[15px] text-white placeholder:text-zinc-500 outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
+              className="flex-1 resize-none bg-transparent py-1.5 text-[15px] text-foreground placeholder:text-zinc-500 outline-none border-none focus:ring-0 h-9 min-h-[36px] scrollbar-none"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -2671,7 +2665,7 @@ export default function ChatChannel() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 350, damping: 35 }}
-              className="relative z-50 bg-[#121212] border-l border-zinc-800/60 h-full w-full max-w-md flex flex-col gap-4 pb-8 pt-6 px-6 select-none"
+              className="chat-area-overlay relative z-50 bg-[#121212] border-l border-zinc-800/60 h-full w-full max-w-md flex flex-col gap-4 pb-8 pt-6 px-6 select-none"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header Panel */}
@@ -2825,24 +2819,24 @@ export default function ChatChannel() {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 380, damping: 36 }}
-                className="chat-area-overlay fixed inset-0 z-50 flex flex-col bg-[#121212] text-white overflow-y-auto select-none"
+                className="chat-area-overlay absolute inset-0 z-50 flex h-full w-full flex-col bg-card text-foreground shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-border/40 md:rounded-r-[30px] overflow-y-auto select-none"
               >
                 {/* Header panel */}
                 <div className="flex h-12 items-center justify-between px-4 shrink-0 mt-2">
                   <button
                     onClick={() => setShowGroupProfile(false)}
-                    className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                    className="rounded-full p-2 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ArrowLeft className="size-6" />
                   </button>
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => setShowGroupEditPage(true)}
-                      className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
+                      className="rounded-full p-2 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <Edit2 className="size-[20px]" />
                     </button>
-                    <button className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
+                    <button className="rounded-full p-2 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                       <MoreVertical className="size-[20px]" />
                     </button>
                   </div>
@@ -2851,13 +2845,13 @@ export default function ChatChannel() {
                 {/* Group profile center details (Moved Up) */}
                 <div className="flex flex-col items-center pt-0 pb-3 px-6 text-center shrink-0">
                   {/* Large Avatar */}
-                  <div className="size-[100px] rounded-full flex items-center justify-center text-4xl font-bold text-white bg-[#48bb78] border border-zinc-800/60 shadow-lg select-none">
+                  <div className="size-[100px] rounded-full flex items-center justify-center text-4xl font-bold text-white bg-[#48bb78] border border-border/40 shadow-lg select-none">
                     {(displayName || "G").slice(0, 2).toUpperCase()}
                   </div>
                   {/* Display Name */}
-                  <h3 className="mt-3 text-xl font-bold tracking-tight text-white">{displayName}</h3>
+                  <h3 className="mt-3 text-xl font-bold tracking-tight text-foreground">{displayName}</h3>
                   {/* Member count */}
-                  <p className="text-sm text-zinc-400 mt-1">{members.length} members</p>
+                  <p className="text-sm text-muted-foreground mt-1">{members.length} members</p>
                 </div>
 
                 {/* Action button cards (Reduced gap / padding) */}
@@ -2866,24 +2860,24 @@ export default function ChatChannel() {
                     {/* Message */}
                     <button
                       onClick={() => setShowGroupProfile(false)}
-                      className="flex flex-col items-center justify-center bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                      className="flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800/90 hover:bg-zinc-200 dark:hover:bg-zinc-700/80 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
                     >
-                      <MessageSquare className="size-[20px] text-zinc-300" />
-                      <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Message</span>
+                      <MessageSquare className="size-[20px] text-muted-foreground" />
+                      <span className="text-[11px] font-semibold text-muted-foreground mt-1.5">Message</span>
                     </button>
 
                     {/* Mute */}
                     <div className="relative">
                       <button
                         onClick={() => setShowMuteDropdown(!showMuteDropdown)}
-                        className="flex flex-col items-center justify-center w-full bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                        className="flex flex-col items-center justify-center w-full bg-zinc-100 dark:bg-zinc-800/90 hover:bg-zinc-200 dark:hover:bg-zinc-700/80 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
                       >
                         {isSoundMuted ? (
-                          <BellOff className="size-[20px] text-zinc-300" />
+                          <BellOff className="size-[20px] text-muted-foreground" />
                         ) : (
-                          <Bell className="size-[20px] text-zinc-300" />
+                          <Bell className="size-[20px] text-muted-foreground" />
                         )}
-                        <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground mt-1.5">
                           {isSoundMuted ? "Unmute" : "Mute"}
                         </span>
                       </button>
@@ -2901,7 +2895,7 @@ export default function ChatChannel() {
                               initial={{ opacity: 0, scale: 0.95, y: 10 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                              className="absolute top-full mt-2 left-0 z-50 w-48 rounded-xl bg-[#1c222b] border border-[#262626] shadow-2xl p-1.5 flex flex-col gap-0.5"
+                              className="absolute top-full mt-2 left-0 z-50 w-48 rounded-xl bg-popover border border-border shadow-2xl p-1.5 flex flex-col gap-0.5"
                             >
                               <button
                                 onClick={() => {
@@ -2915,11 +2909,11 @@ export default function ChatChannel() {
                                   }
                                   setTimeout(() => setNotificationBanner(null), 3000);
                                 }}
-                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-accent text-start w-full text-sm text-muted-foreground hover:text-foreground"
                               >
                                 {isSoundMuted ? (
                                   <>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0 text-zinc-400">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0 text-muted-foreground">
                                       <path d="M9 18V5l12-2v13" />
                                       <circle cx="6" cy="18" r="3" />
                                       <circle cx="18" cy="16" r="3" />
@@ -2928,7 +2922,7 @@ export default function ChatChannel() {
                                   </>
                                 ) : (
                                   <>
-                                    <VolumeX className="size-4 shrink-0 text-zinc-400" />
+                                    <VolumeX className="size-4 shrink-0 text-muted-foreground" />
                                     <span>Disable sound</span>
                                   </>
                                 )}
@@ -2938,9 +2932,9 @@ export default function ChatChannel() {
                                   setShowMuteDropdown(false);
                                   setShowMuteForDrawer(true);
                                 }}
-                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-accent text-start w-full text-sm text-muted-foreground hover:text-foreground"
                               >
-                                <BellOff className="size-4 shrink-0 text-zinc-400" />
+                                <BellOff className="size-4 shrink-0 text-muted-foreground" />
                                 <span>Mute for...</span>
                               </button>
                               <button
@@ -2948,9 +2942,9 @@ export default function ChatChannel() {
                                   setShowMuteDropdown(false);
                                   setShowCustomNotificationsPage(true);
                                 }}
-                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-zinc-300 hover:text-white"
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-accent text-start w-full text-sm text-muted-foreground hover:text-foreground"
                               >
-                                <svg className="size-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
+                                <svg className="size-4 shrink-0 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
                                 <span>Customize</span>
                               </button>
                               <button
@@ -2960,7 +2954,7 @@ export default function ChatChannel() {
                                   setNotificationBanner({ text: "Notifications muted.", icon: "muted" });
                                   setTimeout(() => setNotificationBanner(null), 3000);
                                 }}
-                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-zinc-800/60 text-start w-full text-sm text-red-500 font-medium"
+                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-accent text-start w-full text-sm text-red-500 font-medium"
                               >
                                 <VolumeX className="size-4 shrink-0 text-red-500" />
                                 <span className="text-red-500">Mute Forever</span>
@@ -2974,37 +2968,37 @@ export default function ChatChannel() {
                     {/* Video Chat */}
                     <button
                       onClick={() => setShowVideoChatDrawer(true)}
-                      className="flex flex-col items-center justify-center bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                      className="flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800/90 hover:bg-zinc-200 dark:hover:bg-zinc-700/80 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
                     >
-                      <svg className="size-[20px] text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="size-[20px] text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 5v14M18 9v6M6 9v6" />
                       </svg>
-                      <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Video Chat</span>
+                      <span className="text-[11px] font-semibold text-muted-foreground mt-1.5">Video Chat</span>
                     </button>
 
                     {/* Leave */}
                     <button
                       onClick={() => setShowLeaveGroupDialog(true)}
-                      className="flex flex-col items-center justify-center bg-[#1c1c1e] hover:bg-zinc-850 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
+                      className="flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800/90 hover:bg-zinc-200 dark:hover:bg-zinc-700/80 rounded-[16px] py-3.5 transition-colors shadow-sm cursor-pointer"
                     >
-                      <LogOut className="size-[20px] text-zinc-300" />
-                      <span className="text-[11px] font-semibold text-zinc-400 mt-1.5">Leave</span>
+                      <LogOut className="size-[20px] text-muted-foreground" />
+                      <span className="text-[11px] font-semibold text-muted-foreground mt-1.5">Leave</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Main Body Section (Reduced Gap / Tighter Padding) */}
                 <div className="px-3 pb-6 shrink-0">
-                  <div className="bg-[#1c1c1e] rounded-[20px] overflow-hidden border border-zinc-800/30">
+                  <div className="bg-zinc-50 dark:bg-zinc-800/40 rounded-[20px] overflow-hidden border border-border/40">
                     {/* Add Members Row */}
                     <button
                       onClick={() => {
                         toast({ description: "Add Members clicked" });
                       }}
-                      className="flex items-center gap-3 px-3.5 py-3 w-full hover:bg-zinc-800/40 text-start transition-colors border-b border-zinc-800/40"
+                      className="flex items-center gap-3 px-3.5 py-3 w-full hover:bg-accent text-start transition-colors border-b border-border/40"
                     >
-                      <UserPlus className="size-6 text-zinc-400 shrink-0" />
-                      <span className="text-[15px] font-semibold text-white">Add Members</span>
+                      <UserPlus className="size-6 text-muted-foreground shrink-0" />
+                      <span className="text-[15px] font-semibold text-foreground">Add Members</span>
                     </button>
 
                     {/* Members List (Avatars size increased to 48px) */}
@@ -3021,12 +3015,12 @@ export default function ChatChannel() {
                         return (
                           <div
                             key={user.id}
-                            className="flex items-center justify-between px-3.5 py-3 hover:bg-zinc-800/20 transition-colors border-b border-zinc-800/20 last:border-b-0"
+                            className="flex items-center justify-between px-3.5 py-3 hover:bg-accent transition-colors border-b border-border/40 last:border-b-0"
                           >
                             <div className="flex items-center gap-3">
-                              <UserAvatar avatarUrl={user.image} size={48} className="size-[48px] border-none rounded-full bg-zinc-700 shrink-0" />
+                              <UserAvatar avatarUrl={user.image} size={48} className="size-[48px] border-none rounded-full bg-muted shrink-0" />
                               <div className="flex flex-col text-start">
-                                <span className="text-[15px] font-semibold text-white">{user.name || user.username}</span>
+                                <span className="text-[15px] font-semibold text-foreground">{user.name || user.username}</span>
                                 {isOnline ? (
                                   <span className="text-xs text-[#0095f6] font-semibold mt-0.5">online</span>
                                 ) : (
@@ -3069,11 +3063,11 @@ export default function ChatChannel() {
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 26, stiffness: 220 }}
-                        className="relative z-50 bg-[#1c222b] border-t border-[#262626] rounded-t-3xl pb-8 pt-4 px-6 flex flex-col items-center max-w-md mx-auto w-full"
+                        className="relative z-50 bg-card border-t border-border/40 rounded-t-3xl pb-8 pt-4 px-6 flex flex-col items-center max-w-md mx-auto w-full text-foreground"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {/* Drag Handle */}
-                        <div className="w-12 h-1 bg-zinc-700 rounded-full mb-4 shrink-0" />
+                        <div className="w-12 h-1 bg-muted rounded-full mb-4 shrink-0" />
 
                         {/* Animated Lottie Emoji / Sound Wave */}
                         <div className="relative flex flex-col items-center justify-center w-full py-2 bg-transparent min-h-[120px]">
@@ -3097,13 +3091,13 @@ export default function ChatChannel() {
                         </div>
 
                         {/* Text description */}
-                        <h4 className="text-xl font-bold text-white mt-2">Video Chat</h4>
+                        <h4 className="text-xl font-bold text-foreground mt-2">Video Chat</h4>
                         
                         <div className="text-start mt-2 px-2 max-h-[160px] overflow-y-auto scrollbar-none">
-                          <p className="text-[13px] text-zinc-300 leading-relaxed font-normal">
+                          <p className="text-[13px] text-muted-foreground leading-relaxed font-normal">
                             Video chats on the platform refer to both 1-on-1 video calls and large-scale, interactive broadcasts hosted within channels and groups. The feature is highly interactive, secure, and packed with multitasking capabilities.
                           </p>
-                          <h5 className="text-[13px] font-bold text-white mt-2.5">Key features include:</h5>
+                          <h5 className="text-[13px] font-bold text-foreground mt-2.5">Key features include:</h5>
                           <ul className="text-[12px] text-zinc-400 space-y-1 mt-1 leading-normal list-disc pl-4">
                             <li><strong className="text-zinc-350">1-on-1 Video Calls:</strong> Direct, end-to-end encrypted conversations that allow you to toggle the camera on or off at any time.</li>
                             <li><strong className="text-zinc-350">Group Video Chats:</strong> Any group voice chat can seamlessly transform into a video call, accommodating up to 30 simultaneous video participants and up to 1,000 viewers in listen-and-watch mode.</li>
@@ -3313,7 +3307,7 @@ export default function ChatChannel() {
                       animate={{ x: 0 }}
                       exit={{ x: "100%" }}
                       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-                      className="fixed inset-0 z-[70] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                      className="chat-area-overlay absolute inset-0 z-[70] flex h-full w-full flex-col bg-[#121212] text-white shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-zinc-800/60 md:rounded-r-[30px] overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
                     >
                       {/* Header panel */}
                       <div className="flex h-14 items-center gap-3 px-4 shrink-0 border-b border-zinc-800/40">
@@ -3501,7 +3495,7 @@ export default function ChatChannel() {
                       animate={{ x: 0 }}
                       exit={{ x: "100%" }}
                       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-                      className="fixed inset-0 z-[80] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                      className="chat-area-overlay absolute inset-0 z-[80] flex h-full w-full flex-col bg-[#121212] text-white shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-zinc-800/60 md:rounded-r-[30px] overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
                     >
                       {/* Header panel */}
                       <div className="flex h-14 items-center gap-3 px-4 shrink-0 border-b border-zinc-800/40">
@@ -4426,7 +4420,7 @@ export default function ChatChannel() {
                   animate={{ x: 0 }}
                   exit={{ x: "-100%" }}
                   transition={{ type: "spring", stiffness: 380, damping: 36 }}
-                  className="fixed inset-0 z-[75] flex flex-col bg-[#121212] text-white w-full h-full overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
+                  className="chat-area-overlay absolute inset-0 z-[75] flex h-full w-full flex-col bg-[#121212] text-white shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-zinc-800/60 md:rounded-r-[30px] overflow-y-auto select-none pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]"
                 >
                   {/* Header panel */}
                   <div className="flex h-14 items-center justify-between px-4 shrink-0 border-b border-zinc-800/40">

@@ -70,7 +70,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
       try {
         const response = await chatClient.queryChannels({
           type: "messaging",
-          members: { $in: [chatClient.userID!, otherMember.id] },
+          members: { $in: [chatClient.userID!] },
         });
         const groups = response.filter((c) => {
           const memberIds = Object.keys(c.state.members || {});
@@ -169,12 +169,12 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="absolute inset-0 z-50 flex h-full w-full flex-col bg-[#121212] text-white shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-zinc-800/60"
+      className="absolute inset-0 z-50 flex h-full w-full flex-col bg-card text-foreground shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-border/40 md:rounded-r-[30px]"
     >
       {/* Header Panel */}
-      <div className="flex h-14 items-center justify-between border-b border-zinc-800/80 px-4 shrink-0">
-        <h2 className="text-lg font-bold text-white">Profile</h2>
-        <button onClick={onClose} className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
+      <div className="flex h-14 items-center justify-between border-b border-border/40 px-4 shrink-0">
+        <h2 className="text-lg font-bold text-foreground">Profile</h2>
+        <button onClick={onClose} className="rounded-full p-2 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
           <X className="size-5" />
         </button>
       </div>
@@ -382,7 +382,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
         <div className="border-t p-4 flex flex-col gap-2 bg-muted/10 shrink-0">
           <button
             onClick={handleClearHistory}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 py-2 text-sm font-semibold text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/40 py-2 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
           >
             Clear History
           </button>
@@ -395,7 +395,7 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
           </button>
           <button
             onClick={handleReportUser}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 py-2 text-sm font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/40 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
             <ShieldAlert className="size-4" />
             Report User
