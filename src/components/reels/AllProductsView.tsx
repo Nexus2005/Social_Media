@@ -35,6 +35,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/app/(main)/SessionProvider";
 import UserAvatar from "@/components/UserAvatar";
 import FullScreenProductDetail from "@/components/reels/FullScreenProductDetail";
+import { createPortal } from "react-dom";
 
 import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@prisma/client";
 
@@ -197,6 +198,11 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === "light";
   const { user } = useSession();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Local Cart State with LocalStorage sync
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -431,8 +437,10 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
     setCurrentPage(1);
   };
 
-  return (
-    <div className="absolute inset-0 bg-[#07080d] z-30 flex flex-col overflow-hidden text-white animate-in slide-in-from-right duration-300">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-[#07080d] z-[999] flex flex-col overflow-hidden text-white animate-in slide-in-from-right duration-300">
 
       {/* Back Button, Double Slider, and Checkbox Styling */}
       <style dangerouslySetInnerHTML={{
@@ -2244,6 +2252,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
         )}
       </AnimatePresence>
 
-    </div>
+    </div>,
+    document.body
   );
 }
