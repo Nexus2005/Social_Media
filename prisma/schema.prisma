@@ -140,6 +140,7 @@ model Post {
   collectionItems     SavedCollectionItem[]
   videoJob            VideoProcessingJob?
   reports             CommentReport[]
+  detectionSessions   DetectionSession[]
 
   // Spots V3 Creator Commerce System
   assignments         ProductAssignment[]
@@ -284,6 +285,24 @@ model DetectedProduct {
   post                    Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
   collectionItems         ProductCollectionItem[]
   matches                 ShoppingMatch[]
+  timeline                ProductTimeline[]
+
+  // Cartly v3 Detection Layer (permanent identity)
+  detectionSessionId      String?                 @map("detection_session_id")
+  cropImageUrl            String?                 @map("crop_image_url")
+  cropQualityScore        Float?                  @map("crop_quality_score")
+  ocrText                 String?                 @map("ocr_text")
+  detectedLogo            String?                 @map("detected_logo")
+  detectedBarcode         String?                 @map("detected_barcode")
+  confidenceBreakdown     Json?                   @map("confidence_breakdown")
+  resolvedQueries         String[]                @default([]) @map("resolved_queries")
+  boundingBox             Json?                   @map("bounding_box")
+  trackingId              String?                 @map("tracking_id")
+  frameAppearances        Int                     @default(1) @map("frame_appearances")
+  detectionConfidence     Float?                  @map("detection_confidence")
+  marketplaceConfidence   Float?                  @map("marketplace_confidence")
+  verificationScore       Float?                  @map("verification_score")
+  visualEmbedding         Json?                   @map("visual_embedding")
 
   // Spots V3 Creator Commerce System
   creatorId               String?                 @map("creator_id")
@@ -319,6 +338,40 @@ model ShoppingMatch {
   clickCount        Int             @default(0) @map("click_count")
   priceHistories    PriceHistory[]
   detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
+
+  // Cartly v3 — Permanent product identity fields
+  galleryImageUrls  String[]            @default([]) @map("gallery_image_urls")
+  matchBrand        String?             @map("match_brand")
+  manufacturer      String?
+  modelNumber       String?             @map("model_number")
+  sku               String?
+  upc               String?
+  matchDescription  String?             @map("match_description")
+  features          String[]            @default([])
+  specifications    Json?               @map("specifications")
+  highlights        String[]            @default([])
+  categoryPath      String?             @map("category_path")
+  condition         String?             @default("New")
+  returnPolicy      String?             @map("return_policy")
+  warranty          String?
+  verificationScore Float?              @map("verification_score")
+  cleanedTitle      String?             @map("cleaned_title")
+
+  // Cartly v3 — Cached volatile fields (refresh every 6h)
+  rating            Float?
+  reviewCount       Int?                @map("review_count")
+  sellerName        String?             @map("seller_name")
+  sellerRating      Float?              @map("seller_rating")
+  sellerReviews     Int?                @map("seller_reviews")
+  shippingCost      String?             @map("shipping_cost")
+  estimatedDelivery String?             @map("estimated_delivery")
+  stockAvailability String?             @map("stock_availability")
+  originalPrice     String?             @map("original_price")
+  discountPercent   Float?              @map("discount_percent")
+  cachedAt          DateTime?           @map("cached_at")
+
+  // Cartly v3 — Variant support
+  variants          ProductVariant[]
 
   // Spots V3 Creator Commerce System
   merchantId        String?             @map("merchant_id")
@@ -983,4 +1036,55 @@ model StoryLike {
   @@map("story_likes")
 }
 
+// Cartly v3 — Detection Session (per-reel isolation)
+model DetectionSession {
+  id                 String    @id @default(cuid())
+  postId             String    @map("post_id")
+  sessionHash        String    @unique @map("session_hash")
+  frameCount         Int       @default(0) @map("frame_count")
+  sceneChangeCount   Int       @default(0) @map("scene_change_count")
+  rawObjectCount     Int       @default(0) @map("raw_object_count")
+  cropsPassedQuality Int       @default(0) @map("crops_passed_quality")
+  cropsFailedQuality Int       @default(0) @map("crops_failed_quality")
+  trackedObjectCount Int       @default(0) @map("tracked_object_count")
+  mergedProductCount Int       @default(0) @map("merged_product_count")
+  geminiCallCount    Int       @default(0) @map("gemini_call_count")
+  cacheHitCount      Int       @default(0) @map("cache_hit_count")
+  processingTimeMs   Int?      @map("processing_time_ms")
+  status             String    @default("processing")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  completedAt        DateTime? @map("completed_at")
+  post               Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
 
+  @@index([postId])
+  @@map("detection_sessions")
+}
+
+// Cartly v3 — Product Timeline (when each product appears in video)
+model ProductTimeline {
+  id                String          @id @default(cuid())
+  detectedProductId String          @map("detected_product_id")
+  timestamp         Float           @map("timestamp")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  detectedProduct   DetectedProduct @relation(fields: [detectedProductId], references: [id], onDelete: Cascade)
+
+  @@index([detectedProductId])
+  @@map("product_timelines")
+}
+
+// Cartly v3 — Product Variants (color, size, storage options)
+model ProductVariant {
+  id              String        @id @default(cuid())
+  shoppingMatchId String        @map("shopping_match_id")
+  variantType     String        @map("variant_type")
+  variantValue    String        @map("variant_value")
+  price           String?
+  sku             String?
+  imageUrl        String?       @map("image_url")
+  availability    String?       @default("in_stock")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  shoppingMatch   ShoppingMatch @relation(fields: [shoppingMatchId], references: [id], onDelete: Cascade)
+
+  @@index([shoppingMatchId])
+  @@map("product_variants")
+}

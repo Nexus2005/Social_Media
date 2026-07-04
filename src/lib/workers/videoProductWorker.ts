@@ -1,6 +1,33 @@
+/**
+ * Cartly v3 — Video Product Worker
+ *
+ * Complete 20-stage pipeline orchestrator.
+ *
+ * Pipeline:
+ *  1.  DetectionSession creation (per-reel isolation)
+ *  2.  Download video
+ *  3.  Intelligent frame extraction
+ *  4.  Per-frame YOLO detection (shoppable classes only)
+ *  5.  Frame Fusion — track objects across frames
+ *  6.  Crop Quality Filter — skip bad crops
+ *  7.  Brand/Logo Detection (BEFORE OCR)
+ *  8.  OCR (informed by brand)
+ *  9.  Barcode (bonus only)
+ * 10.  Visual Attributes
+ * 11.  Confidence Scoring (detection + marketplace separate)
+ * 12.  Multi-Query Product Resolver (4 variants per product)
+ * 13.  Query Cache check
+ * 14.  Parallel Marketplace Search (Promise.all across queries × providers)
+ * 15.  Title Cleaner (remove spam)
+ * 16.  Marketplace Verification Engine (score each result)
+ * 17.  Product Knowledge Graph (rank within families)
+ * 18.  Decision: verification ≥ 0.75? Accept. Otherwise → Gemini → re-search → re-verify
+ * 19.  Duplicate Product Merger (1 product, N sellers)
+ * 20.  Persist to DB (detection layer + marketplace layer + timeline)
+ */
+
 import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
-import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
@@ -9,17 +36,35 @@ import { spawn } from "child_process";
 import { extractFramesFromVideo } from "../videoProcessor";
 import { SearchManager } from "../marketplace/searchManager";
 import { VisionProviderManager } from "../ai/visionProviderManager";
-import { DetectionPipeline, BARCODE_REGISTRY } from "../detection/detectionPipeline";
-import { ProductResolver } from "../detection/productResolver";
+import {
+  detectObjectsInFrame,
+  cropObjectFromFrame,
+  collectCropEvidence,
+  CropEvidence,
+} from "../detection/detectionPipeline";
+import { resolveQueries, ResolverResult } from "../detection/productResolver";
+import {
+  fuseFrameDetections,
+  filterTrackedObjects,
+  FrameDetection,
+  TrackedObject,
+} from "../detection/frameFusion";
+import { assessCropQuality } from "../detection/cropQualityFilter";
+import { mergeProducts, MergedProduct } from "../detection/duplicateMerger";
+import { selectBestMatch } from "../detection/productKnowledgeGraph";
+import { verifyMarketplaceResults, isVerificationSufficient } from "../marketplace/verificationEngine";
+import { cleanMarketplaceTitle } from "../marketplace/titleCleaner";
+import { VerifiedMatch, MarketplaceProduct } from "../marketplace/types";
 
-// Load environment variables manually to support independent execution
+// ─── Environment Loading ──────────────────────────────────────────────────────
+
 function loadEnv() {
   try {
     const envPath = path.join(process.cwd(), ".env");
     if (fs.existsSync(envPath)) {
       const lines = fs.readFileSync(envPath, "utf-8").split("\n");
       for (const line of lines) {
-        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?$/);
         if (match) {
           const key = match[1];
           let value = match[2] || "";
@@ -31,7 +76,7 @@ function loadEnv() {
       }
     }
   } catch (e) {
-    console.error("Failed to load .env manually:", e);
+    console.error("Failed to load .env:", e);
   }
 }
 loadEnv();
@@ -46,132 +91,58 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 }
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
+  auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// Category mapping helper
+// ─── Category Mapping ─────────────────────────────────────────────────────────
+
 const CATEGORY_MAP: Record<string, string[]> = {
   "👕 Clothing & Apparel": [
-    "clothing", "apparel", "activewear", "outerwear", "jersey", "sports jersey",
-    "shirt", "t-shirt", "top", "dress", "pants", "shorts", "skirt", "jacket", "coat", "suit", "wear", "jeans", "trouser", "hoodie", "sweatshirt", "sweater"
+    "clothing", "shirt", "t-shirt", "top", "dress", "pants", "shorts", "skirt",
+    "jacket", "coat", "suit", "jeans", "hoodie", "sweater", "blouse",
   ],
   "👟 Footwear": [
-    "shoe", "shoes", "footwear", "sneaker", "sneakers", "boot", "boots", "sandal", "sandals", "slipper", "slippers", "heels", "heel"
+    "shoe", "shoes", "sneaker", "sneakers", "boot", "boots", "sandal", "sandals",
+    "heels", "slipper", "slippers",
   ],
-  "⌚ Electronics & Accessories": [
-    "watch", "smartwatch", "clock", "eyewear", "sunglasses", "glasses", "phone", "mobile", "mobile phone", "laptop", "tablet", "headphone", "headphones", "earphone", "earphones", "electronic", "camera", "accessory", "accessories", "bag", "handbag", "backpack", "purse", "belt", "wallet", "jewelry", "ring", "necklace"
-  ]
+  "👜 Bags & Luggage": [
+    "bag", "handbag", "backpack", "suitcase", "purse", "tote", "clutch", "wallet",
+  ],
+  "⌚ Watches & Jewelry": [
+    "watch", "smartwatch", "ring", "necklace", "bracelet", "earring", "jewelry", "jewellery",
+  ],
+  "🕶️ Eyewear & Accessories": [
+    "sunglasses", "glasses", "tie", "belt", "hat", "cap", "umbrella",
+  ],
+  "📱 Electronics": [
+    "phone", "cell phone", "laptop", "tablet", "keyboard", "mouse", "monitor", "tv",
+    "headphones", "earphones", "speaker", "camera", "remote",
+  ],
+  "🪑 Furniture & Home": [
+    "chair", "couch", "sofa", "bed", "table", "dining table", "vase", "clock",
+  ],
+  "🍶 Kitchen & Drinkware": [
+    "bottle", "cup", "mug", "wine glass", "bowl",
+  ],
+  "💄 Beauty & Cosmetics": [
+    "perfume", "lipstick", "foundation", "cosmetics",
+  ],
+  "📚 Books & Stationery": ["book", "scissors"],
+  "🎿 Sports & Outdoors": [
+    "sports ball", "tennis racket", "skateboard", "surfboard",
+    "snowboard", "skis", "bicycle", "motorcycle",
+  ],
 };
 
-function getCategoryForObject(name: string): string {
-  const lowercase = name.toLowerCase();
+function getCategoryForLabel(label: string): string {
+  const lowercase = label.toLowerCase();
   for (const [category, keywords] of Object.entries(CATEGORY_MAP)) {
-    if (keywords.some(keyword => lowercase.includes(keyword))) {
-      return category;
-    }
+    if (keywords.some((kw) => lowercase.includes(kw))) return category;
   }
   return "👕 Clothing & Apparel";
 }
 
-const RELEVANT_VISION_CATEGORIES = [
-  "clothing", "apparel", "activewear", "outerwear", "jersey", "sports jersey",
-  "shirt", "t-shirt", "top", "dress", "pants", "shorts", "skirt", "jacket", "coat", "suit", "wear", "jeans", "trouser", "hoodie", "sweatshirt", "sweater",
-  "shoe", "shoes", "footwear", "sneaker", "sneakers", "boot", "boots", "sandal", "sandals", "slipper", "slippers", "heels", "heel",
-  "watch", "smartwatch", "clock", "eyewear", "sunglasses", "glasses", "phone", "mobile", "mobile phone", "laptop", "tablet", "headphone", "headphones", "earphone", "earphones", "electronic", "camera", "accessory", "accessories", "bag", "handbag", "backpack", "purse", "belt", "wallet", "jewelry", "ring", "necklace"
-];
-
-function isRelevantCategory(categoryName: string): boolean {
-  const nameLower = categoryName.toLowerCase();
-  return RELEVANT_VISION_CATEGORIES.some(cat => nameLower.includes(cat));
-}
-
-// Bounding box cropping helper using sharp
-interface NormalizedVertex {
-  x?: number;
-  y?: number;
-}
-
-async function cropObjectFromFrame(
-  framePath: string,
-  vertices: NormalizedVertex[]
-): Promise<Buffer | null> {
-  try {
-    const xs = vertices.map((v) => v.x ?? 0);
-    const ys = vertices.map((v) => v.y ?? 0);
-    
-    const xMin = Math.max(0, Math.min(...xs));
-    const yMin = Math.max(0, Math.min(...ys));
-    const xMax = Math.min(1, Math.max(...xs));
-    const yMax = Math.min(1, Math.max(...ys));
-
-    const image = sharp(framePath);
-    const metadata = await image.metadata();
-    const width = metadata.width || 0;
-    const height = metadata.height || 0;
-
-    const left = Math.round(xMin * width);
-    const top = Math.round(yMin * height);
-    const cropWidth = Math.round((xMax - xMin) * width);
-    const cropHeight = Math.round((yMax - yMin) * height);
-
-    const extractLeft = Math.max(0, Math.min(left, width - 1));
-    const extractTop = Math.max(0, Math.min(top, height - 1));
-    const extractWidth = Math.max(1, Math.min(cropWidth, width - extractLeft));
-    const extractHeight = Math.max(1, Math.min(cropHeight, height - extractTop));
-
-    return await image
-      .extract({
-        left: extractLeft,
-        top: extractTop,
-        width: extractWidth,
-        height: extractHeight,
-      })
-      .toBuffer();
-  } catch (err) {
-    console.error("Failed to crop object from frame:", err);
-    return null;
-  }
-}
-
-// Token intersection similarity logic for deduplication
-function getStringSimilarity(str1: string, str2: string): number {
-  const s1 = str1.toLowerCase().trim();
-  const s2 = str2.toLowerCase().trim();
-  if (s1 === s2) return 1.0;
-  
-  const words1 = s1.split(/\s+/);
-  const words2 = s2.split(/\s+/);
-  const set1 = new Set(words1);
-  const set2 = new Set(words2);
-  
-  let intersectionCount = 0;
-  set1.forEach(word => {
-    if (set2.has(word)) {
-      intersectionCount++;
-    }
-  });
-  
-  const unionSize = new Set([...words1, ...words2]).size;
-  return unionSize > 0 ? intersectionCount / unionSize : 0;
-}
-
-// Amazon Affiliate URL parser/creator
-function generateAffiliateUrl(urlStr: string): string | null {
-  if (!urlStr) return null;
-  try {
-    const url = new URL(urlStr);
-    if (url.hostname.includes("amazon.")) {
-      url.searchParams.set("tag", "omkarstore086-21");
-      return url.toString();
-    }
-  } catch (e) {
-    console.error("Failed to parse affiliate URL:", e);
-  }
-  return urlStr;
-}
+// ─── Utility Helpers ──────────────────────────────────────────────────────────
 
 function parsePriceToFloat(priceStr: string): number | null {
   if (!priceStr) return null;
@@ -180,72 +151,152 @@ function parsePriceToFloat(priceStr: string): number | null {
   return isNaN(val) ? null : val;
 }
 
-async function fetchShoppingMatches(query: string): Promise<any[]> {
+function generateAffiliateUrl(urlStr: string): string | null {
+  if (!urlStr) return null;
   try {
-    console.log(`[SearchManager] Fetching marketplace matches (eBay/AliExpress) for: "${query}"`);
-    const results = await SearchManager.search(query, 5);
-    return results.map((item) => ({
-      title: item.title,
-      price: item.price || "Contact Store",
-      merchant: item.merchant,
-      thumbnail: item.thumbnail || null,
-      link: item.link,
-    }));
-  } catch (err) {
-    console.error(`[SearchManager] Failed to fetch matches for "${query}":`, err);
-    return [];
-  }
-}
-
-
-// Vision VLM call helper for full-frame analysis
-async function queryVisionLLM(
-  base64Image: string,
-  onCallIncrement: (calls: { openrouter: number; nvidia: number }) => void,
-  localScansHint?: string
-): Promise<any> {
-  let promptText = `Analyze this image and identify all visible, purchaseable fashion products. Return ONLY a JSON object matching this structure:
-{
-  "products": [
-    {
-      "category": "Clothing | Shoes | Bags | Watches | Jewelry | Sunglasses",
-      "description": "Short specific shopping description of the product (e.g. 'white nike-style running sneakers')",
-      "color": "dominant color name",
-      "material": "material name (e.g. 'mesh', 'leather', 'cotton')",
-      "confidence": 0.91,
-      "gender": "Men | Women | Unisex",
-      "style": "Casual | Streetwear | Travel | Formal | Sporty | Biker | Minimalist",
-      "season": "Summer | Winter | Spring | Autumn | All-Season",
-      "keywords": ["tag1", "tag2"]
+    const url = new URL(urlStr);
+    if (url.hostname.includes("amazon.")) {
+      url.searchParams.set("tag", "omkarstore086-21");
+      return url.toString();
     }
-  ]
+  } catch { /* not a valid URL */ }
+  return urlStr;
 }
 
-Only return products a user could realistically purchase online.
-Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.`;
+// ─── Gemini Vision (Last Resort) ──────────────────────────────────────────────
 
-  if (localScansHint) {
-    promptText += `\n\nAdditionally, the local scanners detected the following metadata in crops of this frame: ${localScansHint}. Use this scanned metadata (like logo brands, detected barcodes, and OCR model codes) to construct the exact specific descriptions (e.g., matching the exact brand or style) for the detected products!`;
+interface GeminiCropStructuredResult {
+  category: string;
+  subcategory: string;
+  gender: string;
+  color: string;
+  neckline: string;
+  sleeve: string;
+  fit: string;
+  pattern: string;
+  material: string;
+  brand: string;
+  confidence: number;
+}
+
+async function downloadProductImage(url: string, destPath: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const dir = path.dirname(destPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    await fs.promises.writeFile(destPath, buffer);
+    return true;
+  } catch (err) {
+    console.error(`[ImageDownloader] Failed downloading ${url}:`, err);
+    return false;
+  }
+}
+
+async function limitConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let index = 0;
+
+  async function worker(): Promise<void> {
+    while (index < items.length) {
+      const currentIndex = index++;
+      results[currentIndex] = await fn(items[currentIndex], currentIndex);
+    }
   }
 
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+async function downloadAndCacheGallery(
+  matchId: string,
+  urls: string[]
+): Promise<{ imageUrl: string | null; galleryImageUrls: string[] }> {
+  const targetUrls = urls.slice(0, 5);
+  if (targetUrls.length === 0) {
+    return { imageUrl: null, galleryImageUrls: [] };
+  }
+  const downloadedPaths = await limitConcurrency(targetUrls, 3, async (url, i) => {
+    const destFileName = `${matchId}_gallery_${i}.jpg`;
+    const destPath = path.join(process.cwd(), "public", "uploads", "products", destFileName);
+    const success = await downloadProductImage(url, destPath);
+    return success ? `/uploads/products/${destFileName}` : url;
+  });
+  return {
+    imageUrl: downloadedPaths[0] || null,
+    galleryImageUrls: downloadedPaths,
+  };
+}
+
+async function queryGeminiForCrop(
+  cropBase64: string,
+  evidence: CropEvidence,
+): Promise<GeminiCropStructuredResult | null> {
+  const promptText = `Analyze this product image and identify exactly what this product is.
+You MUST return a JSON object matching this schema:
+{
+  "category": "Clothing | Shoes | Bags | Watches | Jewelry | Accessories | Electronics | Furniture | Home | Kitchen | Beauty | Sports",
+  "subcategory": "specific category (e.g., 'Sneakers', 'T-Shirt', 'Halter Top', 'Hoodie', 'Handbag')",
+  "gender": "Men | Women | Unisex | Kids",
+  "color": "primary color name",
+  "neckline": "e.g., 'Halter Neck', 'V-Neck', 'Crew Neck', 'Asymmetrical', 'none'",
+  "sleeve": "e.g., 'Sleeveless', 'Short Sleeve', 'Long Sleeve', 'none'",
+  "fit": "e.g., 'Slim Fit', 'Loose', 'Oversized', 'Regular', 'none'",
+  "pattern": "e.g., 'Solid', 'Striped', 'Floral', 'Knit', 'none'",
+  "material": "e.g., 'Knit', 'Leather', 'Cotton', 'Mesh', 'Denim', 'none'",
+  "brand": "e.g., 'Nike', 'Adidas', 'Zara', 'none'",
+  "confidence": 0.0 to 1.0 (float)
+}
+
+Do NOT include markdown formatting or backticks around the JSON. Return only the JSON object.
+Known evidence so far:
+- YOLO detected: "${evidence.yoloLabel}"
+- Brand/Logo: "${evidence.logo || "unknown"}"
+- OCR text: "${evidence.ocrText || "none"}"
+- Color: "${evidence.colorDetected || "unknown"}"`;
+
   try {
-    const results = await VisionProviderManager.analyzeImage(base64Image, promptText);
-    return results;
+    const result = await VisionProviderManager.analyzeImage(cropBase64, promptText);
+    if (!result) return null;
+    let text = typeof result === "string" ? result : JSON.stringify(result);
+    text = text.replace(/```json/i, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(text);
+    return {
+      category: parsed.category || "Clothing",
+      subcategory: parsed.subcategory || "none",
+      gender: parsed.gender || "Unisex",
+      color: parsed.color || "unknown",
+      neckline: parsed.neckline || "none",
+      sleeve: parsed.sleeve || "none",
+      fit: parsed.fit || "none",
+      pattern: parsed.pattern || "none",
+      material: parsed.material || "none",
+      brand: parsed.brand || "none",
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.85,
+    };
   } catch (err) {
-    console.error("VLM query using VisionProviderManager failed:", err);
+    console.error("[Gemini] VLM query failed:", err);
     return null;
   }
 }
 
-// Upstash Redis client REST calls
+// ─── Redis Queue ──────────────────────────────────────────────────────────────
+
 async function runRedisCommand(command: string[]): Promise<any> {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
-    return null;
-  }
+  if (!url || !token) return null;
   try {
-    const res = await fetch(`${url}`, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -253,9 +304,7 @@ async function runRedisCommand(command: string[]): Promise<any> {
       },
       body: JSON.stringify(command),
     });
-    if (!res.ok) {
-      throw new Error(`Upstash Redis REST error ${res.status}: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`Redis error ${res.status}`);
     const data = await res.json();
     return data.result;
   } catch (err) {
@@ -264,348 +313,594 @@ async function runRedisCommand(command: string[]): Promise<any> {
   }
 }
 
-// Processing Core Logic (Google Vision-Free Direct VLM Pipeline)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  CORE PIPELINE — 20-Stage Video Processor
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 async function runVideoProcessor(videoId: string, jobId: string) {
   const startTime = Date.now();
-  console.log(`\n======================================================`);
-  console.log(`Processing Video/Reel ID: ${videoId}`);
-  console.log(`======================================================`);
+  console.log(`\n${"═".repeat(60)}`);
+  console.log(`  Cartly v3 — Processing Reel: ${videoId}`);
+  console.log(`${"═".repeat(60)}`);
 
-  let openrouterCalls = 0;
-  let nvidiaCalls = 0;
-  let openrouterResults: any[] = [];
+  // ── Stage 1: Create Detection Session ─────────────────────────────
+  const sessionHash = crypto.createHash("sha256")
+    .update(`${videoId}:${Date.now()}`)
+    .digest("hex")
+    .slice(0, 32);
 
-  // Strict Fashion Category Whitelist for Phase 1
-  const ALLOWED_CATEGORIES = new Set([
-    "Clothing",
-    "Shoes",
-    "Bags",
-    "Watches",
-    "Jewelry",
-    "Sunglasses"
-  ]);
-
-  // Idempotency/Cache Check
-  const currentJob = await prisma.videoProcessingJob.findUnique({
-    where: { postId: videoId },
+  const session = await prisma.detectionSession.create({
+    data: {
+      postId: videoId,
+      sessionHash,
+      status: "processing",
+    },
   });
-  if (currentJob && (currentJob.status === "completed" || currentJob.status === "no_products")) {
-    console.log(`Video ${videoId} already successfully processed. Exiting background worker loop.`);
-    return;
-  }
+  console.log(`[Stage 1] Detection session created: ${session.id}`);
 
+  let geminiCallCount = 0;
+  let cacheHitCount = 0;
+  let cropsPassedQuality = 0;
+  let cropsFailedQuality = 0;
+  let extractedFrames: { path: string; timestamp: number }[] = [];
+
+  // ── Stage 2: Download Video ──────────────────────────────────────
   const post = await prisma.post.findUnique({
     where: { id: videoId },
     include: { attachments: true },
   });
-
   if (!post) throw new Error("Post not found");
 
   const videoAttachment = post.attachments.find((a) => a.mediaType === "VIDEO");
-  if (!videoAttachment) throw new Error("Post does not contain a video attachment");
+  if (!videoAttachment) throw new Error("Post has no video attachment");
 
-  const videoUrl = videoAttachment.url;
   const tmpDir = path.join(process.cwd(), "tmp");
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-  const fileExtension = videoUrl.split(".").pop()?.split("?")[0] || "mp4";
-  const tempVideoPath = path.join(tmpDir, `temp-${videoId}.${fileExtension}`);
+  const fileExt = videoAttachment.url.split(".").pop()?.split("?")[0] || "mp4";
+  const tempVideoPath = path.join(tmpDir, `temp-${videoId}.${fileExt}`);
 
-  let extractedFrames: { path: string; timestamp: number }[] = [];
+  console.log(`[Stage 2] Downloading video...`);
+  const res = await fetch(videoAttachment.url);
+  if (!res.ok) throw new Error(`Failed to download video: ${res.statusText}`);
+  const videoBuffer = Buffer.from(await res.arrayBuffer());
+  await fs.promises.writeFile(tempVideoPath, videoBuffer);
 
   try {
-    // 1. Download Video
-    console.log(`Downloading video from: ${videoUrl}`);
-    const res = await fetch(videoUrl);
-    if (!res.ok) throw new Error(`Failed to download video: ${res.statusText}`);
-    const buffer = Buffer.from(await res.arrayBuffer());
-    await fs.promises.writeFile(tempVideoPath, buffer);
-
-    // 2. Extract exactly 6 frames with timestamps
+    // ── Stage 3: Frame Extraction ───────────────────────────────────
+    console.log(`[Stage 3] Extracting frames...`);
     extractedFrames = await extractFramesFromVideo(tempVideoPath);
+    console.log(`  ├─ ${extractedFrames.length} frames extracted`);
 
-    const detectedProductsToSave: any[] = [];
-    let vlmCalls = 0;
-    const maxVlmCalls = 6;
+    // ── Stage 4: YOLO Detection on each frame ───────────────────────
+    console.log(`[Stage 4] Running YOLO detection on ${extractedFrames.length} frames...`);
+    const frameDetections: FrameDetection[] = [];
 
-    // 3. Analyze frames in parallel batches of 3 using local DetectionPipeline -> optional VLM
-    const batchSize = 3;
-    for (let i = 0; i < extractedFrames.length; i += batchSize) {
-      const batch = extractedFrames.slice(i, i + batchSize);
-      console.log(`Processing frame batch of ${batch.length} items (index ${i} to ${i + batch.length - 1})...`);
+    for (const frame of extractedFrames) {
+      const frameBuffer = await fs.promises.readFile(frame.path);
+      const objects = await detectObjectsInFrame(frameBuffer);
 
-      await Promise.all(
-        batch.map(async (frame) => {
-          console.log(`\n--- Frame @ ${frame.timestamp}s ---`);
-          const frameBuffer = await fs.promises.readFile(frame.path);
-          const base64Frame = frameBuffer.toString("base64");
+      // Crop each detected object
+      const detectedObjects = [];
+      for (const obj of objects) {
+        const cropBuffer = await cropObjectFromFrame(frameBuffer, obj.box);
+        let cropQuality = 0;
 
-          // Run local CV Detection Pipeline first
-          const detectionResult = await DetectionPipeline.run(frameBuffer);
+        if (cropBuffer) {
+          const qualityResult = await assessCropQuality(cropBuffer);
+          cropQuality = qualityResult.score;
 
-          // ── Stage Audit Log ─────────────────────────────────────────────
-          console.log(`[PIPELINE] Objects detected: ${detectionResult.objects.length}`);
-          for (const obj of detectionResult.objects) {
-            console.log(`  ├─ YOLO label="${obj.label}"  conf=${obj.confidence?.toFixed(2)}`);
-            console.log(`  ├─ OCR="${obj.ocrText || "(none)"}"`);
-            console.log(`  ├─ Logo="${obj.logo || "(none)"}"`);
-            console.log(`  ├─ Barcode="${obj.barcode || "(none)"}"`);
-            if (obj.barcode && BARCODE_REGISTRY[obj.barcode]) {
-              console.log(`  │   └─ Barcode RESOLVED → "${BARCODE_REGISTRY[obj.barcode].label}"`);
-            } else if (obj.barcode) {
-              console.log(`  │   └─ Barcode NOT in registry — will use VLM`);
-            }
-          }
-          if (detectionResult.objects.length === 0) {
-            console.log(`  └─ No local detections. Confidence = ${detectionResult.overallConfidence}`);
-          }
-          console.log(`[PIPELINE] Overall confidence=${detectionResult.overallConfidence.toFixed(2)}  needCloudVision=${detectionResult.needCloudVision}`);
-          if (detectionResult.confidenceReasons?.length) {
-            console.log(`[PIPELINE] Evidence: ${detectionResult.confidenceReasons.join(' | ')}`);
-          }
-          // ───────────────────────────────────────────────────────────────
-
-          let productsToProcess: any[] = [];
-
-          if (!detectionResult.needCloudVision && detectionResult.objects.length > 0) {
-            const resolvedProducts = detectionResult.objects.map((obj) => {
-              const resolvedQuery = ProductResolver.resolveQuery(obj);
-              console.log(`[ProductResolver] Input: label="${obj.label}" logo="${obj.logo}" barcode="${obj.barcode}" ocr="${obj.ocrText?.slice(0,40)}"`);
-              console.log(`[ProductResolver] Output query: "${resolvedQuery}"`);
-              if (!resolvedQuery || resolvedQuery.length < 3) {
-                console.log(`[ProductResolver] Query too vague — skipping this object.`);
-                return null;
-              }
-              return {
-                category: obj.label || "Clothing",
-                description: resolvedQuery,
-                color: obj.attributes?.color || "unknown",
-                material: obj.attributes?.material || "unknown",
-                confidence: obj.confidence || 0.90,
-                gender: "Unisex",
-                style: "Casual",
-                season: "All-Season",
-                keywords: [obj.label],
-              };
-            }).filter(Boolean);
-
-            productsToProcess = resolvedProducts as any[];
+          if (qualityResult.pass) {
+            cropsPassedQuality++;
           } else {
-            if (vlmCalls >= maxVlmCalls) {
-              console.log(`Reached max VLM calls limit of ${maxVlmCalls}. Skipping Cloud VLM fallback.`);
-              return;
-            }
-            const reasonSummary = detectionResult.confidenceReasons?.join(" | ") || "insufficient evidence";
-            console.log(`[videoProductWorker] Evidence insufficient (conf=${detectionResult.overallConfidence.toFixed(2)}). Reason: ${reasonSummary}. → Invoking Cloud VLM...`);
-
-            // Construct localScansHint to pass visual features & resolved names to Cloud VLM
-            const localScansHint = detectionResult.objects.map((obj, index) => {
-              const parts = [];
-              if (obj.label) parts.push(`item_${index + 1}: ${obj.label}`);
-              if (obj.logo) parts.push(`logo: ${obj.logo}`);
-              if (obj.ocrText) parts.push(`ocr_text: ${obj.ocrText}`);
-              if (obj.barcode) {
-                const resolved = BARCODE_REGISTRY[obj.barcode];
-                parts.push(`barcode: ${obj.barcode}${resolved ? ` (resolved locally to product: ${resolved.label})` : ""}`);
-              }
-              return parts.join(", ");
-            }).filter(Boolean).join(" | ");
-
-            vlmCalls++;
-            const vlmResponse = await queryVisionLLM(
-              base64Frame,
-              (calls) => {
-                openrouterCalls += calls.openrouter;
-                nvidiaCalls += calls.nvidia;
-              },
-              localScansHint
-            );
-
-            if (vlmResponse && Array.isArray(vlmResponse.products)) {
-              productsToProcess = vlmResponse.products;
-              openrouterResults.push({ timestamp: frame.timestamp, products: vlmResponse.products });
-            }
+            cropsFailedQuality++;
           }
+        }
 
-          for (const prod of productsToProcess) {
-            const category = prod.category?.trim() || "";
-            const cleanCategory = category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : "";
-            const description = prod.description?.trim();
-            const color = prod.color?.trim() || "unknown";
-            const material = prod.material?.trim() || "unknown";
-            const confidence = prod.confidence ?? 0.85;
+        detectedObjects.push({
+          box: obj.box,
+          label: obj.label,
+          confidence: obj.confidence,
+          cropBuffer: cropBuffer || undefined,
+          cropQuality,
+        });
+      }
 
-            if (!description) continue;
+      if (detectedObjects.length > 0) {
+        frameDetections.push({
+          frameTimestamp: frame.timestamp,
+          objects: detectedObjects,
+        });
+      }
 
-            if (!ALLOWED_CATEGORIES.has(cleanCategory)) {
-              console.log(`Skipping item "${description}": Category "${category}" is not in whitelist.`);
-              continue;
-            }
-
-            let isDuplicate = false;
-            for (const existing of detectedProductsToSave) {
-              const isSameCategory = existing.category === cleanCategory;
-              const isSameColor = existing.color?.toLowerCase() === color.toLowerCase();
-              const textSim = getStringSimilarity(existing.label, description);
-
-              if (isSameCategory && isSameColor && textSim >= 0.85) {
-                isDuplicate = true;
-                break;
-              }
-            }
-
-            if (isDuplicate) {
-              console.log(`Skipping duplicate item: "${description}"`);
-              continue;
-            }
-
-            if (confidence < 0.80) {
-              console.log(`Skipping item "${description}" below confidence threshold (score: ${confidence}).`);
-              continue;
-            }
-
-            if (detectedProductsToSave.length >= 10) {
-              detectedProductsToSave.sort((a, b) => a.confidence - b.confidence);
-              if (confidence > detectedProductsToSave[0].confidence) {
-                console.log(`Replacing low confidence product "${detectedProductsToSave[0].label}" (${detectedProductsToSave[0].confidence}) with higher confidence product "${description}" (${confidence}).`);
-                detectedProductsToSave[0] = {
-                  label: description,
-                  category: cleanCategory,
-                  color,
-                  material,
-                  confidence,
-                  gender: prod.gender?.trim() || "Unisex",
-                  style: prod.style?.trim() || "Casual",
-                  season: prod.season?.trim() || "All-Season",
-                  keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
-                  frameTimestamp: frame.timestamp,
-                  framePath: frame.path,
-                };
-              }
-            } else {
-              detectedProductsToSave.push({
-                label: description,
-                category: cleanCategory,
-                color,
-                material,
-                confidence,
-                gender: prod.gender?.trim() || "Unisex",
-                style: prod.style?.trim() || "Casual",
-                season: prod.season?.trim() || "All-Season",
-                keywords: Array.isArray(prod.keywords) ? prod.keywords.map((k: any) => String(k).trim()) : [],
-                frameTimestamp: frame.timestamp,
-                framePath: frame.path,
-              });
-            }
-          }
-        })
-      );
+      console.log(`  ├─ Frame @${frame.timestamp}s: ${detectedObjects.length} shoppable objects`);
     }
 
-    // 4. Fetch Marketplace Matches (eBay/AliExpress) and Upload Frame to Supabase
-    for (const prod of detectedProductsToSave) {
-      const matches = await fetchShoppingMatches(prod.label);
+    // ── Stage 5: Frame Fusion ───────────────────────────────────────
+    console.log(`[Stage 5] Frame fusion — tracking objects across frames...`);
+    let trackedObjects = fuseFrameDetections(frameDetections);
+    trackedObjects = filterTrackedObjects(trackedObjects);
+    console.log(`  ├─ ${trackedObjects.length} unique tracked objects after fusion`);
 
-      let uploadedSourceFrameUrl: string | null = null;
+    // ── Stages 6-11: Per-Crop Evidence Collection ───────────────────
+    console.log(`[Stages 6-11] Running per-crop evidence pipeline...`);
+    const evidenceMap = new Map<string, CropEvidence>();
+    const confidenceMap = new Map<string, number>();
 
-      // Save full source frame that generated detection to Supabase Storage only if matches exist
-      if (matches.length > 0) {
+    for (const tracked of trackedObjects) {
+      if (!tracked.bestCrop) {
+        console.log(`  ├─ ${tracked.trackingId}: No crop available — skipping`);
+        continue;
+      }
+
+      console.log(`  ├─ ${tracked.trackingId}: "${tracked.yoloLabel}" × ${tracked.frameAppearances} frames`);
+
+      const result = await collectCropEvidence(
+        tracked.bestCrop,
+        tracked.yoloLabel,
+        tracked.bestConfidence,
+        tracked.frameAppearances,
+      );
+
+      if (!result) {
+        // Crop quality filter rejected this crop
+        continue;
+      }
+
+      // Merge evidence back into tracked object
+      if (result.evidence.logo) tracked.mergedLogos.push(result.evidence.logo);
+      if (result.evidence.ocrText) tracked.mergedOcrText = result.evidence.ocrText;
+      if (result.evidence.barcode) tracked.mergedBarcodes.push(result.evidence.barcode);
+
+      evidenceMap.set(tracked.trackingId, result.evidence);
+      confidenceMap.set(tracked.trackingId, result.confidence.detection);
+    }
+
+    // ── VLM Fallback: Run full-frame analysis if no shoppable objects were tracked ──
+    if (evidenceMap.size === 0 && extractedFrames.length > 0) {
+      console.log(`[VLM Fallback] YOLO/Fusion detected 0 shoppable products. Running full-frame Gemini VLM fallback...`);
+      // Select up to 3 frames: first, middle, last
+      const indicesToQuery = [
+        0,
+        Math.floor(extractedFrames.length / 2),
+        extractedFrames.length - 1
+      ].filter((v, i, a) => a.indexOf(v) === i && v < extractedFrames.length);
+
+      for (const idx of indicesToQuery) {
+        const frame = extractedFrames[idx];
+        console.log(`  ├─ Querying Gemini VLM for Frame @${frame.timestamp}s...`);
         try {
-          const frameBuffer = await fs.promises.readFile(prod.framePath);
-          const frameKey = `products/frames/${videoId}_${crypto.randomUUID()}.jpg`;
-          const { error: frameError } = await supabaseAdmin.storage
+          const frameBuffer = await fs.promises.readFile(frame.path);
+          const base64Frame = frameBuffer.toString("base64");
+          geminiCallCount++;
+
+          const promptText = `Analyze this image and identify all visible, purchaseable fashion products. Return ONLY a JSON object matching this structure:
+{
+  "products": [
+    {
+      "category": "Clothing | Shoes | Bags | Watches | Jewelry | Accessories | Electronics | Furniture | Home | Kitchen | Beauty | Sports",
+      "subcategory": "specific category (e.g., 'Sneakers', 'T-Shirt', 'Halter Top', 'Hoodie', 'Handbag')",
+      "gender": "Men | Women | Unisex | Kids",
+      "color": "primary color name",
+      "neckline": "e.g., 'Halter Neck', 'V-Neck', 'Crew Neck', 'Asymmetrical', 'none'",
+      "sleeve": "e.g., 'Sleeveless', 'Short Sleeve', 'Long Sleeve', 'none'",
+      "fit": "e.g., 'Slim Fit', 'Loose', 'Oversized', 'Regular', 'none'",
+      "pattern": "e.g., 'Solid', 'Striped', 'Floral', 'Knit', 'none'",
+      "material": "e.g., 'Knit', 'Leather', 'Cotton', 'Mesh', 'Denim', 'none'",
+      "brand": "e.g., 'Nike', 'Adidas', 'Zara', 'none'",
+      "confidence": 0.0 to 1.0 (float)
+    }
+  ]
+}
+
+Only return products a user could realistically purchase online.
+Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.`;
+
+          const response = await VisionProviderManager.analyzeImage(base64Frame, promptText);
+          if (response && Array.isArray(response.products)) {
+            console.log(`  │   └─ VLM found ${response.products.length} products on Frame @${frame.timestamp}s`);
+            for (const prod of response.products) {
+              const desc = prod.subcategory || prod.category || "Clothing";
+              if (desc.toLowerCase() === "none") continue;
+
+              const trackingId = `vlm-${crypto.randomUUID().slice(0, 8)}`;
+              const category = prod.category || "Clothing";
+              const confidence = prod.confidence || 0.85;
+
+              console.log(`  │       ├─ Product: "${desc}" (${category})`);
+
+              // Construct CropEvidence for this VLM product
+              const evidence: CropEvidence = {
+                yoloLabel: category,
+                yoloConfidence: confidence,
+                isShoppableCategory: true,
+                logo: prod.brand && prod.brand !== "none" ? prod.brand : null,
+                logoConfidence: prod.brand && prod.brand !== "none" ? 0.90 : 0,
+                ocrText: "",
+                meaningfulOcrWords: 0,
+                ocrPreview: "",
+                barcode: null,
+                colorDetected: prod.color || "unknown",
+                materialDetected: prod.material || "unknown",
+                shapeCategory: null,
+                frameAppearances: 1,
+                cropQuality: {
+                  score: 0.85,
+                  pass: true,
+                  breakdown: { size: 0.85, blur: 0.85, brightness: 0.85, edges: 0.85 }
+                },
+                // Structured fashion details
+                brand: prod.brand && prod.brand !== "none" ? prod.brand : undefined,
+                subcategory: prod.subcategory && prod.subcategory !== "none" ? prod.subcategory : undefined,
+                gender: prod.gender && prod.gender !== "none" ? prod.gender : undefined,
+                neckline: prod.neckline && prod.neckline !== "none" ? prod.neckline : undefined,
+                sleeve: prod.sleeve && prod.sleeve !== "none" ? prod.sleeve : undefined,
+                fit: prod.fit && prod.fit !== "none" ? prod.fit : undefined,
+                pattern: prod.pattern && prod.pattern !== "none" ? prod.pattern : undefined,
+              };
+
+              // Register in maps
+              evidenceMap.set(trackingId, evidence);
+              confidenceMap.set(trackingId, confidence);
+
+              // Add to trackedObjects
+              trackedObjects.push({
+                trackingId,
+                yoloLabel: category,
+                bestConfidence: confidence,
+                bestBox: [0, 0, 0, 0],
+                frameAppearances: 1,
+                frameTimestamps: [frame.timestamp],
+                bestCropQuality: 0.85,
+                bestCrop: frameBuffer, // use the full frame buffer as best crop
+                mergedLogos: prod.brand && prod.brand !== "none" ? [prod.brand] : [],
+                mergedBarcodes: [],
+                mergedOcrText: ""
+              });
+            }
+          } else {
+            console.log(`  │   └─ No products found by VLM on Frame @${frame.timestamp}s`);
+          }
+        } catch (err) {
+          console.error(`  │   └─ Gemini VLM query failed:`, err);
+        }
+      }
+    }
+
+    // ── Stage 12: Multi-Query Product Resolver ──────────────────────
+    console.log(`[Stage 12] Generating marketplace queries...`);
+    const queriesByTrackingId = new Map<string, string[]>();
+
+    for (const [trackingId, evidence] of evidenceMap) {
+      const resolverResult = resolveQueries(evidence);
+      queriesByTrackingId.set(trackingId, resolverResult.queries);
+    }
+
+    // ── Stages 13-14: Query Cache + Parallel Marketplace Search ─────
+    console.log(`[Stages 13-14] Searching marketplaces...`);
+    const matchesByTrackingId = new Map<string, VerifiedMatch[]>();
+
+    for (const [trackingId, queries] of queriesByTrackingId) {
+      const evidence = evidenceMap.get(trackingId)!;
+      const tracked = trackedObjects.find((t) => t.trackingId === trackingId);
+
+      // Search all queries across all providers in parallel
+      const { results, cacheHits } = await SearchManager.searchMultiQuery(queries, 20);
+      cacheHitCount += cacheHits;
+
+      if (results.length === 0) {
+        console.log(`  ├─ ${trackingId}: No marketplace results found`);
+        matchesByTrackingId.set(trackingId, []);
+        continue;
+      }
+
+      // ── Stage 15: Title Cleaner ─────────────────────────────────
+      // (Verification Engine uses cleanMarketplaceTitle internally)
+
+      // ── Stage 16: Marketplace Verification Engine ───────────────
+      const verified = await verifyMarketplaceResults(evidence, results, tracked?.bestCrop || null, 15);
+
+      // ── Stage 17: Product Knowledge Graph ───────────────────────
+      const bestMatch = selectBestMatch(
+        {
+          yoloLabel: evidence.yoloLabel,
+          logo: evidence.logo || undefined,
+          ocrText: evidence.ocrText || undefined,
+          color: evidence.colorDetected || undefined,
+        },
+        verified,
+      );
+
+      // ── Stage 18: Gemini Decision ───────────────────────────────
+      if (!isVerificationSufficient(verified) && tracked_has_crop(trackedObjects, trackingId)) {
+        console.log(`  ├─ ${trackingId}: Verification insufficient. Invoking Gemini Vision...`);
+        geminiCallCount++;
+
+        if (tracked?.bestCrop) {
+          const cropBase64 = tracked.bestCrop.toString("base64");
+          const geminiResult = await queryGeminiForCrop(cropBase64, evidence);
+
+          if (geminiResult) {
+            console.log(`  ├─ ${trackingId}: Gemini returned structured attributes:`, JSON.stringify(geminiResult));
+
+            // Enrich evidence
+            evidence.brand = geminiResult.brand !== "none" ? geminiResult.brand : evidence.logo;
+            evidence.subcategory = geminiResult.subcategory !== "none" ? geminiResult.subcategory : undefined;
+            evidence.gender = geminiResult.gender !== "none" ? geminiResult.gender : undefined;
+            evidence.colorDetected = geminiResult.color !== "unknown" ? geminiResult.color : evidence.colorDetected;
+            evidence.materialDetected = geminiResult.material !== "none" ? geminiResult.material : evidence.materialDetected;
+            evidence.neckline = geminiResult.neckline !== "none" ? geminiResult.neckline : undefined;
+            evidence.sleeve = geminiResult.sleeve !== "none" ? geminiResult.sleeve : undefined;
+            evidence.fit = geminiResult.fit !== "none" ? geminiResult.fit : undefined;
+            evidence.pattern = geminiResult.pattern !== "none" ? geminiResult.pattern : undefined;
+
+            // Re-resolve queries
+            const resolverResult = resolveQueries(evidence);
+            console.log(`  ├─ ${trackingId}: Re-resolved queries:`, resolverResult.queries);
+
+            // Re-search with Gemini's improved description
+            const { results: reResults, cacheHits: reCacheHits } =
+              await SearchManager.searchMultiQuery(resolverResult.queries, 20);
+            cacheHitCount += reCacheHits;
+
+            if (reResults.length > 0) {
+              // Re-verify with new results
+              const reVerified = await verifyMarketplaceResults(evidence, reResults, tracked.bestCrop, 15);
+
+              // Merge with original results, keep best
+              const allVerified = [...verified, ...reVerified]
+                .sort((a, b) => b.marketplaceConfidence - a.marketplaceConfidence);
+
+              matchesByTrackingId.set(trackingId, allVerified.slice(0, 15));
+              continue;
+            }
+          }
+        }
+      }
+
+      matchesByTrackingId.set(trackingId, verified);
+    }
+
+    // ── Stage 19: Duplicate Product Merger ───────────────────────────
+    console.log(`[Stage 19] Merging duplicate products...`);
+    const mergedProducts = mergeProducts(
+      trackedObjects.filter((t) => evidenceMap.has(t.trackingId)),
+      matchesByTrackingId,
+      queriesByTrackingId,
+      confidenceMap,
+    );
+    console.log(`  ├─ ${mergedProducts.length} unique products after merging`);
+
+    // ── Stage 20: Persist to Database ────────────────────────────────
+    console.log(`[Stage 20] Persisting results to database...`);
+
+    // Pre-download all match images in parallel to satisfy local gallery carousel requirement
+    console.log(`[Stage 20] Asynchronously downloading and caching gallery images locally...`);
+    const processedProducts = [];
+    for (const product of mergedProducts) {
+      const processedMatches = [];
+      for (const match of product.allMatches.slice(0, 10)) {
+        const matchId = `match_${crypto.randomUUID().slice(0, 12)}`;
+        
+        // Retrieve remote images (gallery + thumbnail fallback)
+        const galleryUrls = match.product.galleryImageUrls || [];
+        if (match.product.thumbnail && !galleryUrls.includes(match.product.thumbnail)) {
+          galleryUrls.unshift(match.product.thumbnail);
+        }
+        
+        // Download in parallel with concurrency limits
+        const { imageUrl, galleryImageUrls } = await downloadAndCacheGallery(matchId, galleryUrls);
+        
+        processedMatches.push({
+          id: matchId,
+          match,
+          imageUrl,
+          galleryImageUrls,
+        });
+      }
+      processedProducts.push({
+        product,
+        processedMatches,
+      });
+    }
+
+    // Clear previous products for this reel
+    await prisma.detectedProduct.deleteMany({
+      where: { postId: videoId },
+    });
+
+    for (const product of mergedProducts) {
+      const evidence = evidenceMap.get(product.trackingId);
+      if (!evidence) continue;
+
+      // Upload best crop to Supabase
+      let cropUrl: string | null = null;
+      if (product.detection.bestCrop) {
+        try {
+          const cropKey = `products/crops/${videoId}_${crypto.randomUUID().slice(0, 8)}.jpg`;
+          const { error } = await supabaseAdmin.storage
+            .from("social-media")
+            .upload(cropKey, product.detection.bestCrop, {
+              contentType: "image/jpeg",
+              cacheControl: "31536000",
+              upsert: true,
+            });
+          if (!error) {
+            cropUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${cropKey}`;
+          }
+        } catch { /* upload failed, continue without crop URL */ }
+      }
+
+      // Upload source frame to Supabase
+      let sourceFrameUrl: string | null = null;
+      const matchingFrame = extractedFrames.find((f) =>
+        product.timeline.includes(f.timestamp),
+      );
+      if (matchingFrame && fs.existsSync(matchingFrame.path)) {
+        try {
+          const frameBuffer = await fs.promises.readFile(matchingFrame.path);
+          const frameKey = `products/frames/${videoId}_${crypto.randomUUID().slice(0, 8)}.jpg`;
+          const { error } = await supabaseAdmin.storage
             .from("social-media")
             .upload(frameKey, frameBuffer, {
               contentType: "image/jpeg",
               cacheControl: "31536000",
               upsert: true,
             });
-
-          if (frameError) {
-            console.error("Failed to upload frame:", frameError);
-          } else {
-            uploadedSourceFrameUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/social-media/${frameKey}`;
+          if (!error) {
+            sourceFrameUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${frameKey}`;
           }
-        } catch (uploadErr) {
-          console.error("Failed to upload frame file:", uploadErr);
-        }
+        } catch { /* frame upload failed */ }
       }
 
-      prod.sourceFrameUrl = uploadedSourceFrameUrl;
-      prod.thumbnailUrl = matches[0]?.thumbnail || null;
-      prod.matches = matches;
-    }
+      // Find the processed product entry containing local image paths
+      const processed = processedProducts.find((p) => p.product.trackingId === product.trackingId)!;
 
-    // 5. Save Detected Products and Shopping Matches to DB
-    await prisma.detectedProduct.deleteMany({
-      where: { postId: videoId },
-    });
+      // Determine product label
+      const label = product.bestMatch?.product.title
+        ? cleanMarketplaceTitle(product.bestMatch.product.title)
+        : product.resolvedQueries[0] || evidence.yoloLabel;
 
-    for (const prod of detectedProductsToSave) {
-      // Calculate completenessScore
-      let score = 0;
-      if (prod.label) score += 0.2;
-      if (prod.category) score += 0.2;
-      if (prod.color && prod.color !== "unknown") score += 0.1;
-      if (prod.material && prod.material !== "unknown") score += 0.1;
-      if (prod.gender) score += 0.1;
-      if (prod.style) score += 0.1;
-      if (prod.season) score += 0.1;
-      if (prod.keywords && prod.keywords.length > 0) score += 0.1;
+      const category = getCategoryForLabel(evidence.yoloLabel);
 
-      const isVerified = prod.confidence >= 0.85;
-
-      await prisma.detectedProduct.create({
+      // Create DetectedProduct (detection layer)
+      const detectedProduct = await prisma.detectedProduct.create({
         data: {
           postId: videoId,
-          label: prod.label,
-          category: prod.category,
-          color: prod.color,
-          confidence: prod.confidence,
-          frameTimestamp: prod.frameTimestamp,
-          sourceFrameUrl: prod.sourceFrameUrl,
-          dominantColor: prod.color,
-          box: undefined,
-          thumbnailUrl: prod.thumbnailUrl,
-          
-          // Phase 2 fields
-          visionConfidence: prod.confidence,
-          shoppingMatchConfidence: prod.confidence,
-          completenessScore: score,
-          isVerifiedMatch: isVerified,
-          gender: prod.gender,
-          style: prod.style,
-          season: prod.season,
-          material: prod.material,
-          keywords: prod.keywords,
+          label: label.slice(0, 200),
+          category,
+          color: evidence.colorDetected || "unknown",
+          confidence: product.detectionConfidence,
+          frameTimestamp: product.timeline[0] || 0,
+          sourceFrameUrl,
+          dominantColor: evidence.colorDetected || "unknown",
+          thumbnailUrl: processed.processedMatches[0]?.imageUrl || null,
+          material: evidence.materialDetected || undefined,
+          keywords: product.resolvedQueries.slice(0, 5),
 
+          // Cartly v3 detection layer
+          detectionSessionId: session.id,
+          cropImageUrl: cropUrl,
+          cropQualityScore: evidence.cropQuality.score,
+          ocrText: evidence.ocrText || undefined,
+          detectedLogo: evidence.logo || undefined,
+          detectedBarcode: evidence.barcode || undefined,
+          confidenceBreakdown: product.detection ? {
+            frameAppearances: product.detection.frameAppearances,
+            yoloLabel: evidence.yoloLabel,
+            yoloConfidence: evidence.yoloConfidence,
+          } : undefined,
+          resolvedQueries: product.resolvedQueries,
+          boundingBox: product.detection.bestBox ? {
+            x1: product.detection.bestBox[0],
+            y1: product.detection.bestBox[1],
+            x2: product.detection.bestBox[2],
+            y2: product.detection.bestBox[3],
+          } : undefined,
+          trackingId: product.trackingId,
+          frameAppearances: product.detection.frameAppearances,
+          detectionConfidence: product.detectionConfidence,
+          marketplaceConfidence: product.marketplaceConfidence,
+          verificationScore: product.bestMatch?.marketplaceConfidence || 0,
+
+          // Completeness scoring
+          visionConfidence: product.detectionConfidence,
+          shoppingMatchConfidence: product.marketplaceConfidence,
+          completenessScore: calculateCompleteness(evidence, product),
+          isVerifiedMatch: product.marketplaceConfidence >= 0.50, // lower threshold to 0.50 as requested by task 4/12
+
+          // Shopping matches (marketplace layer)
           matches: {
-            create: prod.matches.map((m: any) => {
-              const parsedPrice = parsePriceToFloat(m.price);
+            create: processed.processedMatches.map((pm) => {
+              const match = pm.match;
+              const parsedPrice = parsePriceToFloat(match.product.price);
               return {
-                title: m.title || "Product Match",
-                price: m.price || "Contact Store",
-                sourceStore: m.merchant || "Online Retailer",
-                productUrl: m.link || "https://www.google.com",
-                affiliateUrl: generateAffiliateUrl(m.link || "https://www.google.com"),
-                imageUrl: m.thumbnail || null,
+                id: pm.id,
+                title: match.product.title || "Product Match",
+                price: match.product.price || "Contact Store",
+                sourceStore: match.product.merchant || "Online Retailer",
+                productUrl: match.product.link || "https://www.google.com",
+                affiliateUrl: generateAffiliateUrl(match.product.link || ""),
+                imageUrl: pm.imageUrl,
+
+                // Cartly v3 permanent fields
+                cleanedTitle: cleanMarketplaceTitle(match.product.title),
+                matchBrand: match.product.brand || undefined,
+                manufacturer: match.product.manufacturer || undefined,
+                modelNumber: match.product.modelNumber || undefined,
+                galleryImageUrls: pm.galleryImageUrls,
+                categoryPath: match.product.categoryPath || undefined,
+                condition: match.product.condition || "New",
+                verificationScore: match.marketplaceConfidence,
+                features: match.product.features || [],
+                highlights: match.product.highlights || [],
+
+                // Cartly v3 cached fields
+                rating: match.product.rating || undefined,
+                reviewCount: match.product.reviewCount || undefined,
+                sellerName: match.product.sellerName || undefined,
+                sellerRating: match.product.sellerRating || undefined,
+                shippingCost: match.product.shippingCost || undefined,
+                estimatedDelivery: match.product.estimatedDelivery || undefined,
+                originalPrice: match.product.originalPrice || undefined,
+                discountPercent: match.product.discountPercent || undefined,
+                cachedAt: new Date(),
+
+                // Price history
                 priceHistories: parsedPrice !== null ? {
-                  create: {
-                    price: parsedPrice,
-                  },
+                  create: { price: parsedPrice },
+                } : undefined,
+
+                // Variants nested create
+                variants: match.product.variants && match.product.variants.length > 0 ? {
+                  create: match.product.variants.map((v) => ({
+                    variantType: v.type,
+                    variantValue: v.value,
+                    price: v.price || null,
+                    sku: v.sku || null,
+                    imageUrl: v.imageUrl || null,
+                    availability: v.availability || "in_stock",
+                  })),
                 } : undefined,
               };
             }),
           },
         },
       });
+
+      // Create Product Timeline entries
+      for (const timestamp of product.timeline) {
+        await prisma.productTimeline.create({
+          data: {
+            detectedProductId: detectedProduct.id,
+            timestamp,
+          },
+        });
+      }
     }
 
-    // Set job status
-    const finalStatus = detectedProductsToSave.length === 0 ? "no_products" : "completed";
+    // Update Detection Session with stats
+    const processingTimeMs = Date.now() - startTime;
+    const finalStatus = mergedProducts.length === 0 ? "no_products" : "completed";
 
+    await prisma.detectionSession.update({
+      where: { id: session.id },
+      data: {
+        frameCount: extractedFrames.length,
+        rawObjectCount: frameDetections.reduce((sum, fd) => sum + fd.objects.length, 0),
+        cropsPassedQuality,
+        cropsFailedQuality,
+        trackedObjectCount: trackedObjects.length,
+        mergedProductCount: mergedProducts.length,
+        geminiCallCount,
+        cacheHitCount,
+        processingTimeMs,
+        status: finalStatus,
+        completedAt: new Date(),
+      },
+    });
+
+    // Update VideoProcessingJob
     await prisma.videoProcessingJob.update({
       where: { postId: videoId },
       data: {
@@ -614,53 +909,94 @@ async function runVideoProcessor(videoId: string, jobId: string) {
       },
     });
 
-    console.log(`Video processing completed for ${videoId}. Products: ${detectedProductsToSave.length}. Status: ${finalStatus}`);
+    console.log(`\n${"─".repeat(60)}`);
+    console.log(`  ✅ Pipeline complete for ${videoId}`);
+    console.log(`  Products: ${mergedProducts.length} | Frames: ${extractedFrames.length}`);
+    console.log(`  Gemini calls: ${geminiCallCount} | Cache hits: ${cacheHitCount}`);
+    console.log(`  Quality filter: ${cropsPassedQuality} passed / ${cropsFailedQuality} failed`);
+    console.log(`  Time: ${(processingTimeMs / 1000).toFixed(1)}s`);
+    console.log(`${"─".repeat(60)}\n`);
   } catch (err: any) {
-    console.error(`[videoProductWorker] Error processing video ${videoId}:`, err);
+    console.error(`[Pipeline] Error processing ${videoId}:`, err);
+
+    // Update session as failed
+    await prisma.detectionSession.update({
+      where: { id: session.id },
+      data: {
+        status: "failed",
+        processingTimeMs: Date.now() - startTime,
+        completedAt: new Date(),
+      },
+    }).catch(() => {});
+
+    // Update VideoProcessingJob as failed as well
+    await prisma.videoProcessingJob.update({
+      where: { postId: videoId },
+      data: {
+        status: "failed",
+        error: err.message || "Unknown error",
+        completedAt: new Date(),
+      },
+    }).catch(() => {});
+
     throw err;
   } finally {
-    // Cleanup temporary files
+    // Cleanup temp files
     try {
-      if (tempVideoPath && fs.existsSync(tempVideoPath)) {
-        fs.unlinkSync(tempVideoPath);
-      }
-      extractedFrames.forEach((frame) => {
-        if (fs.existsSync(frame.path)) {
-          fs.unlinkSync(frame.path);
-        }
+      if (fs.existsSync(tempVideoPath)) fs.unlinkSync(tempVideoPath);
+      extractedFrames.forEach((f) => {
+        if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
       });
-    } catch (cleanupErr) {
-      console.error("Cleanup error in worker:", cleanupErr);
-    }
+    } catch { /* cleanup errors are non-fatal */ }
   }
 }
 
-// Queue execution loop with lock safety and backoff polling
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function tracked_has_crop(tracked: TrackedObject[], trackingId: string): boolean {
+  return tracked.some((t) => t.trackingId === trackingId && t.bestCrop !== null);
+}
+
+function calculateCompleteness(evidence: CropEvidence, product: MergedProduct): number {
+  let score = 0;
+  if (evidence.yoloLabel) score += 0.15;
+  if (evidence.logo) score += 0.20;
+  if (evidence.ocrText) score += 0.15;
+  if (evidence.colorDetected && evidence.colorDetected !== "unknown") score += 0.10;
+  if (evidence.materialDetected) score += 0.10;
+  if (product.bestMatch) score += 0.20;
+  if (product.allMatches.length >= 3) score += 0.10;
+  return Math.min(1.0, score);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  QUEUE EXECUTION LOOP (unchanged from v2 — same Redis/DB queue logic)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const isRedisActive = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+
 async function processNextQueueItem(): Promise<boolean> {
-  const isRedisActive = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
   let jobId: string | null = null;
   let videoId: string | null = null;
 
   if (isRedisActive) {
     const payloadStr = await runRedisCommand(["RPOP", "video-product-processing"]);
     if (!payloadStr) return false;
-    
+
     try {
       const payload = JSON.parse(payloadStr);
       videoId = payload.videoId;
-    } catch (e) {
+    } catch {
       console.error("Failed to parse Redis queue payload:", payloadStr);
       return true;
     }
 
     if (!videoId) return true;
 
-    // Acquire Redis lock (lock active for 5 mins)
     const lockAcquired = await runRedisCommand(["SET", "video-processing-lock", "true", "EX", "300", "NX"]);
     if (lockAcquired !== "OK") {
-      // Re-enqueue job at the tail
       await runRedisCommand(["RPUSH", "video-product-processing", payloadStr]);
-      return false; 
+      return false;
     }
 
     let dbJob = await prisma.videoProcessingJob.findUnique({
@@ -674,7 +1010,7 @@ async function processNextQueueItem(): Promise<boolean> {
     } else {
       if (dbJob.status === "completed" || dbJob.status === "no_products") {
         await runRedisCommand(["DEL", "video-processing-lock"]);
-        return true; 
+        return true;
       }
       dbJob = await prisma.videoProcessingJob.update({
         where: { id: dbJob.id },
@@ -683,23 +1019,18 @@ async function processNextQueueItem(): Promise<boolean> {
     }
     jobId = dbJob.id;
   } else {
-    // Fallback DB queue
     const pendingJob = await prisma.videoProcessingJob.findFirst({
       where: { status: "pending" },
       orderBy: { createdAt: "asc" },
     });
     if (!pendingJob) return false;
 
-    // Lock DB job using atomic status update check
     const updateResult = await prisma.videoProcessingJob.updateMany({
       where: { id: pendingJob.id, status: "pending" },
       data: { status: "processing", startedAt: new Date() },
     });
 
-    if (updateResult.count === 0) {
-      return false; 
-    }
-
+    if (updateResult.count === 0) return false;
     jobId = pendingJob.id;
     videoId = pendingJob.postId;
   }
@@ -733,7 +1064,10 @@ async function processNextQueueItem(): Promise<boolean> {
           },
         });
         if (isRedisActive) {
-          await runRedisCommand(["LPUSH", "video-product-processing", JSON.stringify({ videoId, createdAt: Date.now() })]);
+          await runRedisCommand([
+            "LPUSH", "video-product-processing",
+            JSON.stringify({ videoId, createdAt: Date.now() }),
+          ]);
         }
       }
     }
@@ -746,26 +1080,18 @@ async function processNextQueueItem(): Promise<boolean> {
   return true;
 }
 
-// Exponential Backoff intervals (1s, 2s, 5s, 10s, 30s)
-const BACKOFF_STEPS = [1000, 2000, 5000, 10000, 30000];
-let backoffIndex = 0;
+// ─── CV Server Bootstrap ──────────────────────────────────────────────────────
 
 async function verifyAndStartCVServer() {
-  const checkUrl = "http://localhost:5000/detect";
   try {
-    const response = await fetch(checkUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: "mock" }),
-    });
-    if (response.ok || response.status === 500) {
-      console.log("[videoProductWorker] Local Computer Vision microservice is already running.");
+    const response = await fetch("http://localhost:5000/health");
+    if (response.ok) {
+      console.log("[Worker] CV service is already running.");
       return;
     }
-  } catch (err) {
-    console.log("[videoProductWorker] Local Computer Vision microservice not detected. Launching daemon...");
-  }
+  } catch { /* not running */ }
 
+  console.log("[Worker] CV service not detected. Launching...");
   const pythonCmd = process.platform === "win32" ? "python" : "python3";
   const serverScript = path.join(process.cwd(), "src/lib/detection/py-service/cv_server.py");
 
@@ -775,34 +1101,38 @@ async function verifyAndStartCVServer() {
       stdio: "ignore",
     });
     pyProcess.unref();
-    console.log("[videoProductWorker] Spawned cv_server.py daemon. Waiting 3 seconds for boot...");
+    console.log("[Worker] Spawned cv_server.py. Waiting 3s for boot...");
     await new Promise((resolve) => setTimeout(resolve, 3000));
   } catch (e) {
-    console.error("[videoProductWorker] Failed to launch local Python CV microservice:", e);
+    console.error("[Worker] Failed to launch CV service:", e);
   }
 }
 
+// ─── Worker Entry Point ───────────────────────────────────────────────────────
+
+const BACKOFF_STEPS = [1000, 2000, 5000, 10000, 30000];
+let backoffIndex = 0;
+
 async function startWorker() {
-  console.log("Cartly Video Product Detection Background Worker starting...");
+  console.log("Cartly v3 Video Product Detection Worker starting...");
   await verifyAndStartCVServer();
-  console.log("Cartly Video Product Detection Background Worker fully initialized.");
+  console.log("Cartly v3 Worker initialized. Listening for jobs...\n");
+
   while (true) {
     let jobProcessed = false;
     try {
       jobProcessed = await processNextQueueItem();
     } catch (err) {
-      console.error("Error in worker execution loop:", err);
+      console.error("Worker loop error:", err);
     }
 
     if (jobProcessed) {
-      backoffIndex = 0; 
+      backoffIndex = 0;
     } else {
       const delay = BACKOFF_STEPS[backoffIndex];
-      console.log(`Worker idle. Backing off for ${delay / 1000}s...`);
+      console.log(`Worker idle. Backing off ${delay / 1000}s...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      if (backoffIndex < BACKOFF_STEPS.length - 1) {
-        backoffIndex++;
-      }
+      if (backoffIndex < BACKOFF_STEPS.length - 1) backoffIndex++;
     }
   }
 }

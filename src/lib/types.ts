@@ -125,15 +125,18 @@ export function getPostDataInclude(loggedInUserId: string) {
     detectedProducts: {
       where: {
         confidence: {
-          gte: 0.80,
+          gte: 0.30,
         },
       },
       include: {
         matches: {
           include: {
             merchant: true,
+            variants: true,
+            priceHistories: true,
           },
         },
+        timeline: true,
       },
     },
   } satisfies Prisma.PostInclude;

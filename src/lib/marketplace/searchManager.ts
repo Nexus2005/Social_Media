@@ -1,6 +1,20 @@
+/**
+ * Cartly v3 — Search Manager
+ *
+ * Parallel multi-query marketplace search with session-aware caching.
+ *
+ * Changes from v2:
+ * - Removed ALL mock-detection logic ("Direct Factory" checks, etc.)
+ * - Uses QueryCache with 1h TTL (instead of internal 5-min cache)
+ * - Searches all 4 resolver queries across all providers IN PARALLEL
+ * - Returns 20 results to feed the Verification Engine
+ * - No mock fallback — returns [] when no results found
+ */
+
 import { EBayProvider } from "./eBayProvider";
 import { AliExpressProvider } from "./aliexpressProvider";
 import { MarketplaceProduct, MarketplaceProvider } from "./types";
+import { QueryCache } from "./queryCache";
 import { SearchQueryOptimizer } from "./searchQueryOptimizer";
 
 export class SearchManager {
@@ -9,7 +23,7 @@ export class SearchManager {
     new AliExpressProvider(),
   ];
 
-  // Token intersection similarity helper (Jaccard)
+  // Token intersection similarity (Jaccard)
   private static getTitleSimilarity(str1: string, str2: string): number {
     const s1 = str1.toLowerCase().trim();
     const s2 = str2.toLowerCase().trim();
@@ -22,141 +36,176 @@ export class SearchManager {
 
     let intersectionCount = 0;
     set1.forEach((word) => {
-      if (set2.has(word)) {
-        intersectionCount++;
-      }
+      if (set2.has(word)) intersectionCount++;
     });
 
     const unionSize = new Set([...words1, ...words2]).size;
     return unionSize > 0 ? intersectionCount / unionSize : 0;
   }
 
-  // Scoring and ranking function
-  private static calculateScore(product: MarketplaceProduct, query: string): number {
-    const titleLower = product.title.toLowerCase();
-    const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
-
-    // 1. Relevance: ratio of matched query words
-    let matchedWords = 0;
-    for (const word of queryWords) {
-      if (titleLower.includes(word)) {
-        matchedWords++;
-      }
-    }
-    const relevanceScore = queryWords.length > 0 ? matchedWords / queryWords.length : 1;
-
-    // 2. Rating Score: normalized to 0-1
-    const ratingVal = product.rating || 0;
-    const ratingScore = ratingVal / 5.0;
-
-    // 3. Shipping Bonus: free shipping receives higher preference
-    const isFreeShipping = product.shippingInfo?.toLowerCase().includes("free") ? 1 : 0;
-
-    // Weighted Score: 50% relevance, 30% rating, 20% shipping bonus
-    return relevanceScore * 0.5 + ratingScore * 0.3 + isFreeShipping * 0.2;
-  }
-
-  private static searchCache = new Map<string, { results: MarketplaceProduct[]; expiresAt: number }>();
-
   /**
-   * Search all configured marketplaces in parallel with progressive query fallback.
-   * If a query returns zero live results, progressively broader fallbacks are attempted.
+   * Search all marketplace providers for a single query.
+   * Uses QueryCache. Returns raw results (unverified).
    */
-  static async search(originalQuery: string, limit = 10): Promise<MarketplaceProduct[]> {
-    if (!originalQuery) return [];
+  static async search(query: string, limit = 20): Promise<MarketplaceProduct[]> {
+    if (!query || query.trim().length === 0) return [];
 
-    const cacheKey = `${originalQuery.toLowerCase().trim()}_limit_${limit}`;
-    const cached = this.searchCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      console.log(`[SearchManager] Cache hit for query: "${originalQuery}"`);
-      return cached.results;
+    // Check cache first
+    const cache = QueryCache.getInstance();
+    const cached = cache.get(query);
+    if (cached) {
+      console.log(`[SearchManager] Cache hit for: "${query}" (${cached.length} results)`);
+      return cached;
     }
 
-    // Generate progressive fallback queries
-    const fallbacks = SearchQueryOptimizer.generateFallbacks(originalQuery);
-    console.log(`[SearchManager] Query fallback chain: ${fallbacks.map((q) => `"${q}"`).join(" → ")}`);
-
-    for (const query of fallbacks) {
-      console.log(`[SearchManager] Trying query: "${query}"`);
-
-      // Query all providers in parallel
-      const searchPromises = this.providers.map(async (provider) => {
+    // Search all providers IN PARALLEL
+    console.log(`[SearchManager] Searching all providers for: "${query}"`);
+    const results = await Promise.all(
+      this.providers.map(async (provider) => {
         try {
-          return await provider.search(query, limit);
+          const providerResults = await provider.search(query, limit);
+          console.log(`  ├─ ${provider.name}: ${providerResults.length} results`);
+          return providerResults;
         } catch (err) {
-          console.error(`[SearchManager] Provider ${provider.name} failed during search:`, err);
+          console.error(`  ├─ ${provider.name}: FAILED`, err);
           return [] as MarketplaceProduct[];
         }
-      });
+      }),
+    );
 
-      const resultsArray = await Promise.all(searchPromises);
-      const allProducts = resultsArray.flat();
+    const allProducts = results.flat();
 
-      // Count only non-mock results (mock results use generic placeholder titles)
-      const liveProducts = allProducts.filter(
-        (p) => !p.title.startsWith("Direct Factory") &&
-                !p.title.startsWith("Universal Multi-purpose") &&
-                !p.title.startsWith("Trendy") &&
-                !p.title.startsWith("Authentic Retro") &&
-                !p.title.startsWith("Premium Wearable") &&
-                !p.title.startsWith("Imported Custom")
-      );
+    // Cache results (no mock filtering needed — providers never return mocks now)
+    cache.set(query, allProducts);
 
-      if (liveProducts.length > 0) {
-        console.log(`[SearchManager] Got ${liveProducts.length} live results for query "${query}". Stopping fallback chain.`);
-        const ranked = this.rankAndDeduplicate(allProducts, query, limit);
-        this.searchCache.set(cacheKey, { results: ranked, expiresAt: Date.now() + 300000 });
-        return ranked;
-      }
-
-      console.log(`[SearchManager] Zero live results for "${query}". Trying next fallback...`);
-    }
-
-    // All fallbacks exhausted — return whatever we have from the last attempt (mocks)
-    console.warn(`[SearchManager] All query fallbacks exhausted for "${originalQuery}". Returning mock results.`);
-    const mockResults = this.providers.reduce<MarketplaceProduct[]>((acc, _) => acc, []);
-    const lastQuery = fallbacks[fallbacks.length - 1];
-    const lastResults = await Promise.all(
-      this.providers.map((p) => p.search(lastQuery, limit).catch(() => [] as MarketplaceProduct[]))
-    ).then((r) => r.flat());
-    const ranked = this.rankAndDeduplicate(lastResults, lastQuery, limit);
-    this.searchCache.set(cacheKey, { results: ranked, expiresAt: Date.now() + 60000 }); // shorter cache for fallbacks
-    return ranked;
+    return allProducts;
   }
 
-  private static rankAndDeduplicate(products: MarketplaceProduct[], query: string, limit: number): MarketplaceProduct[] {
-    // Merge duplicates using Title Similarity >= 0.85
+  /**
+   * Search multiple queries across all providers IN PARALLEL.
+   * This is the primary entry point for the worker pipeline.
+   *
+   * @param queries Array of resolver queries (specific → broad)
+   * @param limit Max results per query
+   * @returns All results from all queries, deduplicated
+   */
+  static async searchMultiQuery(queries: string[], limit = 20): Promise<{
+    results: MarketplaceProduct[];
+    cacheHits: number;
+  }> {
+    if (queries.length === 0) return { results: [], cacheHits: 0 };
+
+    const cache = QueryCache.getInstance();
+    let cacheHits = 0;
+
+    // Separate cached vs uncached queries
+    const cachedResults: MarketplaceProduct[] = [];
+    const uncachedQueries: string[] = [];
+
+    for (const query of queries) {
+      const cached = cache.get(query);
+      if (cached) {
+        cachedResults.push(...cached);
+        cacheHits++;
+      } else {
+        uncachedQueries.push(query);
+      }
+    }
+
+    if (cacheHits > 0) {
+      console.log(`[SearchManager] ${cacheHits}/${queries.length} queries served from cache`);
+    }
+
+    // Search uncached queries across all providers IN PARALLEL
+    const freshResultArrays = await Promise.all(
+      uncachedQueries.flatMap((query) =>
+        this.providers.map(async (provider) => {
+          try {
+            const results = await provider.search(query, limit);
+            // Cache per-provider results
+            return { query, results };
+          } catch (err) {
+            console.error(`[SearchManager] ${provider.name} failed for "${query}":`, err);
+            return { query, results: [] as MarketplaceProduct[] };
+          }
+        }),
+      ),
+    );
+
+    // Group fresh results by query and cache them
+    const queryResultMap = new Map<string, MarketplaceProduct[]>();
+    for (const { query, results } of freshResultArrays) {
+      const existing = queryResultMap.get(query) || [];
+      existing.push(...results);
+      queryResultMap.set(query, existing);
+    }
+    for (const [query, results] of queryResultMap) {
+      cache.set(query, results);
+    }
+
+    const freshResults = freshResultArrays.flatMap((r) => r.results);
+    const allResults = [...cachedResults, ...freshResults];
+
+    // Deduplicate across queries (same product from different queries)
+    const deduped = this.deduplicateResults(allResults);
+
+    console.log(`[SearchManager] Multi-query: ${queries.length} queries → ${allResults.length} raw → ${deduped.length} deduplicated`);
+
+    return { results: deduped, cacheHits };
+  }
+
+  /**
+   * Deduplicate marketplace results based on title similarity and merchant.
+   */
+  private static deduplicateResults(products: MarketplaceProduct[]): MarketplaceProduct[] {
     const merged: MarketplaceProduct[] = [];
+
     for (const prod of products) {
       let isDuplicate = false;
+
       for (const existing of merged) {
-        const similarity = this.getTitleSimilarity(existing.title, prod.title);
-        if (similarity >= 0.85) {
-          isDuplicate = true;
-          if (prod.numericPrice < existing.numericPrice || (prod.rating || 0) > (existing.rating || 0)) {
-            existing.price = prod.price;
-            existing.numericPrice = prod.numericPrice;
-            existing.currency = prod.currency;
-            existing.merchant = prod.merchant;
-            existing.link = prod.link;
-            existing.thumbnail = prod.thumbnail || existing.thumbnail;
-            existing.rating = prod.rating || existing.rating;
-            existing.reviewsCount = prod.reviewsCount || existing.reviewsCount;
-            existing.shippingInfo = prod.shippingInfo || existing.shippingInfo;
+        // Same merchant + high title similarity = duplicate
+        if (existing.merchant === prod.merchant) {
+          const similarity = this.getTitleSimilarity(existing.title, prod.title);
+          if (similarity >= 0.80) {
+            isDuplicate = true;
+            // Keep the one with more data
+            if (
+              prod.numericPrice < existing.numericPrice ||
+              (prod.rating || 0) > (existing.rating || 0)
+            ) {
+              // Replace with better product
+              Object.assign(existing, prod);
+            }
+            break;
           }
-          break;
         }
       }
+
       if (!isDuplicate) {
         merged.push(prod);
       }
     }
 
-    // Rank by relevance, rating, and shipping
-    return merged
-      .map((prod) => ({ product: prod, score: this.calculateScore(prod, query) }))
-      .sort((a, b) => b.score - a.score)
-      .map((item) => item.product)
-      .slice(0, limit);
+    return merged;
+  }
+
+  /**
+   * Get item details from the appropriate provider (lazy-loaded).
+   * Called when user opens a product page.
+   */
+  static async getItemDetails(
+    merchant: string,
+    itemId: string,
+  ): Promise<MarketplaceProduct | null> {
+    const provider = this.providers.find((p) => p.name === merchant);
+    if (!provider?.getItemDetails) return null;
+
+    try {
+      return await provider.getItemDetails(itemId);
+    } catch (err) {
+      console.error(`[SearchManager] getItemDetails failed for ${merchant}/${itemId}:`, err);
+      return null;
+    }
   }
 }

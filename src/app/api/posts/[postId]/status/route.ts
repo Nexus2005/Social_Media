@@ -43,13 +43,13 @@ export async function GET(
         detectedProducts: {
           where: {
             confidence: {
-              gte: 0.80,
+              gte: 0.30,
             },
           },
           include: {
             matches: {
               include: {
-                merchant: true,
+                variants: true,
               },
             },
           },

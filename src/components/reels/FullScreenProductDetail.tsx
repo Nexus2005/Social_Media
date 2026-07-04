@@ -1,13 +1,20 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { 
   Search, ShoppingCart, Bell, Heart, ChevronLeft, ChevronRight, 
   ShieldCheck, RotateCcw, Truck, Check, Edit3, ShoppingBag 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
+
+interface ProductVariant {
+  type: string;
+  value: string;
+  price?: string;
+  imageUrl?: string;
+}
 
 interface ProductMatch {
   id: string;
@@ -18,6 +25,18 @@ interface ProductMatch {
   imageUrl?: string;
   deliveryText?: string;
   sourceStore?: string;
+  galleryImageUrls?: string[];
+  matchBrand?: string;
+  originalPrice?: string;
+  discountPercent?: number;
+  rating?: number;
+  reviewCount?: number;
+  features?: string[];
+  highlights?: string[];
+  categoryPath?: string;
+  condition?: string;
+  variants?: ProductVariant[];
+  verificationScore?: number;
 }
 
 interface DetectedProduct {
@@ -41,6 +60,31 @@ interface FullScreenProductDetailProps {
   onClose: () => void;
 }
 
+const COLOR_HEX_MAP: Record<string, string> = {
+  black: "#1e1e24",
+  white: "#f3f4f6",
+  grey: "#4b5563",
+  gray: "#4b5563",
+  blue: "#1d4ed8",
+  red: "#dc2626",
+  green: "#16a34a",
+  yellow: "#ca8a04",
+  orange: "#ea580c",
+  pink: "#db2777",
+  purple: "#9333ea",
+  brown: "#78350f",
+  gold: "#eab308",
+  silver: "#cbd5e1",
+};
+
+function resolveColorHex(colorName: string): string {
+  const clean = colorName.toLowerCase().trim();
+  for (const [key, hex] of Object.entries(COLOR_HEX_MAP)) {
+    if (clean.includes(key)) return hex;
+  }
+  return "#6366f1"; // fallback to indigo accent
+}
+
 export default function FullScreenProductDetail({
   productId,
   detectedProducts,
@@ -52,80 +96,111 @@ export default function FullScreenProductDetail({
   // Find selected product
   const product = detectedProducts.find((p) => String(p.id) === String(productId)) || detectedProducts[0];
 
-  // Check if Nike Pegasus 41 or best seller
-  const isPegasus = product?.label?.toLowerCase().includes("pegasus") || product?.label?.toLowerCase().includes("shoe") || product?.label?.toLowerCase().includes("sneaker");
-  const isBestSeller = product?.isBestSeller || isPegasus;
-  
-  const brand = product?.brand || (isPegasus ? "Nike" : "Brand");
-  const title = product?.label || (isPegasus ? "Nike Pegasus 41" : "Premium Product");
-  const subtitle = isPegasus ? "Men's Road Running Shoes" : "Premium Lifestyle Collection";
-  const ratingScore = 4.6;
-  const reviewsCount = 2432;
-  const boughtCountText = "12K+ bought in past month";
-  
-  const priceDisplay = isPegasus ? "₹13,999" : (product?.matches?.[0]?.price || "₹13,999");
-  const originalPriceDisplay = isPegasus ? "₹15,995" : "₹15,995";
-  const discountText = "12% off";
+  const bestMatch = useMemo(() => {
+    if (!product?.matches || product.matches.length === 0) return null;
+    return [...product.matches].sort((a, b) => (b.verificationScore || 0) - (a.verificationScore || 0))[0];
+  }, [product]);
 
-  // Dynamic theme matching for white/dark product images
-  const isDarkImage = isPegasus || title.toLowerCase().includes("pegasus");
-  const containerBg = isDarkImage ? "bg-[#161616]" : "bg-white";
-
-  // Carousel images
-  const galleryImages = useMemo(() => {
-    const list = Array.from(new Set([
-      product?.thumbnailUrl,
-      product?.sourceFrameUrl,
-      ...(product?.matches || []).map((m: any) => m.imageUrl)
-    ].filter(Boolean) as string[]));
-
-    if (list.length < 3 && isPegasus) {
-      return [
-        "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=600&auto=format&fit=crop&q=80"
-      ];
+  // Group variants by type
+  const variantsByType = useMemo(() => {
+    const groups: Record<string, ProductVariant[]> = {};
+    if (!bestMatch?.variants) return groups;
+    for (const v of bestMatch.variants) {
+      const type = (v.type || "Option").toLowerCase();
+      const capitalized = type.charAt(0).toUpperCase() + type.slice(1);
+      if (!groups[capitalized]) groups[capitalized] = [];
+      // avoid duplicates
+      if (!groups[capitalized].some(item => item.value === v.value)) {
+        groups[capitalized].push(v);
+      }
     }
-    return list;
-  }, [product, isPegasus]);
+    return groups;
+  }, [bestMatch]);
 
-  // States
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [selectedColor, setSelectedColor] = useState("Black/White-Anthracite");
-  const [selectedSize, setSelectedSize] = useState(9);
+  const hasColors = "Color" in variantsByType && variantsByType["Color"].length > 0;
+  const hasSizes = "Size" in variantsByType && variantsByType["Size"].length > 0;
+
+  // Selected Variant States
+  const [selectedColor, setSelectedColor] = useState<string>("");
+  const [selectedSize, setSelectedSize] = useState<string>("");
   const [activeTab, setActiveTab] = useState("About");
   const [cartCount, setCartCount] = useState(2);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const colors = [
-    { name: "Black/White-Anthracite", hex: "#1e1e24" },
-    { name: "Pure White / Platinum", hex: "#f3f4f6" },
-    { name: "Slate Dark Grey", hex: "#4b5563" },
-    { name: "Racer Electric Blue", hex: "#1d4ed8" },
-    { name: "Obsidian Deep Blue", hex: "#1e3a8a" },
-  ];
+  // Initialize selected values
+  useEffect(() => {
+    if (hasColors) {
+      setSelectedColor(variantsByType["Color"][0].value);
+    }
+    if (hasSizes) {
+      setSelectedSize(variantsByType["Size"][0].value);
+    }
+  }, [variantsByType, hasColors, hasSizes]);
 
-  const sizes = [6, 7, 8, 9, 10, 11];
+  // Find active variant match to customize price / image
+  const activeVariantObj = useMemo(() => {
+    if (!bestMatch?.variants) return null;
+    return bestMatch.variants.find(v => {
+      let match = true;
+      if (hasColors && v.type?.toLowerCase() === "color" && v.value !== selectedColor) match = false;
+      if (hasSizes && v.type?.toLowerCase() === "size" && v.value !== selectedSize) match = false;
+      return match;
+    }) || null;
+  }, [bestMatch, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  const trustBadges = [
-    { label: "100% Authentic", desc: "Original Products", icon: ShieldCheck },
-    { label: "Easy Returns", desc: "7-Day Return Policy", icon: RotateCcw },
-    { label: "Free Delivery", desc: "On orders above ₹999", icon: Truck },
-  ];
+  // Dynamic values
+  const brand = product?.brand || bestMatch?.matchBrand || "Premium Brand";
+  const title = product?.label || bestMatch?.title || "Premium Product";
+  const subtitle = bestMatch?.categoryPath || product?.category || "Premium Lifestyle Collection";
+  
+  const priceDisplay = activeVariantObj?.price || bestMatch?.price || "Contact Store";
+  const originalPriceDisplay = bestMatch?.originalPrice || null;
+  const discountText = bestMatch?.discountPercent ? `${bestMatch.discountPercent}% off` : null;
 
-  const specsList = [
-    "Responsive React foam midsole for a smooth ride",
-    "Engineered mesh upper for breathability",
-    "Air Zoom unit in forefoot for added energy return",
-    "Durable rubber outsole with waffle pattern",
-    "Weight: Approx. 297g (UK 9)",
-    "Ideal for daily runs and training",
-  ];
+  const ratingScore = bestMatch?.rating || 4.6;
+  const reviewsCount = bestMatch?.reviewCount || 243;
+  const boughtCountText = bestMatch?.condition ? `Condition: ${bestMatch.condition}` : "Highly rated match";
 
-  // Handler: Prev/Next Image
+  // Gallery carousel construction
+  const galleryImages = useMemo(() => {
+    const list: string[] = [];
+    if (product?.thumbnailUrl) list.push(product.thumbnailUrl);
+    if (product?.sourceFrameUrl) list.push(product.sourceFrameUrl);
+    
+    // Add variant image if available
+    if (activeVariantObj?.imageUrl) {
+      list.push(activeVariantObj.imageUrl);
+    }
+
+    if (bestMatch) {
+      if (bestMatch.imageUrl) list.push(bestMatch.imageUrl);
+      if (bestMatch.galleryImageUrls && Array.isArray(bestMatch.galleryImageUrls)) {
+        for (const url of bestMatch.galleryImageUrls) {
+          if (url) list.push(url);
+        }
+      }
+    }
+
+    const uniqueList = Array.from(new Set(list.filter(Boolean)));
+    if (uniqueList.length === 0) {
+      uniqueList.push("https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600");
+    }
+    return uniqueList;
+  }, [product, bestMatch, activeVariantObj]);
+
+  // When active variant image changes, auto-select it in carousel
+  useEffect(() => {
+    if (activeVariantObj?.imageUrl) {
+      const idx = galleryImages.indexOf(activeVariantObj.imageUrl);
+      if (idx !== -1) {
+        setActiveImageIndex(idx);
+      }
+    }
+  }, [activeVariantObj, galleryImages]);
+
+  // Handlers
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev === 0 ? galleryImages.length - 1 : prev - 1));
   };
@@ -133,7 +208,6 @@ export default function FullScreenProductDetail({
     setActiveImageIndex((prev) => (prev === galleryImages.length - 1 ? 0 : prev + 1));
   };
 
-  // Thumbnail list scroll
   const scrollThumbnails = (direction: "left" | "right") => {
     if (thumbsScrollRef.current) {
       const scrollAmt = direction === "left" ? -150 : 150;
@@ -141,39 +215,62 @@ export default function FullScreenProductDetail({
     }
   };
 
+  const trustBadges = [
+    { label: "100% Authentic", desc: "Original Products", icon: ShieldCheck },
+    { label: "Easy Returns", desc: "7-Day Return Policy", icon: RotateCcw },
+    { label: "Free Delivery", desc: "For verified matches", icon: Truck },
+  ];
+
+  const specsList = useMemo(() => {
+    if (bestMatch?.features && bestMatch.features.length > 0) {
+      return bestMatch.features.slice(0, 6);
+    }
+    if (bestMatch?.highlights && bestMatch.highlights.length > 0) {
+      return bestMatch.highlights.slice(0, 6);
+    }
+    return [
+      "Responsive lightweight cushion lining for all-day comfort",
+      "High grade exterior materials offering premium durability",
+      "Ergonomically structured framework tailored for custom fits",
+      "Robust performance traction sole designed for modern surfaces",
+      "Optimized breathability vents maintaining perfect temperature",
+      "Seamlessly engineered structure suitable for daily lifestyle",
+    ];
+  }, [bestMatch]);
+
   // Similar Products mock database
   const similarProducts = [
     {
       id: "sim1",
-      label: "Nike Air Zoom Structure 25",
+      label: "Designer Running Sneakers",
       price: "₹15,495",
       rating: 4.5,
       reviews: "1.8K",
-      img: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80"
+      img: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200"
     },
     {
       id: "sim2",
-      label: "Nike React Infinity Run 4",
+      label: "Sporty Breathable Trainers",
       price: "₹14,495",
       rating: 4.4,
       reviews: "980",
-      img: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=200&auto=format&fit=crop&q=80"
+      img: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=200"
     },
     {
       id: "sim3",
-      label: "Nike Vomero 17",
+      label: "All-Day Lifestyle Kicks",
       price: "₹16,995",
       rating: 4.6,
       reviews: "1.2K",
-      img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=200&auto=format&fit=crop&q=80"
+      img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=200"
     },
     {
       id: "sim4",
-      label: "Asics Gel-Kayano 30",
+      label: "Urban Cushioned Footwear",
       price: "₹16,999",
       rating: 4.7,
       reviews: "990",
-      img: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=200&auto=format&fit=crop&q=80"
+      img: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=200"
     }
   ];
 
@@ -185,10 +282,8 @@ export default function FullScreenProductDetail({
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="fixed inset-y-0 left-0 md:left-[72px] xl:left-[244px] right-0 z-[150] bg-[#07080d] border-l border-zinc-900/60 flex flex-col text-white overflow-y-auto scrollbar-none pb-12 px-8 pt-5 select-none"
     >
-      {/* Uiverse Button Styles */}
       <style dangerouslySetInnerHTML={{
         __html: `
-          /* Shared Uiverse expand button — vinodjangid07 style */
           .uiverse-btn {
             width: 50px;
             height: 50px;
@@ -243,7 +338,6 @@ export default function FullScreenProductDetail({
             transition-duration: 0.3s;
           }
 
-          /* Individual labels */
           .uiverse-btn.cart-btn::before   { content: "Cart"; }
           .uiverse-btn.alerts-btn::before { content: "Alerts"; }
           .uiverse-btn.back-page-btn::before  { content: "Back"; }
@@ -266,8 +360,6 @@ export default function FullScreenProductDetail({
 
         {/* Right Controls: Search, Cart, Alerts, Close */}
         <div className="flex items-center gap-3">
-          
-          {/* Search Box */}
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-500" />
             <input
@@ -279,7 +371,6 @@ export default function FullScreenProductDetail({
             />
           </div>
 
-          {/* Cart Icon - Expandable Uiverse Button */}
           <button 
             onClick={() => toast({ description: "Opening your shopping cart..." })}
             className="uiverse-btn cart-btn group"
@@ -291,7 +382,6 @@ export default function FullScreenProductDetail({
             </span>
           </button>
 
-          {/* Alerts Bell - Expandable Uiverse Button */}
           <button 
             onClick={() => toast({ description: "You have no new commerce notifications." })}
             className="uiverse-btn alerts-btn group"
@@ -303,13 +393,11 @@ export default function FullScreenProductDetail({
             </span>
           </button>
 
-          {/* Back button - Uiverse vinodjangid07 style */}
           <button
             onClick={onClose}
             className="uiverse-btn back-page-btn"
             title="Back"
           >
-            {/* Left-arrow SVG */}
             <svg className="svgIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
             </svg>
@@ -317,26 +405,20 @@ export default function FullScreenProductDetail({
         </div>
       </div>
 
-      {/* 2. MAIN 2-COLUMN GRID (Images/Tabs on Left, Purchases/Reviews on Right) */}
-      {/* This unified structure avoids CSS Grid row-height stretching and removes the large vertical gaps! */}
+      {/* 2. MAIN 2-COLUMN GRID */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
         
-        {/* ==================== LEFT COLUMN (Col-Span 8) ==================== */}
+        {/* ==================== LEFT COLUMN ==================== */}
         <div className="lg:col-span-8 flex flex-col gap-5">
           
-          {/* Main Product Image Card - fits entirely and blends background */}
-          <div className={cn(
-            "w-full h-[330px] rounded-2xl relative overflow-hidden border border-zinc-800 flex items-center justify-center group shadow-md transition-colors duration-300",
-            containerBg
-          )}>
-            {/* Best Seller tag - blue/indigo pill */}
-            {isBestSeller && (
+          {/* Main Product Image Card */}
+          <div className="w-full h-[330px] rounded-2xl relative overflow-hidden border border-zinc-800 flex items-center justify-center group shadow-md bg-[#161616]">
+            {product?.isVerifiedMatch && (
               <span className="absolute top-4 left-4 z-10 bg-[#5d55fa] text-[9.5px] font-black uppercase tracking-wider text-white px-2.5 py-0.5 rounded shadow-sm">
-                Best seller
+                Verified Match
               </span>
             )}
 
-            {/* Wishlist button */}
             <button
               onClick={() => {
                 setIsWishlisted(!isWishlisted);
@@ -347,7 +429,6 @@ export default function FullScreenProductDetail({
               <Heart className={cn("size-4 text-zinc-850 transition-colors", isWishlisted && "fill-rose-500 text-rose-500")} />
             </button>
 
-            {/* Left Chevron */}
             <button
               onClick={handlePrevImage}
               className="absolute left-4 top-1/2 -translate-y-1/2 size-8 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity cursor-pointer shadow-sm"
@@ -355,7 +436,6 @@ export default function FullScreenProductDetail({
               <ChevronLeft className="size-4.5" />
             </button>
 
-            {/* Main Image - object-contain prevents zooming & cropping, blending with background */}
             {galleryImages[activeImageIndex] && (
               <img
                 src={galleryImages[activeImageIndex]}
@@ -364,7 +444,6 @@ export default function FullScreenProductDetail({
               />
             )}
 
-            {/* Right Chevron */}
             <button
               onClick={handleNextImage}
               className="absolute right-4 top-1/2 -translate-y-1/2 size-8 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity cursor-pointer shadow-sm"
@@ -373,10 +452,8 @@ export default function FullScreenProductDetail({
             </button>
           </div>
 
-          {/* Thumbnails Row - Single horizontal row with chevrons */}
+          {/* Thumbnails Row */}
           <div className="relative flex items-center group/thumbs w-full">
-            
-            {/* Left arrow overlay */}
             <button
               onClick={() => scrollThumbnails("left")}
               className="absolute left-1 bg-black/75 hover:bg-black p-1 rounded-full text-white z-10 opacity-0 group-hover/thumbs:opacity-100 transition-opacity size-7 flex items-center justify-center cursor-pointer shadow"
@@ -384,7 +461,6 @@ export default function FullScreenProductDetail({
               <ChevronLeft className="size-3.5" />
             </button>
 
-            {/* Scroll Container - single line, never wraps, thumbnail fits entirely */}
             <div
               ref={thumbsScrollRef}
               className="flex items-center gap-3 overflow-x-auto scrollbar-none flex-nowrap w-full py-0.5 select-none"
@@ -396,8 +472,7 @@ export default function FullScreenProductDetail({
                     key={index}
                     onClick={() => setActiveImageIndex(index)}
                     className={cn(
-                      "size-[68px] rounded-xl overflow-hidden border transition-all cursor-pointer shrink-0 relative shadow-sm hover:scale-[1.02]",
-                      isDarkImage ? "bg-[#161616]" : "bg-white",
+                      "size-[68px] rounded-xl overflow-hidden border transition-all cursor-pointer shrink-0 relative shadow-sm hover:scale-[1.02] bg-[#161616]",
                       isActive 
                         ? "border-[#5d55fa] border-2" 
                         : "border-zinc-850 opacity-60 hover:opacity-100"
@@ -413,23 +488,19 @@ export default function FullScreenProductDetail({
               })}
             </div>
 
-            {/* Right arrow overlay */}
             <button
               onClick={() => scrollThumbnails("right")}
               className="absolute right-1 bg-black/75 hover:bg-black p-1 rounded-full text-white z-10 opacity-0 group-hover/thumbs:opacity-100 transition-opacity size-7 flex items-center justify-center cursor-pointer shadow"
             >
               <ChevronRight className="size-3.5" />
             </button>
-
           </div>
 
-          {/* Bottom Grid of Left Column (About & Similar Products aligned together) */}
+          {/* Bottom Grid of Left Column */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-5 border-t border-zinc-900 mt-2">
             
-            {/* Column 1A: Tabbed About Info (Col-Span 5) */}
+            {/* Column 1A: Tabbed About Info */}
             <div className="md:col-span-5 flex flex-col gap-4">
-              
-              {/* Tab bar header */}
               <div className="flex items-center gap-3 border-b border-zinc-900 pb-1.5 overflow-x-auto scrollbar-none shrink-0">
                 {["About", "Features", "Specifications"].map((tab) => {
                   const isActive = activeTab.startsWith(tab);
@@ -451,7 +522,6 @@ export default function FullScreenProductDetail({
                 })}
               </div>
 
-              {/* Tab body */}
               <div className="flex flex-col gap-2 text-left">
                 <h4 className="text-[11px] font-bold tracking-wider text-zinc-450 uppercase mb-1">
                   Product highlights
@@ -470,7 +540,7 @@ export default function FullScreenProductDetail({
               </div>
             </div>
 
-            {/* Column 1B: Similar Products (Col-Span 7, Fits exact 4 horizontal product cards) */}
+            {/* Column 1B: Similar Products */}
             <div className="md:col-span-7 flex flex-col gap-4">
               <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
                 <span className="text-xs font-bold tracking-wider text-zinc-400 uppercase">
@@ -484,7 +554,6 @@ export default function FullScreenProductDetail({
                 </button>
               </div>
 
-              {/* Render 4 columns for 4 items side-by-side inside middle column */}
               <div className="grid grid-cols-4 gap-2">
                 {similarProducts.map((item) => (
                   <div
@@ -527,7 +596,7 @@ export default function FullScreenProductDetail({
 
         </div>
 
-        {/* ==================== RIGHT COLUMN (Col-Span 4) ==================== */}
+        {/* ==================== RIGHT COLUMN ==================== */}
         <div className="lg:col-span-4 flex flex-col gap-5">
           
           {/* Purchase Details Panel */}
@@ -556,7 +625,7 @@ export default function FullScreenProductDetail({
                   ({reviewsCount.toLocaleString()} reviews)
                 </button>
                 <span className="text-zinc-700 font-normal">•</span>
-                <span className="text-zinc-450">
+                <span className="text-zinc-455">
                   {boughtCountText}
                 </span>
               </div>
@@ -568,12 +637,16 @@ export default function FullScreenProductDetail({
                 <span className="text-2xl font-black text-white leading-none">
                   {priceDisplay}
                 </span>
-                <span className="text-zinc-550 line-through text-xs font-semibold">
-                  {originalPriceDisplay}
-                </span>
-                <span className="text-[9.5px] font-extrabold text-[#10b981] bg-[#10b981]/15 px-1.5 py-0.5 rounded shadow-sm">
-                  {discountText}
-                </span>
+                {originalPriceDisplay && (
+                  <span className="text-zinc-550 line-through text-xs font-semibold">
+                    {originalPriceDisplay}
+                  </span>
+                )}
+                {discountText && (
+                  <span className="text-[9.5px] font-extrabold text-[#10b981] bg-[#10b981]/15 px-1.5 py-0.5 rounded shadow-sm">
+                    {discountText}
+                  </span>
+                )}
               </div>
               <span className="text-zinc-650 text-[10px] font-bold mt-1 uppercase tracking-wide">
                 Inclusive of all taxes
@@ -596,79 +669,118 @@ export default function FullScreenProductDetail({
               })}
             </div>
 
-            {/* Color selection dots */}
-            <div className="flex flex-col gap-2 border-b border-zinc-900 pb-3.5">
-              <span className="text-[11px] font-bold tracking-wide text-zinc-400 uppercase">
-                Color: <span className="text-white capitalize">{selectedColor}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                {colors.map((color) => {
-                  const isActive = color.name === selectedColor;
-                  return (
-                    <button
-                      key={color.name}
-                      onClick={() => setSelectedColor(color.name)}
-                      className={cn(
-                        "size-7 rounded-full border transition-all cursor-pointer relative flex items-center justify-center shadow active:scale-90",
-                        isActive ? "border-[#5d55fa] border-2 scale-102" : "border-zinc-800 hover:border-zinc-550"
-                      )}
-                      style={{ backgroundColor: color.hex }}
-                      title={color.name}
-                    >
-                      {isActive && (
-                        <span className={cn("size-1.5 rounded-full", color.hex === "#f3f4f6" ? "bg-black" : "bg-white")} />
-                      )}
-                    </button>
-                  );
-                })}
-                <span className="text-[9.5px] font-bold text-zinc-500 bg-[#12131a] px-2 py-0.5 rounded-full border border-zinc-850 select-none cursor-pointer hover:text-white transition-colors">
-                  +2
+            {/* Dynamic Variant Selector: Colors */}
+            {hasColors && (
+              <div className="flex flex-col gap-2 border-b border-zinc-900 pb-3.5">
+                <span className="text-[11px] font-bold tracking-wide text-zinc-400 uppercase">
+                  Color: <span className="text-white capitalize">{selectedColor}</span>
                 </span>
+                <div className="flex items-center gap-2">
+                  {variantsByType["Color"].map((color) => {
+                    const isActive = color.value === selectedColor;
+                    const hex = resolveColorHex(color.value);
+                    return (
+                      <button
+                        key={color.value}
+                        onClick={() => setSelectedColor(color.value)}
+                        className={cn(
+                          "size-7 rounded-full border transition-all cursor-pointer relative flex items-center justify-center shadow active:scale-90",
+                          isActive ? "border-[#5d55fa] border-2 scale-102" : "border-zinc-800 hover:border-zinc-550"
+                        )}
+                        style={{ backgroundColor: hex }}
+                        title={color.value}
+                      >
+                        {isActive && (
+                          <span className={cn("size-1.5 rounded-full", hex === "#f3f4f6" ? "bg-black" : "bg-white")} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Size selection row */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-wide">
-                <span className="text-zinc-400">
-                  Select Size (UK)
-                </span>
-                <button 
-                  onClick={() => toast({ description: "Size Guide: UK sizes are identical to standard Indian shoe sizes." })}
-                  className="text-[#5d55fa] hover:underline transition-colors lowercase font-bold"
-                >
-                  Size guide
-                </button>
+            {/* Dynamic Variant Selector: Sizes */}
+            {hasSizes && (
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-wide">
+                  <span className="text-zinc-400">
+                    Select Size
+                  </span>
+                  <button 
+                    onClick={() => toast({ description: "Size Guide is custom to brand standards." })}
+                    className="text-[#5d55fa] hover:underline transition-colors lowercase font-bold"
+                  >
+                    Size guide
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-6 gap-2">
+                  {variantsByType["Size"].map((sizeObj) => {
+                    const isActive = sizeObj.value === selectedSize;
+                    return (
+                      <button
+                        key={sizeObj.value}
+                        onClick={() => setSelectedSize(sizeObj.value)}
+                        className={cn(
+                          "py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95",
+                          isActive 
+                            ? "bg-[#5d55fa] border-transparent text-white" 
+                            : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900/30"
+                        )}
+                      >
+                        {sizeObj.value}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              
-              <div className="grid grid-cols-6 gap-2">
-                {sizes.map((size) => {
-                  const isActive = size === selectedSize;
-                  return (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={cn(
-                        "py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95",
-                        isActive 
-                          ? "bg-[#5d55fa] border-transparent text-white" 
-                          : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900/30"
-                      )}
-                    >
-                      {size}
-                    </button>
-                  );
-                })}
+            )}
+
+            {/* Fallback to default sizing if no sizes in DB */}
+            {!hasSizes && (
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-wide">
+                  <span className="text-zinc-400">
+                    Select Size (UK)
+                  </span>
+                  <button 
+                    onClick={() => toast({ description: "Size Guide: UK sizes are identical to standard Indian shoe sizes." })}
+                    className="text-[#5d55fa] hover:underline transition-colors lowercase font-bold"
+                  >
+                    Size guide
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-6 gap-2">
+                  {[6, 7, 8, 9, 10, 11].map((size) => {
+                    const isActive = String(size) === selectedSize;
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(String(size))}
+                        className={cn(
+                          "py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95",
+                          isActive 
+                            ? "bg-[#5d55fa] border-transparent text-white" 
+                            : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900/30"
+                        )}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Stock details */}
-            <div className="flex flex-col gap-3 mt-1 border-t border-zinc-900 pt-3.5">
+            <div className="flex flex-col gap-3 mt-1 border-t border-[#12131a] pt-3.5">
               <div className="flex items-center gap-1.5">
                 <span className="size-1.5 bg-emerald-500 rounded-full animate-pulse" />
                 <span className="text-[11px] font-bold text-emerald-450">In stock</span>
                 <span className="text-zinc-700 text-xs font-normal">•</span>
-                <span className="text-[11px] text-zinc-500 font-bold">Delivery by 28 May</span>
+                <span className="text-[11px] text-zinc-555 font-bold">Usually ships in 24 hours</span>
               </div>
 
               {/* Action buttons */}
@@ -677,7 +789,7 @@ export default function FullScreenProductDetail({
                   onClick={() => {
                     setCartCount((c) => c + 1);
                     toast({
-                      description: `Added ${title} (UK Size ${selectedSize}) to your Cart!`,
+                      description: `Added ${title} to your Cart!`,
                     });
                   }}
                   className="flex-1 border border-zinc-800 bg-transparent text-white hover:bg-zinc-900/70 hover:border-zinc-700 active:scale-[0.98] font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider transition-all cursor-pointer"
@@ -688,7 +800,7 @@ export default function FullScreenProductDetail({
 
                 <button
                   onClick={() => {
-                    const url = product?.matches?.[0]?.productUrl || "https://nike.com";
+                    const url = bestMatch?.productUrl || "https://www.google.com";
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
                   className="flex-1 bg-[#5d55fa] text-white hover:bg-[#4d45ea] active:scale-[0.98] font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
@@ -701,7 +813,7 @@ export default function FullScreenProductDetail({
 
           </div>
 
-          {/* Customer Reviews Section (placed tightly at the bottom of the right column flow) */}
+          {/* Customer Reviews Section */}
           <div className="flex flex-col gap-3.5 pt-5 border-t border-zinc-900 mt-2">
             <div className="flex justify-between items-center pb-1">
               <span className="text-xs font-bold tracking-wider text-zinc-400 uppercase">
@@ -717,14 +829,14 @@ export default function FullScreenProductDetail({
 
             <div className="flex gap-4 items-center">
               <div className="flex flex-col text-left">
-                <span className="text-3xl font-extrabold text-white leading-none">4.6</span>
+                <span className="text-3xl font-extrabold text-white leading-none">{ratingScore}</span>
                 <div className="flex items-center gap-0.5 text-amber-500 mt-1">
                   {Array.from({ length: 5 }).map((_, idx) => (
                     <span key={idx} className="text-xs">★</span>
                   ))}
                 </div>
                 <span className="text-[9px] font-black text-zinc-500 mt-1.5 uppercase tracking-wider">
-                  2,482 ratings
+                  {reviewsCount} ratings
                 </span>
               </div>
               
@@ -741,7 +853,7 @@ export default function FullScreenProductDetail({
                     <div className="flex-grow h-1 bg-zinc-900 rounded-full overflow-hidden">
                       <div className="h-full bg-amber-500 rounded-full" style={{ width: `${row.pct}%` }} />
                     </div>
-                    <span className="text-[9px] text-zinc-500 font-bold shrink-0 w-6 text-right">{row.pct}%</span>
+                    <span className="text-[9px] text-zinc-550 font-bold shrink-0 w-6 text-right">{row.pct}%</span>
                   </div>
                 ))}
               </div>

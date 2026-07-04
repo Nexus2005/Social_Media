@@ -30,3 +30,6 @@ google-vision-key.json
 # temporary background worker files
 tmp/
 
+# dynamic product downloads
+public/uploads/
+

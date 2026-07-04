@@ -13,8 +13,39 @@
 
 // Noise words stripped during query simplification
 const GENDER_WORDS = new Set(["men's", "mens", "women's", "womens", "unisex", "boys", "girls", "kids"]);
-const CATEGORY_WORDS = new Set(["sneakers", "shoes", "boots", "sandals", "shirt", "t-shirt", "hoodie", "jacket",
-  "coat", "bag", "handbag", "backpack", "watch", "sunglasses", "glasses", "jeans", "shorts", "dress", "suit"]);
+const CATEGORY_WORDS = new Set([
+  // Footwear
+  "sneakers", "shoes", "boots", "sandals", "trainers", "heels",
+  // Clothing
+  "shirt", "t-shirt", "hoodie", "jacket", "coat", "sweater", "dress",
+  "suit", "jeans", "shorts", "pants", "skirt", "top", "blouse",
+  // Bags
+  "bag", "handbag", "backpack", "suitcase", "purse", "tote", "clutch",
+  // Accessories
+  "watch", "smartwatch", "sunglasses", "glasses", "belt", "wallet",
+  "hat", "cap", "tie", "umbrella",
+  // Electronics
+  "phone", "laptop", "tablet", "keyboard", "mouse", "monitor",
+  "headphones", "earbuds", "speaker", "camera", "remote",
+  // Furniture
+  "chair", "sofa", "couch", "bed", "table",
+  // Kitchen
+  "bottle", "mug", "cup", "bowl", "vase", "clock",
+  // Jewelry
+  "ring", "necklace", "bracelet", "earrings", "jewelry", "jewellery",
+  // Beauty
+  "perfume", "lipstick", "foundation", "cosmetics",
+  // Sports
+  "skateboard", "surfboard", "bicycle", "snowboard",
+  // Books
+  "book",
+  // Other
+  "console", "controller",
+]);
+
+// Alphanumeric model codes to preserve (don't strip during simplification)
+const MODEL_CODE_REGEX = /^[a-z]*\d+[a-z0-9]*$/i; // "S24", "A15", "90", "Air"
+
 
 export class SearchQueryOptimizer {
   /**

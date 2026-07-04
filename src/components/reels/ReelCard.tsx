@@ -650,6 +650,7 @@ export default function ReelCard({
   const [drawerHeightState, setDrawerHeightState] = useState<"min" | "mid" | "max">("min");
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [showHotspots, setShowHotspots] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(false);
   const hotspotTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Polling query for AI status tracking
@@ -700,7 +701,7 @@ export default function ReelCard({
     const rawDetected = statusData?.detectedProducts || post.detectedProducts || [];
     const aiProducts = rawDetected
       .filter((dp: any) => !assignedProducts.some((ap: any) => ap.id === dp.id))
-      .filter((dp: any) => dp.isVerifiedMatch || (dp.confidence ?? 0) >= 0.8)
+      .filter((dp: any) => dp.isVerifiedMatch || (dp.confidence ?? 0) >= 0.3)
       .map((dp: any) => ({
         ...dp,
         isVerifiedMatch: dp.isVerifiedMatch || false,
@@ -2548,6 +2549,7 @@ export default function ReelCard({
                     setIsPlaying(false);
                   }
                   setActiveRightDrawer(activeRightDrawer === "shop" ? null : "shop");
+                  setShowAllProducts(false);
                 }}
                 className={cn(
                   "h-11 w-11 flex items-center justify-center rounded-full text-white shadow-xl cursor-pointer transition-all duration-300",
@@ -2622,7 +2624,7 @@ export default function ReelCard({
 
               {/* Grid of Product Cards */}
               <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-3 scrollbar-none bg-[#07080d] content-start">
-                {desktopFilteredProducts.map((prod) => {
+                {(showAllProducts ? desktopFilteredProducts : desktopFilteredProducts.slice(0, 4)).map((prod) => {
                   const itemBestMatch = [...(prod.matches || [])].sort((a, b) => {
                     const priceA = parsePrice(a.price);
                     const priceB = parsePrice(b.price);
@@ -2695,25 +2697,19 @@ export default function ReelCard({
               </div>
 
               {/* Sticky Bottom Actions */}
-              <div className="border-t border-zinc-900/60 bg-[#07080d] p-4 flex flex-col gap-3.5 shrink-0 select-none">
-                <button
-                  onClick={() => {
-                    if (onViewAllProducts) {
-                      onViewAllProducts(detectedProducts);
-                    } else {
-                      const first = desktopFilteredProducts[0] || detectedProducts[0];
-                      if (first && first.matches?.[0]) {
-                        const deal = first.matches[0];
-                        window.open(deal.productUrl, "_blank", "noopener,noreferrer");
-                      }
-                    }
-                  }}
-                  className="reel-view-all-btn w-full py-3.5"
-                >
-                  <span>View all {detectedProducts.length} products</span>
-                  <span style={{ fontSize: 14 }}>&#8594;</span>
-                </button>
-              </div>
+              {desktopFilteredProducts.length > 4 && !showAllProducts && (
+                <div className="border-t border-zinc-900/60 bg-[#07080d] p-4 flex flex-col gap-3.5 shrink-0 select-none">
+                  <button
+                    onClick={() => {
+                      setShowAllProducts(true);
+                    }}
+                    className="reel-view-all-btn w-full py-3.5"
+                  >
+                    <span>View all {desktopFilteredProducts.length} products</span>
+                    <span style={{ fontSize: 14 }}>&#8594;</span>
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -3676,6 +3672,16 @@ function ProductList({
     return `${symbol}${original}`;
   };
 
+  // Delivery tag generator
+  const getDeliveryTag = (merchant: string): string => {
+    const m = merchant.toLowerCase();
+    if (m.includes("amazon")) return "Delivery tomorrow";
+    if (m.includes("flipkart")) return "Delivery in 2 days";
+    if (m.includes("myntra")) return "Delivery in 3 days";
+    if (m.includes("ajio")) return "Delivery in 4 days";
+    return "Delivery in 3-5 days";
+  };
+
   const getDeliveryDays = (match: any): number => {
     const text = (match.deliveryText || getDeliveryTag(match.sourceStore || "")).toLowerCase();
     if (text.includes("tomorrow") || text.includes("1 day")) return 1;
@@ -3711,16 +3717,6 @@ function ProductList({
     if (lbl.includes("pants") || lbl.includes("jeans") || lbl.includes("shorts") || lbl.includes("trouser")) return "👖";
     if (cat.includes("clothing") || lbl.includes("shirt") || lbl.includes("tee") || lbl.includes("jacket") || lbl.includes("hoodie") || lbl.includes("coat") || lbl.includes("sweater") || lbl.includes("top") || lbl.includes("dress")) return "👕";
     return "🛍";
-  };
-
-  // Delivery tag generator
-  const getDeliveryTag = (merchant: string): string => {
-    const m = merchant.toLowerCase();
-    if (m.includes("amazon")) return "Delivery tomorrow";
-    if (m.includes("flipkart")) return "Delivery in 2 days";
-    if (m.includes("myntra")) return "Delivery in 3 days";
-    if (m.includes("ajio")) return "Delivery in 4 days";
-    return "Delivery in 3-5 days";
   };
 
   const handleBuyClick = async (e: React.MouseEvent, matchId: string, fallbackUrl: string) => {
