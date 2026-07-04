@@ -38,10 +38,12 @@ import {
   Activity,
   AlertCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +92,13 @@ export default function CartlySidebar({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
+
+  const isMessagesPage = pathname.startsWith("/messages");
+  const [isMinimized, setIsMinimized] = useState(isMessagesPage);
+
+  useEffect(() => {
+    setIsMinimized(pathname.startsWith("/messages"));
+  }, [pathname]);
 
   // Queries for real-time counts
   const { data: notificationsData } = useQuery({
@@ -175,7 +184,8 @@ export default function CartlySidebar({
     <>
       {/* Sidebar Navigation */}
       <aside className={cn(
-        "fixed left-0 top-0 z-20 hidden h-screen flex-col justify-between border-e bg-card px-3 py-6 transition-all duration-300 sm:flex w-[72px] xl:w-[244px]"
+        "fixed left-0 top-0 z-20 hidden h-screen flex-col justify-between border-e bg-card px-3 py-6 transition-all duration-300 sm:flex",
+        isMinimized ? "w-[72px] minimized-sidebar" : "w-[72px] xl:w-[244px]"
       )}>
         <div className="flex flex-col gap-6">
           {/* Logo */}
@@ -185,40 +195,59 @@ export default function CartlySidebar({
               alt="Cartly Logo"
               className="size-9 object-contain flex-shrink-0"
             />
-            <span 
-              className="hidden text-2xl font-black tracking-tight xl:block text-foreground"
-              style={{ fontFamily: "'Nunito', sans-serif" }}
-            >
-              Cartly
-            </span>
-            
-            {/* Animated stars */}
-            <svg className="star-1" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-              <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-            </svg>
-            <svg className="star-2" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-              <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-            </svg>
-            <svg className="star-3" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-              <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-            </svg>
-            <svg className="star-4" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-              <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-            </svg>
-            <svg className="star-5" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-              <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-            </svg>
-            <svg className="star-6" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-              <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-            </svg>
+            {!isMinimized && (
+              <>
+                <span 
+                  className="hidden text-2xl font-black tracking-tight xl:block text-foreground"
+                  style={{ fontFamily: "'Nunito', sans-serif" }}
+                >
+                  Cartly
+                </span>
+                
+                {/* Animated stars */}
+                <svg className="star-1" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                </svg>
+                <svg className="star-2" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                </svg>
+                <svg className="star-3" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                </svg>
+                <svg className="star-4" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                </svg>
+                <svg className="star-5" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                </svg>
+                <svg className="star-6" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                </svg>
+              </>
+            )}
           </Link>
+
+          {/* Toggle Minimize/Maximize Arrow Button just below Logo */}
+          <div className="px-2">
+            <button
+              onClick={() => setIsMinimized(!isMinimized)}
+              className="flex items-center justify-center h-8 w-8 hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-all cursor-pointer rounded-full bg-indigo-600/10 border border-indigo-500/20 shadow-sm hover:scale-105 active:scale-95"
+              title={isMinimized ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {isMinimized ? (
+                <ChevronRight className="size-4.5 text-indigo-400 animate-pulse" />
+              ) : (
+                <ChevronLeft className="size-4.5 text-indigo-400" />
+              )}
+            </button>
+          </div>
  
           {/* Navigation Items */}
           <nav className="flex flex-col gap-2">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const content = (
-                <div className="flex items-center gap-4">
+                <div className={cn("flex items-center w-full", isMinimized ? "justify-center" : "gap-4")}>
                   <div className="relative flex items-center justify-center">
                     <Icon className="size-6 flex-shrink-0" />
                     {!!item.badge && (
@@ -227,18 +256,22 @@ export default function CartlySidebar({
                       </span>
                     )}
                   </div>
-                  <span className={cn(
-                    "hidden text-[16px] xl:inline",
-                    item.active ? "font-bold" : ""
-                  )}>
-                    {item.label}
-                  </span>
+                  {!isMinimized && (
+                    <span className={cn(
+                      "hidden text-[16px] xl:inline",
+                      item.active ? "font-bold" : ""
+                    )}>
+                      {item.label}
+                    </span>
+                  )}
                 </div>
               );
  
-              const btnClass = `w-full flex items-center justify-start gap-4 px-3 py-3 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors ${
+              const btnClass = cn(
+                "flex items-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200",
+                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3",
                 item.active ? "bg-indigo-600/15 text-indigo-400 font-bold" : "text-muted-foreground"
-              }`;
+              );
  
               if (item.onClick) {
                 return (
@@ -256,9 +289,17 @@ export default function CartlySidebar({
             })}
 
             {/* Create purple solid button */}
-            <Link href="/create" className="hidden xl:flex w-full items-center justify-center gap-2 py-3.5 rounded-xl bg-[#4f46e5] text-white font-bold hover:bg-[#4338ca] active:scale-[0.98] transition-all shadow-lg mt-4 text-sm">
-              <PlusSquare className="size-5" />
-              <span>Create</span>
+            <Link
+              href="/create"
+              className={cn(
+                "hidden xl:flex items-center justify-center bg-[#4f46e5] text-white font-bold hover:bg-[#4338ca] active:scale-[0.98] transition-all shadow-lg mt-4",
+                isMinimized
+                  ? "size-11 rounded-full p-0 mx-auto"
+                  : "w-full py-3.5 rounded-xl gap-2 text-sm"
+              )}
+            >
+              <PlusSquare className="size-5 flex-shrink-0" />
+              {!isMinimized && <span>Create</span>}
             </Link>
           </nav>
         </div>
@@ -268,9 +309,12 @@ export default function CartlySidebar({
           {/* More Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center justify-start gap-4 px-3 py-3 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+              <button className={cn(
+                "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
+                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3"
+              )}>
                 <Menu className="size-6 flex-shrink-0" />
-                <span className="hidden xl:inline">More</span>
+                {!isMinimized && <span className="hidden xl:inline">More</span>}
               </button>
             </DropdownMenuTrigger>
 
@@ -337,15 +381,20 @@ export default function CartlySidebar({
           {/* User Profile Card */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border hover:bg-accent transition-colors cursor-pointer select-none">
+              <div className={cn(
+                "flex items-center bg-card border border-border hover:bg-accent transition-colors cursor-pointer select-none",
+                isMinimized ? "p-1.5 justify-center rounded-full mx-auto w-11 h-11" : "p-2.5 justify-between rounded-xl w-full"
+              )}>
                 <div className="flex items-center gap-2.5 min-w-0">
                   <UserAvatar avatarUrl={user.avatarUrl} size={36} className="size-9 rounded-full object-cover border border-border/20" />
-                  <div className="hidden xl:flex flex-col text-left min-w-0">
-                    <span className="text-xs font-semibold text-foreground truncate">{user.displayName}</span>
-                    <span className="text-[10px] text-muted-foreground truncate">@{user.username}</span>
-                  </div>
+                  {!isMinimized && (
+                    <div className="hidden xl:flex flex-col text-left min-w-0">
+                      <span className="text-xs font-semibold text-foreground truncate">{user.displayName}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">@{user.username}</span>
+                    </div>
+                  )}
                 </div>
-                <ChevronDown className="hidden xl:block size-4 text-muted-foreground flex-shrink-0" />
+                {!isMinimized && <ChevronDown className="hidden xl:block size-4 text-muted-foreground flex-shrink-0" />}
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -376,7 +425,15 @@ export default function CartlySidebar({
         </div>
       </aside>
 
-
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (min-width: 1280px) {
+            aside.minimized-sidebar ~ .main-content-wrapper {
+              padding-left: 72px !important;
+            }
+          }
+        `
+      }} />
     </>
   );
 }
