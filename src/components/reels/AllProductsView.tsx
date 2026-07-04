@@ -1224,7 +1224,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                   <div>
                     <h3 className="text-sm font-black text-white tracking-tight">Need help choosing?</h3>
                     <p className="text-[10.5px] font-semibold text-zinc-550 mt-1 leading-normal">
-                      Answer a few questions and we'll recommend the perfect shoe for you.
+                      {"Answer a few questions and we'll recommend the perfect shoe for you."}
                     </p>
                   </div>
                   
