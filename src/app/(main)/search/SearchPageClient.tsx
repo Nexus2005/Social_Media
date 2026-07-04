@@ -1111,13 +1111,13 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                         key={f}
                         onClick={() => setExploreFilter(f)}
                         className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-extrabold transition-all cursor-pointer",
+                          "pill-expand-button flex-shrink-0 w-auto px-4 py-2 text-xs font-bold rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm select-none",
                           exploreFilter === f
-                            ? "bg-indigo-650 text-white shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                            ? "active"
+                            : "bg-background text-zinc-550 border-black/10 dark:border-white/10 hover:border-transparent"
                         )}
                       >
-                        {f}
+                        <span className="z-10">{f}</span>
                       </button>
                     ))}
                   </div>
