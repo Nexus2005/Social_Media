@@ -551,7 +551,7 @@ export default function Post({ post }: PostProps) {
       {/* Repost Header */}
       {repostInfo && (
         <div className="flex items-center gap-1.5 text-xs text-[#8e8e93] font-semibold px-3 -mt-1 mb-1">
-          <InstagramRepostIcon className="size-3.5 text-green-500" />
+          <Repeat className="size-3.5 text-green-500" />
           <span>{repostInfo.user.id === user.id ? "You" : repostInfo.user.displayName} reposted</span>
         </div>
       )}
