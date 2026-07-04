@@ -1,115 +1,64 @@
-import React from "react";
 import StoriesCarousel from "@/components/StoriesCarousel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FollowingFeed from "./FollowingFeed";
 import ForYouFeed from "./ForYouFeed";
-import LatestFeed from "./LatestFeed";
 import SuggestedSidebar from "./SuggestedSidebar";
-import { Search } from "lucide-react";
-import { validateRequest } from "@/auth";
-import { redirect } from "next/navigation";
-import HeaderActions from "./HeaderActions";
+import { Search, SlidersHorizontal } from "lucide-react";
 
-export default async function Home() {
-  const { user } = await validateRequest();
-  if (!user) {
-    redirect("/login");
-  }
-
+export default function Home() {
   return (
-    <div className="mx-auto flex flex-col w-full max-w-[1100px] gap-6 px-4 md:px-6 py-6 justify-center min-h-screen text-foreground transition-colors duration-200">
-      
-      {/* 1. Upper Header Row - Desktop Only */}
-      <div className="hidden xl:flex justify-between items-center gap-8 w-full shrink-0 select-none pb-4 pt-2">
-        {/* Left aligned Search Bar (same width as feed column) */}
-        <div className="w-full max-w-[640px]">
-          <form action="/search" method="GET" className="w-full">
-            <div className="relative flex items-center h-[54px] w-full glass-card rounded-[20px] px-4.5 gap-3 shadow-premium-md premium-glow-focus group/search border border-zinc-250/20 dark:border-zinc-800/30">
-              <Search className="size-5 text-muted-foreground group-focus-within/search:text-indigo-500 transition-colors shrink-0" />
-              <input
-                name="q"
-                type="text"
-                placeholder="Search for products, brands, styles or creators..."
-                className="flex-grow bg-transparent text-[14px] font-medium text-foreground placeholder:text-muted-foreground/50 outline-none h-full"
-              />
-              <div className="flex items-center justify-center px-2 py-0.5 rounded-lg border border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/50 dark:bg-zinc-900/60 text-[10px] font-black text-muted-foreground/80 shadow-sm">
-                ⌘ K
-              </div>
-            </div>
-          </form>
-        </div>
+    <div className="mx-auto flex w-full max-w-[935px] gap-0 sm:gap-8 px-0 sm:px-4 md:px-8 py-0 sm:py-6 justify-center bg-instagram-lightBg dark:bg-instagram-darkBg">
+      {/* Column 2 (Center Feed) */}
+      <div className="w-full max-w-[600px] space-y-1 sm:space-y-2">
+        {/* Stories Carousel */}
+        <StoriesCarousel />
 
-        {/* Right aligned actions bar (matches right sidebar width) */}
-        <HeaderActions user={user} />
-      </div>
+        {/* Feeds Tabs */}
+        <Tabs defaultValue="for-you" className="w-full">
+          <TabsList className="w-full justify-start border-b border-instagram-lightBorder dark:border-instagram-darkBorder bg-transparent p-0 h-12 rounded-none gap-8">
+            <TabsTrigger
+              value="for-you"
+              className="bg-transparent relative rounded-none px-2 py-3 h-full text-[16px] font-semibold text-zinc-400 data-[state=active]:text-instagram-lightText data-[state=active]:dark:text-instagram-darkText transition-all after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-current after:scale-x-0 data-[state=active]:after:scale-x-100 after:transition-transform after:duration-200 data-[state=active]:bg-transparent"
+            >
+              For You
+            </TabsTrigger>
+            <TabsTrigger
+              value="following"
+              className="bg-transparent relative rounded-none px-2 py-3 h-full text-[16px] font-semibold text-zinc-400 data-[state=active]:text-instagram-lightText data-[state=active]:dark:text-instagram-darkText transition-all after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-current after:scale-x-0 data-[state=active]:after:scale-x-100 after:transition-transform after:duration-200 data-[state=active]:bg-transparent"
+            >
+              Following
+            </TabsTrigger>
+          </TabsList>
 
-      {/* 2. Main Two-Column Layout */}
-      <div className="flex gap-8 w-full justify-center items-start">
-        
-        {/* Center Feed Column */}
-        <div className="w-full max-w-[640px] space-y-4">
-          
-          {/* Mobile Search Bar - Mobile View Only */}
-          <div className="sticky top-14 z-20 bg-instagram-lightBg dark:bg-instagram-darkBg py-1.5 px-4 sm:py-2.5 sm:px-0 xl:hidden">
+          {/* Sticky Search Bar - sticks below the 56px (h-14) mobile header */}
+          <div className="sticky top-14 sm:top-0 z-20 bg-instagram-lightBg dark:bg-instagram-darkBg py-1.5 px-4 sm:py-2.5 sm:px-0">
             <form action="/search" method="GET" className="w-full">
-              <div className="relative flex items-center h-11 w-full bg-zinc-100 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 gap-2">
-                <Search className="size-5 text-muted-foreground shrink-0" />
+              <div className="relative flex items-center h-11 w-full bg-zinc-100 dark:bg-[#121212] border border-zinc-200 dark:border-instagram-darkBorder rounded-xl px-3 gap-2">
+                <Search className="size-5 text-instagram-lightText dark:text-instagram-darkText shrink-0" />
                 <input
                   name="q"
                   type="text"
                   placeholder="Search"
-                  className="flex-grow bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/60 outline-none h-full"
+                  className="flex-grow bg-transparent text-[15px] text-instagram-lightText dark:text-instagram-darkText placeholder-[#8e8e93] outline-none h-full"
                 />
+                <button type="button" className="text-instagram-lightText dark:text-instagram-darkText hover:opacity-85 transition-opacity shrink-0">
+                  <SlidersHorizontal className="size-5" />
+                </button>
               </div>
             </form>
           </div>
 
-          {/* Stories block wrapped in a premium card */}
-          <div className="p-4 rounded-3xl border border-zinc-200/50 dark:border-zinc-805/85 bg-[#ffffff]/60 dark:bg-[#0c0d14]/40 backdrop-blur-md shadow-sm">
-            <StoriesCarousel />
-          </div>
-
-          {/* Feeds Tabs */}
-          <Tabs defaultValue="for-you" className="w-full">
-            <TabsList className="w-full justify-start border-b border-zinc-200 dark:border-zinc-800 bg-transparent p-0 h-11 rounded-none gap-6 mb-3">
-              <TabsTrigger
-                value="for-you"
-                className="bg-transparent relative rounded-none px-1 py-2.5 h-full text-[15px] font-extrabold text-muted-foreground/80 data-[state=active]:text-foreground transition-all after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-indigo-500 after:scale-x-0 data-[state=active]:after:scale-x-100 after:transition-transform after:duration-200 data-[state=active]:bg-transparent"
-              >
-                For you
-              </TabsTrigger>
-              <TabsTrigger
-                value="following"
-                className="bg-transparent relative rounded-none px-1 py-2.5 h-full text-[15px] font-extrabold text-muted-foreground/80 data-[state=active]:text-foreground transition-all after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-indigo-500 after:scale-x-0 data-[state=active]:after:scale-x-100 after:transition-transform after:duration-200 data-[state=active]:bg-transparent"
-              >
-                Following
-              </TabsTrigger>
-              <TabsTrigger
-                value="latest"
-                className="bg-transparent relative rounded-none px-1 py-2.5 h-full text-[15px] font-extrabold text-muted-foreground/80 data-[state=active]:text-foreground transition-all after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-indigo-500 after:scale-x-0 data-[state=active]:after:scale-x-100 after:transition-transform after:duration-200 data-[state=active]:bg-transparent"
-              >
-                Latest
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="for-you" className="mt-0 outline-none">
-              <ForYouFeed />
-            </TabsContent>
-            <TabsContent value="following" className="mt-0 outline-none">
-              <FollowingFeed />
-            </TabsContent>
-            <TabsContent value="latest" className="mt-0 outline-none">
-              <LatestFeed />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* Right Sidebar Column */}
-        <div className="w-[360px] hidden xl:block flex-shrink-0">
-          <SuggestedSidebar />
-        </div>
-
+          <TabsContent value="for-you" className="mt-1 outline-none">
+            <ForYouFeed />
+          </TabsContent>
+          <TabsContent value="following" className="mt-1 outline-none">
+            <FollowingFeed />
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Column 3 (Right Sidebar) */}
+      <SuggestedSidebar />
     </div>
   );
 }

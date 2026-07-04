@@ -40,7 +40,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  List,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -137,12 +136,6 @@ export default function CartlySidebar({
       active: pathname === "/",
     },
     {
-      icon: (props: any) => <Compass {...props} />,
-      label: "Explore",
-      href: "/explore",
-      active: pathname === "/explore",
-    },
-    {
       icon: (props: any) => <Search {...props} />,
       label: "Search",
       href: "/search",
@@ -154,6 +147,7 @@ export default function CartlySidebar({
       href: "/reels",
       active: pathname === "/reels",
     },
+
     {
       icon: (props: any) => <Mail {...props} />,
       label: "Messages",
@@ -162,26 +156,20 @@ export default function CartlySidebar({
       badge: messagesData.unreadCount,
     },
     {
-      icon: (props: any) => <Bell {...props} />,
+      icon: (props: any) => <Heart {...props} />,
       label: "Notifications",
       href: "/notifications",
       active: pathname.startsWith("/notifications"),
       badge: notificationsData.unreadCount,
     },
     {
-      icon: (props: any) => <Bookmark {...props} />,
-      label: "Bookmarks",
-      href: "/bookmarks",
-      active: pathname === "/bookmarks",
+      icon: (props: any) => <PlusSquare {...props} />,
+      label: "Create",
+      href: "/create",
+      active: pathname === "/create",
     },
     {
-      icon: (props: any) => <List {...props} />,
-      label: "Lists",
-      href: "/lists",
-      active: pathname === "/lists",
-    },
-    {
-      icon: (props: any) => <User {...props} />,
+      icon: (props: any) => <UserAvatar avatarUrl={user.avatarUrl} size={24} {...props} />,
       label: "Profile",
       href: `/users/${user.username}`,
       active: pathname === `/users/${user.username}`,
@@ -196,21 +184,21 @@ export default function CartlySidebar({
     <>
       {/* Sidebar Navigation */}
       <aside className={cn(
-        "fixed left-4 top-4 z-20 hidden h-[calc(100vh-32px)] flex-col justify-between glass-panel px-3.5 py-6.5 rounded-[28px] transition-all duration-300 sm:flex shadow-premium-lg border-zinc-200/30 dark:border-zinc-800/40 select-none",
-        isMinimized ? "w-[76px] minimized-sidebar" : "w-[76px] xl:w-[256px]"
+        "fixed left-0 top-0 z-20 hidden h-screen flex-col justify-between border-e bg-card px-3 py-6 transition-all duration-300 sm:flex",
+        isMinimized ? "w-[72px] minimized-sidebar" : "w-[72px] xl:w-[244px]"
       )}>
         <div className="flex flex-col gap-6">
           {/* Logo */}
-          <Link href="/" className="logo-btn flex items-center gap-2 px-2.5 py-2.5 select-none">
+          <Link href="/" className="logo-btn flex items-center gap-2 px-2 py-2 select-none">
             <img
               src="/android-chrome-192x192-Photoroom.png"
               alt="Cartly Logo"
-              className="size-9.5 object-contain flex-shrink-0"
+              className="size-9 object-contain flex-shrink-0"
             />
             {!isMinimized && (
               <>
                 <span 
-                  className="hidden text-2xl font-black tracking-tight xl:block text-foreground bg-gradient-to-r from-foreground via-foreground to-muted-foreground/80 bg-clip-text"
+                  className="hidden text-2xl font-black tracking-tight xl:block text-foreground"
                   style={{ fontFamily: "'Nunito', sans-serif" }}
                 >
                   Cartly
@@ -238,55 +226,53 @@ export default function CartlySidebar({
               </>
             )}
           </Link>
- 
+
           {/* Toggle Minimize/Maximize Arrow Button just below Logo */}
           <div className="px-2">
             <button
               onClick={() => setIsMinimized(!isMinimized)}
-              className="flex items-center justify-center h-8 w-8 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-muted-foreground transition-all cursor-pointer rounded-full bg-indigo-500/5 border border-indigo-500/10 shadow-premium-sm hover:scale-105 active:scale-95"
+              className="flex items-center justify-center h-8 w-8 hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-all cursor-pointer rounded-full bg-indigo-600/10 border border-indigo-500/20 shadow-sm hover:scale-105 active:scale-95"
               title={isMinimized ? "Expand Sidebar" : "Collapse Sidebar"}
             >
               {isMinimized ? (
-                <ChevronRight className="size-4 text-indigo-500 animate-pulse" />
+                <ChevronRight className="size-4.5 text-indigo-400 animate-pulse" />
               ) : (
-                <ChevronLeft className="size-4 text-indigo-500" />
+                <ChevronLeft className="size-4.5 text-indigo-400" />
               )}
             </button>
           </div>
-  
+ 
           {/* Navigation Items */}
-          <nav className="flex flex-col gap-1 max-h-[48vh] overflow-y-auto scrollbar-none pr-0.5">
+          <nav className="flex flex-col gap-2">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const content = (
-                <div className={cn("flex items-center w-full", isMinimized ? "justify-center" : "gap-3.5")}>
+                <div className={cn("flex items-center w-full", isMinimized ? "justify-center" : "gap-4")}>
                   <div className="relative flex items-center justify-center">
-                    <Icon className={cn("size-[21px] flex-shrink-0 transition-transform group-hover:scale-105", item.active ? "text-indigo-600 dark:text-indigo-400" : "text-muted-foreground/90")} />
+                    <Icon className="size-6 flex-shrink-0" />
                     {!!item.badge && (
-                      <span className="absolute -right-2 -top-2 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white shadow-sm border border-white dark:border-[#08090e]">
+                      <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white shadow-sm">
                         {item.badge}
                       </span>
                     )}
                   </div>
                   {!isMinimized && (
                     <span className={cn(
-                      "hidden text-[14.5px] xl:inline tracking-wide font-medium transition-colors",
-                      item.active ? "text-indigo-600 dark:text-indigo-400 font-extrabold" : "text-muted-foreground group-hover:text-foreground"
+                      "hidden text-[16px] xl:inline",
+                      item.active ? "font-bold" : ""
                     )}>
                       {item.label}
                     </span>
                   )}
                 </div>
               );
-  
+ 
               const btnClass = cn(
-                "flex items-center rounded-[14px] transition-all duration-200 group relative",
-                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-3.5 px-3 py-2.5",
-                item.active 
-                  ? "bg-indigo-650/10 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold border border-indigo-500/20 shadow-premium-sm" 
-                  : "text-muted-foreground hover:bg-zinc-100/60 dark:hover:bg-zinc-900/50 hover:text-foreground hover:scale-[1.01]"
+                "flex items-center rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200",
+                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3",
+                item.active ? "bg-indigo-600/15 text-indigo-400 font-bold" : "text-muted-foreground"
               );
-  
+ 
               if (item.onClick) {
                 return (
                   <button key={index} onClick={item.onClick} className={btnClass}>
@@ -294,113 +280,89 @@ export default function CartlySidebar({
                   </button>
                 );
               }
-  
+ 
               return (
                 <Link key={index} href={item.href || "#"} className={btnClass}>
                   {content}
                 </Link>
               );
             })}
- 
-            {/* Redesigned solid gradient Create Post button */}
+
+            {/* Create purple solid button */}
             <Link
               href="/create"
               className={cn(
-                "hidden xl:flex items-center justify-center bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-extrabold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-indigo-550/15 mt-4.5 rounded-[15px]",
+                "hidden xl:flex items-center justify-center bg-[#4f46e5] text-white font-bold hover:bg-[#4338ca] active:scale-[0.98] transition-all shadow-lg mt-4",
                 isMinimized
                   ? "size-11 rounded-full p-0 mx-auto"
-                  : "w-full py-3 text-xs uppercase tracking-wider gap-2"
+                  : "w-full py-3.5 rounded-xl gap-2 text-sm"
               )}
             >
-              <PlusSquare className="size-4.5 flex-shrink-0" />
-              {!isMinimized && <span>Create Post</span>}
+              <PlusSquare className="size-5 flex-shrink-0" />
+              {!isMinimized && <span>Create</span>}
             </Link>
           </nav>
         </div>
  
         {/* Bottom Actions */}
-        <div className="flex flex-col gap-2.5">
-          {/* Redesigned Premium Cartly Pro Card */}
-          {!isMinimized && (
-            <div className="mx-1 mb-3 p-4 rounded-[20px] bg-gradient-to-tr from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/15 dark:border-indigo-500/10 shadow-premium-sm relative overflow-hidden group/pro select-none animate-in fade-in slide-in-from-bottom-3 duration-300">
-              <div className="absolute -right-6 -top-6 size-16 bg-indigo-500/15 rounded-full blur-xl group-hover/pro:bg-indigo-500/25 transition-all duration-500" />
-              
-              <div className="flex items-center gap-1.5 mb-1 z-10 relative">
-                <span className="text-xs font-black tracking-wider uppercase bg-gradient-to-r from-indigo-500 to-purple-650 bg-clip-text text-transparent dark:from-indigo-400 dark:to-purple-400">
-                  👑 Cartly Pro
-                </span>
-                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-indigo-500 text-white uppercase shrink-0">
-                  New
-                </span>
-              </div>
-              <p className="text-[10.5px] text-muted-foreground leading-snug mb-3 z-10 relative">
-                Unlock advanced analytics, higher reach & commerce insights.
-              </p>
-              <Link
-                href="/settings?tab=premium"
-                className="w-full text-center py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[11px] font-black hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-indigo-550/10 block z-10 relative"
-              >
-                Upgrade Now
-              </Link>
-            </div>
-          )}
-
+        <div className="flex flex-col gap-2">
           {/* More Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className={cn(
-                "flex items-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-zinc-100/60 dark:hover:bg-zinc-900/50 transition-colors border border-transparent hover:border-zinc-200/20",
-                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-3.5 px-3.5 py-2.5"
+                "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
+                isMinimized ? "w-11 h-11 justify-center p-0 mx-auto" : "w-full justify-start gap-4 px-3 py-3"
               )}>
-                <Menu className="size-5 flex-shrink-0" />
-                {!isMinimized && <span className="hidden xl:inline text-[14.5px] font-medium tracking-wide">More</span>}
+                <Menu className="size-6 flex-shrink-0" />
+                {!isMinimized && <span className="hidden xl:inline">More</span>}
               </button>
             </DropdownMenuTrigger>
+
 
             <DropdownMenuContent
               side="top"
               align="start"
               sideOffset={10}
-              className="w-64 p-1.5 shadow-premium-lg rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white/95 dark:bg-[#0c0d14]/95 backdrop-blur-md select-none"
+              className="w-64 p-1.5 shadow-2xl rounded-2xl border border-border/40 bg-card select-none"
             >
               <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                  <Settings className="size-4.5" />
-                  <span className="text-sm font-medium">Settings</span>
+                <Link href="/settings" className="flex items-center gap-3 p-3 cursor-pointer">
+                  <Settings className="size-5" />
+                  <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
               {(user.role === "ADMIN" || user.username === "Omkar2005") && (
                 <DropdownMenuItem asChild>
-                  <Link href="/admin" className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                    <Activity className="size-4.5" />
-                    <span className="text-sm font-medium">AI Dashboard</span>
+                  <Link href="/admin" className="flex items-center gap-3 p-3 cursor-pointer">
+                    <Activity className="size-5" />
+                    <span>AI Dashboard</span>
                   </Link>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                <Activity className="size-4.5" />
-                <span className="text-sm font-medium">Your Activity</span>
+              <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer">
+                <Activity className="size-5" />
+                <span>Your Activity</span>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/bookmarks" className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                  <Bookmark className="size-4.5" />
-                  <span className="text-sm font-medium">Saved</span>
+                <Link href="/bookmarks" className="flex items-center gap-3 p-3 cursor-pointer">
+                  <Bookmark className="size-5" />
+                  <span>Saved</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                className="flex items-center gap-3 p-3 cursor-pointer"
               >
-                {theme === "dark" ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}
-                <span className="text-sm font-medium">Switch appearance</span>
+                {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+                <span>Switch appearance</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                <AlertCircle className="size-4.5" />
-                <span className="text-sm font-medium">Report a problem</span>
+              <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer">
+                <AlertCircle className="size-5" />
+                <span>Report a problem</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                <span className="text-sm font-medium">Switch accounts</span>
+              <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer">
+                <span>Switch accounts</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -408,10 +370,10 @@ export default function CartlySidebar({
                   queryClient.clear();
                   logout();
                 }}
-                className="flex items-center gap-3 p-3 text-destructive cursor-pointer rounded-xl hover:bg-destructive/10"
+                className="flex items-center gap-3 p-3 text-destructive cursor-pointer hover:bg-destructive/10"
               >
-                <LogOut className="size-4.5" />
-                <span className="text-sm font-bold">Log out</span>
+                <LogOut className="size-5" />
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -420,31 +382,31 @@ export default function CartlySidebar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className={cn(
-                "flex items-center bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-200/50 dark:border-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/60 hover:scale-[1.01] transition-all cursor-pointer select-none shadow-premium-sm",
-                isMinimized ? "p-1.5 justify-center rounded-full mx-auto w-11 h-11" : "p-2.5 justify-between rounded-2xl w-full"
+                "flex items-center bg-card border border-border hover:bg-accent transition-colors cursor-pointer select-none",
+                isMinimized ? "p-1.5 justify-center rounded-full mx-auto w-11 h-11" : "p-2.5 justify-between rounded-xl w-full"
               )}>
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <UserAvatar avatarUrl={user.avatarUrl} size={36} className="size-9 rounded-full object-cover border border-zinc-200/20 dark:border-zinc-800/20 shrink-0" />
+                  <UserAvatar avatarUrl={user.avatarUrl} size={36} className="size-9 rounded-full object-cover border border-border/20" />
                   {!isMinimized && (
                     <div className="hidden xl:flex flex-col text-left min-w-0">
-                      <span className="text-[12.5px] font-bold text-foreground truncate leading-tight">{user.displayName}</span>
-                      <span className="text-[10px] text-muted-foreground/80 truncate">@{user.username}</span>
+                      <span className="text-xs font-semibold text-foreground truncate">{user.displayName}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">@{user.username}</span>
                     </div>
                   )}
                 </div>
-                {!isMinimized && <ChevronDown className="hidden xl:block size-4 text-muted-foreground/80 flex-shrink-0" />}
+                {!isMinimized && <ChevronDown className="hidden xl:block size-4 text-muted-foreground flex-shrink-0" />}
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               side="top"
               align="start"
               sideOffset={10}
-              className="w-64 p-1.5 shadow-premium-lg rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white/95 dark:bg-[#0c0d14]/95 backdrop-blur-md select-none"
+              className="w-64 p-1.5 shadow-2xl rounded-2xl border border-border/40 bg-card select-none"
             >
               <DropdownMenuItem asChild>
-                <Link href={`/users/${user.username}`} className="flex items-center gap-3 p-3 cursor-pointer rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                  <User className="size-4.5" />
-                  <span className="text-sm font-medium">My Profile</span>
+                <Link href={`/users/${user.username}`} className="flex items-center gap-3 p-3 cursor-pointer">
+                  <User className="size-5" />
+                  <span>My Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -453,10 +415,10 @@ export default function CartlySidebar({
                   queryClient.clear();
                   logout();
                 }}
-                className="flex items-center gap-3 p-3 text-destructive cursor-pointer rounded-xl hover:bg-destructive/10"
+                className="flex items-center gap-3 p-3 text-destructive cursor-pointer hover:bg-destructive/10"
               >
-                <LogOut className="size-4.5" />
-                <span className="text-sm font-bold">Log out</span>
+                <LogOut className="size-5" />
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -465,17 +427,9 @@ export default function CartlySidebar({
 
       <style dangerouslySetInnerHTML={{
         __html: `
-          @media (min-width: 640px) {
-            .main-content-wrapper {
-              padding-left: 112px !important;
-            }
-          }
           @media (min-width: 1280px) {
-            .main-content-wrapper {
-              padding-left: 296px !important;
-            }
             aside.minimized-sidebar ~ .main-content-wrapper {
-              padding-left: 112px !important;
+              padding-left: 72px !important;
             }
           }
         `

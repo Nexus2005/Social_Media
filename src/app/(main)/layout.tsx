@@ -35,7 +35,7 @@ export default async function Layout({
     <SessionProvider value={session}>
       <ChatProvider>
         <StoryViewerProvider>
-          <div className="flex min-h-screen flex-col bg-premium-gradient text-instagram-lightText dark:text-instagram-darkText transition-colors duration-200">
+          <div className="flex min-h-screen flex-col bg-instagram-lightBg dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText transition-colors duration-200">
           {/* Left Sidebar for Desktop */}
           <CartlySidebar
             initialNotificationsCount={unreadNotificationsCount}
@@ -49,7 +49,7 @@ export default async function Layout({
           />
 
           {/* Main Content Area */}
-          <div className="main-content-wrapper flex-grow flex justify-center w-full pl-0 sm:pl-[112px] xl:pl-[296px] pb-14 sm:pb-0 has-[.chat-main-container]:pb-0 transition-all duration-300">
+          <div className="main-content-wrapper flex-grow flex justify-center w-full pl-0 sm:pl-[72px] xl:pl-[244px] pb-14 sm:pb-0 has-[.chat-main-container]:pb-0 transition-all duration-300">
             <main className="w-full">
               {children}
             </main>
