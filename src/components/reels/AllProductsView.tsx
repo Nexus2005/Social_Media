@@ -440,7 +440,29 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-[#07080d] z-[999] flex flex-col overflow-hidden text-white animate-in slide-in-from-right duration-300">
+    <div className="sidebar-aware-overlay fixed inset-0 bg-[#07080d] z-[999] flex flex-col overflow-hidden text-white animate-in slide-in-from-right duration-300">
+
+      {/* CSS to keep left sidebar visible on desktop */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (min-width: 640px) {
+            .sidebar-aware-overlay {
+              left: 72px !important;
+              width: calc(100vw - 72px) !important;
+            }
+          }
+          @media (min-width: 1280px) {
+            .sidebar-aware-overlay {
+              left: 244px !important;
+              width: calc(100vw - 244px) !important;
+            }
+            aside.minimized-sidebar ~ .sidebar-aware-overlay {
+              left: 72px !important;
+              width: calc(100vw - 72px) !important;
+            }
+          }
+        `
+      }} />
 
       {/* Back Button, Double Slider, and Checkbox Styling */}
       <style dangerouslySetInnerHTML={{
