@@ -38,10 +38,7 @@ export default function SuggestionsWidget({
   const handleLoadMore = async () => {
     setLoadingMore(true);
     try {
-      // Simulate loading more or fetching next batch from database
       await new Promise((resolve) => setTimeout(resolve, 800));
-      // In a real app we'd fetch from an API like `/api/users/suggestions?skip=...`
-      // We will append a few mock suggestions or query more
       const mockMore: UserData[] = [
         {
           id: "mock-1",
@@ -82,7 +79,7 @@ export default function SuggestionsWidget({
       ] as any[];
       setSuggestions((prev) => [...prev, ...mockMore]);
       setVisibleCount((prev) => prev + mockMore.length);
-      setHasMore(false); // only 1 batch of mock pagination
+      setHasMore(false);
     } catch (e) {
       console.error(e);
     } finally {
@@ -93,15 +90,16 @@ export default function SuggestionsWidget({
   if (!suggestions.length) return null;
 
   return (
-    <div className="p-4.5 rounded-3xl border border-zinc-200/50 dark:border-zinc-800/80 bg-[#ffffff]/60 dark:bg-[#0c0d14]/40 backdrop-blur-md shadow-sm select-none flex flex-col gap-3.5 transition-all duration-300">
+    <div className="glass-card rounded-[28px] p-5 shadow-premium-md select-none border border-zinc-250/20 dark:border-zinc-800/30 hover:scale-[1.01] hover:shadow-premium-lg transition-all duration-300 flex flex-col gap-4 relative overflow-hidden">
+      
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-[14px] font-black text-foreground tracking-wide uppercase">
+        <span className="text-[12px] font-black text-foreground tracking-wider uppercase">
           Who to follow
         </span>
         <button
           onClick={handleToggleExpand}
-          className="text-[12px] font-extrabold text-indigo-500 hover:text-indigo-600 transition-colors cursor-pointer"
+          className="text-[11.5px] font-extrabold text-indigo-500 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer"
         >
           {isExpanded ? "Show less" : "View all"}
         </button>
@@ -110,15 +108,15 @@ export default function SuggestionsWidget({
       {/* Suggested Users list */}
       <div className="flex flex-col gap-3">
         {displayedSuggestions.map((suggestedUser) => (
-          <div key={suggestedUser.id} className="flex items-center justify-between gap-3 px-1">
+          <div key={suggestedUser.id} className="flex items-center justify-between gap-3 px-1.5 py-1.5 rounded-2xl hover:bg-zinc-50/50 dark:hover:bg-zinc-950/20 border border-transparent hover:border-zinc-200/20 dark:hover:border-zinc-800/20 transition-all">
             <UserTooltip user={suggestedUser}>
               <Link href={`/users/${suggestedUser.username}`} className="flex items-center gap-3 min-w-0">
-                <UserAvatar avatarUrl={suggestedUser.avatarUrl} size={36} className="shrink-0" />
+                <UserAvatar avatarUrl={suggestedUser.avatarUrl} size={36} className="shrink-0 border border-zinc-200/20 dark:border-zinc-800/20" />
                 <div className="flex flex-col text-start min-w-0">
-                  <span className="font-bold text-[13px] leading-tight hover:underline text-foreground truncate">
+                  <span className="font-extrabold text-[12.5px] leading-tight hover:underline text-foreground truncate">
                     {suggestedUser.username}
                   </span>
-                  <span className="text-[11px] leading-none text-muted-foreground truncate">
+                  <span className="text-[10px] leading-none text-muted-foreground/80 truncate mt-0.5">
                     {suggestedUser.displayName}
                   </span>
                 </div>
@@ -142,7 +140,7 @@ export default function SuggestionsWidget({
         <button
           onClick={handleLoadMore}
           disabled={loadingMore}
-          className="w-full text-center py-2 text-xs font-bold text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl transition-all disabled:opacity-50 cursor-pointer active:scale-[0.98]"
+          className="w-full text-center py-2.5 text-xs font-bold text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-zinc-200/50 dark:border-zinc-800/60 rounded-xl transition-all disabled:opacity-50 cursor-pointer active:scale-[0.98] mt-1"
         >
           {loadingMore ? "Loading more..." : "Load more"}
         </button>

@@ -654,16 +654,41 @@ export default function Post({ post }: PostProps) {
         </div>
       )}
 
-      {/* MULTI-MEDIA CAROUSEL WITH INTERACTIVE TAGGING */}
+      {/* MULTI-MEDIA CAROUSEL & PRODUCT PANEL SPLIT LAYOUT */}
       {!!post.attachments.length && (
-        <div className="p-0 m-0 w-full overflow-hidden relative">
-          <MediaCarousel
-            attachments={post.attachments}
-            tags={post.tags}
-            altText={post.altText}
-            onImageClick={openMediaViewer}
-            postId={post.id}
-          />
+        <div className="w-full px-4.5 pb-2.5">
+          {hasAttachedProducts ? (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+              {/* Left Column: Media Carousel */}
+              <div className="md:col-span-7 rounded-3xl overflow-hidden relative border border-zinc-200/30 dark:border-zinc-800/40 shadow-premium-sm bg-black/5">
+                <MediaCarousel
+                  attachments={post.attachments}
+                  tags={post.tags}
+                  altText={post.altText}
+                  onImageClick={openMediaViewer}
+                  postId={post.id}
+                />
+              </div>
+
+              {/* Right Column: Premium Inline Product Card */}
+              <div className="md:col-span-5">
+                <InlineProductWidget
+                  products={detectedProducts}
+                  onSelectProduct={(id) => setFullProductDetailId(id)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl overflow-hidden relative border border-zinc-200/30 dark:border-zinc-800/40 shadow-premium-sm bg-black/5 max-w-[640px] mx-auto">
+              <MediaCarousel
+                attachments={post.attachments}
+                tags={post.tags}
+                altText={post.altText}
+                onImageClick={openMediaViewer}
+                postId={post.id}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1901,6 +1926,104 @@ export default function Post({ post }: PostProps) {
       )}
     </AnimatePresence>
   </div>
+  );
+}
+
+// Premium Inline Product Card Component
+interface InlineProductWidgetProps {
+  products: any[];
+  onSelectProduct: (id: string) => void;
+}
+
+function InlineProductWidget({ products, onSelectProduct }: InlineProductWidgetProps) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const activeProduct = products[activeIdx];
+
+  if (!activeProduct) return null;
+
+  const itemBestMatch = [...(activeProduct.matches || [])].sort((a, b) => {
+    const priceA = parseFloat(String(a.price).replace(/[^0-9.]/g, "")) || 0;
+    const priceB = parseFloat(String(b.price).replace(/[^0-9.]/g, "")) || 0;
+    return priceA - priceB;
+  })[0];
+
+  return (
+    <div className="glass-card rounded-[24px] p-4.5 flex flex-col justify-between h-full border border-zinc-250/20 dark:border-zinc-800/30 shadow-premium-md hover:shadow-premium-lg hover:scale-[1.01] transition-all duration-300 select-none">
+      
+      {/* Top Product Meta Info */}
+      <div className="flex flex-col gap-3">
+        {/* Main Info Row */}
+        <div className="flex gap-3">
+          {/* Main Thumbnail */}
+          <div className="relative size-20 rounded-2xl overflow-hidden bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-850/60 shadow-sm shrink-0 group/thumb">
+            <img
+              src={activeProduct.thumbnailUrl || activeProduct.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&auto=format&fit=crop&q=60"}
+              alt={activeProduct.label}
+              className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-500"
+            />
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-col justify-center min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[9.5px] font-black tracking-wider uppercase text-indigo-500 dark:text-indigo-400">
+                {activeProduct.category || "Social Match"}
+              </span>
+              <span className="flex items-center justify-center size-3.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[8px] font-black border border-emerald-500/20 shadow-sm uppercase px-1">
+                ✓ Verified
+              </span>
+            </div>
+            <h4 className="text-[13px] font-black text-foreground truncate mt-1 leading-snug">
+              {activeProduct.label}
+            </h4>
+            <span className="text-[13px] font-black text-foreground mt-1 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+              {itemBestMatch ? itemBestMatch.price : "₹3,999"}
+            </span>
+          </div>
+        </div>
+
+        {/* Thumbnail Selector list (if > 1 product) */}
+        {products.length > 1 && (
+          <div className="flex flex-col gap-1.5 border-t border-zinc-200/20 dark:border-zinc-800/35 pt-3">
+            <span className="text-[9.5px] font-bold text-muted-foreground uppercase tracking-wider">
+              Items in look ({products.length})
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+              {products.map((prod, idx) => {
+                const isActive = idx === activeIdx;
+                return (
+                  <button
+                    key={prod.id}
+                    onClick={() => setActiveIdx(idx)}
+                    className={cn(
+                      "size-10 rounded-xl overflow-hidden shrink-0 border transition-all hover:scale-105 active:scale-95 shadow-premium-sm",
+                      isActive
+                        ? "border-indigo-550 ring-2 ring-indigo-550/20 dark:border-indigo-400 dark:ring-indigo-400/20 scale-105"
+                        : "border-zinc-200/50 dark:border-zinc-800/60 opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    <img
+                      src={prod.thumbnailUrl || prod.sourceFrameUrl}
+                      alt={prod.label}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Action CTA Button */}
+      <button
+        onClick={() => onSelectProduct(activeProduct.id)}
+        className="w-full py-3 mt-4 rounded-xl bg-gradient-to-r from-indigo-550 to-purple-650 hover:from-indigo-600 hover:to-purple-700 text-white text-[11px] font-black uppercase tracking-widest transition-all shadow-md shadow-indigo-550/15 hover:shadow-premium-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+      >
+        View Details
+      </button>
+
+    </div>
   );
 }
 

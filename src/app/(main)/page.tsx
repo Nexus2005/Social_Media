@@ -17,22 +17,22 @@ export default async function Home() {
   }
 
   return (
-    <div className="mx-auto flex flex-col w-full max-w-[1100px] gap-6 px-4 md:px-6 py-6 justify-center bg-instagram-lightBg dark:bg-instagram-darkBg min-h-screen text-foreground transition-colors duration-200">
+    <div className="mx-auto flex flex-col w-full max-w-[1100px] gap-6 px-4 md:px-6 py-6 justify-center min-h-screen text-foreground transition-colors duration-200">
       
       {/* 1. Upper Header Row - Desktop Only */}
-      <div className="hidden xl:flex justify-between items-center gap-8 w-full shrink-0 select-none pb-2">
+      <div className="hidden xl:flex justify-between items-center gap-8 w-full shrink-0 select-none pb-4 pt-2">
         {/* Left aligned Search Bar (same width as feed column) */}
         <div className="w-full max-w-[640px]">
           <form action="/search" method="GET" className="w-full">
-            <div className="relative flex items-center h-12 w-full bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl px-4 gap-2.5 shadow-sm transition-all focus-within:border-indigo-500/50">
-              <Search className="size-5 text-muted-foreground shrink-0" />
+            <div className="relative flex items-center h-[54px] w-full glass-card rounded-[20px] px-4.5 gap-3 shadow-premium-md premium-glow-focus group/search border border-zinc-250/20 dark:border-zinc-800/30">
+              <Search className="size-5 text-muted-foreground group-focus-within/search:text-indigo-500 transition-colors shrink-0" />
               <input
                 name="q"
                 type="text"
                 placeholder="Search for products, brands, styles or creators..."
-                className="flex-grow bg-transparent text-[14.5px] text-foreground placeholder:text-muted-foreground/60 outline-none h-full"
+                className="flex-grow bg-transparent text-[14px] font-medium text-foreground placeholder:text-muted-foreground/50 outline-none h-full"
               />
-              <div className="flex items-center justify-center px-1.5 py-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-[11px] text-muted-foreground/80 font-bold font-mono">
+              <div className="flex items-center justify-center px-2 py-0.5 rounded-lg border border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/50 dark:bg-zinc-900/60 text-[10px] font-black text-muted-foreground/80 shadow-sm">
                 ⌘ K
               </div>
             </div>

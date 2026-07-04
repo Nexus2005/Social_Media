@@ -134,14 +134,12 @@ export default function StoriesCarousel() {
         style={{ scrollbarWidth: "none" }}
       >
         {/* LOGGED IN USER CIRCLE */}
-        <div className="flex flex-col items-center gap-1.5 flex-shrink-0 relative">
+        <div className="flex flex-col items-center gap-1.5 flex-shrink-0 relative group/story">
           <div
             onClick={() => {
               if (loggedInUserStories) {
-                // Open story viewer at index 0 (self)
                 setViewerUserIndex(0);
               } else {
-                // Open create story dialog
                 setCreateStoryOpen(true);
               }
             }}
@@ -149,21 +147,21 @@ export default function StoriesCarousel() {
           >
             {/* Gradient Outline Ring if has stories */}
             <div
-              className={`rounded-full p-[3px] transition-transform duration-200 active:scale-95 ${
+              className={`rounded-full p-[3px] transition-all duration-300 group-hover/story:scale-105 active:scale-95 shadow-premium-sm ${
                 loggedInUserStories
                   ? "bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500"
                   : "bg-zinc-200 dark:bg-zinc-800"
               }`}
             >
               <div className="bg-white dark:bg-zinc-950 p-[2px] rounded-full">
-                <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
+                <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase shadow-inner">
                   {sessionUser.avatarUrl ? (
                     <Image
                       src={sessionUser.avatarUrl}
                       alt="Your avatar"
                       fill
                       sizes="72px"
-                      className="object-cover"
+                      className="object-cover group-hover/story:scale-110 transition-transform duration-500"
                     />
                   ) : (
                     sessionUser.username[0]
@@ -175,42 +173,41 @@ export default function StoriesCarousel() {
             {/* Blue Plus Icon Overlay */}
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Prevent opening viewer
+                e.stopPropagation();
                 setCreateStoryOpen(true);
               }}
-              className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-zinc-950 text-white rounded-full size-[24px] flex items-center justify-center transition-colors active:scale-90"
+              className="absolute bottom-0 right-0 bg-[#0095f6] hover:bg-[#1877f2] border-[3px] border-white dark:border-zinc-950 text-white rounded-full size-[24px] flex items-center justify-center transition-colors shadow-sm active:scale-90"
               title="Add Story"
             >
               <Plus className="size-3.5 stroke-[3px]" />
             </button>
           </div>
-          <span className="text-[12px] font-medium text-instagram-lightText dark:text-instagram-darkText w-[76px] text-center truncate">
+          <span className="text-[11.5px] font-semibold text-muted-foreground group-hover/story:text-foreground transition-colors w-[76px] text-center truncate">
             Your story
           </span>
         </div>
 
         {/* OTHER USERS CIRCLES */}
         {otherStories.map((item, idx) => {
-          // In the viewer, idx will be idx + 1 if loggedInUserStories is prepended
           const viewerIndex = loggedInUserStories ? idx + 1 : idx;
 
           return (
             <div
               key={item.user.id}
               onClick={() => setViewerUserIndex(viewerIndex)}
-              className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
+              className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group/story relative"
             >
               {/* Gradient Outline Border Ring */}
-              <div className={`bg-gradient-to-tr ${storyGradients[idx % storyGradients.length]} p-[3px] rounded-full transition-transform duration-200 active:scale-95`}>
+              <div className={`bg-gradient-to-tr ${storyGradients[idx % storyGradients.length]} p-[3px] rounded-full transition-all duration-300 group-hover/story:scale-105 active:scale-95 shadow-premium-sm`}>
                 <div className="bg-white dark:bg-zinc-950 p-[2px] rounded-full">
-                  <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase">
+                  <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden bg-neutral-900 flex items-center justify-center font-bold text-lg text-muted-foreground uppercase shadow-inner">
                     {item.user.avatarUrl ? (
                       <Image
                         src={item.user.avatarUrl}
                         alt={item.user.username}
                         fill
                         sizes="72px"
-                        className="object-cover"
+                        className="object-cover group-hover/story:scale-110 transition-transform duration-500"
                         unoptimized
                       />
                     ) : (
@@ -219,8 +216,14 @@ export default function StoriesCarousel() {
                   </div>
                 </div>
               </div>
+              
+              {/* Online indicator green dot for techburner and alternate slots to make it feel alive */}
+              {(item.user.username === "techburner" || idx === 1 || idx === 3) && (
+                <span className="absolute bottom-6 right-1.5 size-3 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-950 shadow-premium-sm animate-pulse" />
+              )}
+
               {/* Username Label */}
-              <span className="text-[12px] font-medium text-instagram-lightText dark:text-instagram-darkText w-[76px] text-center truncate">
+              <span className="text-[11.5px] font-semibold text-muted-foreground group-hover/story:text-foreground transition-colors w-[76px] text-center truncate">
                 {item.user.username}
               </span>
             </div>
