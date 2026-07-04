@@ -1,133 +1,197 @@
 import { PrismaClient } from "@prisma/client";
-import supabaseAdmin from "../src/lib/supabase";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
+import * as fs from "fs";
+import * as path from "path";
+
+// Simple custom .env parser
+function loadEnv() {
+  const envPath = path.join(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) return;
+  const lines = fs.readFileSync(envPath, "utf-8").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const firstEq = trimmed.indexOf("=");
+    if (firstEq === -1) continue;
+    const key = trimmed.slice(0, firstEq).trim();
+    let val = trimmed.slice(firstEq + 1).trim();
+    // remove surrounding quotes
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    process.env[key] = val;
+  }
+}
+
+loadEnv();
 
 const prisma = new PrismaClient();
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-async function uploadToSupabase(filePath: string, filename: string): Promise<string | null> {
-  if (!fs.existsSync(filePath)) {
-    console.log(`[File Not Found] Local file does not exist: ${filePath}`);
-    return null;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  console.error("Missing Supabase credentials in environment variables.");
+  process.exit(1);
+}
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
+const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+
+async function run() {
+  console.log("Starting Supabase image migration script...");
+  console.log(`Scanning local uploads directory: ${uploadDir}`);
+
+  if (!fs.existsSync(uploadDir)) {
+    console.log("Local uploads products directory does not exist.");
+    process.exit(0);
   }
 
-  try {
-    const buffer = await fs.promises.readFile(filePath);
-    const destinationKey = `products/migrated/${filename}`;
+  const files = fs.readdirSync(uploadDir);
+  console.log(`Found ${files.length} local files in public/uploads/products.`);
+
+  // 1. Upload files to Supabase Storage under "uploads/products/" path
+  const filenameToSupabaseUrl: Record<string, string> = {};
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const filePath = path.join(uploadDir, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat.isDirectory()) continue;
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const storagePath = `uploads/products/${file}`;
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${storagePath}`;
+    filenameToSupabaseUrl[file.toLowerCase()] = publicUrl;
+
+    console.log(`[${i + 1}/${files.length}] Uploading ${file} to Supabase...`);
 
     const { error } = await supabaseAdmin.storage
       .from("social-media")
-      .upload(destinationKey, buffer, {
+      .upload(storagePath, fileBuffer, {
         contentType: "image/jpeg",
         cacheControl: "31536000",
         upsert: true,
       });
 
     if (error) {
-      console.error(`[Upload Error] Supabase failed to upload ${filename}:`, error.message);
-      return null;
+      console.error(`Error uploading ${file}:`, error.message);
+    } else {
+      console.log(`Uploaded: ${file} -> ${publicUrl}`);
     }
-
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${destinationKey}`;
-    console.log(`[Success] Uploaded ${filename} -> ${publicUrl}`);
-    return publicUrl;
-  } catch (err: any) {
-    console.error(`[Error] Failed to process file ${filename}:`, err.message);
-    return null;
-  }
-}
-
-async function main() {
-  console.log("=== Starting Image Migration to Supabase ===");
-  if (!supabaseUrl) {
-    console.error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable.");
-    return;
   }
 
-  const productsDir = path.join(process.cwd(), "public", "uploads", "products");
-  console.log(`Local products upload directory: ${productsDir}`);
+  console.log("Supabase storage upload completed. Now updating database records...");
 
-  // 1. Migrate DetectedProduct thumbnails
-  const localProducts = await prisma.detectedProduct.findMany({
-    where: {
-      OR: [
-        { thumbnailUrl: { contains: "uploads" } },
-        { thumbnailUrl: { contains: "Users" } },
-      ]
+  // Helper function to map any path containing a filename to the Supabase URL
+  function mapToSupabase(urlStr: string | null | undefined): string | null {
+    if (!urlStr) return null;
+    
+    // Extract filename
+    const parts = urlStr.replace(/\\/g, "/").split("/");
+    const filename = parts[parts.length - 1];
+    
+    if (filename && filenameToSupabaseUrl[filename.toLowerCase()]) {
+      return filenameToSupabaseUrl[filename.toLowerCase()];
     }
-  });
+    
+    // If it is a relative path starting with /uploads/products/ or uploads/products/ but we didn't upload it,
+    // we still try to point it to the supabase path just in case
+    if (urlStr.includes("uploads/products")) {
+      return `${supabaseUrl}/storage/v1/object/public/social-media/uploads/products/${filename}`;
+    }
+    
+    return urlStr;
+  }
 
-  console.log(`Found ${localProducts.length} DetectedProduct records to migrate.`);
-  for (const product of localProducts) {
-    if (!product.thumbnailUrl) continue;
-    const filename = path.basename(product.thumbnailUrl);
-    const localFilePath = path.join(productsDir, filename);
+  // 2. Update DetectedProduct
+  const detectedProducts = await prisma.detectedProduct.findMany({});
+  console.log(`Scanning ${detectedProducts.length} DetectedProduct records...`);
+  let dpCount = 0;
+  for (const dp of detectedProducts) {
+    const newThumbnail = mapToSupabase(dp.thumbnailUrl);
+    const newCrop = mapToSupabase(dp.cropImageUrl);
+    const newSourceFrame = mapToSupabase(dp.sourceFrameUrl);
+    
+    const newImages = (dp.images || []).map(img => mapToSupabase(img)).filter(Boolean) as string[];
 
-    const publicUrl = await uploadToSupabase(localFilePath, filename);
-    if (publicUrl) {
+    const hasChanges = 
+      newThumbnail !== dp.thumbnailUrl ||
+      newCrop !== dp.cropImageUrl ||
+      newSourceFrame !== dp.sourceFrameUrl ||
+      JSON.stringify(newImages) !== JSON.stringify(dp.images);
+
+    if (hasChanges) {
       await prisma.detectedProduct.update({
-        where: { id: product.id },
-        data: { thumbnailUrl: publicUrl }
-      });
-      console.log(`Updated DetectedProduct ${product.id} thumbnail.`);
-    }
-  }
-
-  // 2. Migrate ShoppingMatch image & galleries
-  const allMatches = await prisma.shoppingMatch.findMany();
-  const matchesToMigrate = allMatches.filter(m => {
-    const hasLocalImage = m.imageUrl && (m.imageUrl.includes("uploads") || m.imageUrl.includes("Users"));
-    const hasLocalGallery = m.galleryImageUrls && m.galleryImageUrls.some(url => url.includes("uploads") || url.includes("Users"));
-    return hasLocalImage || hasLocalGallery;
-  });
-
-  console.log(`Found ${matchesToMigrate.length} ShoppingMatch records to migrate.`);
-  for (const match of matchesToMigrate) {
-    let updatedImageUrl = match.imageUrl;
-    let updatedGallery = [...match.galleryImageUrls];
-    let changed = false;
-
-    // A. Image Url
-    if (match.imageUrl && (match.imageUrl.includes("uploads") || match.imageUrl.includes("Users"))) {
-      const filename = path.basename(match.imageUrl);
-      const localFilePath = path.join(productsDir, filename);
-      const publicUrl = await uploadToSupabase(localFilePath, filename);
-      if (publicUrl) {
-        updatedImageUrl = publicUrl;
-        changed = true;
-      }
-    }
-
-    // B. Gallery Image Urls
-    for (let i = 0; i < updatedGallery.length; i++) {
-      const url = updatedGallery[i];
-      if (url && (url.includes("uploads") || url.includes("Users"))) {
-        const filename = path.basename(url);
-        const localFilePath = path.join(productsDir, filename);
-        const publicUrl = await uploadToSupabase(localFilePath, filename);
-        if (publicUrl) {
-          updatedGallery[i] = publicUrl;
-          changed = true;
-        }
-      }
-    }
-
-    if (changed) {
-      await prisma.shoppingMatch.update({
-        where: { id: match.id },
+        where: { id: dp.id },
         data: {
-          imageUrl: updatedImageUrl,
-          galleryImageUrls: updatedGallery
-        }
+          thumbnailUrl: newThumbnail,
+          cropImageUrl: newCrop,
+          sourceFrameUrl: newSourceFrame,
+          images: newImages,
+        },
       });
-      console.log(`Updated ShoppingMatch ${match.id} images.`);
+      dpCount++;
     }
   }
+  console.log(`Updated ${dpCount} DetectedProduct records.`);
 
-  console.log("=== Migration Completed ===");
+  // 3. Update ShoppingMatch
+  const shoppingMatches = await prisma.shoppingMatch.findMany({});
+  console.log(`Scanning ${shoppingMatches.length} ShoppingMatch records...`);
+  let smCount = 0;
+  for (const sm of shoppingMatches) {
+    const newImage = mapToSupabase(sm.imageUrl);
+    const newGallery = (sm.galleryImageUrls || []).map(img => mapToSupabase(img)).filter(Boolean) as string[];
+
+    const hasChanges = 
+      newImage !== sm.imageUrl ||
+      JSON.stringify(newGallery) !== JSON.stringify(sm.galleryImageUrls);
+
+    if (hasChanges) {
+      await prisma.shoppingMatch.update({
+        where: { id: sm.id },
+        data: {
+          imageUrl: newImage,
+          galleryImageUrls: newGallery,
+        },
+      });
+      smCount++;
+    }
+  }
+  console.log(`Updated ${smCount} ShoppingMatch records.`);
+
+  // 4. Update ProductVariant
+  const productVariants = await prisma.productVariant.findMany({});
+  console.log(`Scanning ${productVariants.length} ProductVariant records...`);
+  let pvCount = 0;
+  for (const pv of productVariants) {
+    const newImage = mapToSupabase(pv.imageUrl);
+
+    if (newImage !== pv.imageUrl) {
+      await prisma.productVariant.update({
+        where: { id: pv.id },
+        data: {
+          imageUrl: newImage,
+        },
+      });
+      pvCount++;
+    }
+  }
+  console.log(`Updated ${pvCount} ProductVariant records.`);
+
+  console.log("Migration completely finished!");
+  process.exit(0);
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+run().catch(err => {
+  console.error("Migration failed with error:", err);
+  process.exit(1);
+});
