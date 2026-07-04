@@ -34,11 +34,60 @@ export async function GET(req: NextRequest) {
       take: 50,
     });
 
+    const getProductPrice = (p: any): number | null => {
+      if (!p.matches || p.matches.length === 0) return null;
+      const match = p.matches[0];
+      const matchPrice = parseFloat(match.price.replace(/[^0-9.]/g, ""));
+      return isNaN(matchPrice) ? null : matchPrice;
+    };
+
+    const getProductBrand = (p: any): string => {
+      if (p.brand) return p.brand.toLowerCase().trim();
+      if (p.matches && p.matches.length > 0) {
+        return (p.matches[0].matchBrand || "").toLowerCase().trim();
+      }
+      return "";
+    };
+
+    const cosineSimilarity = (vecA: any, vecB: any): number => {
+      if (!Array.isArray(vecA) || !Array.isArray(vecB) || vecA.length !== vecB.length || vecA.length === 0) {
+        return 0;
+      }
+      let dot = 0.0;
+      let normA = 0.0;
+      let normB = 0.0;
+      for (let i = 0; i < vecA.length; i++) {
+        dot += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+      }
+      if (normA === 0 || normB === 0) return 0;
+      return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    };
+
+    const targetPrice = getProductPrice(targetProduct);
+    const targetBrand = getProductBrand(targetProduct);
+
     // Score and rank candidates based on metadata overlap
     const scoredCandidates = candidates.map((item) => {
       let score = 0;
 
-      // Color similarity (+3)
+      // 1. Brand match (+5 points)
+      const itemBrand = getProductBrand(item);
+      if (targetBrand && itemBrand && targetBrand === itemBrand) {
+        score += 5;
+      }
+
+      // 2. Price range overlap within 25% (+4 points)
+      const itemPrice = getProductPrice(item);
+      if (targetPrice !== null && itemPrice !== null) {
+        const diffPercent = Math.abs(targetPrice - itemPrice) / targetPrice;
+        if (diffPercent <= 0.25) {
+          score += 4;
+        }
+      }
+
+      // 3. Color similarity (+3 points)
       if (
         targetProduct.color &&
         item.color &&
@@ -47,25 +96,22 @@ export async function GET(req: NextRequest) {
         score += 3;
       }
 
-      // Style similarity (+2)
-      if (
-        targetProduct.style &&
-        item.style &&
-        targetProduct.style.toLowerCase() === item.style.toLowerCase()
-      ) {
-        score += 2;
-      }
-
-      // Material similarity (+2)
+      // 4. Material similarity (+3 points)
       if (
         targetProduct.material &&
         item.material &&
         targetProduct.material.toLowerCase() === item.material.toLowerCase()
       ) {
-        score += 2;
+        score += 3;
       }
 
-      // Keywords overlap (+1 per match)
+      // 5. Embedding similarity (up to +10 points)
+      if (targetProduct.productEmbedding && item.productEmbedding) {
+        const similarity = cosineSimilarity(targetProduct.productEmbedding, item.productEmbedding);
+        score += Math.round(similarity * 10);
+      }
+
+      // 6. Keywords overlap (+1 per match)
       if (
         Array.isArray(targetProduct.keywords) &&
         Array.isArray(item.keywords)

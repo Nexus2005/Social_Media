@@ -9,50 +9,15 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 
-interface ProductVariant {
-  type: string;
-  value: string;
-  price?: string;
-  imageUrl?: string;
-}
+import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@prisma/client";
 
-interface ProductMatch {
-  id: string;
-  price: string;
-  productUrl: string;
-  merchant?: any;
-  title?: string;
-  imageUrl?: string;
-  deliveryText?: string;
-  sourceStore?: string;
-  galleryImageUrls?: string[];
-  matchBrand?: string;
-  originalPrice?: string;
-  discountPercent?: number;
-  rating?: number;
-  reviewCount?: number;
-  features?: string[];
-  highlights?: string[];
-  categoryPath?: string;
-  condition?: string;
-  variants?: ProductVariant[];
-  verificationScore?: number;
-}
+export type ProductMatch = Omit<PrismaShoppingMatch, "variants"> & {
+  variants?: any[];
+};
 
-interface DetectedProduct {
-  id: string | number;
-  label: string;
-  brand?: string;
-  category?: string;
-  thumbnailUrl?: string;
-  sourceFrameUrl?: string;
-  confidence?: number;
-  aiConfidence?: number;
-  frameTimestamp?: number;
-  isVerifiedMatch?: boolean;
+export type DetectedProduct = Omit<PrismaDetectedProduct, "matches"> & {
   matches?: ProductMatch[];
-  isBestSeller?: boolean;
-}
+};
 
 interface FullScreenProductDetailProps {
   productId: string | number;
@@ -93,24 +58,46 @@ export default function FullScreenProductDetail({
   const { toast } = useToast();
   const thumbsScrollRef = useRef<HTMLDivElement>(null);
   
+  const [activeProductId, setActiveProductId] = useState<string | number>(productId);
+
+  useEffect(() => {
+    setActiveProductId(productId);
+  }, [productId]);
+
   // Find selected product
-  const product = detectedProducts.find((p) => String(p.id) === String(productId)) || detectedProducts[0];
+  const product = detectedProducts.find((p) => String(p.id) === String(activeProductId)) || detectedProducts[0];
 
   const bestMatch = useMemo(() => {
     if (!product?.matches || product.matches.length === 0) return null;
-    return [...product.matches].sort((a, b) => (b.verificationScore || 0) - (a.verificationScore || 0))[0];
+    const bm = [...product.matches].sort((a, b) => (b.verificationScore || 0) - (a.verificationScore || 0))[0];
+    if (!bm) return null;
+
+    const mappedVariants = (bm.variants || []).map((v: any) => ({
+      id: v.id,
+      type: v.variantType || "Option",
+      value: v.variantValue || "",
+      price: v.price,
+      sku: v.sku,
+      imageUrl: v.imageUrl,
+      availability: v.availability,
+    }));
+
+    return {
+      ...bm,
+      variants: mappedVariants as any,
+    };
   }, [product]);
 
   // Group variants by type
   const variantsByType = useMemo(() => {
-    const groups: Record<string, ProductVariant[]> = {};
+    const groups: Record<string, any[]> = {};
     if (!bestMatch?.variants) return groups;
     for (const v of bestMatch.variants) {
       const type = (v.type || "Option").toLowerCase();
       const capitalized = type.charAt(0).toUpperCase() + type.slice(1);
       if (!groups[capitalized]) groups[capitalized] = [];
       // avoid duplicates
-      if (!groups[capitalized].some(item => item.value === v.value)) {
+      if (!groups[capitalized].some((item: any) => item.value === v.value)) {
         groups[capitalized].push(v);
       }
     }
@@ -142,7 +129,7 @@ export default function FullScreenProductDetail({
   // Find active variant match to customize price / image
   const activeVariantObj = useMemo(() => {
     if (!bestMatch?.variants) return null;
-    return bestMatch.variants.find(v => {
+    return bestMatch.variants.find((v: any) => {
       let match = true;
       if (hasColors && v.type?.toLowerCase() === "color" && v.value !== selectedColor) match = false;
       if (hasSizes && v.type?.toLowerCase() === "size" && v.value !== selectedSize) match = false;
@@ -238,41 +225,36 @@ export default function FullScreenProductDetail({
     ];
   }, [bestMatch]);
 
-  // Similar Products mock database
-  const similarProducts = [
-    {
-      id: "sim1",
-      label: "Designer Running Sneakers",
-      price: "₹15,495",
-      rating: 4.5,
-      reviews: "1.8K",
-      img: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200"
-    },
-    {
-      id: "sim2",
-      label: "Sporty Breathable Trainers",
-      price: "₹14,495",
-      rating: 4.4,
-      reviews: "980",
-      img: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=200"
-    },
-    {
-      id: "sim3",
-      label: "All-Day Lifestyle Kicks",
-      price: "₹16,995",
-      rating: 4.6,
-      reviews: "1.2K",
-      img: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=200"
-    },
-    {
-      id: "sim4",
-      label: "Urban Cushioned Footwear",
-      price: "₹16,999",
-      rating: 4.7,
-      reviews: "990",
-      img: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=200"
-    }
-  ];
+  const [similarProducts, setSimilarProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!product?.id) return;
+    
+    let isMounted = true;
+    fetch(`/api/products/similar?productId=${product.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && Array.isArray(data)) {
+          const mapped = data.map((p) => {
+            const best = [...(p.matches || [])].sort((a, b) => (b.verificationScore || 0) - (a.verificationScore || 0))[0] || null;
+            return {
+              id: p.id,
+              label: p.label,
+              price: best?.price || "Contact Store",
+              rating: best?.rating || 4.5,
+              reviews: best?.reviewCount ? `${(best.reviewCount / 1000).toFixed(1)}K` : "120",
+              img: best?.imageUrl || p.thumbnailUrl || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200",
+            };
+          });
+          setSimilarProducts(mapped);
+        }
+      })
+      .catch((err) => console.error("[Similar] Error fetching similar products:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [product?.id]);
 
   return (
     <motion.div
@@ -559,6 +541,7 @@ export default function FullScreenProductDetail({
                   <div
                     key={item.id}
                     onClick={() => {
+                      setActiveProductId(item.id);
                       toast({ description: `Opening details for ${item.label}...` });
                     }}
                     className="flex flex-col bg-[#12131a] border border-zinc-850 hover:border-zinc-700 transition-all p-1.5 rounded-xl cursor-pointer relative shadow-sm group/sim w-full"

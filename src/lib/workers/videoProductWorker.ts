@@ -35,6 +35,8 @@ import crypto from "crypto";
 import { spawn } from "child_process";
 import { extractFramesFromVideo } from "../videoProcessor";
 import { SearchManager } from "../marketplace/searchManager";
+import { getOrCreateCanonicalProduct } from "../marketplace/productNormalizer";
+import { extractProductMetadata } from "../marketplace/metadataExtractor";
 import { VisionProviderManager } from "../ai/visionProviderManager";
 import {
   detectObjectsInFrame,
@@ -217,24 +219,121 @@ async function limitConcurrency<T, R>(
   return results;
 }
 
+async function computeDHash(buffer: Buffer): Promise<string> {
+  try {
+    const raw = await sharp(buffer)
+      .resize(9, 8, { fit: "fill" })
+      .grayscale()
+      .raw()
+      .toBuffer();
+    
+    let hash = "";
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const left = raw[row * 9 + col];
+        const right = raw[row * 9 + col + 1];
+        hash += left < right ? "1" : "0";
+      }
+    }
+    let hex = "";
+    for (let i = 0; i < hash.length; i += 4) {
+      hex += parseInt(hash.slice(i, i + 4), 2).toString(16);
+    }
+    return hex;
+  } catch {
+    return "";
+  }
+}
+
+function getHammingDistance(h1: string, h2: string): number {
+  if (h1.length !== h2.length) return 999;
+  let dist = 0;
+  for (let i = 0; i < h1.length; i++) {
+    if (h1[i] !== h2[i]) dist++;
+  }
+  return dist;
+}
+
 async function downloadAndCacheGallery(
   matchId: string,
   urls: string[]
 ): Promise<{ imageUrl: string | null; galleryImageUrls: string[] }> {
-  const targetUrls = urls.slice(0, 5);
+  const targetUrls = Array.from(new Set(urls.filter(Boolean))).slice(0, 10);
   if (targetUrls.length === 0) {
     return { imageUrl: null, galleryImageUrls: [] };
   }
-  // Still download them locally so local cache exists on worker machine
-  await limitConcurrency(targetUrls, 3, async (url, i) => {
-    const destFileName = `${matchId}_gallery_${i}.jpg`;
-    const destPath = path.join(process.cwd(), "public", "uploads", "products", destFileName);
-    await downloadProductImage(url, destPath);
-    return url;
+
+  const uploadedUrls: string[] = [];
+  const seenHashes: string[] = [];
+
+  await limitConcurrency(targetUrls, 3, async (url) => {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!response.ok) return;
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Objective checks via sharp
+      const image = sharp(buffer);
+      const metadata = await image.metadata();
+
+      if (!metadata.width || !metadata.height) return;
+
+      // 1. Min resolution check (e.g. 300px width/height)
+      if (metadata.width < 300 || metadata.height < 300) {
+        console.log(`[Sharp] Image ignored: low resolution ${metadata.width}x${metadata.height} for ${url}`);
+        return;
+      }
+
+      // 2. Aspect Ratio check (bounds 0.5 to 2.0)
+      const ratio = metadata.width / metadata.height;
+      if (ratio < 0.5 || ratio > 2.0) {
+        console.log(`[Sharp] Image ignored: bad aspect ratio ${ratio.toFixed(2)} for ${url}`);
+        return;
+      }
+
+      // 3. Duplicate visual check using dHash
+      const hash = await computeDHash(buffer);
+      if (hash) {
+        const isDuplicate = seenHashes.some((h) => getHammingDistance(h, hash) <= 3);
+        if (isDuplicate) {
+          console.log(`[Sharp] Image ignored: duplicate visual hash detected for ${url}`);
+          return;
+        }
+        seenHashes.push(hash);
+      }
+
+      // 4. Compress to optimized JPEG
+      const compressedBuffer = await image
+        .jpeg({ quality: 80, progressive: true })
+        .toBuffer();
+
+      // 5. Upload to Supabase Storage
+      const extension = "jpg";
+      const fileName = `products/matches/${matchId}_${crypto.randomUUID().slice(0, 8)}.${extension}`;
+      const { error } = await supabaseAdmin.storage
+        .from("social-media")
+        .upload(fileName, compressedBuffer, {
+          contentType: "image/jpeg",
+          cacheControl: "31536000",
+          upsert: true,
+        });
+
+      if (!error) {
+        const supabaseUrlStr = `${supabaseUrl}/storage/v1/object/public/social-media/${fileName}`;
+        uploadedUrls.push(supabaseUrlStr);
+      } else {
+        console.error(`[Supabase Upload Error] ${error.message} for ${url}`);
+      }
+    } catch (err: any) {
+      console.error(`[Supabase Archiver] Failed to download/process ${url}: ${err.message}`);
+    }
   });
+
   return {
-    imageUrl: targetUrls[0] || null,
-    galleryImageUrls: targetUrls,
+    imageUrl: uploadedUrls[0] || null,
+    galleryImageUrls: uploadedUrls,
   };
 }
 
@@ -764,12 +863,20 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
 
       const category = getCategoryForLabel(evidence.yoloLabel);
 
+      // Resolve stable internal canonical product identity
+      const canonicalProductId = await getOrCreateCanonicalProduct(
+        label,
+        evidence.logo || undefined,
+        category
+      );
+
       // Create DetectedProduct (detection layer)
       const detectedProduct = await prisma.detectedProduct.create({
         data: {
           postId: videoId,
           label: label.slice(0, 200),
           category,
+          canonicalProductId,
           color: evidence.colorDetected || "unknown",
           confidence: product.detectionConfidence,
           frameTimestamp: product.timeline[0] || 0,
@@ -815,6 +922,14 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
             create: processed.processedMatches.map((pm) => {
               const match = pm.match;
               const parsedPrice = parsePriceToFloat(match.product.price);
+              
+              // Extract rich metadata from marketplace listing
+              const ext = extractProductMetadata(
+                match.product.title || "Product Match",
+                match.product.description || "",
+                (match.product as any).attributes || {}
+              );
+
               return {
                 id: pm.id,
                 title: match.product.title || "Product Match",
@@ -826,15 +941,18 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
 
                 // Cartly v3 permanent fields
                 cleanedTitle: cleanMarketplaceTitle(match.product.title),
-                matchBrand: match.product.brand || undefined,
+                matchBrand: match.product.brand || ext.specifications["Brand"] || ext.specifications["brand"] || undefined,
                 manufacturer: match.product.manufacturer || undefined,
                 modelNumber: match.product.modelNumber || undefined,
                 galleryImageUrls: pm.galleryImageUrls,
-                categoryPath: match.product.categoryPath || undefined,
-                condition: match.product.condition || "New",
+                categoryPath: ext.categoryPath,
+                condition: ext.condition,
+                returnPolicy: ext.returnPolicy,
+                warranty: ext.warranty,
                 verificationScore: match.marketplaceConfidence,
-                features: match.product.features || [],
-                highlights: match.product.highlights || [],
+                features: ext.features,
+                highlights: ext.highlights,
+                rawPayload: match.product as any, // Preserve raw marketplace payload
 
                 // Cartly v3 cached fields
                 rating: match.product.rating || undefined,

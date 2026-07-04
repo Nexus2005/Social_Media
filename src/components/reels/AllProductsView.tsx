@@ -21,7 +21,13 @@ import {
   Shield,
   Scale,
   Ruler,
-  Wind
+  Wind,
+  Palette,
+  Tag,
+  RotateCcw,
+  Truck,
+  ShieldCheck,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,23 +36,15 @@ import { useSession } from "@/app/(main)/SessionProvider";
 import UserAvatar from "@/components/UserAvatar";
 import FullScreenProductDetail from "@/components/reels/FullScreenProductDetail";
 
-interface ProductMatch {
-  id: string;
-  price: string;
-  productUrl: string;
-  merchant?: any;
-  title?: string;
-  imageUrl?: string;
-}
+import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@prisma/client";
 
-interface DetectedProduct {
-  id: string | number;
-  label: string;
-  category?: string;
-  thumbnailUrl?: string;
-  sourceFrameUrl?: string;
+export type ProductMatch = PrismaShoppingMatch & {
+  variants?: ProductVariant[];
+};
+
+export type DetectedProduct = PrismaDetectedProduct & {
   matches?: ProductMatch[];
-}
+};
 
 interface AllProductsViewProps {
   products: DetectedProduct[];
@@ -195,6 +193,7 @@ interface CartItem {
 }
 
 export default function AllProductsView({ products, onClose }: AllProductsViewProps) {
+  const { toast } = useToast();
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === "light";
   const { user } = useSession();
@@ -223,6 +222,23 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
   const [fullProductDetailId, setFullProductDetailId] = useState<string | number | null>(null);
 
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [compareList, setCompareList] = useState<any[]>([]);
+
+  const toggleCompare = (prod: any) => {
+    setCompareList((prev) => {
+      const isAlreadyIn = prev.some((p) => p.id === prod.id);
+      if (isAlreadyIn) {
+        return prev.filter((p) => p.id !== prod.id);
+      } else {
+        if (prev.length >= 4) {
+          toast({ description: "You can compare a maximum of 4 products." });
+          return prev;
+        }
+        return [...prev, prod];
+      }
+    });
+  };
+
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isCategoriesPageOpen, setIsCategoriesPageOpen] = useState(false);
   const [selectedCategoryCarousel, setSelectedCategoryCarousel] = useState("tops");
@@ -293,12 +309,9 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
 
   // Helper to safely extract brand name from best match or product label
   const getBrandName = (bm: ProductMatch | null, prod: DetectedProduct): string => {
-    if (!bm) return prod.label.split(" ")[0] || "Unknown";
-    const m = bm.merchant;
-    if (m && typeof m === "object") {
-      return m.name || "Unknown";
-    }
-    return m || prod.label.split(" ")[0] || "Unknown";
+    if (prod.brand) return prod.brand;
+    if (bm?.matchBrand) return bm.matchBrand;
+    return prod.label.split(" ")[0] || "Unknown";
   };
 
   // Extract all brands/merchants from products
@@ -870,7 +883,6 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
         </div>
       </div>
 
-      {/* 2. Main Content Grid Wrapper */}
       <div className={cn(
         "flex-1 flex overflow-hidden transition-colors duration-300",
         isLight ? "bg-[#f8f9fc]" : (isCompareOpen ? "bg-[#050608]" : "bg-[#07080d]")
@@ -901,233 +913,320 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                       <span>Share comparison</span>
                     </button>
                     {/* Clear all */}
-                    <button className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-[#0c0d14]/40 hover:bg-[#12131a] rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer">
+                    <button 
+                      onClick={() => setCompareList([])}
+                      className="flex items-center gap-2 px-4 py-2 border border-zinc-800 bg-[#0c0d14]/40 hover:bg-[#12131a] rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer"
+                    >
                       <Trash2 className="size-3.5" />
                       <span>Clear all</span>
                     </button>
                     {/* + Add product */}
-                    <button className="flex items-center gap-2 px-4 py-2 bg-[#007ACC] hover:bg-[#007ACC]/90 border-none rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-blue-500/10">
+                    <button 
+                      onClick={() => setIsCompareOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#007ACC] hover:bg-[#007ACC]/90 border-none rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-blue-500/10"
+                    >
                       <Plus className="size-3.5 text-white" />
                       <span>Add product</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Compare Table Grid */}
-                <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/30 backdrop-blur-md rounded-[32px] overflow-hidden shadow-2xl p-6 flex flex-col gap-4">
-                  
-                  {/* Table Header Row (Products Info cards) */}
-                  <div className="flex w-full items-stretch">
-                    {/* Left Label column */}
-                    <div className="w-[180px] shrink-0 pr-4 flex flex-col justify-end pb-6 select-none">
-                      <span className="text-[15px] font-black text-white">Products</span>
-                      <span className="text-[12px] text-zinc-500 mt-1 font-semibold">4 selected</span>
-                      <button className="mt-3 w-fit px-4 py-1.5 border border-zinc-800 hover:bg-[#12131a] text-[11px] font-bold text-zinc-300 rounded-xl transition-all cursor-pointer">
-                        Change
-                      </button>
-                    </div>
+                {compareList.length === 0 ? (
+                  <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/30 backdrop-blur-md rounded-[32px] overflow-hidden shadow-2xl p-16 flex flex-col items-center justify-center gap-4 text-center">
+                    <Scale className="size-16 text-zinc-650 animate-pulse mb-2" />
+                    <h3 className="text-sm font-bold text-white">No products selected for comparison</h3>
+                    <p className="text-xs text-zinc-550 max-w-md leading-normal">
+                      Close the comparison panel and toggle the comparison scale icon on any product cards to add them to your comparison dashboard.
+                    </p>
+                    <button 
+                      onClick={() => setIsCompareOpen(false)}
+                      className="mt-2 px-5 py-2 bg-[#007ACC] hover:bg-[#007ACC]/90 text-xs font-bold text-white rounded-xl transition-all cursor-pointer"
+                    >
+                      Back to Products
+                    </button>
+                  </div>
+                ) : (
+                  /* Compare Table Grid */
+                  <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/30 backdrop-blur-md rounded-[32px] overflow-hidden shadow-2xl p-6 flex flex-col gap-4">
+                    
+                    {/* Table Header Row (Products Info cards) */}
+                    <div className="flex w-full items-stretch">
+                      {/* Left Label column */}
+                      <div className="w-[180px] shrink-0 pr-4 flex flex-col justify-end pb-6 select-none">
+                        <span className="text-[15px] font-black text-white">Products</span>
+                        <span className="text-[12px] text-zinc-550 mt-1 font-semibold">{compareList.length} selected</span>
+                        <button 
+                          onClick={() => setIsCompareOpen(false)}
+                          className="mt-3 w-fit px-4 py-1.5 border border-zinc-800 hover:bg-[#12131a] text-[11px] font-bold text-zinc-300 rounded-xl transition-all cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
 
-                    {/* Compared products columns */}
-                    <div className="flex-1 grid grid-cols-4 gap-4">
-                      {COMPARE_PRODUCTS.map((prod) => (
-                        <div key={prod.id} className="flex flex-col relative group/card border border-[#1b1c26]/40 bg-[#0c0d14]/45 rounded-2xl overflow-hidden p-3.5">
-                          
-                          {/* Remove X button */}
-                          <button className="absolute top-2.5 right-2.5 z-10 p-1.5 bg-black/60 hover:bg-black/85 border border-white/5 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer">
-                            <X className="size-3" />
-                          </button>
+                      {/* Compared products columns */}
+                      <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                        {compareList.map((prod) => {
+                          const bm = getBestMatch(prod);
+                          const thumbnail = prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400";
+                          return (
+                            <div key={prod.id} className="flex flex-col relative group/card border border-[#1b1c26]/40 bg-[#0c0d14]/45 rounded-2xl overflow-hidden p-3.5">
+                              
+                              {/* Remove X button */}
+                              <button 
+                                onClick={() => toggleCompare(prod)}
+                                className="absolute top-2.5 right-2.5 z-10 p-1.5 bg-black/60 hover:bg-black/85 border border-white/5 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                              >
+                                <X className="size-3" />
+                              </button>
 
-                          {/* Image wrapper */}
-                          <div className="w-full h-[105px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 shrink-0">
-                            <img src={prod.imageUrl} alt={prod.label} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500" />
-                          </div>
-
-                          {/* Text detail */}
-                          <div className="mt-3 flex-1 flex flex-col justify-between">
-                            <div>
-                              <h4 className="text-xs font-black text-white leading-tight line-clamp-1">{prod.label}</h4>
-                              <p className="text-[9.5px] text-zinc-500 font-semibold mt-0.5 line-clamp-1 leading-tight">{prod.subtitle}</p>
-                            </div>
-                            
-                            <div className="mt-3 flex flex-col gap-2.5">
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-xs font-black text-white">{prod.price}</span>
-                                {prod.listPrice && (
-                                  <span className="text-[9.5px] line-through font-semibold text-zinc-550">{prod.listPrice}</span>
-                                )}
-                                {prod.discount && (
-                                  <span className="text-[9px] text-[#007ACC] font-black uppercase">{prod.discount}</span>
-                                )}
+                              {/* Image wrapper */}
+                              <div className="w-full h-[105px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 shrink-0">
+                                <img src={thumbnail} alt={prod.label} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500" />
                               </div>
 
-                              <button className="w-full py-1.5 border border-[#007ACC]/30 hover:border-[#007ACC]/60 text-[10.5px] font-bold text-[#007ACC] hover:text-[#007ACC]/85 hover:bg-[#007ACC]/5 rounded-xl transition-all cursor-pointer">
-                                View product
-                              </button>
-                            </div>
-                          </div>
+                              {/* Text detail */}
+                              <div className="mt-3 flex-1 flex flex-col justify-between">
+                                <div>
+                                  <h4 className="text-xs font-black text-white leading-tight line-clamp-1 capitalize">{prod.label}</h4>
+                                  <p className="text-[9.5px] text-zinc-550 font-semibold mt-0.5 line-clamp-1 leading-tight capitalize">{prod.category || "General"}</p>
+                                </div>
+                                
+                                <div className="mt-3 flex flex-col gap-2.5">
+                                  <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xs font-black text-white">{bm?.price || "Contact Store"}</span>
+                                  </div>
 
+                                  <button 
+                                    onClick={() => setFullProductDetailId(prod.id)}
+                                    className="w-full py-1.5 border border-[#007ACC]/30 hover:border-[#007ACC]/60 text-[10.5px] font-bold text-[#007ACC] hover:text-[#007ACC]/85 hover:bg-[#007ACC]/5 rounded-xl transition-all cursor-pointer"
+                                  >
+                                    View product
+                                  </button>
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="h-[1px] bg-[#1b1c26]/60 my-2" />
+
+                    {/* Feature Rows */}
+                    <div className="flex flex-col gap-2">
+                      
+                      {/* Price Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <ShoppingBag className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Price</span>
                         </div>
-                      ))}
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-black text-white pl-3.5">
+                                {bm?.price || "Contact Store"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Brand Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <Tag className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Brand</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            const brand = prod.brand || bm?.matchBrand || "Unknown";
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 capitalize truncate">
+                                {brand}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Rating Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <Star className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Rating</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <div key={prod.id} className="text-xs font-bold text-white flex items-center gap-1.5 pl-3.5">
+                                <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
+                                <span className="text-zinc-100">{bm?.rating || "4.5"}</span>
+                                <span className="text-[10px] text-zinc-550">({bm?.reviewCount || "120"})</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Seller Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <User className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Seller</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 capitalize truncate">
+                                {bm?.sellerName || "Direct Store"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Shipping Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <Truck className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Shipping</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                                {bm?.shippingCost || "Free Standard"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Returns Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <RotateCcw className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Returns</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                                {bm?.returnPolicy || "30-Day Returns"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Condition Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <ShieldCheck className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Condition</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                                {bm?.condition || "New"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Colors Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <Palette className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Colors</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            const colors = Array.isArray(bm?.variants) 
+                              ? Array.from(new Set(bm.variants.filter((v: any) => v.variantType?.toLowerCase() === "color").map((v: any) => v.variantValue)))
+                              : [];
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                                {colors.length > 0 ? colors.join(", ") : (prod.color || "Standard")}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Sizes Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <Sparkles className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Sizes</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            const sizes = Array.isArray(bm?.variants) 
+                              ? Array.from(new Set(bm.variants.filter((v: any) => v.variantType?.toLowerCase() === "size").map((v: any) => v.variantValue)))
+                              : [];
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                                {sizes.length > 0 ? sizes.join(", ") : "Standard"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Material Row */}
+                      <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <Scale className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Material</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
+                                {prod.material || "Synthetic / Cotton"}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Marketplace Row */}
+                      <div className="flex w-full items-center py-2.5">
+                        <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
+                          <ShoppingCart className="size-4 text-zinc-450" />
+                          <span className="text-xs font-bold">Marketplace</span>
+                        </div>
+                        <div className={`flex-1 grid grid-cols-${compareList.length} gap-4`}>
+                          {compareList.map((prod) => {
+                            const bm = getBestMatch(prod);
+                            const store = bm?.sourceStore || "Online Store";
+                            return (
+                              <span key={prod.id} className="text-[11.5px] font-extrabold text-[#007ACC] pl-3.5 uppercase">
+                                {store}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                     </div>
                   </div>
-
-                  <div className="h-[1px] bg-[#1b1c26]/60 my-2" />
-
-                  {/* Feature Rows */}
-                  <div className="flex flex-col gap-2">
-                    
-                    {/* Rating */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <Star className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Rating</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <div key={prod.id} className="text-xs font-bold text-white flex items-center gap-1.5 pl-3.5">
-                            <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
-                            <span className="text-zinc-100">{prod.rating}</span>
-                            <span className="text-[10px] text-zinc-500">({prod.reviewsCount})</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Best for */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <Heart className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Best for</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5 truncate">
-                            {prod.bestFor}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Cushioning */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <Sparkles className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Cushioning</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                            {prod.cushioning}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Weight */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <Scale className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Weight (UK 9)</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                            {prod.weight}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Heel Drop */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-450">
-                        <Ruler className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Heel Drop</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                            {prod.heelDrop}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Breathability */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <Wind className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Breathability</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                            {prod.breathability}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Durability */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <Shield className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Durability</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[11.5px] font-bold text-zinc-200 pl-3.5">
-                            {prod.durability}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Price Row */}
-                    <div className="flex w-full items-center py-2.5 border-b border-[#1b1c26]/20">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <ShoppingBag className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Price</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <span key={prod.id} className="text-[12.5px] font-black text-white pl-3.5">
-                            {prod.price}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Buy from */}
-                    <div className="flex w-full items-center py-3.5">
-                      <div className="w-[180px] shrink-0 flex items-center gap-2 select-none text-zinc-400">
-                        <ShoppingCart className="size-4 text-zinc-450" />
-                        <span className="text-xs font-bold">Buy from</span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-4 gap-4">
-                        {COMPARE_PRODUCTS.map((prod) => (
-                          <div key={prod.id} className="flex items-center gap-1.5 pl-3.5 select-none pointer-events-auto">
-                            {/* Amazon logo mockup */}
-                            <div className="w-6 h-6 rounded bg-amber-400 flex items-center justify-center font-black text-[10px] text-black border border-white/5 shadow" title="Buy from Amazon">
-                              a
-                            </div>
-                            {/* Flipkart logo mockup */}
-                            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-black text-[10px] text-white border border-white/5 shadow" title="Buy from Flipkart">
-                              F
-                            </div>
-                            {/* Nike swoosh mockup */}
-                            <div className="w-6 h-6 rounded bg-black flex items-center justify-center border border-white/20 shadow" title="Buy from Nike Store">
-                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white text-white"><path d="M21 6.5c-2.3 1.7-5.5 3.3-8.5 4.3-2.5.8-4.5.8-6.1.4-1.3-.3-2.1-.9-2.4-1.7-.2-.5-.1-1 .3-1.4.3-.3.8-.5 1.5-.5 1.1 0 2.5.4 4.1 1.2 2.6 1.3 5.4 1.5 7.8.8l3.3-3.1z"/></svg>
-                            </div>
-                            <span className="text-zinc-550 text-[10px] ml-1 font-semibold">&gt;</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                  </div>
-
-                </div>
+                )}
 
               </div>
 
@@ -1138,43 +1237,56 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                 <div className="border border-[#1b1c26]/60 bg-[#0c0d14]/40 backdrop-blur-md rounded-[28px] p-5 flex flex-col gap-4 shadow-xl">
                   <div>
                     <h3 className="text-sm font-black text-white tracking-tight">Which one is best for you?</h3>
-                    <p className="text-[10px] font-semibold text-zinc-500 mt-1 leading-tight">Based on your preferences</p>
+                    <p className="text-[10px] font-semibold text-zinc-550 mt-1 leading-tight">Based on your preferences</p>
                   </div>
 
-                  <div className="border border-[#1b1c26]/30 bg-[#0c0d14]/30 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden">
-                    {/* Best match tag */}
-                    <span className="absolute top-3 left-3 bg-[#007ACC] text-white text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
-                      Best match
-                    </span>
-
-                    {/* Best match Image */}
-                    <div className="w-full h-[110px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mt-4 shrink-0">
-                      <img src={COMPARE_PRODUCTS[0].imageUrl} alt="Best Match" className="w-full h-full object-cover" />
+                  {compareList.length === 0 ? (
+                    <div className="p-4 border border-dashed border-zinc-800 rounded-2xl text-center text-xs text-zinc-600">
+                      Select products to determine best match.
                     </div>
+                  ) : (
+                    <div className="border border-[#1b1c26]/30 bg-[#0c0d14]/30 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden">
+                      {/* Best match tag */}
+                      <span className="absolute top-3 left-3 bg-[#007ACC] text-white text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                        Best match
+                      </span>
 
-                    <h4 className="text-xs font-black text-white mt-1">{COMPARE_PRODUCTS[0].label}</h4>
+                      {/* Best match Image */}
+                      <div className="w-full h-[110px] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mt-4 shrink-0">
+                        <img 
+                          src={compareList[0].thumbnailUrl || compareList[0].sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400"} 
+                          alt="Best Match" 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
 
-                    {/* Bullets with checkmarks */}
-                    <div className="flex flex-col gap-2 mt-1">
-                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
-                        <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
-                        <span>Great for daily running</span>
+                      <h4 className="text-xs font-black text-white mt-1 capitalize">{compareList[0].label}</h4>
+
+                      {/* Bullets with checkmarks */}
+                      <div className="flex flex-col gap-2 mt-1">
+                        <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
+                          <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
+                          <span>Highest match confidence</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
+                          <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
+                          <span>Verified product listing</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
+                          <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
+                          <span>Fast standard shipping</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
-                        <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
-                        <span>Lightweight & responsive</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-zinc-300">
-                        <Check className="size-3.5 text-[#007ACC] shrink-0" strokeWidth={3.5} />
-                        <span>High customer rating</span>
-                      </div>
+
+                      <button 
+                        onClick={() => setFullProductDetailId(compareList[0].id)}
+                        className="flex items-center gap-1.5 text-[10.5px] font-black text-[#007ACC] hover:text-[#007ACC]/80 mt-3 group cursor-pointer w-fit"
+                      >
+                        <span>View product</span>
+                        <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
+                      </button>
                     </div>
-
-                    <button className="flex items-center gap-1.5 text-[10.5px] font-black text-[#007ACC] hover:text-[#007ACC]/80 mt-3 group cursor-pointer w-fit">
-                      <span>View product</span>
-                      <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
-                    </button>
-                  </div>
+                  )}
                 </div>
 
                 {/* Card 2: Similar alternatives */}
@@ -1357,7 +1469,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                 {/* Dark overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
 
-                                {/* Best match tag */}
+                          {/* Best match tag */}
                                 {"isBestMatch" in prod && prod.isBestMatch && (
                                   <span className="absolute top-4 left-4 text-[9px] font-black text-white bg-emerald-600 px-2.5 py-0.5 rounded-md uppercase tracking-wider select-none">
                                     Best match
@@ -1370,9 +1482,26 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                     e.stopPropagation();
                                     toggleWishlist(prod.id);
                                   }}
-                                  className="absolute top-4 right-4 p-1.5 bg-black/60 hover:bg-black/85 rounded-full border border-white/5 text-zinc-200 transition-colors duration-200"
+                                  className="absolute top-4 right-4 p-1.5 bg-black/60 hover:bg-black/85 rounded-full border border-white/5 text-zinc-200 transition-colors duration-200 shadow-md cursor-pointer"
                                 >
                                   <Heart className={cn("size-3.5", wishlist[prod.id] ? "fill-rose-500 text-rose-500" : "text-zinc-200")} strokeWidth={2.5} />
+                                </button>
+
+                                {/* Compare/Scale Toggle button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleCompare(prod);
+                                  }}
+                                  className={cn(
+                                    "absolute top-4 right-12 p-1.5 rounded-full border border-white/5 transition-colors duration-200 shadow-md cursor-pointer",
+                                    compareList.some((p) => p.id === prod.id)
+                                      ? "bg-indigo-600 text-white border-indigo-500"
+                                      : "bg-black/60 hover:bg-black/85 text-zinc-200"
+                                  )}
+                                  title="Add to compare list"
+                                >
+                                  <Scale className="size-3.5" strokeWidth={2.5} />
                                 </button>
 
                                 {/* Color badge dots at bottom left of image */}
@@ -1421,7 +1550,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                       e.stopPropagation();
                                       handleAddToCart(
                                         { id: prod.id, label: prod.label, category: catTitle } as any, 
-                                        { id: prod.id, price: prod.price, productUrl: "#" }
+                                        { id: prod.id, price: prod.price, productUrl: "#" } as any
                                       );
                                     }}
                                     className="p-2.5 border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/40 rounded-xl text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
@@ -1750,6 +1879,23 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                               className={cn("size-3", wishlist[prod.id] ? "fill-rose-500 text-rose-500" : "text-zinc-200")}
                               strokeWidth={2.5}
                             />
+                          </button>
+
+                          {/* Compare/Scale Toggle button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCompare(prod);
+                            }}
+                            className={cn(
+                              "absolute top-3.5 right-11 p-1.5 rounded-full border border-white/5 transition-colors duration-200 shadow-md cursor-pointer",
+                              compareList.some((p) => p.id === prod.id)
+                                ? "bg-indigo-600 text-white border-indigo-500"
+                                : "bg-black/60 hover:bg-black/85 text-zinc-200"
+                            )}
+                            title="Add to compare list"
+                          >
+                            <Scale className="size-3" strokeWidth={2.5} />
                           </button>
                         </div>
 

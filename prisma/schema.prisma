@@ -314,6 +314,8 @@ model DetectedProduct {
   productClicksCount      Int                     @default(0) @map("product_clicks_count")
   retailerClicksCount     Int                     @default(0) @map("retailer_clicks_count")
   wishlistSavesCount      Int                     @default(0) @map("wishlist_saves_count")
+  canonicalProductId      String?                 @map("canonical_product_id")
+  canonicalProduct        CanonicalProduct?       @relation(fields: [canonicalProductId], references: [id], onDelete: SetNull)
 
   creator                 User?                   @relation("CreatorProducts", fields: [creatorId], references: [id], onDelete: SetNull)
   events                  ProductEvent[]
@@ -382,9 +384,39 @@ model ShoppingMatch {
   directUrl         String?             @map("direct_url")
 
   merchant          Merchant?           @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  rawPayload        Json?               @map("raw_payload")
 
   @@index([detectedProductId])
   @@map("shopping_matches")
+}
+
+model CanonicalProduct {
+  id               String            @id @default(cuid())
+  brand            String
+  modelLine        String            @map("model_line")
+  subcategory      String
+  canonicalTitle   String            @unique @map("canonical_title")
+  detectedProducts DetectedProduct[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@map("canonical_products")
+}
+
+model MarketplaceSearchCache {
+  id              String   @id @default(cuid())
+  query           String
+  normalizedQuery String   @map("normalized_query")
+  marketplace     String
+  country         String   @default("US")
+  currency        String   @default("USD")
+  language        String   @default("en")
+  results         Json     // Serialized MarketplaceProduct matches
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([query, marketplace, country, currency, language])
+  @@map("marketplace_search_caches")
 }
 
 model VideoProcessingJob {

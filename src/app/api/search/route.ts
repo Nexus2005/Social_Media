@@ -2,6 +2,7 @@ import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
 import { getPostDataInclude, PostsPage } from "@/lib/types";
 import { NextRequest } from "next/server";
+import { RANKING_WEIGHTS } from "@/lib/marketplace/rankingConfig";
 
 export async function GET(req: NextRequest) {
   try {
@@ -76,6 +77,13 @@ export async function GET(req: NextRequest) {
           OR: [
             { label: { contains: q, mode: "insensitive" } },
             { category: { contains: q, mode: "insensitive" } },
+            { brand: { contains: q, mode: "insensitive" } },
+            { ocrText: { contains: q, mode: "insensitive" } },
+            { detectedLogo: { contains: q, mode: "insensitive" } },
+            { canonicalProduct: { canonicalTitle: { contains: q, mode: "insensitive" } } },
+            { canonicalProduct: { modelLine: { contains: q, mode: "insensitive" } } },
+            { matches: { some: { title: { contains: q, mode: "insensitive" } } } },
+            { matches: { some: { matchBrand: { contains: q, mode: "insensitive" } } } },
           ],
         },
         include: {
@@ -84,11 +92,33 @@ export async function GET(req: NextRequest) {
               createdAt: "asc",
             },
           },
+          canonicalProduct: true,
         },
-        take: 50,
+        take: 100,
       });
 
-      return Response.json({ products });
+      // Calculate composite ranking score for each product
+      const scored = products.map((prod) => {
+        const bestMatch = [...(prod.matches || [])].sort((a, b) => (b.verificationScore || 0) - (a.verificationScore || 0))[0] || null;
+
+        const score =
+          (RANKING_WEIGHTS.detectionConfidence * (prod.confidence || 0.5)) +
+          (RANKING_WEIGHTS.marketplaceMatchScore * (bestMatch?.verificationScore || 0.5)) +
+          (RANKING_WEIGHTS.geminiVerification * (prod.cropQualityScore || 0.5)) +
+          (RANKING_WEIGHTS.imageSimilarity * (bestMatch?.verificationScore ? 0.8 : 0.5)) +
+          (RANKING_WEIGHTS.ocrMatch * (prod.ocrText ? 0.9 : 0.5)) +
+          (RANKING_WEIGHTS.popularityBonus * Math.min((prod.productClicksCount || 0) / 100, 1.0));
+
+        return { prod, score };
+      });
+
+      // Sort desc by composite score
+      const sorted = scored
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.prod)
+        .slice(0, 50);
+
+      return Response.json({ products: sorted });
     }
 
     const whereClause: any = {};

@@ -1,21 +1,20 @@
 /**
  * Cartly v3 — Search Manager
  *
- * Parallel multi-query marketplace search with session-aware caching.
+ * Parallel multi-query marketplace search with DB-backed composite caching.
  *
- * Changes from v2:
- * - Removed ALL mock-detection logic ("Direct Factory" checks, etc.)
- * - Uses QueryCache with 1h TTL (instead of internal 5-min cache)
- * - Searches all 4 resolver queries across all providers IN PARALLEL
- * - Returns 20 results to feed the Verification Engine
- * - No mock fallback — returns [] when no results found
+ * Changes:
+ * - Removed QueryCache (in-memory) -> uses Prisma-backed MarketplaceSearchCache
+ * - Cache key tracks query, marketplace, country, currency, and language
+ * - Enforces 6h TTL
+ * - Invalidates cache on empty / corrupted payloads
+ * - Runs queries and cache checks in parallel
  */
 
 import { EBayProvider } from "./eBayProvider";
 import { AliExpressProvider } from "./aliexpressProvider";
 import { MarketplaceProduct, MarketplaceProvider } from "./types";
-import { QueryCache } from "./queryCache";
-import { SearchQueryOptimizer } from "./searchQueryOptimizer";
+import prisma from "../prisma";
 
 export class SearchManager {
   private static providers: MarketplaceProvider[] = [
@@ -44,27 +43,130 @@ export class SearchManager {
   }
 
   /**
-   * Search all marketplace providers for a single query.
-   * Uses QueryCache. Returns raw results (unverified).
+   * Database Cache Getter
    */
-  static async search(query: string, limit = 20): Promise<MarketplaceProduct[]> {
+  private static async getCachedResults(
+    query: string,
+    marketplace: string,
+    country = "US",
+    currency = "USD",
+    language = "en"
+  ): Promise<MarketplaceProduct[] | null> {
+    try {
+      const cache = await prisma.marketplaceSearchCache.findUnique({
+        where: {
+          query_marketplace_country_currency_language: {
+            query,
+            marketplace,
+            country,
+            currency,
+            language,
+          },
+        },
+      });
+
+      if (!cache) return null;
+
+      // 6-hour TTL check
+      const ageMs = Date.now() - new Date(cache.updatedAt).getTime();
+      if (ageMs > 6 * 60 * 60 * 1000) {
+        console.log(`[SearchCache] Expired cached results for query: "${query}" on ${marketplace}`);
+        return null;
+      }
+
+      // Invalidate if empty/corrupted payload
+      const results = cache.results as any[];
+      if (!Array.isArray(results) || results.length === 0) {
+        console.log(`[SearchCache] Invalid/empty cache hit for query: "${query}" on ${marketplace}. Invalidate.`);
+        return null;
+      }
+
+      return results as MarketplaceProduct[];
+    } catch (err) {
+      console.error("[SearchCache] Error reading cache:", err);
+      return null;
+    }
+  }
+
+  /**
+   * Database Cache Setter
+   */
+  private static async setCachedResults(
+    query: string,
+    marketplace: string,
+    results: MarketplaceProduct[],
+    country = "US",
+    currency = "USD",
+    language = "en"
+  ): Promise<void> {
+    if (!Array.isArray(results) || results.length === 0) return; // Don't cache empty results (comply with invalidation rules)
+
+    try {
+      const normalizedQuery = query.toLowerCase().trim();
+      await prisma.marketplaceSearchCache.upsert({
+        where: {
+          query_marketplace_country_currency_language: {
+            query,
+            marketplace,
+            country,
+            currency,
+            language,
+          },
+        },
+        create: {
+          query,
+          normalizedQuery,
+          marketplace,
+          country,
+          currency,
+          language,
+          results: results as any,
+        },
+        update: {
+          results: results as any,
+          updatedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.error("[SearchCache] Error writing cache:", err);
+    }
+  }
+
+  /**
+   * Search all marketplace providers for a single query.
+   * Returns raw results (unverified).
+   */
+  static async search(
+    query: string,
+    limit = 20,
+    options?: {
+      country?: string;
+      currency?: string;
+      language?: string;
+    }
+  ): Promise<MarketplaceProduct[]> {
     if (!query || query.trim().length === 0) return [];
 
-    // Check cache first
-    const cache = QueryCache.getInstance();
-    const cached = cache.get(query);
-    if (cached) {
-      console.log(`[SearchManager] Cache hit for: "${query}" (${cached.length} results)`);
-      return cached;
-    }
+    const country = options?.country || "US";
+    const currency = options?.currency || "USD";
+    const language = options?.language || "en";
 
     // Search all providers IN PARALLEL
-    console.log(`[SearchManager] Searching all providers for: "${query}"`);
     const results = await Promise.all(
       this.providers.map(async (provider) => {
         try {
+          // Check DB Cache first
+          const cached = await this.getCachedResults(query, provider.name, country, currency, language);
+          if (cached) {
+            console.log(`[SearchManager] DB Cache hit for: "${query}" on ${provider.name} (${cached.length} results)`);
+            return cached;
+          }
+
           const providerResults = await provider.search(query, limit);
           console.log(`  ├─ ${provider.name}: ${providerResults.length} results`);
+
+          // Cache results
+          await this.setCachedResults(query, provider.name, providerResults, country, currency, language);
           return providerResults;
         } catch (err) {
           console.error(`  ├─ ${provider.name}: FAILED`, err);
@@ -73,12 +175,7 @@ export class SearchManager {
       }),
     );
 
-    const allProducts = results.flat();
-
-    // Cache results (no mock filtering needed — providers never return mocks now)
-    cache.set(query, allProducts);
-
-    return allProducts;
+    return results.flat();
   }
 
   /**
@@ -87,68 +184,63 @@ export class SearchManager {
    *
    * @param queries Array of resolver queries (specific → broad)
    * @param limit Max results per query
+   * @param options Language, Currency, Country overrides
    * @returns All results from all queries, deduplicated
    */
-  static async searchMultiQuery(queries: string[], limit = 20): Promise<{
+  static async searchMultiQuery(
+    queries: string[],
+    limit = 20,
+    options?: {
+      country?: string;
+      currency?: string;
+      language?: string;
+    }
+  ): Promise<{
     results: MarketplaceProduct[];
     cacheHits: number;
   }> {
     if (queries.length === 0) return { results: [], cacheHits: 0 };
 
-    const cache = QueryCache.getInstance();
+    const country = options?.country || "US";
+    const currency = options?.currency || "USD";
+    const language = options?.language || "en";
+
     let cacheHits = 0;
+    const allResults: MarketplaceProduct[] = [];
 
-    // Separate cached vs uncached queries
-    const cachedResults: MarketplaceProduct[] = [];
-    const uncachedQueries: string[] = [];
+    // Solve cache checks and fetches in parallel across queries and providers
+    await Promise.all(
+      queries.map(async (query) => {
+        const queryResults = await Promise.all(
+          this.providers.map(async (provider) => {
+            try {
+              // Cache Lookup
+              const cached = await this.getCachedResults(query, provider.name, country, currency, language);
+              if (cached) {
+                cacheHits++;
+                return cached;
+              }
 
-    for (const query of queries) {
-      const cached = cache.get(query);
-      if (cached) {
-        cachedResults.push(...cached);
-        cacheHits++;
-      } else {
-        uncachedQueries.push(query);
-      }
-    }
-
-    if (cacheHits > 0) {
-      console.log(`[SearchManager] ${cacheHits}/${queries.length} queries served from cache`);
-    }
-
-    // Search uncached queries across all providers IN PARALLEL
-    const freshResultArrays = await Promise.all(
-      uncachedQueries.flatMap((query) =>
-        this.providers.map(async (provider) => {
-          try {
-            const results = await provider.search(query, limit);
-            // Cache per-provider results
-            return { query, results };
-          } catch (err) {
-            console.error(`[SearchManager] ${provider.name} failed for "${query}":`, err);
-            return { query, results: [] as MarketplaceProduct[] };
-          }
-        }),
-      ),
+              // Search Provider
+              const results = await provider.search(query, limit);
+              await this.setCachedResults(query, provider.name, results, country, currency, language);
+              return results;
+            } catch (err) {
+              console.error(`[SearchManager] ${provider.name} failed for "${query}":`, err);
+              return [] as MarketplaceProduct[];
+            }
+          })
+        );
+        allResults.push(...queryResults.flat());
+      })
     );
 
-    // Group fresh results by query and cache them
-    const queryResultMap = new Map<string, MarketplaceProduct[]>();
-    for (const { query, results } of freshResultArrays) {
-      const existing = queryResultMap.get(query) || [];
-      existing.push(...results);
-      queryResultMap.set(query, existing);
+    if (cacheHits > 0) {
+      console.log(`[SearchManager] ${cacheHits} query/provider hits served from DB cache`);
     }
-    for (const [query, results] of queryResultMap) {
-      cache.set(query, results);
-    }
-
-    const freshResults = freshResultArrays.flatMap((r) => r.results);
-    const allResults = [...cachedResults, ...freshResults];
 
     // Deduplicate across queries (same product from different queries)
     const deduped = this.deduplicateResults(allResults);
-
     console.log(`[SearchManager] Multi-query: ${queries.length} queries → ${allResults.length} raw → ${deduped.length} deduplicated`);
 
     return { results: deduped, cacheHits };

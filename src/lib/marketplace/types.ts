@@ -62,6 +62,7 @@ export interface MarketplaceProduct {
 
   // ── Internal metadata ──────────────────────────────────────────────────────
   itemId?: string;        // marketplace-specific ID for lazy detail loading
+  attributes?: Record<string, any>;
 }
 
 // ─── Marketplace Provider Interface ───────────────────────────────────────────
