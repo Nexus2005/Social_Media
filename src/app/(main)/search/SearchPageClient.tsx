@@ -407,9 +407,11 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const [showRecentDropdown, setShowRecentDropdown] = useState(false);
   const [immersivePostIndex, setImmersivePostIndex] = useState<number | null>(null);
   const [activeSport, setActiveSport] = useState<"cricket" | "football">("cricket");
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Travel category is now handled within the More dropdown panel
   const categories = [
     { name: "For You", icon: Star },
     { name: "Trending", icon: Flame },
@@ -418,7 +420,6 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
     { name: "Sports", icon: Trophy },
     { name: "Gaming", icon: Gamepad2 },
     { name: "Beauty", icon: Sparkles },
-    { name: "Travel", icon: Plane },
     { name: "More", icon: LayoutGrid },
   ];
 
@@ -575,212 +576,227 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const col2 = posts.filter((_, idx) => idx % 3 === 1);
   const col3 = posts.filter((_, idx) => idx % 3 === 2);
 
-  return (
-    <div className="w-full min-h-screen bg-white dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText pb-14 md:pb-0 flex flex-col items-center">
-      {/* Sticky top search input */}
-      <div className="sticky top-0 z-30 w-full bg-white/80 dark:bg-instagram-darkBg/80 backdrop-blur-md border-b border-instagram-lightBorder dark:border-instagram-darkBorder px-4 py-3 flex flex-col items-center">
-        <form onSubmit={handleSearchSubmit} className="w-full max-w-[1250px] relative">
-          <div className="bg-zinc-100 dark:bg-zinc-900 border border-transparent focus-within:border-instagram-lightText dark:focus-within:border-instagram-darkText focus-within:bg-white dark:focus-within:bg-instagram-darkBg rounded-full h-11 px-4 w-full flex items-center gap-3 transition-all">
-            <Search className="size-4.5 text-zinc-500" />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search people, products, hashtags, brands..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setShowRecentDropdown(true)}
-              onBlur={() => setTimeout(() => setShowRecentDropdown(false), 200)}
-              className="flex-grow bg-transparent text-sm text-current outline-none placeholder:text-zinc-500"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setCommittedQuery("");
-                  setActiveTab("For You");
-                }}
-                className="p-1 text-zinc-500 hover:text-current rounded-full bg-zinc-200/40 hover:bg-zinc-200 dark:bg-zinc-800/40 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
+  // Common Search bar form builder
+  const renderSearchForm = () => (
+    <form onSubmit={handleSearchSubmit} className="w-full relative">
+      <div className="bg-zinc-100 dark:bg-zinc-900 border border-transparent focus-within:border-instagram-lightText dark:focus-within:border-instagram-darkText focus-within:bg-white dark:focus-within:bg-instagram-darkBg rounded-full h-11 px-4 w-full flex items-center gap-3 transition-all">
+        <Search className="size-4.5 text-zinc-500" />
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Search people, products, hashtags, brands..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setShowRecentDropdown(true)}
+          onBlur={() => setTimeout(() => setShowRecentDropdown(false), 200)}
+          className="flex-grow bg-transparent text-sm text-current outline-none placeholder:text-zinc-500"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setCommittedQuery("");
+              setActiveTab("For You");
+            }}
+            className="p-1 text-zinc-500 hover:text-current rounded-full bg-zinc-200/40 hover:bg-zinc-200 dark:bg-zinc-800/40 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
 
-            {/* High-fidelity browser integration tools inside Search Input */}
-            <div className="flex items-center gap-2.5 text-zinc-400 shrink-0">
-              <button
-                type="button"
-                className="hover:text-foreground transition-colors p-1"
-                title="Voice Search"
-              >
-                <Mic className="size-4" />
-              </button>
-              <button
-                type="button"
-                className="hover:text-foreground transition-colors p-1"
-                title="Scan QR Code"
-              >
-                <Scan className="size-4" />
-              </button>
-              <button
-                type="button"
-                className="bg-indigo-650 dark:bg-indigo-500 hover:bg-indigo-700 hover:dark:bg-indigo-650 text-white font-extrabold text-[10.5px] px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition-all shrink-0"
-              >
-                <Sparkles className="size-3 fill-current" /> AI Search
-              </button>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-2 py-0.5 rounded text-[10px] font-mono select-none">
-                <span>⌘</span>K
-              </kbd>
-            </div>
-          </div>
-
-          {/* Autocomplete / Recent Searches dropdown modal */}
-          {showRecentDropdown && (
-            <div className="absolute top-12 left-0 right-0 z-40 bg-white dark:bg-zinc-955 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-2xl shadow-2xl p-4 flex flex-col gap-3 animate-fade-in max-h-[350px] overflow-y-auto">
-              {searchQuery.trim() ? (
-                <>
-                  <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-instagram-lightBorder dark:border-instagram-darkBorder pb-2">
-                    <span>Search Suggestions</span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <div
-                      onClick={() => {
-                        setCommittedQuery(searchQuery);
-                        saveSearch(searchQuery);
-                        setShowRecentDropdown(false);
-                        inputRef.current?.blur();
-                      }}
-                      className="px-2 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-current font-semibold text-start"
-                    >
-                      Search for &quot;{searchQuery}&quot;
-                    </div>
-
-                    {autocompleteUsers.map((acc: any) => (
-                      <Link
-                        key={acc.id}
-                        href={`/users/${acc.username}`}
-                        className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-current"
-                      >
-                        <UserAvatar avatarUrl={acc.avatarUrl} size={36} />
-                        <div className="flex flex-col text-start">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs hover:underline">{acc.displayName}</span>
-                            {acc.verified && (
-                              <span className="size-3.5 rounded-full bg-blue-500 text-[8px] text-white flex items-center justify-center font-bold select-none shrink-0">
-                                ✓
-                              </span>
-                            )}
-                            {acc.followsYou && (
-                              <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1 rounded">
-                                Follows you
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-zinc-500">@{acc.username}</span>
-                        </div>
-                      </Link>
-                    ))}
-                    {autocompleteUsers.length === 0 && (
-                      <p className="text-xs text-zinc-500 px-2 py-1">No matching profiles found.</p>
-                    )}
-                  </div>
-                </>
-              ) : recentSearches.length > 0 ? (
-                <>
-                  <div className="flex justify-between items-center text-xs font-bold text-muted-foreground">
-                    <span>Recent Searches</span>
-                    <button
-                      type="button"
-                      onClick={clearAllRecent}
-                      className="text-current hover:opacity-80"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {recentSearches.map((item) => (
-                      <div
-                        key={item}
-                        onClick={() => {
-                          setSearchQuery(item);
-                          setCommittedQuery(item);
-                          setShowRecentDropdown(false);
-                          setTimeout(() => handleSearchSubmit(), 50);
-                        }}
-                        className="flex justify-between items-center px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-sm"
-                      >
-                        <span>{item}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => removeRecentSearch(e, item)}
-                          className="p-1 text-zinc-500 hover:text-current rounded-full transition-colors"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : null}
-            </div>
-          )}
-        </form>
-
-        {/* Dynamic Navigation Pill Strips with responsive widths fitting content dynamically */}
-        <div className="w-full max-w-[1250px] mt-3 overflow-x-auto scrollbar-none flex gap-2.5 pb-1">
-          {committedQuery.length > 0
-            ? filters.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    "pill-expand-button flex-shrink-0 w-auto px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer select-none",
-                    activeTab === tab
-                      ? "active"
-                      : "bg-transparent text-zinc-500 border-black/10 dark:border-white/10 hover:border-transparent"
-                  )}
-                >
-                  <span className="z-10">{tab}</span>
-                </button>
-              ))
-            : categories.map((cat) => {
-                const Icon = cat.icon;
-                const isActive = activeTab === cat.name;
-                return (
-                  <button
-                    key={cat.name}
-                    onClick={() => setActiveTab(cat.name)}
-                    className={cn(
-                      "pill-expand-button flex-shrink-0 w-auto px-4 py-2 text-xs font-bold rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm select-none",
-                      isActive
-                        ? "active"
-                        : "bg-background text-zinc-550 border-black/10 dark:border-white/10 hover:border-transparent"
-                    )}
-                  >
-                    <Icon className="size-3.5 shrink-0 z-10" />
-                    <span className="z-10">{cat.name}</span>
-                  </button>
-                );
-              })}
+        <div className="flex items-center gap-2.5 text-zinc-400 shrink-0">
+          <button
+            type="button"
+            className="hover:text-foreground transition-colors p-1"
+            title="Voice Search"
+          >
+            <Mic className="size-4" />
+          </button>
+          <button
+            type="button"
+            className="hover:text-foreground transition-colors p-1"
+            title="Scan QR Code"
+          >
+            <Scan className="size-4" />
+          </button>
+          <button
+            type="button"
+            className="bg-indigo-650 dark:bg-indigo-500 hover:bg-indigo-700 hover:dark:bg-indigo-650 text-white font-extrabold text-[10.5px] px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition-all shrink-0"
+          >
+            <Sparkles className="size-3 fill-current" /> AI Search
+          </button>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-2 py-0.5 rounded text-[10px] font-mono select-none">
+            <span>⌘</span>K
+          </kbd>
         </div>
       </div>
 
+      {showRecentDropdown && (
+        <div className="absolute top-12 left-0 right-0 z-40 bg-white dark:bg-zinc-955 border border-instagram-lightBorder dark:border-instagram-darkBorder rounded-2xl shadow-2xl p-4 flex flex-col gap-3 animate-fade-in max-h-[350px] overflow-y-auto">
+          {searchQuery.trim() ? (
+            <>
+              <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-instagram-lightBorder dark:border-instagram-darkBorder pb-2">
+                <span>Search Suggestions</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div
+                  onClick={() => {
+                    setCommittedQuery(searchQuery);
+                    saveSearch(searchQuery);
+                    setShowRecentDropdown(false);
+                    inputRef.current?.blur();
+                  }}
+                  className="px-2 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-sm text-current font-semibold text-start"
+                >
+                  Search for &quot;{searchQuery}&quot;
+                </div>
+
+                {autocompleteUsers.map((acc: any) => (
+                  <Link
+                    key={acc.id}
+                    href={`/users/${acc.username}`}
+                    className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-current"
+                  >
+                    <UserAvatar avatarUrl={acc.avatarUrl} size={36} />
+                    <div className="flex flex-col text-start">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs hover:underline">{acc.displayName}</span>
+                        {acc.verified && (
+                          <span className="size-3.5 rounded-full bg-blue-500 text-[8px] text-white flex items-center justify-center font-bold select-none shrink-0">
+                            ✓
+                          </span>
+                        )}
+                        {acc.followsYou && (
+                          <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1 rounded">
+                            Follows you
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-zinc-500">@{acc.username}</span>
+                    </div>
+                  </Link>
+                ))}
+                {autocompleteUsers.length === 0 && (
+                  <p className="text-xs text-zinc-500 px-2 py-1">No matching profiles found.</p>
+                )}
+              </div>
+            </>
+          ) : recentSearches.length > 0 ? (
+            <>
+              <div className="flex justify-between items-center text-xs font-bold text-muted-foreground">
+                <span>Recent Searches</span>
+                <button
+                  type="button"
+                  onClick={clearAllRecent}
+                  className="text-current hover:opacity-80"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {recentSearches.map((item) => (
+                  <div
+                    key={item}
+                    onClick={() => {
+                      setSearchQuery(item);
+                      setCommittedQuery(item);
+                      setShowRecentDropdown(false);
+                      setTimeout(() => handleSearchSubmit(), 50);
+                    }}
+                    className="flex justify-between items-center px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-sm"
+                  >
+                    <span>{item}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => removeRecentSearch(e, item)}
+                      className="p-1 text-zinc-500 hover:text-current rounded-full transition-colors"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+    </form>
+  );
+
+  return (
+    <div className="w-full min-h-screen bg-white dark:bg-instagram-darkBg text-instagram-lightText dark:text-instagram-darkText pb-14 md:pb-0 flex flex-col items-center">
       {/* Main content body */}
-      <main
-        className={cn(
-          "w-full mt-4 px-4 flex flex-col md:px-0 transition-all duration-350",
-          committedQuery.length === 0 ? "max-w-[1250px]" : "max-w-[600px]"
-        )}
-      >
+      <main className="w-full transition-all duration-350 flex justify-center">
+        
         {committedQuery.length === 0 ? (
           // INITIAL DISCOVERY DASHBOARD (Left Content + Right Pane Redesign)
-          <div className="w-full flex gap-6 text-start items-start pb-10">
+          <div className="w-full max-w-[1250px] flex gap-6 text-start items-start pb-10 mt-4 px-4 md:px-0">
             
-            {/* LEFT MAIN EXPLORE CONTAINER */}
-            <div className="flex-1 min-w-0 space-y-7">
+            {/* LEFT MAIN EXPLORE CONTAINER (Search bar fits here to end at middle sections end!) */}
+            <div className="flex-1 min-w-0 space-y-6">
               
+              {/* Search bar inside left column */}
+              <div className="space-y-4">
+                {renderSearchForm()}
+
+                {/* Categories strip inside left column */}
+                <div className="w-full overflow-x-auto scrollbar-none flex gap-2.5 pb-1">
+                  {categories.map((cat) => {
+                    const Icon = cat.icon;
+                    const isActive = cat.name === "More"
+                      ? (activeTab === "More" || activeTab === "Travel")
+                      : (activeTab === cat.name);
+                    return (
+                      <button
+                        key={cat.name}
+                        onClick={() => {
+                          if (cat.name === "More") {
+                            setShowMoreDropdown(!showMoreDropdown);
+                          } else {
+                            setActiveTab(cat.name);
+                            setShowMoreDropdown(false);
+                          }
+                        }}
+                        className={cn(
+                          "pill-expand-button flex-shrink-0 w-auto px-4 py-2 text-xs font-bold rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm select-none",
+                          isActive
+                            ? "active"
+                            : "bg-background text-zinc-550 border-black/10 dark:border-white/10 hover:border-transparent"
+                        )}
+                      >
+                        <Icon className="size-3.5 shrink-0 z-10" />
+                        <span className="z-10">{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Dropdown panel under More categories */}
+                {showMoreDropdown && (
+                  <div className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-black/10 dark:border-white/5 rounded-[24px] flex flex-wrap gap-2.5 animate-fade-in shadow-inner">
+                    <span className="text-[10px] font-black uppercase text-muted-foreground w-full mb-1 pl-1">More Categories</span>
+                    <button
+                      onClick={() => {
+                        setActiveTab("Travel");
+                        setShowMoreDropdown(false);
+                      }}
+                      className={cn(
+                        "pill-expand-button flex-shrink-0 w-auto px-4 py-2 text-xs font-bold rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm select-none",
+                        activeTab === "Travel"
+                          ? "active"
+                          : "bg-background text-zinc-550 border-black/10 dark:border-white/10 hover:border-transparent"
+                      )}
+                    >
+                      <Plane className="size-3.5 shrink-0 z-10" />
+                      <span className="z-10">Travel</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* HERO BANNER SECTION (Covered fully by user banner top-1782823947.avif) */}
-              <div className="relative w-full border border-black/10 dark:border-white/5 rounded-3xl overflow-hidden min-h-[350px] flex items-center p-6 md:p-12 select-none bg-zinc-950">
+              <div className="relative w-full border border-black/10 dark:border-white/5 rounded-3xl overflow-hidden min-h-[350px] flex items-center p-6 md:p-12 select-none bg-zinc-955">
                 {/* Full cover background image */}
                 <img
                   src="/top-1782823947.avif"
@@ -842,7 +858,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 </div>
               </div>
 
-              {/* LIVE NOW SECTION (Decreased card heights) */}
+              {/* LIVE NOW SECTION */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
@@ -1186,9 +1202,10 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
               </div>
             </div>
 
-            {/* RIGHT SIDEBAR PANE SECTION (Live score, Who to follow, Promo) */}
-            <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-5 select-none mt-1">
-                 {/* 1. Live Score Card */}
+            {/* RIGHT SIDEBAR PANE SECTION (Aligned at the top parallel to Search & Category pills!) */}
+            <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-5 select-none">
+              
+              {/* 1. Live Score Card */}
               <div className="monolith-card uiverse-neumorphic-card rounded-[30px] p-5 flex flex-col gap-4 text-start">
                 <div className="flex justify-between items-center border-b border-black/5 dark:border-white/5 pb-2">
                   <div className="flex items-center gap-1.5">
@@ -1402,10 +1419,29 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
 
           </div>
         ) : (
-          // ACTIVE SEARCH RESULTS VIEW STATE (Preserves database results rendering!)
-          <div className="flex flex-col w-full animate-fade-in pb-10">
+          // ACTIVE SEARCH RESULTS VIEW STATE (Preserves database results rendering inside single max-w-[600px] column!)
+          <div className="w-full max-w-[600px] flex flex-col gap-4 pb-10 mt-4 px-4 md:px-0">
+            {renderSearchForm()}
+
+            <div className="w-full overflow-x-auto scrollbar-none flex gap-2.5 pb-1">
+              {filters.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "pill-expand-button flex-shrink-0 w-auto px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer select-none",
+                    activeTab === tab
+                      ? "active"
+                      : "bg-transparent text-zinc-500 border-black/10 dark:border-white/10 hover:border-transparent"
+                  )}
+                >
+                  <span className="z-10">{tab}</span>
+                </button>
+              ))}
+            </div>
+
             {isAccountTab ? (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 mt-2">
                 {accountsLoading ? (
                   <div className="flex justify-center py-10">
                     <Loader2 className="size-6 animate-spin text-zinc-500" />
@@ -1458,7 +1494,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 )}
               </div>
             ) : activeTab === "Hashtags" ? (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 mt-2">
                 {status === "pending" ? (
                   <div className="flex justify-center py-10">
                     <Loader2 className="size-6 animate-spin text-zinc-500" />
@@ -1490,7 +1526,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 )}
               </div>
             ) : activeTab === "Photos" || activeTab === "Videos" ? (
-              <div className="flex flex-col">
+              <div className="flex flex-col mt-2">
                 {status === "pending" ? (
                   <div className="flex justify-center py-10">
                     <Loader2 className="size-6 animate-spin text-zinc-500" />
@@ -1517,7 +1553,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 )}
               </div>
             ) : (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 mt-2">
                 {status === "pending" ? (
                   <div className="flex justify-center py-10">
                     <Loader2 className="size-6 animate-spin text-zinc-500" />
