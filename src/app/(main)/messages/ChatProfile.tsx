@@ -165,19 +165,18 @@ export default function ChatProfile({ channel, onClose }: ChatProfileProps) {
 
   return (
     <motion.div
-      initial={{ x: "-100%" }}
+      initial={{ x: "100%" }}
       animate={{ x: 0 }}
-      exit={{ x: "-100%" }}
+      exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="fixed inset-0 z-50 flex h-full w-full flex-col border-e bg-[#121212] text-white shadow-2xl md:w-80 lg:w-96"
+      className="absolute inset-0 z-50 flex h-full w-full flex-col bg-[#121212] text-white shadow-2xl md:absolute md:right-0 md:left-auto md:w-80 lg:w-96 md:border-l md:border-zinc-800/60"
     >
       {/* Header Panel */}
       <div className="flex h-14 items-center justify-between border-b border-zinc-800/80 px-4 shrink-0">
+        <h2 className="text-lg font-bold text-white">Profile</h2>
         <button onClick={onClose} className="rounded-full p-2 hover:bg-zinc-800/60 text-zinc-300 transition-colors">
-          <ArrowLeft className="size-6" />
+          <X className="size-5" />
         </button>
-        <h2 className="text-lg font-bold text-white">User Profile</h2>
-        <div className="size-6" />
       </div>
 
       {/* Info Card Panel */}
