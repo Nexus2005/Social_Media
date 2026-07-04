@@ -4,7 +4,7 @@ import Script from "next/script";
 
 import { createPortal } from "react-dom";
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, Paperclip, Smile, Mic, MicOff, VideoOff, PhoneOff, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search, Users, List, Heart, Key, Link, Shield, Lock } from "lucide-react";
+import { ArrowLeft, MoreVertical, MoreHorizontal, Paperclip, Smile, Mic, MicOff, VideoOff, PhoneOff, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search, Users, List, Heart, Key, Link, Shield, Lock } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -279,20 +279,60 @@ const MessageBubbleContainer = React.memo(({
 
       {/* For outgoing message: render circular paper-plane forward button before message bubble */}
       {isOutgoing && isAttachmentOnly && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setForwardingMessage(message);
-            fetchForwardChannels();
-            setShowForwardDialog(true);
-          }}
-          className="size-9 rounded-full bg-zinc-800/50 hover:bg-zinc-700/60 flex items-center justify-center text-white mr-1 active:scale-95 transition-transform self-center shrink-0 shadow-sm"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 -rotate-45 translate-x-0.5">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </button>
+        <div className="flex items-center gap-1.5 self-center mr-1.5 shrink-0">
+          {/* Three Dots Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedMessage(selectedMessage?.id === message.id ? null : message);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="Options"
+          >
+            <MoreHorizontal className="size-4.5" />
+          </button>
+
+          {/* Reply Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setReplyMessage(message);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="Reply"
+          >
+            <CornerUpLeft className="size-4" />
+          </button>
+
+          {/* Smiley Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedMessage(selectedMessage?.id === message.id ? null : message);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="React"
+          >
+            <Smile className="size-4" />
+          </button>
+
+          {/* Forward Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setForwardingMessage(message);
+              fetchForwardChannels();
+              setShowForwardDialog(true);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="Forward"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 -rotate-45 translate-x-0.5">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
       )}
 
       <motion.div
@@ -597,20 +637,60 @@ const MessageBubbleContainer = React.memo(({
 
       {/* For incoming message: render circular paper-plane forward button after message bubble */}
       {!isOutgoing && isAttachmentOnly && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setForwardingMessage(message);
-            fetchForwardChannels();
-            setShowForwardDialog(true);
-          }}
-          className="size-9 rounded-full bg-zinc-800/50 hover:bg-zinc-700/60 flex items-center justify-center text-white ml-1 active:scale-95 transition-transform self-center shrink-0 shadow-sm"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 -rotate-45 translate-x-0.5">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </button>
+        <div className="flex items-center gap-1.5 self-center ml-1.5 shrink-0">
+          {/* Forward Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setForwardingMessage(message);
+              fetchForwardChannels();
+              setShowForwardDialog(true);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="Forward"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 -rotate-45 translate-x-0.5">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+
+          {/* Smiley Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedMessage(selectedMessage?.id === message.id ? null : message);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="React"
+          >
+            <Smile className="size-4" />
+          </button>
+
+          {/* Reply Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setReplyMessage(message);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="Reply"
+          >
+            <CornerUpLeft className="size-4" />
+          </button>
+
+          {/* Three Dots Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedMessage(selectedMessage?.id === message.id ? null : message);
+            }}
+            className="size-9 rounded-full bg-[#1c1c1e] hover:bg-zinc-800/80 flex items-center justify-center text-zinc-300 active:scale-95 transition-all shrink-0 shadow border border-zinc-800/40"
+            title="Options"
+          >
+            <MoreHorizontal className="size-4.5" />
+          </button>
+        </div>
       )}
 
       {/* Floating Reaction Capsule + Adjacent Options Menu above/next to the bubble when selected */}
@@ -2557,10 +2637,10 @@ export default function ChatChannel() {
         </div>
       )}
 
-      {/* Forward Message Selector Dialog (Slide-Up Bottom Sheet Drawer) */}
+      {/* Forward Message Selector Dialog (Slide-in from Right Side) */}
       <AnimatePresence>
         {showForwardDialog && forwardingMessage && (
-          <div className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end">
+          <div className="chat-area-overlay fixed inset-0 z-50 overflow-hidden flex justify-end">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -2571,22 +2651,19 @@ export default function ChatChannel() {
                 setForwardingMessage(null);
                 setForwardSearchQuery("");
               }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-[1px]"
+              className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
             />
-            {/* Bottom Sheet Drawer */}
+            {/* Right Side Panel */}
             <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative z-50 bg-[#121212] border-t border-zinc-800 rounded-t-3xl pb-8 pt-4 px-6 flex flex-col gap-4 max-w-md mx-auto w-full select-none"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 350, damping: 35 }}
+              className="relative z-50 bg-[#121212] border-l border-zinc-800/60 h-full w-full max-w-md flex flex-col gap-4 pb-8 pt-6 px-6 select-none"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Drag Handle */}
-              <div className="w-10 h-1 bg-zinc-750 rounded-full mx-auto mb-1 shrink-0" />
-              
               {/* Header Panel */}
-              <div className="relative border-b border-zinc-900 pb-3 flex items-center justify-center shrink-0">
+              <div className="relative border-b border-zinc-800/40 pb-4 flex items-center justify-between shrink-0">
                 <span className="font-black text-white text-[17px] tracking-wide">Forward Message</span>
                 <button
                   onClick={() => {
@@ -2594,7 +2671,7 @@ export default function ChatChannel() {
                     setForwardingMessage(null);
                     setForwardSearchQuery("");
                   }}
-                  className="absolute right-0 text-zinc-400 hover:text-white"
+                  className="rounded-full p-1.5 hover:bg-zinc-800/60 text-zinc-300 transition-colors"
                 >
                   <X className="size-5" />
                 </button>
