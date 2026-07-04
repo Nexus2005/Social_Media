@@ -7,6 +7,7 @@ import UserAvatar from "@/components/UserAvatar";
 import UserTooltip from "@/components/UserTooltip";
 import FollowButton from "@/components/FollowButton";
 import { Loader2 } from "lucide-react";
+import TrendingAndSportsCard from "@/components/TrendingAndSportsCard";
 
 export default function SuggestedSidebar() {
   return (
@@ -15,7 +16,9 @@ export default function SuggestedSidebar() {
         <SuggestionsList />
       </Suspense>
 
-
+      <Suspense fallback={<Loader2 className="mx-auto animate-spin" />}>
+        <TrendingSection />
+      </Suspense>
     </div>
   );
 }
@@ -109,4 +112,42 @@ async function SuggestionsList() {
       </div>
     </div>
   );
+}
+
+async function TrendingSection() {
+  const { user } = await validateRequest();
+  if (!user) return null;
+
+  // Fetch recent posts to extract hashtags dynamically
+  const recentPosts = await prisma.post.findMany({
+    where: {
+      content: {
+        contains: "#",
+      },
+    },
+    select: {
+      content: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 100,
+  });
+
+  const hashtagCounts: Record<string, number> = {};
+  recentPosts.forEach((p) => {
+    const tags = p.content.match(/#[a-zA-Z0-9_]+/g);
+    if (tags) {
+      tags.forEach((tag) => {
+        hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+      });
+    }
+  });
+
+  const hashtags = Object.entries(hashtagCounts)
+    .map(([hashtag, count]) => ({ hashtag, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  return <TrendingAndSportsCard hashtags={hashtags} />;
 }
