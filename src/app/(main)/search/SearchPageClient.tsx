@@ -1419,33 +1419,16 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
               </div>
 
               {/* 3. Spot. Shop. Share. Banner Card */}
-              <div className="relative border border-black/10 dark:border-white/5 rounded-[30px] p-5.5 text-start flex flex-col gap-4 overflow-hidden select-none min-h-[220px] bg-zinc-950">
+              <div className="relative border border-black/10 dark:border-white/5 rounded-[30px] overflow-hidden bg-zinc-950 aspect-[1.9/1] w-full select-none shadow-sm">
                 {/* Full cover background image */}
                 <img
                   src="/spot_share_promo.png"
                   alt="Spot Shop Share"
                   className="absolute inset-0 w-full h-full object-cover z-0 select-none pointer-events-none"
                 />
-                {/* Dark Vignette Overlay for readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
 
-                <div className="relative z-20 space-y-2 max-w-[200px]">
-                  <span className="font-extrabold text-[16px] text-white block leading-tight">
-                    Spot. Shop. Share.
-                  </span>
-                  <span className="text-[11px] text-zinc-300 block leading-normal font-medium">
-                    Discover from any reel, image or video.
-                  </span>
-                </div>
-
-                <div className="flex gap-3 text-white/80 py-1 relative z-20">
-                  <Instagram className="size-4 hover:text-white cursor-pointer transition-colors" />
-                  <Youtube className="size-4 hover:text-white cursor-pointer transition-colors" />
-                  <Tv className="size-4 hover:text-white cursor-pointer transition-colors" />
-                </div>
-
-                <Link href="/spots" className="relative z-20 w-fit">
-                  <button className="animated-button select-none">
+                <Link href="/spots" className="absolute bottom-3 left-3 z-20">
+                  <button className="animated-button select-none scale-[0.85] origin-bottom-left">
                     <span className="text">Try Spotting Something</span>
                     <svg className="arr-1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z" />
