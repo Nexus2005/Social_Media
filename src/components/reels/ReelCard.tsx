@@ -80,6 +80,23 @@ interface ReelCardProps {
   onOpenProductDetail?: (productId: string | number, products: any[]) => void;
 }
 
+const getProductImage = (prod: any): string => {
+  if (prod.thumbnailUrl && !prod.thumbnailUrl.startsWith("/uploads/")) {
+    return prod.thumbnailUrl;
+  }
+  if (prod.cropImageUrl && !prod.cropImageUrl.startsWith("/uploads/")) {
+    return prod.cropImageUrl;
+  }
+  return prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200";
+};
+
+const getMatchImage = (match: any, prod: any): string => {
+  if (match.imageUrl && !match.imageUrl.startsWith("/uploads/")) {
+    return match.imageUrl;
+  }
+  return getProductImage(prod);
+};
+
 export default function ReelCard({
   post,
   isMuted,
@@ -1621,7 +1638,7 @@ export default function ReelCard({
                 {detectedProducts.slice(0, 3).map((prod) => (
                   <div key={prod.id} className="w-8 h-8 rounded-md overflow-hidden bg-zinc-950 border border-white/5 flex-shrink-0">
                     <img
-                      src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=50&auto=format&fit=crop&q=60"}
+                      src={getProductImage(prod)}
                       alt={prod.label}
                       className="w-full h-full object-cover"
                     />
@@ -2641,7 +2658,7 @@ export default function ReelCard({
                       {/* Thumbnail Image - fills entire card top, no padding */}
                       <div className="w-full aspect-[3/4] bg-zinc-950 relative overflow-hidden">
                         <img
-                          src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&auto=format&fit=crop&q=60"}
+                          src={getProductImage(prod)}
                           alt={prod.label}
                           className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
                         />
@@ -3807,7 +3824,7 @@ function ProductList({
               >
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-950 mb-1.5 relative border border-transparent">
                   <img
-                    src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=60"}
+                    src={getProductImage(prod)}
                     alt={prod.label}
                     className="w-full h-full object-cover rounded-xl"
                   />

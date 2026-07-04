@@ -52,6 +52,7 @@ interface DetectedProduct {
   isVerifiedMatch?: boolean;
   matches?: ProductMatch[];
   isBestSeller?: boolean;
+  cropImageUrl?: string;
 }
 
 interface FullScreenProductDetailProps {
@@ -166,24 +167,48 @@ export default function FullScreenProductDetail({
   // Gallery carousel construction
   const galleryImages = useMemo(() => {
     const list: string[] = [];
-    if (product?.thumbnailUrl) list.push(product.thumbnailUrl);
-    if (product?.sourceFrameUrl) list.push(product.sourceFrameUrl);
+    
+    // Add cropImageUrl if it exists and is a remote URL
+    if (product?.cropImageUrl && !product.cropImageUrl.startsWith("/uploads/")) {
+      list.push(product.cropImageUrl);
+    }
+    
+    // Add thumbnailUrl if it exists and is a remote URL
+    if (product?.thumbnailUrl && !product.thumbnailUrl.startsWith("/uploads/")) {
+      list.push(product.thumbnailUrl);
+    }
+    
+    // Add sourceFrameUrl if it exists and is a remote URL
+    if (product?.sourceFrameUrl && !product.sourceFrameUrl.startsWith("/uploads/")) {
+      list.push(product.sourceFrameUrl);
+    }
     
     // Add variant image if available
-    if (activeVariantObj?.imageUrl) {
+    if (activeVariantObj?.imageUrl && !activeVariantObj.imageUrl.startsWith("/uploads/")) {
       list.push(activeVariantObj.imageUrl);
     }
 
     if (bestMatch) {
-      if (bestMatch.imageUrl) list.push(bestMatch.imageUrl);
+      if (bestMatch.imageUrl && !bestMatch.imageUrl.startsWith("/uploads/")) {
+        list.push(bestMatch.imageUrl);
+      }
       if (bestMatch.galleryImageUrls && Array.isArray(bestMatch.galleryImageUrls)) {
         for (const url of bestMatch.galleryImageUrls) {
-          if (url) list.push(url);
+          if (url && !url.startsWith("/uploads/")) {
+            list.push(url);
+          }
         }
       }
     }
 
     const uniqueList = Array.from(new Set(list.filter(Boolean)));
+    if (uniqueList.length === 0) {
+      // If no remote URLs are available, fall back to whatever is there (even if local/Supabase)
+      if (product?.cropImageUrl) uniqueList.push(product.cropImageUrl);
+      if (product?.thumbnailUrl) uniqueList.push(product.thumbnailUrl);
+      if (product?.sourceFrameUrl) uniqueList.push(product.sourceFrameUrl);
+    }
+    
     if (uniqueList.length === 0) {
       uniqueList.push("https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600");
     }
