@@ -243,22 +243,35 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
   const [isCategoriesPageOpen, setIsCategoriesPageOpen] = useState(false);
   const [selectedCategoryCarousel, setSelectedCategoryCarousel] = useState("tops");
 
-  // Sync cart from LocalStorage
+  // Sync cart from LocalStorage and listen to updates
   useEffect(() => {
-    const savedCart = localStorage.getItem("cartly_cart");
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart));
-      } catch (e) {
-        console.error("Failed to parse cart", e);
+    const syncCart = () => {
+      const savedCart = localStorage.getItem("cartly_cart");
+      if (savedCart) {
+        try {
+          setCart(JSON.parse(savedCart));
+        } catch (e) {
+          console.error("Failed to parse cart", e);
+        }
+      } else {
+        setCart([]);
       }
-    }
+    };
+
+    syncCart();
+    window.addEventListener("cart_updated", syncCart);
+    window.addEventListener("storage", syncCart);
+    return () => {
+      window.removeEventListener("cart_updated", syncCart);
+      window.removeEventListener("storage", syncCart);
+    };
   }, []);
 
   // Sync cart to LocalStorage
   const saveCartToStorage = (updatedCart: CartItem[]) => {
     setCart(updatedCart);
     localStorage.setItem("cartly_cart", JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event("cart_updated"));
   };
 
   // Add to cart helper

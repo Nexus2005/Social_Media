@@ -3,10 +3,11 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { 
   Search, ShoppingCart, Bell, Heart, ChevronLeft, ChevronRight, 
-  ShieldCheck, RotateCcw, Truck, Check, Edit3, ShoppingBag 
+  ShieldCheck, RotateCcw, Truck, Check, Edit3, ShoppingBag,
+  Trash2, X, ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 
 import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@prisma/client";
@@ -111,10 +112,78 @@ export default function FullScreenProductDetail({
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [activeTab, setActiveTab] = useState("About");
-  const [cartCount, setCartCount] = useState(2);
+  const [cart, setCart] = useState<any[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Sync cart from LocalStorage and listen to updates
+  useEffect(() => {
+    const syncCart = () => {
+      const savedCart = localStorage.getItem("cartly_cart");
+      if (savedCart) {
+        try {
+          setCart(JSON.parse(savedCart));
+        } catch (e) {
+          console.error("Failed to parse cart", e);
+        }
+      } else {
+        setCart([]);
+      }
+    };
+
+    syncCart();
+    window.addEventListener("cart_updated", syncCart);
+    window.addEventListener("storage", syncCart);
+    return () => {
+      window.removeEventListener("cart_updated", syncCart);
+      window.removeEventListener("storage", syncCart);
+    };
+  }, []);
+
+  const saveCartToStorage = (updatedCart: any[]) => {
+    setCart(updatedCart);
+    localStorage.setItem("cartly_cart", JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event("cart_updated"));
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    const currentBestMatch = bestMatch || { price: "Contact Store" };
+    const existingIndex = cart.findIndex((item) => String(item.product.id) === String(product.id));
+    let updated = [...cart];
+    if (existingIndex > -1) {
+      updated[existingIndex].quantity += 1;
+    } else {
+      updated.push({ product, bestMatch: currentBestMatch, quantity: 1 });
+    }
+    saveCartToStorage(updated);
+    toast({
+      description: `Added ${title} to your Cart!`,
+    });
+  };
+
+  const handleUpdateQuantity = (productId: string | number, delta: number) => {
+    const updated = cart.map((item) => {
+      if (String(item.product.id) === String(productId)) {
+        const newQty = item.quantity + delta;
+        return { ...item, quantity: newQty > 0 ? newQty : 1 };
+      }
+      return item;
+    });
+    saveCartToStorage(updated);
+  };
+
+  const handleRemoveFromCart = (productId: string | number) => {
+    const updated = cart.filter((item) => String(item.product.id) !== String(productId));
+    saveCartToStorage(updated);
+  };
+
+  const parsePrice = (priceStr: string): number => {
+    const num = parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
+    return isNaN(num) ? 0 : num;
+  };
 
   // Initialize selected values
   useEffect(() => {
@@ -323,6 +392,239 @@ export default function FullScreenProductDetail({
           .uiverse-btn.cart-btn::before   { content: "Cart"; }
           .uiverse-btn.alerts-btn::before { content: "Alerts"; }
           .uiverse-btn.back-page-btn::before  { content: "Back"; }
+
+          /* Animated Buy Now Button from Uiverse.io - scaled for 50px height */
+          .buy-now-container {
+            background-color: #12131a;
+            display: flex;
+            width: 100%;
+            height: 50px;
+            position: relative;
+            border-radius: 12px;
+            transition: 0.3s ease-in-out;
+            border: 1px solid #1c1c1e;
+            overflow: hidden;
+          }
+
+          .buy-now-container:hover {
+            transform: scale(1.02);
+            border-color: rgba(93, 85, 250, 0.4);
+          }
+
+          .buy-now-container:hover .left-side {
+            width: 100%;
+          }
+
+          .buy-now-container .left-side {
+            background-color: #5d55fa;
+            width: 50px;
+            height: 48px;
+            border-radius: 11px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.3s;
+            flex-shrink: 0;
+            overflow: hidden;
+          }
+
+          .buy-now-container .right-side {
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            cursor: pointer;
+            justify-content: space-between;
+            white-space: nowrap;
+            transition: 0.3s;
+            flex-grow: 1;
+            padding: 0 16px;
+          }
+
+          .buy-now-container .right-side:hover {
+            background-color: #1c1c24;
+          }
+
+          .buy-now-container .arrow {
+            width: 16px;
+            height: 16px;
+            color: #5d55fa;
+            transition: transform 0.3s;
+          }
+          
+          .buy-now-container:hover .arrow {
+            transform: translateX(3px);
+            color: white;
+          }
+
+          .buy-now-container .new {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: white;
+          }
+
+          .buy-now-container .card {
+            width: 32px;
+            height: 20px;
+            background-color: #c7c4ff;
+            border-radius: 3px;
+            position: absolute;
+            display: flex;
+            z-index: 10;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 3px 3px 5px rgba(93, 85, 250, 0.3);
+          }
+
+          .buy-now-container .card-line {
+            width: 28px;
+            height: 5px;
+            background-color: #7971ff;
+            border-radius: 1px;
+            margin-top: 3px;
+          }
+
+          .buy-now-container .buttons {
+            width: 4px;
+            height: 4px;
+            background-color: #4d45ea;
+            box-shadow: 0 -5px 0 0 #3d35da, 0 5px 0 0 #8c85ff;
+            border-radius: 50%;
+            margin-top: 2px;
+            transform: rotate(90deg);
+            margin: 4px 0 0 -12px;
+          }
+
+          .buy-now-container:hover .card {
+            animation: slide-top 1.2s cubic-bezier(0.645, 0.045, 0.355, 1) both;
+          }
+
+          .buy-now-container:hover .post {
+            animation: slide-post 1s cubic-bezier(0.165, 0.84, 0.44, 1) both;
+          }
+
+          @keyframes slide-top {
+            0% {
+              transform: translateY(0);
+            }
+
+            50% {
+              transform: translateY(-30px) rotate(90deg);
+            }
+
+            60% {
+              transform: translateY(-30px) rotate(90deg);
+            }
+
+            100% {
+              transform: translateY(-3px) rotate(90deg);
+            }
+          }
+
+          .buy-now-container .post {
+            width: 26px;
+            height: 32px;
+            background-color: #dddde0;
+            position: absolute;
+            z-index: 11;
+            bottom: 4px;
+            top: 50px;
+            border-radius: 3px;
+            overflow: hidden;
+          }
+
+          .buy-now-container .post-line {
+            width: 20px;
+            height: 4px;
+            background-color: #545354;
+            position: absolute;
+            border-radius: 0px 0px 1px 1px;
+            right: 3px;
+            top: 3px;
+          }
+
+          .buy-now-container .post-line:before {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 4px;
+            background-color: #757375;
+            top: -3px;
+          }
+
+          .buy-now-container .screen {
+            width: 20px;
+            height: 10px;
+            background-color: #ffffff;
+            position: absolute;
+            top: 9px;
+            right: 3px;
+            border-radius: 1px;
+          }
+
+          .buy-now-container .numbers {
+            width: 5px;
+            height: 5px;
+            background-color: #838183;
+            box-shadow: 0 -8px 0 0 #838183, 0 8px 0 0 #838183;
+            border-radius: 1px;
+            position: absolute;
+            transform: rotate(90deg);
+            left: 10px;
+            top: 22px;
+          }
+
+          .buy-now-container .numbers-line2 {
+            width: 5px;
+            height: 5px;
+            background-color: #aaa9ab;
+            box-shadow: 0 -8px 0 0 #aaa9ab, 0 8px 0 0 #aaa9ab;
+            border-radius: 1px;
+            position: absolute;
+            transform: rotate(90deg);
+            left: 10px;
+            top: 28px;
+          }
+
+          @keyframes slide-post {
+            50% {
+              transform: translateY(0);
+            }
+
+            100% {
+              transform: translateY(-30px);
+            }
+          }
+
+          .buy-now-container .dollar {
+            position: absolute;
+            font-size: 8px;
+            font-family: "Lexend Deca", sans-serif;
+            width: 100%;
+            left: 0;
+            top: 0;
+            color: #4f46e5;
+            text-align: center;
+          }
+
+          .buy-now-container:hover .dollar {
+            animation: fade-in-fwd 0.3s 1s backwards;
+          }
+
+          @keyframes fade-in-fwd {
+            0% {
+              opacity: 0;
+              transform: translateY(-2px);
+            }
+
+            100% {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
         `
       }} />
 
@@ -354,13 +656,13 @@ export default function FullScreenProductDetail({
           </div>
 
           <button 
-            onClick={() => toast({ description: "Opening your shopping cart..." })}
+            onClick={() => setIsCartOpen(true)}
             className="uiverse-btn cart-btn group"
             title="Cart"
           >
             <ShoppingCart className="size-4.5 svgIcon text-zinc-200" />
             <span className="absolute top-1 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-650 text-[8px] font-bold text-white border border-[#07080d] shadow-sm select-none">
-              {cartCount}
+              {cart.reduce((total, item) => total + item.quantity, 0)}
             </span>
           </button>
 
@@ -769,28 +1071,39 @@ export default function FullScreenProductDetail({
               {/* Action buttons */}
               <div className="flex gap-4 items-center mt-1">
                 <button
-                  onClick={() => {
-                    setCartCount((c) => c + 1);
-                    toast({
-                      description: `Added ${title} to your Cart!`,
-                    });
-                  }}
-                  className="flex-1 border border-zinc-800 bg-transparent text-white hover:bg-zinc-900/70 hover:border-zinc-700 active:scale-[0.98] font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  onClick={handleAddToCart}
+                  className="flex-1 border border-zinc-800 bg-transparent text-white hover:bg-zinc-900/70 hover:border-zinc-700 active:scale-[0.98] font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider transition-all cursor-pointer h-[50px]"
                 >
                   <ShoppingCart className="size-4 shrink-0 text-zinc-300" />
                   <span>Add to cart</span>
                 </button>
 
-                <button
+                <div
                   onClick={() => {
                     const url = bestMatch?.productUrl || "https://www.google.com";
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
-                  className="flex-1 bg-[#5d55fa] text-white hover:bg-[#4d45ea] active:scale-[0.98] font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                  className="buy-now-container flex-1"
                 >
-                  <ShoppingBag className="size-4 shrink-0 text-white" />
-                  <span>Buy now</span>
-                </button>
+                  <div className="left-side">
+                    <div className="card">
+                      <div className="card-line"></div>
+                      <div className="buttons"></div>
+                    </div>
+                    <div className="post">
+                      <div className="post-line"></div>
+                      <div className="screen">
+                        <div className="dollar">$</div>
+                      </div>
+                      <div className="numbers"></div>
+                      <div className="numbers-line2"></div>
+                    </div>
+                  </div>
+                  <div className="right-side">
+                    <div className="new">Buy now</div>
+                    <ArrowRight className="arrow" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -858,6 +1171,157 @@ export default function FullScreenProductDetail({
         </div>
 
       </div>
+
+      {/* 3. CART OVERLAY DRAWER PANEL */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="absolute inset-0 bg-black z-[200] cursor-pointer"
+            />
+
+            {/* Sidebar Cart panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute right-0 top-0 bottom-0 w-full sm:w-[420px] shadow-2xl z-[210] flex flex-col bg-[#0b0c10] border-l border-[#1b1c26] text-white"
+            >
+              {/* Cart Header */}
+              <div className="flex items-center justify-between p-6 border-b border-zinc-900/60 select-none bg-[#0b0c10]">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 rounded-xl border bg-zinc-900 border-zinc-800">
+                    <ShoppingCart className="size-4.5 text-[#5d55fa]" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-black uppercase tracking-wider text-white">Shopping Cart</h3>
+                    <p className="text-[10px] font-bold mt-0.5 text-zinc-500">
+                      {cart.reduce((total, item) => total + item.quantity, 0)} items added
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="p-2 rounded-full border hover:bg-zinc-800/80 border-white/5 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              {/* Cart Items List */}
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 select-none">
+                {cart.length === 0 ? (
+                  <div className="flex-grow flex flex-col items-center justify-center py-20 text-zinc-500">
+                    <ShoppingCart className="size-14 mb-4 animate-bounce text-zinc-800" />
+                    <p className="text-sm font-bold">Your cart is empty.</p>
+                    <p className="text-[11px] mt-1 text-zinc-650">Add items from the spots list to buy.</p>
+                  </div>
+                ) : (
+                  cart.map((item) => (
+                    <div
+                      key={item.product.id}
+                      className="flex gap-4 p-3 border rounded-2xl bg-zinc-900/35 border-zinc-900 hover:border-zinc-800 transition-all"
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-16 h-20 bg-zinc-950 rounded-xl overflow-hidden shrink-0 border border-white/5">
+                        <img
+                          src={item.product.thumbnailUrl || item.product.sourceFrameUrl || ""}
+                          alt={item.product.label}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Info & Quantity controls */}
+                      <div className="flex-grow flex flex-col justify-between text-left">
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="text-xs font-bold line-clamp-2 pr-2 text-white">
+                              {item.product.label}
+                            </h4>
+                            <button
+                              onClick={() => handleRemoveFromCart(item.product.id)}
+                              className="text-zinc-500 hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                              title="Remove item"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                          <span className="text-[11px] font-black text-indigo-500 block mt-1">
+                            {item.bestMatch?.price || "Contact Store"}
+                          </span>
+                        </div>
+
+                        {/* Quantity Counter */}
+                        <div className="flex items-center justify-between mt-2.5">
+                          <div className="flex items-center gap-1.5 border rounded-lg p-0.5 border-zinc-800 bg-[#12131a]">
+                            <button
+                              onClick={() => handleUpdateQuantity(item.product.id, -1)}
+                              className="w-5 h-5 rounded flex items-center justify-center text-xs cursor-pointer select-none font-bold hover:bg-zinc-800 text-zinc-400"
+                            >
+                              -
+                            </button>
+                            <span className="text-[10px] font-black px-1 select-none text-white">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => handleUpdateQuantity(item.product.id, 1)}
+                              className="w-5 h-5 rounded flex items-center justify-center text-xs cursor-pointer select-none font-bold hover:bg-zinc-800 text-zinc-400"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Item total */}
+                          <span className="text-[10px] font-black text-zinc-400">
+                            Total: {item.bestMatch?.price?.includes("$") ? `$${(parseFloat(item.bestMatch.price.replace("$", "")) * item.quantity).toFixed(2)}` : `₹${parsePrice(item.bestMatch?.price || "0") * item.quantity}`}
+                          </span>
+                        </div>
+
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Cart Footer / Checkout */}
+              {cart.length > 0 && (
+                <div className="border-t p-6 flex flex-col gap-4 select-none border-zinc-900/60 bg-[#0c0d14]">
+                  {/* Totals */}
+                  <div className="flex items-center justify-between text-sm font-bold">
+                    <span className="text-zinc-450">Subtotal:</span>
+                    <span className="text-base font-black text-white">
+                      {cart[0].bestMatch?.price?.includes("$")
+                        ? `$${cart.reduce((sum, item) => sum + parseFloat(item.bestMatch?.price?.replace("$", "") || "0") * item.quantity, 0).toFixed(2)}`
+                        : `₹${cart.reduce((sum, item) => sum + parsePrice(item.bestMatch?.price || "0") * item.quantity, 0)}`
+                      }
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      toast({
+                        description: "Checkout features are integrated directly with merchant stores.",
+                      });
+                      setIsCartOpen(false);
+                    }}
+                    className="w-full bg-[#4f46e5] hover:bg-[#4338ca] text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-650/20 active:scale-[0.98] cursor-pointer"
+                  >
+                    Buy through merchant shops &rarr;
+                  </button>
+                </div>
+              )}
+
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </motion.div>
   );
 }
