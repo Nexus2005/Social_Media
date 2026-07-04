@@ -59,9 +59,19 @@ function ExploreMasonryItem({ post, index, onClick }: ExploreMasonryItemProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  const media = post.attachments?.[0];
-  const isVideo = media?.mediaType === "VIDEO" || index % 5 === 2; // Stagger some vertical reel-like media
-  const mediaUrl = media?.url || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=300&q=80";
+  // Find first image/video attachment
+  const media = post.attachments?.find((att: any) => att.mediaType === "IMAGE" || att.mediaType === "VIDEO") || post.attachments?.[0];
+  const isVideo = media?.mediaType === "VIDEO";
+  
+  const fallbacks = [
+    "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80", // Fashion
+    "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500&q=80", // Tech / Business
+    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&q=80", // Travel
+    "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&q=80", // Gaming
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&q=80"  // Sports
+  ];
+  const fallbackUrl = fallbacks[index % fallbacks.length];
+  const mediaUrl = media?.url || fallbackUrl;
 
   // Intersection observer for video autoplay
   useEffect(() => {
@@ -81,6 +91,23 @@ function ExploreMasonryItem({ post, index, onClick }: ExploreMasonryItemProps) {
 
     observer.observe(video);
     return () => observer.disconnect();
+  }, [isVideo]);
+
+  // Preview loop of 4 seconds
+  useEffect(() => {
+    if (!isVideo || !videoRef.current) return;
+    const video = videoRef.current;
+
+    const handleTimeUpdate = () => {
+      if (video.currentTime >= 4) {
+        video.currentTime = 0;
+      }
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+    };
   }, [isVideo]);
 
   // Reels have greater height, image posts have horizontal/square sizes
@@ -158,9 +185,18 @@ function ExploreGridItem({ post, isSpot, onClick }: ExploreGridItemProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  const media = post.attachments?.[0];
+  // Find first image/video attachment
+  const media = post.attachments?.find((att: any) => att.mediaType === "IMAGE" || att.mediaType === "VIDEO") || post.attachments?.[0];
   const isVideo = media?.mediaType === "VIDEO" || isSpot;
-  const mediaUrl = media?.url || "/placeholder-image.jpg";
+
+  const fallbacks = [
+    "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80",
+    "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500&q=80",
+    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&q=80",
+    "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&q=80",
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&q=80"
+  ];
+  const mediaUrl = media?.url || fallbacks[Math.floor(Math.random() * fallbacks.length)];
 
   // Intersection observer for video autoplay
   useEffect(() => {
@@ -180,6 +216,23 @@ function ExploreGridItem({ post, isSpot, onClick }: ExploreGridItemProps) {
 
     observer.observe(video);
     return () => observer.disconnect();
+  }, [isVideo]);
+
+  // Preview loop of 4 seconds
+  useEffect(() => {
+    if (!isVideo || !videoRef.current) return;
+    const video = videoRef.current;
+
+    const handleTimeUpdate = () => {
+      if (video.currentTime >= 4) {
+        video.currentTime = 0;
+      }
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+    };
   }, [isVideo]);
 
   return (
@@ -436,6 +489,8 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
 
   const filters = ["Top", "Latest", "People", "Posts", "Photos", "Videos", "Hashtags"];
 
+
+
   // Load recent searches
   useEffect(() => {
     const saved = localStorage.getItem("recent_searches");
@@ -516,6 +571,43 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
     queryFn: () => kyInstance.get("/api/trending").json<any[]>(),
     enabled: activeTab === "For You" || activeTab === "Trending" || !committedQuery,
   });
+
+  // Curate dynamic hashtags + fallback items
+  const hashtagsToRender = [
+    ...trendingHashtags,
+    { hashtag: "#SummerFashion", count: 210 },
+    { hashtag: "#TechLaunch2025", count: 128 },
+    { hashtag: "#CryptoBoom", count: 95 },
+    { hashtag: "#FitnessGoals", count: 87 },
+    { hashtag: "#Wanderlust", count: 74 }
+  ].reduce((acc: any[], current) => {
+    const x = acc.find(item => item.hashtag.toLowerCase() === current.hashtag.toLowerCase());
+    if (!x) {
+      return acc.concat([current]);
+    } else {
+      return acc;
+    }
+  }, []).slice(0, 5);
+
+  const formatHashtagCount = (count: any) => {
+    const num = Number(count);
+    if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}k posts`;
+    }
+    if (num > 20) {
+      return `${num}k posts`; // For fallback mock values
+    }
+    return `${num} ${num === 1 ? "post" : "posts"}`;
+  };
+
+  const getTrendStats = (tag: string, index: number) => {
+    const percentages = ["+18%", "+12%", "+9%", "+6%", "-4%"];
+    const directions = [true, true, true, true, false];
+    return {
+      pct: percentages[index % percentages.length],
+      up: directions[index % directions.length]
+    };
+  };
 
   // Query accounts directly if active tab is People
   const isAccountTab = activeTab === "People" || committedQuery.startsWith("@");
@@ -957,38 +1049,40 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                   </div>
 
                   <div className="flex flex-col gap-3">
-                    {[
-                      { tag: "#SummerFashion", count: "210k posts", pct: "+18%", up: true },
-                      { tag: "#TechLaunch2025", count: "128k posts", pct: "+12%", up: true },
-                      { tag: "#CryptoBoom", count: "95k posts", pct: "+9%", up: true },
-                      { tag: "#FitnessGoals", count: "87k posts", pct: "+6%", up: true },
-                      { tag: "#Wanderlust", count: "74k posts", pct: "-4%", up: false },
-                    ].map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex justify-between items-center hover:bg-black/[0.01] dark:hover:bg-white/[0.02] -mx-2 px-2 py-1.5 rounded-xl transition-all cursor-pointer"
-                      >
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-bold text-[12.5px] text-foreground truncate">
-                            {item.tag}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground mt-0.5">
-                            {item.count}
-                          </span>
-                        </div>
+                    {hashtagsToRender.map((item, idx) => {
+                      const trend = getTrendStats(item.hashtag, idx);
+                      return (
                         <div
-                          className={cn(
-                            "flex items-center gap-0.5 text-[10px] font-extrabold px-2 py-0.5 rounded-full select-none",
-                            item.up
-                              ? "text-emerald-500 bg-emerald-500/10"
-                              : "text-rose-500 bg-rose-500/10"
-                          )}
+                          key={idx}
+                          onClick={() => {
+                            setSearchQuery(item.hashtag);
+                            setCommittedQuery(item.hashtag);
+                            setActiveTab("Hashtags");
+                          }}
+                          className="flex justify-between items-center hover:bg-black/[0.01] dark:hover:bg-white/[0.02] -mx-2 px-2 py-1.5 rounded-xl transition-all cursor-pointer"
                         >
-                          <TrendingUp className={cn("size-3", !item.up && "rotate-90")} />
-                          {item.pct}
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-[12.5px] text-foreground truncate">
+                              {item.hashtag}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground mt-0.5">
+                              {formatHashtagCount(item.count)}
+                            </span>
+                          </div>
+                          <div
+                            className={cn(
+                              "flex items-center gap-0.5 text-[10px] font-extrabold px-2 py-0.5 rounded-full select-none",
+                              trend.up
+                                ? "text-emerald-500 bg-emerald-500/10"
+                                : "text-rose-500 bg-rose-500/10"
+                            )}
+                          >
+                            <TrendingUp className={cn("size-3", !trend.up && "rotate-90")} />
+                            {trend.pct}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
