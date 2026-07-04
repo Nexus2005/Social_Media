@@ -1027,6 +1027,41 @@ export default function Post({ post }: PostProps) {
             transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
           }
           .reel-effusion-btn:active { transform: scale(0.8); }
+
+          /* alexroumi view-all button — blue platform fill sweep */
+          .reel-view-all-btn {
+            border: unset;
+            border-radius: 12px;
+            color: #212121;
+            z-index: 1;
+            background: #e8e8e8;
+            position: relative;
+            font-weight: 800;
+            font-size: 12px;
+            box-shadow: 4px 8px 19px -3px rgba(0,0,0,0.27);
+            transition: all 250ms;
+            overflow: hidden;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+          }
+          .reel-view-all-btn::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            height: 100%;
+            width: 0;
+            border-radius: 12px;
+            background-color: #4f46e5;
+            z-index: -1;
+            box-shadow: 4px 8px 19px -3px rgba(79,70,229,0.35);
+            transition: all 250ms;
+          }
+          .reel-view-all-btn:hover { color: #ffffff; }
+          .reel-view-all-btn:hover::before { width: 100%; }
         `
       }} />
     </article>
@@ -1098,7 +1133,7 @@ export default function Post({ post }: PostProps) {
 
                 {/* Grid of Product Cards */}
                 <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-3 scrollbar-none bg-[#07080d] content-start">
-                  {desktopFilteredProducts.map((prod) => {
+                  {desktopFilteredProducts.slice(0, 4).map((prod) => {
                     const itemBestMatch = [...(prod.matches || [])].sort((a, b) => {
                       const priceA = parsePrice(a.price);
                       const priceB = parsePrice(b.price);
@@ -1139,6 +1174,21 @@ export default function Post({ post }: PostProps) {
                     );
                   })}
                 </div>
+
+                {/* Sticky Bottom Actions */}
+                {desktopFilteredProducts.length > 4 && (
+                  <div className="border-t border-zinc-900/60 bg-[#07080d] p-4 flex flex-col gap-3.5 shrink-0 select-none">
+                    <button
+                      onClick={() => {
+                        setIsShoppingDrawerOpen(true);
+                      }}
+                      className="reel-view-all-btn w-full py-3.5"
+                    >
+                      <span>View all {desktopFilteredProducts.length} products</span>
+                      <span style={{ fontSize: 14 }}>&#8594;</span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
 
