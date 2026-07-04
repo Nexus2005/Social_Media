@@ -291,16 +291,6 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
     return [...prod.matches].sort((a, b) => parsePrice(a.price) - parsePrice(b.price))[0];
   };
 
-  const getProductImage = (prod: any): string => {
-    if (prod.thumbnailUrl && !prod.thumbnailUrl.startsWith("/uploads/")) {
-      return prod.thumbnailUrl;
-    }
-    if (prod.cropImageUrl && !prod.cropImageUrl.startsWith("/uploads/")) {
-      return prod.cropImageUrl;
-    }
-    return prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200";
-  };
-
   // Helper to safely extract brand name from best match or product label
   const getBrandName = (bm: ProductMatch | null, prod: DetectedProduct): string => {
     if (!bm) return prod.label.split(" ")[0] || "Unknown";
@@ -1735,7 +1725,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                         {/* Thumbnail Image Container - compact height */}
                         <div className="w-full h-[180px] md:h-[200px] bg-zinc-950 relative shrink-0 overflow-hidden">
                           <img
-                            src={getProductImage(prod)}
+                            src={prod.thumbnailUrl || prod.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&auto=format&fit=crop&q=60"}
                             alt={prod.label}
                             className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
                           />
@@ -1979,7 +1969,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                       {/* Thumbnail */}
                       <div className={cn("w-16 h-20 bg-zinc-950 rounded-xl overflow-hidden shrink-0 border", isLight ? "border-zinc-200" : "border-white/5")}>
                         <img
-                          src={getProductImage(item.product)}
+                          src={item.product.thumbnailUrl || item.product.sourceFrameUrl || ""}
                           alt={item.product.label}
                           className="w-full h-full object-cover"
                         />
