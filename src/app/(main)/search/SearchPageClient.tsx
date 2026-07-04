@@ -358,37 +358,37 @@ const LIVE_STREAMS = [
     title: "Gaming Live",
     host: "Raavan Op",
     viewers: "12.4K",
-    image: "https://images.unsplash.com/photo-1612287230202-1bf1d85d1bdf?w=300&q=80",
+    image: "/gaming.jpg",
   },
   {
     title: "Shopping Deals",
     host: "StyleWithNeha",
     viewers: "5.2K",
-    image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=300&q=80",
+    image: "/shopping.jpg",
   },
   {
     title: "Crypto Talk",
     host: "Tech With Rohit",
     viewers: "8.1K",
-    image: "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=300&q=80",
+    image: "/crypto_talk.jpg",
   },
   {
     title: "Maldives Vlog",
     host: "TravelWithKaran",
     viewers: "2.7K",
-    image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=300&q=80",
+    image: "/maldivees.jpg",
   },
   {
     title: "Match Watchalong",
     host: "FootyZone",
     viewers: "3.6K",
-    image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=300&q=80",
+    image: "/match_watchlong.jpg",
   },
   {
     title: "Acoustic Nights",
     host: "Armaan Malik",
     viewers: "1.4K",
-    image: "https://images.unsplash.com/photo-1510915228340-29c85a43dcfe?w=300&q=80",
+    image: "/acoustic.jpg",
   },
 ];
 
@@ -410,6 +410,17 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const liveScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollLive = (direction: "left" | "right") => {
+    if (liveScrollRef.current) {
+      const scrollAmount = 220;
+      liveScrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
 
   // Travel category is now handled within the More dropdown panel
   const categories = [
@@ -876,33 +887,56 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                 </div>
 
                 {/* Horizontal Scrollable Row containing Custom live-now-card */}
-                <div className="flex gap-4.5 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x">
-                  {LIVE_STREAMS.map((stream, idx) => (
-                    <div
-                      key={idx}
-                      className="live-now-card group snap-start cursor-pointer border border-black/10 dark:border-white/5"
-                    >
-                      <img
-                        src={stream.image}
-                        alt={stream.title}
-                        className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent z-10" />
+                <div className="relative group">
+                  {/* Left scroll control arrow */}
+                  <button
+                    onClick={() => scrollLive("left")}
+                    className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 h-8 w-8 rounded-full bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-black/10 dark:border-white/10 flex items-center justify-center text-foreground shadow-md hover:bg-white hover:dark:bg-zinc-800 transition-all cursor-pointer select-none opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    title="Scroll Left"
+                  >
+                    <ChevronLeft className="size-5" />
+                  </button>
 
-                      <div className="absolute top-3 left-3 bg-red-650 text-white font-extrabold text-[8px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md z-20 select-none">
-                        <Radio className="size-2.5 text-white animate-pulse" /> Live {stream.viewers}
-                      </div>
+                  <div
+                    ref={liveScrollRef}
+                    className="flex gap-5.5 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x"
+                  >
+                    {LIVE_STREAMS.map((stream, idx) => (
+                      <div
+                        key={idx}
+                        className="live-now-card group snap-start cursor-pointer border border-black/10 dark:border-white/5"
+                      >
+                        <img
+                          src={stream.image}
+                          alt={stream.title}
+                          className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent z-10" />
 
-                      <div className="p-3.5 relative z-20 text-start w-full min-w-0">
-                        <span className="font-extrabold text-[12.5px] text-white block truncate leading-tight">
-                          {stream.title}
-                        </span>
-                        <span className="text-[9.5px] font-bold text-white/70 block mt-0.5 leading-none">
-                          {stream.host}
-                        </span>
+                        <div className="absolute top-3 left-3 bg-red-650 text-white font-extrabold text-[8px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md z-20 select-none">
+                          <Radio className="size-2.5 text-white animate-pulse" /> Live {stream.viewers}
+                        </div>
+
+                        <div className="p-3.5 relative z-20 text-start w-full min-w-0">
+                          <span className="font-extrabold text-[12.5px] text-white block truncate leading-tight">
+                            {stream.title}
+                          </span>
+                          <span className="text-[9.5px] font-bold text-white/70 block mt-0.5 leading-none">
+                            {stream.host}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* Right scroll control arrow */}
+                  <button
+                    onClick={() => scrollLive("right")}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 h-8 w-8 rounded-full bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-black/10 dark:border-white/10 flex items-center justify-center text-foreground shadow-md hover:bg-white hover:dark:bg-zinc-800 transition-all cursor-pointer select-none opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    title="Scroll Right"
+                  >
+                    <ChevronRight className="size-5" />
+                  </button>
                 </div>
               </div>
 
