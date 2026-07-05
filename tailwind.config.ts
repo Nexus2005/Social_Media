@@ -19,6 +19,9 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-roboto)", "sans-serif"],
+      },
       colors: {
         instagram: {
           darkBg: "#07080d",

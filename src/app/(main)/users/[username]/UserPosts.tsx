@@ -275,8 +275,8 @@ function TabsSelector({ activeTab, onTabChange }: TabsSelectorProps) {
             className="flex items-center justify-center transition relative shrink-0 h-full px-2"
             title={tab.label}
           >
-            <span className={`text-[14.5px] font-bold transition-colors ${
-              isActive ? "text-foreground" : "text-zinc-550"
+            <span className={`text-[15px] font-semibold transition-colors ${
+              isActive ? "text-foreground" : "text-zinc-500"
             }`}>
               {tab.label}
             </span>

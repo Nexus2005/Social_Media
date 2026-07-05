@@ -181,21 +181,21 @@ export default function ProfileLayoutClient({
 
             {/* Bio */}
             {user.bio && (
-              <p className="text-[14.5px] text-zinc-700 dark:text-zinc-300 whitespace-pre-line break-words leading-relaxed max-w-[650px] text-center md:text-start">
+              <p className="text-[14px] text-zinc-700 dark:text-zinc-300 whitespace-pre-line break-words leading-relaxed max-w-[650px] text-center md:text-start">
                 {user.bio}
               </p>
             )}
 
             {/* Links / Category / Location */}
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-xs text-zinc-500 font-medium select-none">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-[14px] text-zinc-500 font-medium select-none">
               {user.professionalCategory && (
-                <span className="text-[11.5px] text-zinc-600 dark:text-zinc-400 font-bold bg-black/5 dark:bg-zinc-900 border border-black/10 dark:border-zinc-800 px-2.5 py-0.5 rounded-full">
+                <span className="text-[12px] text-zinc-600 dark:text-zinc-400 font-bold bg-black/5 dark:bg-zinc-900 border border-black/10 dark:border-zinc-800 px-2.5 py-0.5 rounded-full">
                   {user.professionalCategory}
                 </span>
               )}
               {user.websiteUrl && (
-                <span className="flex items-center gap-1 text-indigo-650 dark:text-indigo-400 font-extrabold">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-3.5 shrink-0">
+                <span className="flex items-center gap-1.5 text-indigo-650 dark:text-indigo-400 font-bold">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-4 shrink-0">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
                   </svg>
                   <a
@@ -210,7 +210,7 @@ export default function ProfileLayoutClient({
               )}
               {user.location && (
                 <span className="flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-3.5 shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 shrink-0">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                   </svg>
@@ -226,7 +226,7 @@ export default function ProfileLayoutClient({
                   <ProfileHeaderActions user={user} />
                   <Link
                     href="/creator"
-                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
+                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-sm font-medium transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
                   >
                     Professional Dashboard
                   </Link>
@@ -238,13 +238,13 @@ export default function ProfileLayoutClient({
                   </div>
                   <button
                     onClick={() => router.push(`/messages?userId=${user.id}`)}
-                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
+                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-sm font-medium transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
                   >
                     Message
                   </button>
                   <button
                     onClick={() => setShowShareDialog(true)}
-                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
+                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-sm font-medium transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
                   >
                     Share Profile
                   </button>

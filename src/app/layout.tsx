@@ -2,10 +2,17 @@ import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
+import { Roboto } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import ReactQueryProvider from "./ReactQueryProvider";
 import IntroProvider from "@/components/IntroProvider";
+
+const roboto = Roboto({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "700", "900"],
+  variable: "--font-roboto",
+});
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -74,7 +81,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
+      <body className={`${roboto.variable} ${geistSans.variable} ${geistMono.variable} font-sans min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
         <ReactQueryProvider>
           <ThemeProvider
             attribute="class"
