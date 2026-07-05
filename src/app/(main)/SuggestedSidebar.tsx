@@ -111,7 +111,7 @@ async function TrendingSection() {
   const hashtags = Object.entries(hashtagCounts)
     .map(([hashtag, count]) => ({ hashtag, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 3);
+    .slice(0, 2);
 
   return <TrendingAndSportsCard hashtags={hashtags} />;
 }

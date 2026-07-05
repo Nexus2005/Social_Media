@@ -127,10 +127,10 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
 
   const match = SPORTS_DATA[activeSport];
 
-  // Merge dynamic tags with fallbacks to ensure 3 tags are always displayed
+  // Merge dynamic tags with fallbacks to ensure 2 tags are always displayed
   const displayHashtags = [...hashtags];
-  if (displayHashtags.length < 3) {
-    const missingCount = 3 - displayHashtags.length;
+  if (displayHashtags.length < 2) {
+    const missingCount = 2 - displayHashtags.length;
     for (let i = 0; i < missingCount; i++) {
       const fallback = DEFAULT_HASHTAGS.find(
         (def) => !displayHashtags.some((h) => h.hashtag.toLowerCase() === def.hashtag.toLowerCase())
@@ -166,9 +166,9 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
       <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.01)_3px)] pointer-events-none z-10" />
 
       {/* SECTION 1: Sports Scorecard (Compact Height) */}
-      <div className="p-4 pb-2.5 relative z-10">
+      <div className="p-3.5 pb-2 relative z-10">
         {/* Header Block with Sport Toggle Arrows */}
-        <div className="flex justify-between items-center mb-2.5">
+        <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-1">
             <button
               onClick={toggleSport}
@@ -195,7 +195,7 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
         </div>
 
         {/* Scorecard block */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="text-[9px] font-bold text-muted-foreground tracking-wide truncate uppercase">
             {match.matchMeta}
           </div>
@@ -228,9 +228,9 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
             </div>
           ))}
 
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-black/10 dark:via-white/10 to-transparent my-1.5" />
+          <div className="h-[1px] bg-gradient-to-r from-transparent via-black/10 dark:via-white/10 to-transparent my-1" />
 
-          <div className="text-[10px] font-bold text-center text-muted-foreground tracking-wide uppercase pb-1.5">
+          <div className="text-[10px] font-bold text-center text-muted-foreground tracking-wide uppercase pb-1">
             {match.statusText}
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
       </div>
 
       {/* SECTION 3: "What's Happening" (Trending Hashtags) at the bottom */}
-      <div className="p-4 pt-3.5 relative z-10 space-y-3 text-start">
+      <div className="p-3.5 pt-2.5 relative z-10 space-y-2.5 text-start">
         <div className="flex justify-between items-center">
           <span className="text-[12px] font-black tracking-tight text-foreground uppercase">
             What&apos;s happening
@@ -272,12 +272,12 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
           </Link>
         </div>
 
-        <div className="space-y-2 mt-1">
+        <div className="space-y-1.5 mt-0.5">
           {displayHashtags.map((item, idx) => (
             <div
               key={idx}
               onClick={() => router.push(`/search?q=${encodeURIComponent(item.hashtag)}`)}
-              className="group flex justify-between items-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] -mx-2 px-2 py-1 rounded-lg transition-all"
+              className="group flex justify-between items-start cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] -mx-2 px-2 py-0.5 rounded-lg transition-all"
             >
               <div className="flex flex-col min-w-0">
                 <span className="text-[12.5px] font-bold text-foreground group-hover:text-indigo-500 transition-colors truncate">
@@ -296,10 +296,54 @@ export default function TrendingAndSportsCard({ hashtags }: TrendingAndSportsCar
 
         <Link
           href="/search"
-          className="block text-[10px] font-bold text-indigo-500 hover:text-indigo-400 transition-colors mt-1.5 pl-1"
+          className="block text-[10px] font-bold text-indigo-500 hover:text-indigo-400 transition-colors mt-1 pl-1"
         >
           Show more
         </Link>
+      </div>
+
+      {/* SECTION 4: "Shop Match Jerseys" Banner at the bottom of the card */}
+      <div 
+        className="relative overflow-hidden w-full h-[105px] bg-gradient-to-r from-[#200e5c] via-[#0b0c2e] to-[#05061c] border-t border-black/10 dark:border-white/5 flex items-center justify-between px-4 select-none"
+      >
+        {/* Left Side text and button */}
+        <div className="flex flex-col text-left justify-center z-10 max-w-[60%]">
+          <h4 className="text-[11px] font-black text-white tracking-wider uppercase leading-tight">
+            SHOP MATCH JERSEYS
+          </h4>
+          <p className="text-[9px] text-zinc-400 font-bold mt-0.5 leading-tight">
+            Rep your team in style
+          </p>
+          
+          <div className="mt-2">
+            <Link href="/shop">
+              <button className="banner-shop-btn !py-1 !px-2.5 !h-[26px] !w-fit gap-1 text-[8.5px] rounded-lg">
+                <span>Shop Now</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-2.5"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Right Side: India/Pakistan jerseys image */}
+        <div className="absolute right-0 bottom-0 top-0 w-[45%] z-0 select-none pointer-events-none">
+          <img 
+            src="/match-jerseys.png" 
+            alt="Match Jerseys" 
+            className="w-full h-full object-cover object-left" 
+          />
+        </div>
       </div>
     </div>
   );
