@@ -32,10 +32,13 @@ export default function ShareProfileDialog({ profile, open, onOpenChange }: Shar
   const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 0);
   const [viewportOffsetTop, setViewportOffsetTop] = useState(0);
 
-  // Track visual viewport to adjust overlay container top/height on soft keyboard resize
   useEffect(() => {
     setMounted(true);
-    if (typeof window === "undefined") return;
+  }, []);
+
+  // Track visual viewport to adjust overlay container top/height on soft keyboard resize
+  useEffect(() => {
+    if (typeof window === "undefined" || !open) return;
 
     const handleResize = () => {
       const vv = window.visualViewport;
@@ -67,7 +70,7 @@ export default function ShareProfileDialog({ profile, open, onOpenChange }: Shar
         window.visualViewport.removeEventListener("scroll", handleResize);
       }
     };
-  }, []);
+  }, [open]);
 
   // Lock body scroll and add class when open
   useEffect(() => {

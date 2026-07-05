@@ -176,7 +176,7 @@ export default function CartlySidebar({
     },
   ];
 
-  if (pathname === "/create") return null;
+  if (pathname === "/create" || pathname.includes("/customization")) return null;
 
   const isReels = false; // Always expanded on desktop
 

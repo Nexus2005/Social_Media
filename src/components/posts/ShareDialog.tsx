@@ -32,10 +32,13 @@ export default function ShareDialog({ post, open, onOpenChange }: ShareDialogPro
   const postTypeLabel = isReel ? "Reel" : "post";
   const postTypeLabelCapitalized = isReel ? "Reel" : "Post";
 
-  // Track visual viewport to adjust overlay container top/height on soft keyboard resize
   useEffect(() => {
     setMounted(true);
-    if (typeof window === "undefined") return;
+  }, []);
+
+  // Track visual viewport to adjust overlay container top/height on soft keyboard resize
+  useEffect(() => {
+    if (typeof window === "undefined" || !open) return;
 
     const handleResize = () => {
       const vv = window.visualViewport;
@@ -69,7 +72,7 @@ export default function ShareDialog({ post, open, onOpenChange }: ShareDialogPro
         window.visualViewport.removeEventListener("scroll", handleResize);
       }
     };
-  }, []);
+  }, [open]);
 
   // Lock body scroll and add class when open
   useEffect(() => {

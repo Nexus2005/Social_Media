@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState, memo, useEffect, useCallback } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import kyInstance from "@/lib/ky";
 import { PostsPage, PostData } from "@/lib/types";
@@ -8,16 +8,16 @@ import { useSession } from "@/app/(main)/SessionProvider";
 import Post from "@/components/posts/Post";
 import PostsLoadingSkeleton from "@/components/posts/PostsLoadingSkeleton";
 import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
-import { Loader2, Grid, Repeat2, MessageSquare, Image as ImageIcon, Film, Heart } from "lucide-react";
+import { Loader2, Grid, Repeat2, MessageSquare, Image as ImageIcon, Film, Heart, ListPlus, Lock, Globe } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface UserPostsProps {
   userId: string;
 }
 
-type ProfileTab = "posts" | "reels" | "reposts";
+type ProfileTab = "posts" | "reels" | "reposts" | "playlists";
 
-const ALLOWED_PROFILE_TABS: ProfileTab[] = ["posts", "reels", "reposts"];
+const ALLOWED_PROFILE_TABS: ProfileTab[] = ["posts", "reels", "reposts", "playlists"];
 
 export default function UserPosts({ userId }: UserPostsProps) {
   const { user: loggedInUser } = useSession();
@@ -26,20 +26,37 @@ export default function UserPosts({ userId }: UserPostsProps) {
   const pathname = usePathname();
   const [sortBy, setSortBy] = useState<"latest" | "popular" | "oldest">("latest");
 
+  // Use local state for instant tab switching instead of router.push
   const rawTab = searchParams.get("tab");
-  const activeTab: ProfileTab = ALLOWED_PROFILE_TABS.includes(rawTab as any)
+  const initialTab: ProfileTab = ALLOWED_PROFILE_TABS.includes(rawTab as any)
     ? (rawTab as ProfileTab)
     : "posts";
+  const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
 
-  const handleTabChange = (tabName: ProfileTab) => {
+  // Sync local state if URL changes externally (e.g. browser back/forward)
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    const resolved: ProfileTab = ALLOWED_PROFILE_TABS.includes(urlTab as any)
+      ? (urlTab as ProfileTab)
+      : "posts";
+    setActiveTab(resolved);
+  }, [searchParams]);
+
+  const handleTabChange = useCallback((tabName: ProfileTab) => {
+    // Update local state immediately (instant)
+    setActiveTab(tabName);
+
+    // Shallow-update the URL without triggering Next.js navigation
     const params = new URLSearchParams(searchParams.toString());
     if (tabName === "posts") {
       params.delete("tab");
     } else {
       params.set("tab", tabName);
     }
-    router.push(`${pathname}?${params.toString()}`);
-  };
+    const paramsStr = params.toString();
+    const newUrl = paramsStr ? `${pathname}?${paramsStr}` : pathname;
+    window.history.replaceState(window.history.state, "", newUrl);
+  }, [searchParams, pathname]);
 
   const isOwner = userId === loggedInUser.id;
 
@@ -65,10 +82,19 @@ export default function UserPosts({ userId }: UserPostsProps) {
         .json<PostsPage>(),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: true,
+    enabled: activeTab !== "playlists",
   });
 
   const posts = data?.pages.flatMap((page) => page.posts) || [];
+
+  if (activeTab === "playlists") {
+    return (
+      <div className="space-y-0">
+        <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
+        <PlaylistsView />
+      </div>
+    );
+  }
 
   if (status === "pending") {
     return (
@@ -303,6 +329,7 @@ function TabsSelector({ activeTab, onTabChange }: TabsSelectorProps) {
     { value: "posts", label: "Posts" },
     { value: "reels", label: "Reels" },
     { value: "reposts", label: "Reposts" },
+    { value: "playlists", label: "Playlists" },
   ];
 
   return (
@@ -327,6 +354,83 @@ function TabsSelector({ activeTab, onTabChange }: TabsSelectorProps) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function PlaylistsView() {
+  const [playlists, setPlaylists] = useState<any[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("cartly_playlists");
+    if (saved) {
+      setPlaylists(JSON.parse(saved));
+    } else {
+      const defaultPlaylists = [
+        { id: "pl-1", title: "My Favorite Reels", videosCount: 3, visibility: "Public", updatedAt: "today" },
+        { id: "pl-2", title: "Vlog Collection", videosCount: 1, visibility: "Private", updatedAt: "yesterday" }
+      ];
+      localStorage.setItem("cartly_playlists", JSON.stringify(defaultPlaylists));
+      setPlaylists(defaultPlaylists);
+    }
+  }, []);
+
+  if (!playlists.length) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center select-none px-4">
+        <ListPlus className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+        <h3 className="text-[16px] font-bold text-white mb-1">No Playlists</h3>
+        <p className="text-[14px] text-zinc-500 max-w-[280px]">Create a playlist when uploading a video.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-7 w-full p-4 pb-36 select-none">
+      {playlists.map((pl) => (
+        <div key={pl.id} className="flex flex-col group cursor-pointer">
+          {/* Card cover */}
+          <div className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-sm transition-all group-hover:brightness-95 group-hover:scale-[1.01] duration-200">
+            {/* Mesh gradient thumbnail mockup placeholder */}
+            <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-zinc-900 to-zinc-950 flex items-center justify-center">
+              <Film className="size-8 text-zinc-700 opacity-60" />
+            </div>
+            
+            {/* Right side overlay panel (YouTube playlist cover sidebar style) */}
+            <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-md border-l border-zinc-800/50 flex flex-col items-center justify-center gap-1">
+              <ListPlus className="size-5 text-white" />
+              <span className="text-[11px] font-bold text-white tracking-wider">
+                {pl.videosCount}
+              </span>
+              <span className="text-[9px] uppercase font-bold text-zinc-400 tracking-widest leading-none">
+                videos
+              </span>
+            </div>
+          </div>
+
+          {/* Details below */}
+          <div className="mt-2.5 px-0.5 space-y-1">
+            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-[1.3] line-clamp-1 transition-colors duration-150">
+              {pl.title}
+            </h4>
+            
+            <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400 font-medium">
+              {pl.visibility === "Public" ? (
+                <Globe className="size-3 text-zinc-500" />
+              ) : (
+                <Lock className="size-3 text-zinc-500" />
+              )}
+              <span>{pl.visibility}</span>
+              <span>•</span>
+              <span>Updated {pl.updatedAt}</span>
+            </div>
+            
+            <span className="text-[12px] font-bold text-[#065fd4] dark:text-blue-400 hover:underline mt-1 inline-block">
+              View full playlist
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

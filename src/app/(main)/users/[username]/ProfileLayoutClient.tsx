@@ -50,11 +50,10 @@ export default function ProfileLayoutClient({
 
   useEffect(() => {
     const forceUnlockScroll = () => {
-      // Use setProperty with "important" priority to override inline styles set by Radix UI / other libraries
-      document.body.style.setProperty("overflow", "auto", "important");
-      document.body.style.setProperty("pointer-events", "auto", "important");
+      document.body.style.removeProperty("overflow");
+      document.body.style.removeProperty("pointer-events");
       if (document.documentElement) {
-        document.documentElement.style.setProperty("overflow", "auto", "important");
+        document.documentElement.style.removeProperty("overflow");
       }
     };
 
