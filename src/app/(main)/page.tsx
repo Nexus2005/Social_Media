@@ -7,7 +7,7 @@ import SuggestedSidebar from "./SuggestedSidebar";
 
 export default function Home() {
   return (
-    <div className="flex w-full max-w-full gap-8 pl-4 sm:pl-2 pr-1.5 md:pr-2 py-0 sm:pt-2 sm:pb-6 justify-between bg-instagram-lightBg dark:bg-instagram-darkBg">
+    <div className="flex w-full max-w-[1200px] gap-8 pl-4 sm:pl-2 pr-1.5 md:pr-2 py-0 sm:pt-2 sm:pb-6 justify-between bg-instagram-lightBg dark:bg-instagram-darkBg">
       {/* Column 2 (Center Feed) */}
       <div className="w-full max-w-[740px] space-y-4">
         {/* Stories Carousel */}

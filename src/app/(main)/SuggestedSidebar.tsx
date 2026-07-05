@@ -12,7 +12,7 @@ import SuggestedFollowsCard from "@/components/SuggestedFollowsCard";
 
 export default function SuggestedSidebar() {
   return (
-    <div className="sticky top-6 hidden w-[380px] flex-none flex-col gap-6 xl:flex">
+    <div className="sticky top-6 hidden w-[420px] flex-none flex-col gap-6 xl:flex">
       <Suspense fallback={<Loader2 className="mx-auto animate-spin" />}>
         <TrendingSection />
       </Suspense>
