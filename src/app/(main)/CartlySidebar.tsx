@@ -41,6 +41,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -147,6 +148,12 @@ export default function CartlySidebar({
       label: "Spots",
       href: "/reels",
       active: pathname === "/reels",
+    },
+    {
+      icon: (props: any) => <ShoppingBag {...props} />,
+      label: "Shop",
+      href: "/shop",
+      active: pathname.startsWith("/shop"),
     },
 
     {
