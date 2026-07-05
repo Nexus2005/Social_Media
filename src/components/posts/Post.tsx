@@ -1170,6 +1170,7 @@ export default function Post({ post }: PostProps) {
                             e.preventDefault();
                             e.stopPropagation();
                             setFullProductDetailId(prod.id);
+                            setActiveRightDrawer(null);
                           }}
                           className="group relative block w-full py-2.5 overflow-hidden bg-[#1f2937] active:scale-[0.97] transition-transform duration-150 select-none cursor-pointer border-0 outline-none text-left"
                         >
@@ -1970,7 +1971,7 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="relative w-full aspect-[4/5] bg-zinc-900 rounded-none sm:rounded-xl overflow-hidden group select-none flex items-center justify-center border-0 sm:border sm:border-border/5"
+      className="relative w-full aspect-[1.15/1] bg-zinc-900 rounded-none sm:rounded-xl overflow-hidden group select-none flex items-center justify-center border-0 sm:border sm:border-border/5"
     >
       {/* Media Element */}
       <div

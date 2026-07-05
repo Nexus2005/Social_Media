@@ -40,6 +40,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -188,50 +189,56 @@ export default function CartlySidebar({
         isMinimized ? "w-[72px] minimized-sidebar" : "w-[72px] xl:w-[244px]"
       )}>
         <div className="flex flex-col gap-6">
-          {/* Logo */}
-          <Link href="/" className="logo-btn flex items-center gap-2 px-2 py-2 select-none">
-            <img
-              src="/android-chrome-192x192-Photoroom.png"
-              alt="Cartly Logo"
-              className="size-9 object-contain flex-shrink-0"
-            />
-            {!isMinimized && (
-              <>
-                <span 
-                  className="hidden text-2xl font-black tracking-tight xl:block text-foreground"
-                  style={{ fontFamily: "'Nunito', sans-serif" }}
-                >
-                  Cartly
-                </span>
-                
-                {/* Animated stars */}
-                <svg className="star-1" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-                </svg>
-                <svg className="star-2" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-                </svg>
-                <svg className="star-3" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-                </svg>
-                <svg className="star-4" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-                </svg>
-                <svg className="star-5" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-                </svg>
-                <svg className="star-6" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
-                  <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
-                </svg>
-              </>
-            )}
-          </Link>
+          {/* Logo & Toggle Header */}
+          <div className={cn(
+            "flex select-none w-full",
+            isMinimized ? "flex-col items-center gap-3 px-1" : "items-center justify-between px-2"
+          )}>
+            <Link href="/" className="logo-btn flex items-center gap-2 py-1 flex-shrink-0">
+              <img
+                src="/android-chrome-192x192-Photoroom.png"
+                alt="Cartly Logo"
+                className="size-9 object-contain flex-shrink-0"
+              />
+              {!isMinimized && (
+                <>
+                  <span 
+                    className="hidden text-2xl font-black tracking-tight xl:block text-foreground"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
+                    Cartly
+                  </span>
+                  
+                  {/* Animated stars */}
+                  <svg className="star-1" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                    <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                  </svg>
+                  <svg className="star-2" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                    <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                  </svg>
+                  <svg className="star-3" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                    <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                  </svg>
+                  <svg className="star-4" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                    <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                  </svg>
+                  <svg className="star-5" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                    <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                  </svg>
+                  <svg className="star-6" viewBox="0 0 783.08 783.08" xmlns="http://www.w3.org/2000/svg">
+                    <path className="fil0" d="M391.54 0l113.39 278.14L783.08 391.54 504.93 504.93 391.54 783.08 278.14 504.93 0 391.54 278.14 113.39z"/>
+                  </svg>
+                </>
+              )}
+            </Link>
 
-          {/* Toggle Minimize/Maximize Arrow Button just below Logo */}
-          <div className="px-2">
+            {/* Toggle Minimize/Maximize Arrow Button inline in Header */}
             <button
               onClick={() => setIsMinimized(!isMinimized)}
-              className="flex items-center justify-center h-8 w-8 hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-all cursor-pointer rounded-full bg-indigo-600/10 border border-indigo-500/20 shadow-sm hover:scale-105 active:scale-95"
+              className={cn(
+                "flex items-center justify-center h-8 w-8 hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-all cursor-pointer rounded-full bg-indigo-600/10 border border-indigo-500/20 shadow-sm hover:scale-105 active:scale-95 flex-shrink-0",
+                isMinimized ? "" : "hidden xl:flex"
+              )}
               title={isMinimized ? "Expand Sidebar" : "Collapse Sidebar"}
             >
               {isMinimized ? (
@@ -300,6 +307,28 @@ export default function CartlySidebar({
             >
               <PlusSquare className="size-5 flex-shrink-0" />
               {!isMinimized && <span>Create</span>}
+            </Link>
+
+            {/* Premium Gold Button */}
+            <Link
+              href="/settings?section=premium"
+              className={cn(
+                "hidden xl:flex items-center justify-center transition-all mt-3",
+                isMinimized ? "mx-auto" : "w-full"
+              )}
+            >
+              <button 
+                className={cn(
+                  "Btn select-none font-bold active:scale-[0.98] transition-all shadow-lg", 
+                  isMinimized
+                    ? "size-11 rounded-full p-0 flex items-center justify-center"
+                    : "w-full py-3.5 rounded-xl gap-2 text-sm"
+                )}
+                title="Cartly Pro"
+              >
+                <Sparkles className="size-5 flex-shrink-0 logoIcon text-[#ffd277]" />
+                {!isMinimized && <span>Cartly Pro</span>}
+              </button>
             </Link>
           </nav>
         </div>

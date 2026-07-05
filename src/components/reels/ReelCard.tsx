@@ -2351,6 +2351,7 @@ export default function ReelCard({
                   } else {
                     setFullProductDetailId(id);
                   }
+                  setActiveRightDrawer(null);
                 }}
               />
             </div>
@@ -2693,6 +2694,7 @@ export default function ReelCard({
                           } else {
                             setFullProductDetailId(prod.id);
                           }
+                          setActiveRightDrawer(null);
                         }}
                         className="group relative block w-full py-2.5 overflow-hidden bg-[#1f2937] active:scale-[0.97] transition-transform duration-150 select-none cursor-pointer border-0 outline-none text-left"
                       >

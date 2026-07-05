@@ -4,7 +4,7 @@ import { useSession } from "../SessionProvider";
 import { logout } from "@/app/(auth)/actions";
 import { useToast } from "@/components/ui/use-toast";
 import UserAvatar from "@/components/UserAvatar";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
   User, 
   MessageCircle, 
@@ -15,7 +15,8 @@ import {
   ChevronRight, 
   LogOut, 
   HelpCircle,
-  Activity
+  Activity,
+  Sparkles
 } from "lucide-react";
 
 interface SettingRowProps {
@@ -50,6 +51,8 @@ export default function SettingsClient() {
   const { user: loggedInUser } = useSession();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const section = searchParams.get("section");
 
   const handleLogout = async () => {
     try {
@@ -93,6 +96,41 @@ export default function SettingsClient() {
             @{loggedInUser?.username} • +1 (555) 019-2834
           </p>
         </div>
+
+        {/* Cartly Pro Premium Plan Details */}
+        {section === "premium" && (
+          <div className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/30 shadow-md select-none animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="absolute top-0 right-0 p-3 opacity-25">
+              <Sparkles className="size-16 text-yellow-500 animate-pulse" />
+            </div>
+            
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex items-center justify-center p-1 bg-amber-500/20 text-yellow-500 rounded-lg">
+                <Sparkles className="size-5" />
+              </span>
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-yellow-500">Cartly Pro Active</h3>
+            </div>
+            
+            <p className="text-sm text-foreground/90 font-semibold leading-relaxed">
+              Congratulations! You are currently on the <span className="font-extrabold text-yellow-500">Cartly Pro Plan</span>. Enjoy your premium benefits:
+            </p>
+            
+            <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground font-semibold">
+              <li className="flex items-center gap-2">
+                <span className="text-yellow-500 font-bold text-sm">✔</span> Advanced performance analytics
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-yellow-500 font-bold text-sm">✔</span> Up to 5x higher reach on stories and feed
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-yellow-500 font-bold text-sm">✔</span> Dynamic custom theme panel settings
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-yellow-500 font-bold text-sm">✔</span> Gold verification badge next to your username
+              </li>
+            </ul>
+          </div>
+        )}
 
         {/* Option Groups */}
         <div className="space-y-4">

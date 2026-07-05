@@ -227,6 +227,11 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
   // Full Screen product detail overlay state
   const [fullProductDetailId, setFullProductDetailId] = useState<string | number | null>(null);
 
+  const handleOpenProductDetail = (id: string | number) => {
+    setFullProductDetailId(id);
+    onClose();
+  };
+
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [compareList, setCompareList] = useState<any[]>([]);
 
@@ -1040,7 +1045,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                   </div>
 
                                   <button 
-                                    onClick={() => setFullProductDetailId(prod.id)}
+                                    onClick={() => handleOpenProductDetail(prod.id)}
                                     className="w-full py-1.5 border border-[#007ACC]/30 hover:border-[#007ACC]/60 text-[10.5px] font-bold text-[#007ACC] hover:text-[#007ACC]/85 hover:bg-[#007ACC]/5 rounded-xl transition-all cursor-pointer"
                                   >
                                     View product
@@ -1322,7 +1327,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                       </div>
 
                       <button 
-                        onClick={() => setFullProductDetailId(compareList[0].id)}
+                        onClick={() => handleOpenProductDetail(compareList[0].id)}
                         className="flex items-center gap-1.5 text-[10.5px] font-black text-[#007ACC] hover:text-[#007ACC]/80 mt-3 group cursor-pointer w-fit"
                       >
                         <span>View product</span>
@@ -1497,7 +1502,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                           {productsList.map((prod) => (
                             <div 
                               key={prod.id}
-                              onClick={() => setFullProductDetailId(prod.id)}
+                              onClick={() => handleOpenProductDetail(prod.id)}
                               className="flex flex-col border border-zinc-900 bg-[#12131a]/30 rounded-[28px] overflow-hidden group/pcard cursor-pointer hover:border-indigo-500/40 transition-all duration-300 relative shadow-2xl h-[450px]"
                             >
                               
@@ -1507,7 +1512,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                   src={prod.imageUrl} 
                                   alt={prod.label} 
                                   className="w-full h-full object-cover group-hover/pcard:scale-105 transition-transform duration-500" 
-                                />
+                                  />
 
                                 {/* Dark overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
@@ -1539,7 +1544,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                   className={cn(
                                     "absolute top-4 right-12 p-1.5 rounded-full border border-white/5 transition-colors duration-200 shadow-md cursor-pointer",
                                     compareList.some((p) => p.id === prod.id)
-                                      ? "bg-indigo-600 text-white border-indigo-500"
+                                      ? "bg-indigo-650 text-white border-indigo-500"
                                       : "bg-black/60 hover:bg-black/85 text-zinc-200"
                                   )}
                                   title="Add to compare list"
@@ -1581,7 +1586,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                                   <button 
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setFullProductDetailId(prod.id);
+                                      handleOpenProductDetail(prod.id);
                                     }}
                                     className="flex-1 py-2.5 border border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 hover:bg-zinc-800/40 rounded-xl text-[10.5px] font-black text-zinc-300 hover:text-white transition-all cursor-pointer text-center uppercase tracking-wider"
                                   >
@@ -1628,7 +1633,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                     {/* One product card preview */}
                     <div className="grid grid-cols-2 gap-6">
                       <div 
-                        onClick={() => setFullProductDetailId("cat-bot-1")}
+                        onClick={() => handleOpenProductDetail("cat-bot-1")}
                         className="flex flex-col border border-zinc-900 bg-[#12131a]/30 rounded-[28px] overflow-hidden group/pcard cursor-pointer hover:border-indigo-500/40 transition-all duration-300 relative shadow-2xl h-[450px]"
                       >
                         <div className="w-full h-[320px] bg-zinc-950 relative overflow-hidden shrink-0">
@@ -1886,9 +1891,9 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                     return (
                       <div
                         key={prod.id}
-                        onClick={() => setFullProductDetailId(prod.id)}
+                        onClick={() => handleOpenProductDetail(prod.id)}
                         className={cn(
-                          "flex flex-col border transition-all duration-300 relative group/card w-full overflow-hidden shadow-sm max-h-[350px] rounded-[24px] cursor-pointer hover:border-indigo-500/50",
+                          "flex flex-col border transition-all duration-300 relative group/card w-full overflow-hidden shadow-sm max-h-[350px] rounded-[24px] cursor-pointer hover:border-indigo-500/55",
                           isLight
                             ? "bg-white border-zinc-205 hover:border-zinc-300 hover:shadow-md"
                             : "bg-[#12131a]/30 border-zinc-900 hover:border-zinc-800 shadow-2xl"
@@ -1974,7 +1979,7 @@ export default function AllProductsView({ products, onClose }: AllProductsViewPr
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setFullProductDetailId(prod.id);
+                                handleOpenProductDetail(prod.id);
                               }}
                               className="view-prod-btn flex-1"
                             >
