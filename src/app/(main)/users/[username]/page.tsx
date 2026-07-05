@@ -54,9 +54,18 @@ export default async function Page({ params: { username } }: PageProps) {
 
   const user = await getUser(username, loggedInUser.id);
 
+  // Compute total channel views across all user posts
+  const totalViews = await prisma.postView.count({
+    where: {
+      post: {
+        userId: user.id,
+      },
+    },
+  });
+
   return (
     <div className="mx-auto w-full max-w-[1280px] min-h-screen pb-14 sm:pb-0 px-0 md:px-6">
-      <ProfileLayoutClient user={user} loggedInUserId={loggedInUser.id} />
+      <ProfileLayoutClient user={user} loggedInUserId={loggedInUser.id} totalViews={totalViews} />
       <UserPosts userId={user.id} />
     </div>
   );

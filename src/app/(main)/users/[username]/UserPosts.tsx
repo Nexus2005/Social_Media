@@ -24,6 +24,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const [sortBy, setSortBy] = useState<"latest" | "popular" | "oldest">("latest");
 
   const rawTab = searchParams.get("tab");
   const activeTab: ProfileTab = ALLOWED_PROFILE_TABS.includes(rawTab as any)
@@ -93,7 +94,7 @@ export default function UserPosts({ userId }: UserPostsProps) {
   const isReelsView = activeTab === "reels";
 
   return (
-    <div className="space-y-0 select-none">
+    <div className="space-y-0">
       <TabsSelector activeTab={activeTab} onTabChange={handleTabChange} />
 
       {!posts.length && !hasNextPage ? (
@@ -133,19 +134,53 @@ export default function UserPosts({ userId }: UserPostsProps) {
           )}
         </InfiniteScrollContainer>
       ) : isReelsView ? (
-        <InfiniteScrollContainer
-          className="grid grid-cols-3 gap-0.5 w-full bg-instagram-lightBorder dark:bg-instagram-darkBorder"
-          onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
-        >
-          {posts.map((post) => (
-            <ReelsGridItem key={post.id} post={post} />
-          ))}
-          {isFetchingNextPage && (
-            <div className="col-span-3 flex justify-center py-4">
-              <Loader2 className="size-6 animate-spin text-zinc-500" />
-            </div>
-          )}
-        </InfiniteScrollContainer>
+        <div className="space-y-4 py-4">
+          {/* YouTube style sorting buttons */}
+          <div className="flex items-center gap-2 px-4">
+            {[
+              { id: "latest", label: "Latest" },
+              { id: "popular", label: "Popular" },
+              { id: "oldest", label: "Oldest" }
+            ].map((btn) => {
+              const isSelected = sortBy === btn.id;
+              return (
+                <button
+                  key={btn.id}
+                  onClick={() => setSortBy(btn.id as any)}
+                  className={`h-8 px-3 text-xs font-semibold rounded-lg tracking-wide transition-all ${
+                    isSelected
+                      ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                      : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200 dark:bg-[#272727] dark:text-white dark:hover:bg-[#3f3f3f]"
+                  }`}
+                >
+                  {btn.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <InfiniteScrollContainer
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-7 w-full p-4 pb-36"
+            onBottomReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
+          >
+            {([...posts].sort((a, b) => {
+              if (sortBy === "popular") {
+                return (b._count?.views || 0) - (a._count?.views || 0);
+              }
+              if (sortBy === "oldest") {
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+              }
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            })).map((post) => (
+              <ReelsGridItem key={post.id} post={post} />
+            ))}
+            {isFetchingNextPage && (
+              <div className="col-span-full flex justify-center py-4">
+                <Loader2 className="size-6 animate-spin text-zinc-500" />
+              </div>
+            )}
+          </InfiniteScrollContainer>
+        </div>
       ) : (
         <InfiniteScrollContainer
           className="space-y-0 divide-y divide-border/20"
@@ -210,7 +245,7 @@ const PostGridItem = memo(({ post }: { post: PostData }) => {
 
 PostGridItem.displayName = "PostGridItem";
 
-// 3-Column 9:16 Reels Grid Item
+// 5-Column rounded aspect-[9/16] Reels Grid Item with metadata below
 const ReelsGridItem = memo(({ post }: { post: PostData }) => {
   const router = useRouter();
   const attachment = post.attachments?.[0];
@@ -225,26 +260,32 @@ const ReelsGridItem = memo(({ post }: { post: PostData }) => {
   return (
     <div
       onClick={() => router.push(`/reels/${post.id}`)}
-      className="relative aspect-[9/16] bg-zinc-900 overflow-hidden cursor-pointer hover:opacity-95 group transition-all"
+      className="flex flex-col cursor-pointer group select-none"
     >
-      {attachment?.url ? (
-        <video
-          src={attachment.url}
-          className="w-full h-full object-cover"
-          muted
-          playsInline
-        />
-      ) : (
-        <div className="p-3 w-full h-full flex items-center justify-center text-[11px] text-zinc-400 overflow-hidden text-ellipsis line-clamp-4 select-text leading-tight bg-zinc-950">
-          {post.content}
-        </div>
-      )}
-      {/* View count overlay at bottom left */}
-      <div className="absolute bottom-2 left-2 flex items-center gap-0.5 text-white text-[12px] font-semibold drop-shadow-md">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-3.5 fill-white">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-        </svg>
-        <span>{formatViews(viewCount)}</span>
+      {/* Aspect ratio frame with rounded edges */}
+      <div className="relative aspect-[9/16] bg-zinc-100 dark:bg-zinc-900 rounded-xl overflow-hidden border border-black/5 dark:border-white/5 shadow-sm transition-all group-hover:brightness-95 group-hover:scale-[1.01] duration-200">
+        {attachment?.url ? (
+          <video
+            src={attachment.url}
+            className="w-full h-full object-cover pointer-events-none"
+            muted
+            playsInline
+          />
+        ) : (
+          <div className="p-3 w-full h-full flex items-center justify-center text-[11px] text-zinc-400 overflow-hidden text-ellipsis line-clamp-4 select-text leading-tight bg-zinc-950">
+            {post.content}
+          </div>
+        )}
+      </div>
+
+      {/* Description & view count info below */}
+      <div className="mt-2.5 px-0.5 space-y-1">
+        <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-[1.3] line-clamp-1 transition-colors duration-150">
+          {post.content || "Untitled Reel"}
+        </h4>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 font-medium">
+          {formatViews(viewCount)} views
+        </p>
       </div>
     </div>
   );

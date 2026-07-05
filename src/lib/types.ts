@@ -13,6 +13,7 @@ export function getUserDataSelect(loggedInUserId: string) {
     professionalCategory: true,
     headerBannerUrl: true,
     verified: true,
+    email: true,
     createdAt: true,
     followers: {
       where: {
