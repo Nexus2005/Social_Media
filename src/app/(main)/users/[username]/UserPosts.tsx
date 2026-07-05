@@ -258,32 +258,30 @@ interface TabsSelectorProps {
 }
 
 function TabsSelector({ activeTab, onTabChange }: TabsSelectorProps) {
-  const tabs: { value: ProfileTab; icon: any; label: string }[] = [
-    { value: "posts", icon: Grid, label: "Posts" },
-    { value: "reels", icon: Film, label: "Reels" },
-    { value: "reposts", icon: Repeat2, label: "Reposts" },
+  const tabs: { value: ProfileTab; label: string }[] = [
+    { value: "posts", label: "Posts" },
+    { value: "reels", label: "Reels" },
+    { value: "reposts", label: "Reposts" },
   ];
 
   return (
-    <div className="flex border-b border-instagram-lightBorder dark:border-instagram-darkBorder w-full bg-instagram-lightBg/95 dark:bg-instagram-darkBg/95 backdrop-blur sticky top-[56px] z-20 overflow-x-auto scrollbar-none h-12">
+    <div className="flex border-b border-instagram-lightBorder dark:border-instagram-darkBorder w-full bg-instagram-lightBg/95 dark:bg-instagram-darkBg/95 backdrop-blur sticky top-[56px] z-20 overflow-x-auto scrollbar-none h-12 select-none px-4 gap-6">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
-        const Icon = tab.icon;
         return (
           <button
             key={tab.value}
             onClick={() => onTabChange(tab.value)}
-            className="flex-1 min-w-[50px] sm:min-w-0 flex items-center justify-center transition relative hover:bg-zinc-900/30 shrink-0 h-full"
+            className="flex items-center justify-center transition relative shrink-0 h-full px-2"
             title={tab.label}
           >
-            <Icon
-              className={`size-[22px] transition-colors ${
-                isActive ? "text-instagram-lightText dark:text-instagram-darkText" : "text-zinc-500"
-              }`}
-              strokeWidth={isActive ? 2 : 1.75}
-            />
+            <span className={`text-[14.5px] font-bold transition-colors ${
+              isActive ? "text-foreground" : "text-zinc-550"
+            }`}>
+              {tab.label}
+            </span>
             {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-instagram-lightText dark:bg-instagram-darkText" />
+              <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-foreground rounded-t" />
             )}
           </button>
         );

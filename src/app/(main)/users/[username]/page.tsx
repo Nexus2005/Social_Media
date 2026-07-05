@@ -55,7 +55,7 @@ export default async function Page({ params: { username } }: PageProps) {
   const user = await getUser(username, loggedInUser.id);
 
   return (
-    <div className="mx-auto w-full max-w-[600px] bg-white dark:bg-instagram-darkBg border-x border-instagram-lightBorder dark:border-instagram-darkBorder min-h-screen pb-14 sm:pb-0">
+    <div className="mx-auto w-full max-w-[1280px] min-h-screen pb-14 sm:pb-0 px-0 md:px-6">
       <ProfileLayoutClient user={user} loggedInUserId={loggedInUser.id} />
       <UserPosts userId={user.id} />
     </div>

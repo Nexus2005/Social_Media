@@ -23,33 +23,23 @@ export default function ProfileFollowsInfo({
   const { data: followerData } = useFollowerInfo(userId, initialFollowerState);
 
   return (
-    <div className="grid grid-cols-3 w-full py-1 text-center select-none shrink-0 gap-1">
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-[16px] sm:text-[18px] font-bold text-white leading-none">
-          {formatNumber(postsCount)}
-        </span>
-        <span className="text-[12px] sm:text-[13px] font-normal text-zinc-400 mt-1 leading-none">
-          posts
-        </span>
-      </div>
-      
-      <Link href={`/users/${username}/followers`} className="flex flex-col items-center justify-center hover:opacity-80 transition-opacity">
-        <span className="text-[16px] sm:text-[18px] font-bold text-white leading-none">
-          {formatNumber(followerData.followers)}
-        </span>
-        <span className="text-[12px] sm:text-[13px] font-normal text-zinc-400 mt-1 leading-none">
-          followers
-        </span>
+    <div className="flex items-center gap-x-3 gap-y-1.5 text-[14px] text-zinc-400 font-medium flex-wrap select-none leading-none pt-1">
+      <span>@{username}</span>
+      <span className="text-zinc-600 dark:text-zinc-700">•</span>
+      <Link href={`/users/${username}/followers`} className="hover:underline hover:text-foreground text-zinc-700 dark:text-zinc-300 transition-colors">
+        <span className="font-extrabold text-zinc-950 dark:text-foreground mr-1">{formatNumber(followerData.followers)}</span>
+        followers
       </Link>
-
-      <Link href={`/users/${username}/following`} className="flex flex-col items-center justify-center hover:opacity-80 transition-opacity">
-        <span className="text-[16px] sm:text-[18px] font-bold text-white leading-none">
-          {formatNumber(initialFollowingCount)}
-        </span>
-        <span className="text-[12px] sm:text-[13px] font-normal text-zinc-400 mt-1 leading-none">
-          following
-        </span>
+      <span className="text-zinc-600 dark:text-zinc-700">•</span>
+      <Link href={`/users/${username}/following`} className="hover:underline hover:text-foreground text-zinc-700 dark:text-zinc-300 transition-colors">
+        <span className="font-extrabold text-zinc-950 dark:text-foreground mr-1">{formatNumber(initialFollowingCount)}</span>
+        following
       </Link>
+      <span className="text-zinc-600 dark:text-zinc-700">•</span>
+      <span className="text-zinc-700 dark:text-zinc-300">
+        <span className="font-extrabold text-zinc-950 dark:text-foreground mr-1">{formatNumber(postsCount)}</span>
+        posts
+      </span>
     </div>
   );
 }

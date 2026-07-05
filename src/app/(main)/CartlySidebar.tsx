@@ -93,11 +93,11 @@ export default function CartlySidebar({
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
 
-  const isMessagesPage = pathname.startsWith("/messages");
-  const [isMinimized, setIsMinimized] = useState(isMessagesPage);
+  const shouldMinimizeDefault = pathname.startsWith("/messages") || pathname.startsWith("/users/");
+  const [isMinimized, setIsMinimized] = useState(shouldMinimizeDefault);
 
   useEffect(() => {
-    setIsMinimized(pathname.startsWith("/messages"));
+    setIsMinimized(pathname.startsWith("/messages") || pathname.startsWith("/users/"));
   }, [pathname]);
 
   // Queries for real-time counts

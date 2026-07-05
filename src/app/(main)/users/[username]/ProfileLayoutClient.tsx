@@ -127,10 +127,11 @@ export default function ProfileLayoutClient({
         </div>
       </header>
 
-      {/* Profile Header Content (Banner, Avatar, Details, Mutuals, Stats, Actions) */}
-      <div className="w-full bg-white dark:bg-instagram-darkBg flex flex-col">
-        {/* 1. Banner */}
-        <div className="w-full h-32 sm:h-40 md:h-44 bg-zinc-900 relative overflow-hidden select-none">
+      {/* Profile Header Content (Banner, Avatar, Details, Actions) */}
+      <div className="w-full bg-white dark:bg-instagram-darkBg flex flex-col pt-3 gap-6">
+        
+        {/* 1. Wide Banner with rounded-2xl */}
+        <div className="w-full aspect-[4/1] md:aspect-[6.2/1] bg-zinc-900 relative overflow-hidden select-none rounded-[20px] md:rounded-[24px] border border-black/10 dark:border-white/5 shrink-0">
           {user.headerBannerUrl ? (
             <img
               src={user.headerBannerUrl}
@@ -138,139 +139,140 @@ export default function ProfileLayoutClient({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-r from-zinc-900 to-zinc-950" />
+            <div className="w-full h-full bg-gradient-to-r from-zinc-800 to-zinc-950" />
           )}
         </div>
 
-        {/* 2. Avatar with 50% overlap and Stats Row next to it */}
-        <div className="px-4 md:px-6 relative -mt-[50px] sm:-mt-[60px] md:-mt-[60px] flex justify-between items-end gap-4 z-10 w-full">
-          <div className="shrink-0 rounded-full border-4 border-white dark:border-instagram-darkBg bg-white dark:bg-instagram-darkBg">
+        {/* 2. Info Grid: Avatar on Left, Channel Info & Actions on Right */}
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start select-text w-full px-4 md:px-0 pb-6 border-b border-instagram-lightBorder dark:border-instagram-darkBorder">
+          
+          {/* Avatar */}
+          <div className="shrink-0 mx-auto md:mx-0">
             <UserAvatar
               avatarUrl={user.avatarUrl}
-              size={120}
-              className="w-[96px] h-[96px] sm:w-[120px] sm:h-[120px] rounded-full object-cover border border-zinc-800 bg-zinc-900"
+              size={160}
+              className="w-[120px] h-[120px] md:w-[160px] md:h-[160px] rounded-full object-cover border border-black/10 dark:border-zinc-850 bg-zinc-900 shadow-md"
             />
           </div>
-          <div className="flex-1 max-w-[280px] sm:max-w-[340px] mb-2 sm:mb-4 select-none">
-            <ProfileFollowsInfo
-              userId={user.id}
-              username={user.username}
-              initialFollowerState={followerInfo}
-              initialFollowingCount={user._count.following}
-              postsCount={user._count.posts}
-            />
-          </div>
-        </div>
 
-        {/* 3. Details (Name, username, bio, category, location, website) */}
-        <div className="px-4 md:px-6 pt-3 space-y-1.5 select-text">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-[20px] font-bold text-white tracking-tight leading-none">
-              {user.displayName}
-            </h1>
-            {user.verified && (
-              <VerifiedBadge size={15} className="shrink-0" />
+          {/* Texts & Actions stacked vertically on right */}
+          <div className="flex-grow flex flex-col text-center md:text-start items-center md:items-start space-y-3.5 w-full min-w-0">
+            
+            {/* Title / Name */}
+            <div className="flex items-center gap-1.5 flex-wrap justify-center md:justify-start">
+              <h1 className="text-2xl md:text-[36px] font-black text-instagram-lightText dark:text-instagram-darkText tracking-tight leading-none">
+                {user.displayName}
+              </h1>
+              {user.verified && (
+                <VerifiedBadge size={22} className="shrink-0" />
+              )}
+            </div>
+
+            {/* Handle & Stats (Followers count, post count) */}
+            <div className="flex items-center justify-center md:justify-start select-none">
+              <ProfileFollowsInfo
+                userId={user.id}
+                username={user.username}
+                initialFollowerState={followerInfo}
+                initialFollowingCount={user._count.following}
+                postsCount={user._count.posts}
+              />
+            </div>
+
+            {/* Bio */}
+            {user.bio && (
+              <p className="text-[14.5px] text-zinc-700 dark:text-zinc-300 whitespace-pre-line break-words leading-relaxed max-w-[650px] text-center md:text-start">
+                {user.bio}
+              </p>
             )}
-          </div>
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-[14px] text-zinc-400 font-normal">@{user.username}</p>
-            {user.professionalCategory && (
-              <span className="text-[12px] text-zinc-400 font-medium bg-zinc-900 border border-zinc-800/60 px-2 py-0.5 rounded-full shrink-0">
-                {user.professionalCategory}
-              </span>
-            )}
-          </div>
 
-          {user.bio && (
-            <p className="text-[15px] text-zinc-200 whitespace-pre-line break-words leading-relaxed pt-1 max-w-[500px]">
-              {user.bio}
-            </p>
-          )}
+            {/* Links / Category / Location */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-xs text-zinc-500 font-medium select-none">
+              {user.professionalCategory && (
+                <span className="text-[11.5px] text-zinc-600 dark:text-zinc-400 font-bold bg-black/5 dark:bg-zinc-900 border border-black/10 dark:border-zinc-800 px-2.5 py-0.5 rounded-full">
+                  {user.professionalCategory}
+                </span>
+              )}
+              {user.websiteUrl && (
+                <span className="flex items-center gap-1 text-indigo-650 dark:text-indigo-400 font-extrabold">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="size-3.5 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                  </svg>
+                  <a
+                    href={user.websiteUrl.startsWith("http") ? user.websiteUrl : `https://${user.websiteUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline text-indigo-600 dark:text-indigo-400"
+                  >
+                    {user.websiteUrl.replace(/https?:\/\/(www\.)?/, "")}
+                  </a>
+                </span>
+              )}
+              {user.location && (
+                <span className="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-3.5 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                  </svg>
+                  <span>{user.location}</span>
+                </span>
+              )}
+            </div>
 
-          {/* Info Items: Location, Website */}
-          <div className="flex flex-col gap-1.5 pt-1 text-[13px] text-zinc-400 font-normal select-none">
-            {user.location && (
-              <span className="flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 text-zinc-500">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                </svg>
-                <span>{user.location}</span>
-              </span>
-            )}
-            {user.websiteUrl && (
-              <span className="flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 text-zinc-500">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-                </svg>
-                <a
-                  href={user.websiteUrl.startsWith("http") ? user.websiteUrl : `https://${user.websiteUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sky-400 hover:underline"
-                >
-                  {user.websiteUrl.replace(/https?:\/\/(www\.)?/, "")}
-                </a>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* 4. Mutuals (Followed By) */}
-        {!isOwner && (
-          <div className="px-4 md:px-6 pt-1 select-none">
-            <MutualsLink userId={user.id} />
-          </div>
-        )}
-
-        {/* 6 & 7. Actions & Professional Dashboard */}
-        <div className="px-4 md:px-6 pt-4 pb-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder space-y-2 select-none">
-          {isOwner ? (
-            <>
-              <ProfileHeaderActions user={user} />
-              <Link
-                href="/creator"
-                className="w-full text-center block h-9 leading-[36px] rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors border border-[#363636]"
-              >
-                Professional Dashboard
-              </Link>
-            </>
-          ) : (
-            <div className="flex gap-2 items-center w-full">
-              <div className="flex-1">
-                <FollowButton userId={user.id} initialState={followerInfo} />
-              </div>
-              {followerState.isFollowedByUser && (
+            {/* Actions (Edit / Share / Professional Dashboard) */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 pt-1.5 select-none w-full md:w-auto">
+              {isOwner ? (
                 <>
+                  <ProfileHeaderActions user={user} />
+                  <Link
+                    href="/creator"
+                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
+                  >
+                    Professional Dashboard
+                  </Link>
+                </>
+              ) : (
+                <div className="flex gap-2.5 items-center w-full justify-center md:justify-start">
+                  <div className="w-auto">
+                    <FollowButton userId={user.id} initialState={followerInfo} />
+                  </div>
                   <button
                     onClick={() => router.push(`/messages?userId=${user.id}`)}
-                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors flex items-center justify-center border border-[#363636] shrink-0"
+                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
                   >
                     Message
                   </button>
                   <button
                     onClick={() => setShowShareDialog(true)}
-                    className="h-9 px-4 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-white text-xs font-semibold transition-colors flex items-center justify-center border border-[#363636] shrink-0"
+                    className="h-9 px-5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center border border-black/10 dark:border-white/5 shadow-sm"
                   >
                     Share Profile
                   </button>
-                </>
+                </div>
               )}
             </div>
-          )}
+
+            {/* Mutuals (Followed By) */}
+            {!isOwner && (
+              <div className="pt-1.5 select-none text-xs text-zinc-400">
+                <MutualsLink userId={user.id} />
+              </div>
+            )}
+
+          </div>
+
         </div>
 
-        {/* 8. Pinned Reels (up to 3) */}
+        {/* Pinned Reels (up to 3) */}
         {pinnedReels.length > 0 && (
-          <div className="px-4 md:px-6 py-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder space-y-2.5 select-none">
-            <div className="flex items-center gap-1.5">
+          <div className="py-4 border-b border-instagram-lightBorder dark:border-instagram-darkBorder space-y-2.5 select-none">
+            <div className="flex items-center gap-1.5 px-4 md:px-0">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4 text-white">
                 <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-1.5V9a3 3 0 0 0-3-3H9a3 3 0 0 0-3 3v1.5H4.5a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM6 9a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 15 9v1.5H6V9Zm-3 5.5A1.5 1.5 0 0 1 4.5 13h15a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18v-3.5Z" />
               </svg>
               <h2 className="text-[14px] font-bold text-white tracking-wide uppercase">Pinned Reels</h2>
             </div>
-            <div className="grid grid-cols-3 gap-1 w-full">
+            <div className="grid grid-cols-3 gap-1 w-full px-4 md:px-0">
               {pinnedReels.map((post) => (
                 <PinnedReelCard key={post.id} post={post} />
               ))}

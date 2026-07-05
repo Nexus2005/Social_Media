@@ -18,11 +18,11 @@ export default function ProfileHeaderActions({ user }: ProfileHeaderActionsProps
   const { toast } = useToast();
 
   return (
-    <div className="w-full flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <Button 
         variant="ghost" 
         onClick={() => setShowDialog(true)}
-        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors border border-[#363636]"
+        className="h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all border border-black/10 dark:border-white/5 shadow-sm px-5"
       >
         Edit profile
       </Button>
@@ -30,9 +30,9 @@ export default function ProfileHeaderActions({ user }: ProfileHeaderActionsProps
       <Button
         variant="ghost"
         onClick={() => setShowShareDialog(true)}
-        className="h-9 rounded-[10px] bg-[#262626] hover:bg-zinc-700 text-[#FFFFFF] text-xs font-semibold flex-1 transition-colors flex items-center justify-center gap-2 border border-[#363636]"
+        className="h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-black/10 dark:border-white/5 shadow-sm px-5"
       >
-        <Share2 className="size-4.5 text-[#FFFFFF]" strokeWidth={1.75} />
+        <Share2 className="size-3.5" strokeWidth={2.25} />
         <span>Share profile</span>
       </Button>
 
