@@ -62,6 +62,9 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
   // Sub-tabs: layout, branding, basic-info
   const [activeTab, setActiveTab] = useState<"branding" | "basic-info">("branding");
 
+  // Layout state
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
+
   // Crop / file states
   const [croppedAvatar, setCroppedAvatar] = useState<Blob | null>(null);
   const [croppedBanner, setCroppedBanner] = useState<Blob | null>(null);
@@ -195,12 +198,29 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9f9] dark:bg-[#0f0f0f] text-zinc-900 dark:text-zinc-100 flex flex-col font-sans">
+    <div className="h-screen bg-instagram-lightBg dark:bg-instagram-darkBg text-zinc-900 dark:text-zinc-100 flex flex-col font-sans overflow-hidden">
+      {/* Dynamic CSS override block to hide desktop app sidebar on this page */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (min-width: 640px) {
+          /* Hide main app desktop sidebar */
+          aside:not(.studio-sidebar-container) {
+            display: none !important;
+          }
+          .main-content-wrapper {
+            padding-left: 0 !important;
+          }
+        }
+      ` }} />
+
       {/* 1. Header Navigation Bar (YouTube Studio style) */}
-      <header className="sticky top-0 z-50 h-[64px] border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0f0f0f] flex items-center justify-between px-6 select-none">
+      <header className="sticky top-0 z-50 h-[64px] border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121212] flex items-center justify-between px-6 select-none shrink-0">
         <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors hidden sm:inline-flex">
-            <Menu className="size-5 text-zinc-600 dark:text-zinc-400" />
+          <button
+            type="button"
+            onClick={() => setIsSidebarMinimized(!isSidebarMinimized)}
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors hidden sm:inline-flex"
+          >
+            <Menu className="size-5 text-zinc-650 dark:text-zinc-400" />
           </button>
           <div className="flex items-center gap-1.5">
             <div className="bg-[#cc0000] text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-xs select-none">
@@ -215,24 +235,27 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
           <input
             type="text"
             placeholder="Search across your channel"
-            className="w-full h-9 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full h-9 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 rounded-lg px-4 text-sm focus:outline-none focus:border-blue-500 transition-colors"
             readOnly
           />
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
-            <HelpCircle className="size-5 text-zinc-600 dark:text-zinc-400" />
+          <button type="button" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+            <HelpCircle className="size-5 text-zinc-655 dark:text-zinc-400" />
           </button>
-          <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors relative">
-            <Bell className="size-5 text-zinc-600 dark:text-zinc-400" />
+          <button type="button" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors relative">
+            <Bell className="size-5 text-zinc-655 dark:text-zinc-400" />
             <span className="absolute top-1.5 right-1.5 bg-[#cc0000] size-2 rounded-full"></span>
           </button>
-          <button className="h-9 px-4 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium flex items-center gap-1.5 transition-colors border border-black/5 dark:border-white/5">
+          <button type="button" className="h-9 px-4 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-sm font-medium flex items-center gap-1.5 transition-colors border border-black/5 dark:border-white/5">
             <Video className="size-4 text-[#cc0000]" />
             <span>CREATE</span>
           </button>
-          <div className="relative size-8 rounded-full overflow-hidden border border-zinc-200 dark:border-zinc-800">
+          <Link
+            href={`/users/${user.username}`}
+            className="relative size-8 rounded-full overflow-hidden border border-zinc-250 dark:border-zinc-800 hover:opacity-90 transition-opacity shrink-0"
+          >
             <Image
               src={user.avatarUrl || avatarPlaceholder}
               alt="User menu avatar"
@@ -240,142 +263,183 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
               sizes="32px"
               className="object-cover"
             />
-          </div>
+          </Link>
         </div>
       </header>
 
       {/* Main Content Layout container */}
-      <div className="flex-1 flex">
-        {/* 2. Side Panel Left Menu (YouTube Studio Style) */}
-        <aside className="w-[256px] flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0f0f0f] hidden lg:flex flex-col select-none py-4">
-          {/* Creator Profile Summary Widget */}
-          <div className="flex flex-col items-center text-center px-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
-            <div className="relative size-[112px] rounded-full overflow-hidden mb-3 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <Image
-                src={avatarPreview || avatarPlaceholder}
-                alt="Studio avatar preview"
-                fill
-                sizes="112px"
-                className="object-cover"
-              />
-            </div>
-            <h3 className="font-semibold text-sm line-clamp-1">{user.displayName}</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Your channel</p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">@{user.username}</p>
-          </div>
+      <div className="flex-1 flex gap-5 p-5 min-h-0 overflow-hidden max-w-[1600px] w-full mx-auto">
+        {/* 2. Side Panel Left Menu Card (YouTube Studio Style) */}
+        <aside
+          className={`studio-sidebar-container relative drop-shadow-xl overflow-hidden rounded-xl bg-zinc-200 dark:bg-[#3d3c3d] shrink-0 select-none transition-all duration-300 hidden lg:flex flex-col ${
+            isSidebarMinimized ? "w-[72px]" : "w-[256px]"
+          }`}
+        >
+          {/* Uiverse Glow element */}
+          <div className="absolute w-56 h-48 bg-zinc-350 dark:bg-white blur-[50px] -left-1/2 -top-1/2 opacity-20 pointer-events-none" />
+          
+          {/* Card Inner container */}
+          <div className="absolute flex flex-col text-zinc-900 dark:text-white z-[1] opacity-95 rounded-xl inset-0.5 bg-white dark:bg-[#121212] py-4">
+            {/* Creator Profile Summary Widget */}
+            {isSidebarMinimized ? (
+              <div className="flex flex-col items-center px-2 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="relative size-10 rounded-full overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <Image
+                    src={avatarPreview || avatarPlaceholder}
+                    alt="Studio avatar preview"
+                    fill
+                    sizes="40px"
+                    className="object-cover pointer-events-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center text-center px-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="relative size-[112px] rounded-full overflow-hidden mb-3 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <Image
+                    src={avatarPreview || avatarPlaceholder}
+                    alt="Studio avatar preview"
+                    fill
+                    sizes="112px"
+                    className="object-cover pointer-events-none"
+                  />
+                </div>
+                <h3 className="font-semibold text-sm line-clamp-1">{user.displayName}</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Your channel</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">@{user.username}</p>
+              </div>
+            )}
 
-          {/* Navigation Links list */}
-          <nav className="flex-1 py-4 flex flex-col gap-0.5 overflow-y-auto px-2">
-            {[
-              { label: "Dashboard", icon: LayoutDashboard },
-              { label: "Content", icon: PlaySquare },
-              { label: "Analytics", icon: BarChart2 },
-              { label: "Comments", icon: MessageSquare },
-              { label: "Subtitles", icon: Subtitles },
-              { label: "Copyright", icon: Copyright },
-              { label: "Earn", icon: DollarSign },
-              { label: "Customization", icon: Sliders, active: true },
-              { label: "Audio library", icon: Music },
-            ].map((item, idx) => (
+            {/* Navigation Links list */}
+            <nav className="flex-grow py-4 flex flex-col gap-0.5 overflow-y-auto px-2 scrollbar-none">
+              {[
+                { label: "Dashboard", icon: LayoutDashboard },
+                { label: "Content", icon: PlaySquare },
+                { label: "Analytics", icon: BarChart2 },
+                { label: "Comments", icon: MessageSquare },
+                { label: "Subtitles", icon: Subtitles },
+                { label: "Copyright", icon: Copyright },
+                { label: "Earn", icon: DollarSign },
+                { label: "Customization", icon: Sliders, active: true },
+                { label: "Audio library", icon: Music },
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  title={isSidebarMinimized ? item.label : undefined}
+                  className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
+                    isSidebarMinimized ? "justify-center" : ""
+                  } ${
+                    item.active
+                      ? "text-[#cc0000] bg-red-50/50 dark:bg-red-950/10"
+                      : "text-zinc-650 hover:bg-zinc-150 dark:text-zinc-400 dark:hover:bg-zinc-900/60"
+                  }`}
+                >
+                  {item.active && (
+                    <span className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#cc0000] rounded-r" />
+                  )}
+                  <item.icon className={`size-5 ${item.active ? "text-[#cc0000]" : "text-zinc-500 dark:text-zinc-400"}`} />
+                  {!isSidebarMinimized && <span>{item.label}</span>}
+                </button>
+              ))}
+            </nav>
+
+            {/* Footer items */}
+            <div className="px-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               <button
-                key={idx}
-                className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-                  item.active
-                    ? "text-[#cc0000] bg-red-50/50 dark:bg-red-950/20"
-                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                type="button"
+                title={isSidebarMinimized ? "Settings" : undefined}
+                className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-lg text-sm text-zinc-650 hover:bg-zinc-150 dark:text-zinc-400 dark:hover:bg-zinc-900/60 font-medium ${
+                  isSidebarMinimized ? "justify-center" : ""
                 }`}
               >
-                {item.active && (
-                  <span className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#cc0000] rounded-r" />
-                )}
-                <item.icon className={`size-5 ${item.active ? "text-[#cc0000]" : "text-zinc-500 dark:text-zinc-400"}`} />
-                <span>{item.label}</span>
+                <Settings className="size-5 text-zinc-500 dark:text-zinc-400" />
+                {!isSidebarMinimized && <span>Settings</span>}
               </button>
-            ))}
-          </nav>
-
-          {/* Footer items */}
-          <div className="px-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
-            <button className="w-full flex items-center gap-4 px-4 py-2.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900 font-medium">
-              <Settings className="size-5 text-zinc-500 dark:text-zinc-400" />
-              <span>Settings</span>
-            </button>
+            </div>
           </div>
         </aside>
 
-        {/* 3. Right Content Studio Panels */}
-        <main className="flex-1 min-w-0 bg-white dark:bg-[#1f1f1f] flex flex-col">
-          {/* Top Actions Floating Header */}
-          <div className="sticky top-[64px] z-40 bg-white dark:bg-[#1f1f1f] border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 py-4">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">Channel customization</h1>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Customize your channel homepage, branding, and basic information</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <Link href={`/users/${user.username}`} target="_blank">
-                <Button variant="ghost" className="text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium flex items-center gap-1">
-                  <span>View channel</span>
-                  <ExternalLink className="size-3" />
+        {/* 3. Right Content Studio Panels Card */}
+        <main className="relative flex-grow drop-shadow-xl overflow-hidden rounded-xl bg-zinc-200 dark:bg-[#3d3c3d] flex flex-col min-w-0">
+          {/* Uiverse Glow element */}
+          <div className="absolute w-[400px] h-[350px] bg-zinc-350 dark:bg-white blur-[60px] -left-1/4 -top-1/4 opacity-15 pointer-events-none" />
+
+          {/* Card Inner container */}
+          <div className="absolute flex flex-col z-[1] opacity-95 rounded-xl inset-0.5 bg-white dark:bg-[#121212] overflow-hidden">
+            {/* Top Actions Floating Header */}
+            <div className="sticky top-0 z-40 bg-white dark:bg-[#121212] border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 py-4">
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">Channel customization</h1>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Customize your channel homepage, branding, and basic information</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Link href={`/users/${user.username}`} target="_blank">
+                  <Button variant="ghost" className="text-xs hover:bg-zinc-150 dark:hover:bg-zinc-800 text-zinc-750 dark:text-zinc-300 font-medium flex items-center gap-1">
+                    <span>View channel</span>
+                    <ExternalLink className="size-3" />
+                  </Button>
+                </Link>
+                
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    form.reset();
+                    setCroppedAvatar(null);
+                    setCroppedBanner(null);
+                    setAvatarPreview(user.avatarUrl || "");
+                    setBannerPreview(user.headerBannerUrl || "");
+                    setLinks([{ id: "primary", title: "My Website", url: user.websiteUrl || "" }]);
+                    router.push(`/users/${user.username}`);
+                  }}
+                  className="text-xs border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-150 dark:hover:bg-zinc-800 font-medium"
+                >
+                  Cancel
                 </Button>
-              </Link>
-              
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  form.reset();
-                  setCroppedAvatar(null);
-                  setCroppedBanner(null);
-                  setAvatarPreview(user.avatarUrl || "");
-                  setBannerPreview(user.headerBannerUrl || "");
-                  setLinks([{ id: "primary", title: "My Website", url: user.websiteUrl || "" }]);
-                  router.push(`/users/${user.username}`);
-                }}
-                className="text-xs border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium"
-              >
-                Cancel
-              </Button>
-              
-              <Button
-                onClick={form.handleSubmit(onSubmit)}
-                disabled={!isFormDirty || mutation.isPending}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition-all ${
-                  isFormDirty 
-                    ? "bg-[#065fd4] hover:bg-[#004bb1] text-white" 
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                
+                <Button
+                  onClick={form.handleSubmit(onSubmit)}
+                  disabled={!isFormDirty || mutation.isPending}
+                  className={`text-xs font-semibold px-4 py-2 rounded-full transition-all ${
+                    isFormDirty 
+                      ? "bg-[#065fd4] hover:bg-[#004bb1] text-white" 
+                      : "bg-zinc-100 dark:bg-zinc-850 text-zinc-400 dark:text-zinc-650 cursor-not-allowed"
+                  }`}
+                >
+                  {mutation.isPending ? "Publishing..." : "Publish"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Sub Navigation Tabs */}
+            <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121212] px-6 flex items-center gap-6">
+              <button
+                type="button"
+                onClick={() => setActiveTab("branding")}
+                className={`py-3 text-sm font-semibold tracking-wide border-b-2 transition-all relative ${
+                  activeTab === "branding"
+                    ? "border-[#065fd4] text-[#065fd4]"
+                    : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                 }`}
               >
-                {mutation.isPending ? "Publishing..." : "Publish"}
-              </Button>
+                Branding
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("basic-info")}
+                className={`py-3 text-sm font-semibold tracking-wide border-b-2 transition-all relative ${
+                  activeTab === "basic-info"
+                    ? "border-[#065fd4] text-[#065fd4]"
+                    : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+              >
+                Basic info
+              </button>
             </div>
-          </div>
 
-          {/* Sub Navigation Tabs */}
-          <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1f1f1f] px-6 flex items-center gap-6">
-            <button
-              onClick={() => setActiveTab("branding")}
-              className={`py-3 text-sm font-semibold tracking-wide border-b-2 transition-all relative ${
-                activeTab === "branding"
-                  ? "border-[#065fd4] text-[#065fd4]"
-                  : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-              }`}
-            >
-              Branding
-            </button>
-            <button
-              onClick={() => setActiveTab("basic-info")}
-              className={`py-3 text-sm font-semibold tracking-wide border-b-2 transition-all relative ${
-                activeTab === "basic-info"
-                  ? "border-[#065fd4] text-[#065fd4]"
-                  : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-              }`}
-            >
-              Basic info
-            </button>
-          </div>
-
-          {/* Core Content Form Container */}
-          <div className="flex-1 p-6 md:p-8 max-w-4xl w-full mx-auto overflow-y-auto space-y-8 pb-20">
+            {/* Core Content Form Container */}
+            <div className="flex-grow p-6 md:p-8 max-w-4xl w-full mx-auto overflow-y-auto space-y-8 pb-20 scrollbar-thin">
             {activeTab === "branding" ? (
               // TAB 1: BRANDING PANEL
               <div className="space-y-10">
@@ -684,6 +748,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                 </div>
               </div>
             )}
+          </div>
           </div>
         </main>
       </div>
