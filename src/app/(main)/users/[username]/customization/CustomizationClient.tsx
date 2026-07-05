@@ -1492,7 +1492,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                           <div>
                             <h4 className="text-sm font-bold">Thumbnail</h4>
                             <p className="text-xs text-zinc-500 font-medium mt-1">
-                              Select or upload a picture that shows what's in your video. A good thumbnail stands out and draws viewers' attention.
+                              Select or upload a picture that shows what&apos;s in your video. A good thumbnail stands out and draws viewers&apos; attention.
                             </p>
                           </div>
 
@@ -1720,7 +1720,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                           </div>
                           
                           <p className="text-xs text-zinc-450 leading-relaxed max-w-2xl font-medium">
-                            Regardless of your location, you're legally required to comply with the Children's Online Privacy Protection Act (COPPA) and/or other laws. You're required to tell us whether your videos are made for kids. <a href="#" className="text-[#3ea6ff] hover:underline font-bold">What's content made for kids?</a>
+                            Regardless of your location, you&apos;re legally required to comply with the Children&apos;s Online Privacy Protection Act (COPPA) and/or other laws. You&apos;re required to tell us whether your videos are made for kids. <a href="#" className="text-[#3ea6ff] hover:underline font-bold">What&apos;s content made for kids?</a>
                           </p>
 
                           <div className="bg-[#1a1a1b] border border-zinc-850 rounded-xl p-4 flex items-start gap-3 shadow-inner">
@@ -1744,7 +1744,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                                   <span className="size-[10px] rounded-full bg-white" />
                                 )}
                               </span>
-                              <span className="text-sm font-semibold">Yes, it's made for kids</span>
+                              <span className="text-sm font-semibold">Yes, it&apos;s made for kids</span>
                             </button>
 
                             <button 
@@ -1759,7 +1759,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                                   <span className="size-[10px] rounded-full bg-white" />
                                 )}
                               </span>
-                              <span className="text-sm font-semibold">No, it's not made for kids</span>
+                              <span className="text-sm font-semibold">No, it&apos;s not made for kids</span>
                             </button>
                           </div>
 
@@ -1810,7 +1810,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                                         <span className="size-[10px] rounded-full bg-white" />
                                       )}
                                     </span>
-                                    <span className="text-xs font-semibold">No, don't restrict my video to viewers over 18 only</span>
+                                    <span className="text-xs font-semibold">No, don&apos;t restrict my video to viewers over 18 only</span>
                                   </button>
                                 </div>
                               </div>
@@ -2033,7 +2033,7 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                           <div>
                             <h4 className="text-[15px] font-bold text-zinc-100">Language and captions certification</h4>
                             <p className="text-[14px] text-zinc-400 font-medium mt-0.5">
-                              Select your video's language and, if needed, a caption certification
+                              Select your video&apos;s language and, if needed, a caption certification
                             </p>
                           </div>
                           
@@ -2451,12 +2451,12 @@ export default function CustomizationClient({ user }: CustomizationClientProps) 
                 {/* Footer */}
                 <div className="px-8 pb-8 pt-4 text-center">
                   <p className="text-xs text-zinc-500 leading-relaxed max-w-xl mx-auto">
-                    By submitting your videos to Cartly, you acknowledge that you agree to Cartly's{" "}
+                    By submitting your videos to Cartly, you acknowledge that you agree to Cartly&apos;s{" "}
                     <a href="#" className="text-[#3ea6ff] hover:underline">Terms of Service</a> and{" "}
                     <a href="#" className="text-[#3ea6ff] hover:underline">Community Guidelines</a>.
                   </p>
                   <p className="text-xs text-zinc-500 leading-relaxed max-w-xl mx-auto mt-2">
-                    Please be sure not to violate others' copyright or privacy rights.{" "}
+                    Please be sure not to violate others&apos; copyright or privacy rights.{" "}
                     <a href="#" className="text-[#3ea6ff] hover:underline">Learn more</a>
                   </p>
                 </div>
