@@ -63,14 +63,56 @@ export default function FeedTabContent({ currentUserId }: FeedTabContentProps) {
     );
   }
 
-  // First 6 videos go to the 16:9 Recommended horizontal grid
-  const recommendedVideos = posts.slice(0, 6);
-  // Remaining videos go to the 9:16 vertical Shorts grid
-  const shortsVideos = posts.slice(6);
+  // Spots vertical 9:16 grid gets the first 10 posts
+  const spotsVideos = posts.slice(0, 10);
+  // Recommended Videos horizontal 16:9 grid gets posts starting from index 10 (or first 6 if sparse)
+  const recommendedVideos = posts.length > 10 ? posts.slice(10) : posts.slice(0, 6);
 
   return (
     <div className="space-y-10 pb-16 w-full select-none">
-      {/* SECTION 1: Recommended Videos (16:9 Grid) */}
+      {/* SECTION 1: Spots (9:16 Vertical Grid - 5 in a row on desktop) */}
+      {spotsVideos.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              {/* Play symbol styled icon to match Spots */}
+              <svg 
+                viewBox="0 0 24 24" 
+                className="size-6 text-indigo-500 fill-current"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+              </svg>
+              <h3 className="text-base font-black text-white uppercase tracking-wider">
+                Spots
+              </h3>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {spotsVideos.map((post) => {
+              const videoMedia = post.attachments.find((a) => a.mediaType === "VIDEO");
+              if (!videoMedia) return null;
+
+              return (
+                <VerticalShortsCard 
+                  key={post.id} 
+                  post={post} 
+                  videoUrl={videoMedia.url} 
+                  router={router} 
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Divider */}
+      {spotsVideos.length > 0 && recommendedVideos.length > 0 && (
+        <div className="border-b border-zinc-800/60" />
+      )}
+
+      {/* SECTION 2: Recommended Videos (16:9 Grid) */}
       {recommendedVideos.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -87,48 +129,6 @@ export default function FeedTabContent({ currentUserId }: FeedTabContentProps) {
 
               return (
                 <HorizontalVideoCard 
-                  key={post.id} 
-                  post={post} 
-                  videoUrl={videoMedia.url} 
-                  router={router} 
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Divider */}
-      {recommendedVideos.length > 0 && shortsVideos.length > 0 && (
-        <div className="border-b border-zinc-800/60" />
-      )}
-
-      {/* SECTION 2: Shorts (9:16 Vertical Grid - 5 in a row on desktop) */}
-      {shortsVideos.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {/* YouTube Shorts logo styled SVG */}
-              <svg 
-                viewBox="0 0 24 24" 
-                className="size-6 text-red-600 fill-current"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M17.7 7.7c-.2-.2-.5-.3-.7-.3h-3.4l1.9-4.7c.2-.5 0-1.1-.5-1.4-.5-.3-1.1-.1-1.4.4L8.1 11.2c-.3.4-.4.9-.3 1.4.1.5.4.9.8 1.1h3.4l-1.9 4.7c-.2.5 0 1.1.5 1.4.2.1.4.2.6.2.3 0 .6-.1.8-.4l5.5-9.5c.3-.4.4-.9.3-1.4-.1-.5-.4-.9-.8-1.1z" />
-              </svg>
-              <h3 className="text-base font-black text-white uppercase tracking-wider">
-                Shorts
-              </h3>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {shortsVideos.map((post) => {
-              const videoMedia = post.attachments.find((a) => a.mediaType === "VIDEO");
-              if (!videoMedia) return null;
-
-              return (
-                <VerticalShortsCard 
                   key={post.id} 
                   post={post} 
                   videoUrl={videoMedia.url} 
@@ -258,7 +258,7 @@ function HorizontalVideoCard({ post, videoUrl, router }: { post: any; videoUrl: 
   );
 }
 
-// 9:16 Shorts Video Card Component
+// 9:16 Shorts Video Card Component (Spots)
 function VerticalShortsCard({ post, videoUrl, router }: { post: any; videoUrl: string; router: any }) {
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -334,7 +334,7 @@ function VerticalShortsCard({ post, videoUrl, router }: { post: any; videoUrl: s
           </span>
         </div>
 
-        <button className="shrink-0 text-zinc-500 hover:text-zinc-350 p-0.5 rounded-full hover:bg-zinc-900 transition-colors mt-0.5">
+        <button className="shrink-0 text-zinc-500 hover:text-zinc-355 p-0.5 rounded-full hover:bg-zinc-900 transition-colors mt-0.5">
           <MoreVertical className="size-3.5" />
         </button>
       </div>

@@ -48,7 +48,7 @@ async function UserProfileCard() {
   );
 }
 
-async function SuggestionsList() {
+export async function SuggestionsList() {
   const { user } = await validateRequest();
   if (!user) return null;
 
@@ -78,7 +78,7 @@ async function SuggestionsList() {
   );
 }
 
-async function TrendingSection() {
+export async function TrendingSection() {
   const { user } = await validateRequest();
   if (!user) return null;
 
