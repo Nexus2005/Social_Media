@@ -41,6 +41,25 @@ export default function HeaderActions() {
 
   return (
     <div className="flex items-center gap-3 select-none">
+      {/* Explore Button */}
+      <Link
+        href="/explore"
+        className="uiverse-action-btn group/explore"
+        data-text="Explore"
+        title="Explore"
+      >
+        <svg 
+          className="btn-svg text-instagram-lightText dark:text-instagram-darkText fill-none stroke-[1.5] transition-all duration-500 ease-out group-hover/explore:text-indigo-500 dark:group-hover/explore:text-white group-hover/explore:rotate-[45deg] group-hover/explore:drop-shadow-[0_0_10px_rgba(99,102,241,0.4)] dark:group-hover/explore:drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M16.2 7.8L13.5 13.5L7.8 16.2L10.5 10.5L16.2 7.8Z" className="fill-zinc-500/5 dark:fill-white/10" />
+          <path d="M16.2 7.8L13.5 13.5L7.8 16.2L10.5 10.5L16.2 7.8Z" />
+        </svg>
+      </Link>
+
       {/* Create Button (plusButton - OnCloud125252 style) */}
       <Link href="/create" className="plusButton" title="Create Post">
         <Plus className="plusButton-icon size-4" />
