@@ -46,7 +46,12 @@ import {
   Truck,
   ShoppingCart,
   Bell,
-  Edit3 as Edit3
+  Edit3 as Edit3,
+  Footprints,
+  Watch,
+  Gem,
+  Shirt,
+  Tag
 } from "lucide-react";
 import Link from "next/link";
 import CommentsBottomSheet from "@/components/comments/CommentsBottomSheet";
@@ -64,6 +69,32 @@ import { submitComment } from "@/components/comments/actions";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { CommentsPage } from "@/lib/types";
+
+function cleanCategoryName(name: string): string {
+  let cleaned = name.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]+/u, "");
+  cleaned = cleaned.trim();
+  if (!cleaned) return "Other";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function getCategoryIcon(name: string, isActive: boolean, className?: string) {
+  const cleaned = cleanCategoryName(name).toLowerCase();
+  const iconClass = cn("shrink-0 transition-colors", className || "size-3.5", isActive ? "text-white animate-pulse" : "text-indigo-400 group-hover/chip:text-indigo-300");
+  if (cleaned === "all") return <ShoppingBag className={cn("shrink-0", className || "size-3.5", isActive ? "text-white" : "text-indigo-400 group-hover/chip:text-indigo-300")} />;
+  if (cleaned.includes("footwear") || cleaned.includes("shoe")) {
+    return <Footprints className={iconClass} />;
+  }
+  if (cleaned.includes("watch") || cleaned.includes("jewelry") || cleaned.includes("gem")) {
+    if (cleaned.includes("watch")) {
+      return <Watch className={iconClass} />;
+    }
+    return <Gem className={iconClass} />;
+  }
+  if (cleaned.includes("clothing") || cleaned.includes("apparel") || cleaned.includes("shirt")) {
+    return <Shirt className={iconClass} />;
+  }
+  return <Tag className={iconClass} />;
+}
 
 interface ReelCardProps {
   post: PostData;
@@ -2317,8 +2348,8 @@ export default function ReelCard({
 
             {/* Minimal Drawer Header */}
             <div className="flex items-center justify-between px-5 pb-3 border-b border-zinc-900 select-none">
-              <h3 className="text-xs font-black tracking-wider text-zinc-400 uppercase">
-                SHOP THE LOOK
+              <h3 className="text-xs font-black tracking-wider text-zinc-400">
+                Shop the look
               </h3>
               <button
                 onClick={() => {
@@ -2592,7 +2623,7 @@ export default function ReelCard({
                     <ShoppingBag className="size-4.5 text-indigo-400" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                    <h3 className="text-sm font-black text-white tracking-tight">
                       Shop the look
                     </h3>
                     <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">{detectedProducts.length} products found in this reel</p>
@@ -2622,13 +2653,14 @@ export default function ReelCard({
                       key={cat.name}
                       onClick={() => setDesktopActiveCategory(cat.name)}
                       className={cn(
-                        "px-3 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer select-none",
+                        "px-3 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer select-none flex items-center gap-1.5 group/chip",
                         isActive
                           ? "bg-indigo-650 text-white shadow-md"
                           : "bg-[#12131a] text-zinc-400 hover:text-zinc-200 border border-zinc-850"
                       )}
                     >
-                      {cat.name} ({cat.count})
+                      {getCategoryIcon(cat.name, isActive)}
+                      <span>{cleanCategoryName(cat.name)} ({cat.count})</span>
                     </button>
                   );
                 })}
@@ -2662,8 +2694,9 @@ export default function ReelCard({
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                         {/* Category Label */}
-                        <span className="absolute top-2.5 left-2.5 text-[8px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded-md uppercase tracking-wider select-none">
-                          {categoryLabel}
+                        <span className="absolute top-2.5 left-2.5 text-[8px] font-black text-white bg-black/75 px-1.5 py-0.5 rounded-md uppercase tracking-wider select-none flex items-center gap-1">
+                          {getCategoryIcon(categoryLabel, true, "size-2.5")}
+                          <span>{cleanCategoryName(categoryLabel)}</span>
                         </span>
 
                         {/* Heart button */}
