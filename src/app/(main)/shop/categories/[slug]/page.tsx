@@ -8,12 +8,12 @@ import ProductCard from "@/features/shop/components/ProductCard";
 import { ChevronLeft, Loader2, AlertTriangle } from "lucide-react";
 
 interface CategoryPageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string }> | { slug: string };
 }
 
 export default function ShopCategoryPage({ params }: CategoryPageProps) {
   const router = useRouter();
-  const resolvedParams = React.use(params);
+  const resolvedParams = params && typeof (params as any).then === "function" ? React.use(params as Promise<{ slug: string }>) : (params as { slug: string });
   const slug = resolvedParams.slug;
 
   const [products, setProducts] = useState<Product[]>([]);

@@ -25,12 +25,12 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 
 interface ProductPageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string }> | { slug: string };
 }
 
 export default function ShopProductDetailsPage({ params }: ProductPageProps) {
   const router = useRouter();
-  const resolvedParams = React.use(params);
+  const resolvedParams = params && typeof (params as any).then === "function" ? React.use(params as Promise<{ slug: string }>) : (params as { slug: string });
   const slug = resolvedParams.slug;
 
   const [product, setProduct] = useState<Product | null>(null);
