@@ -4,11 +4,19 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 9000;
 
-// Enable CORS with credentials support for frontend fetch requests
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+// Robust CORS middleware supporting credentials and preflight OPTIONS requests
+app.use((req, res, next) => {
+  const origin = req.headers.origin || "http://localhost:3000";
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-medusa-access-token, x-publishable-api-key");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+  next();
+});
 app.use(express.json());
 
 // Sample Medusa Products Catalog
