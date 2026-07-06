@@ -4,7 +4,11 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 9000;
 
-app.use(cors({ origin: "*" }));
+// Enable CORS with credentials support for frontend fetch requests
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
 
 // Sample Medusa Products Catalog
@@ -97,6 +101,9 @@ app.get("/health", (req, res) => {
 // GET /store/products
 app.get("/store/products", (req, res) => {
   let list = [...products];
+  if (req.query.handle) {
+    list = list.filter(p => p.handle === req.query.handle || p.id === req.query.handle);
+  }
   if (req.query.category_id) {
     list = list.filter(p => p.category_id === req.query.category_id);
   }
