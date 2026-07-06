@@ -4,11 +4,10 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 9000;
 
-// Robust CORS middleware supporting credentials and preflight OPTIONS requests
+// Universal CORS middleware supporting public cross-origin API requests
 app.use((req, res, next) => {
-  const origin = req.headers.origin || "http://localhost:3000";
+  const origin = req.headers.origin || "*";
   res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-medusa-access-token, x-publishable-api-key");
 

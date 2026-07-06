@@ -8,6 +8,5 @@ export const medusaClient = ky.create({
   headers: {
     "Content-Type": "application/json",
   },
-  // Ensure we pass cookies / sessions (useful for Medusa session cart tracking)
-  credentials: "include",
+  credentials: "omit",
 });
