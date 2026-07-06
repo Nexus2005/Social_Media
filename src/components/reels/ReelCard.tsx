@@ -3816,11 +3816,12 @@ function ProductList({
                   }
                 }}
                 className={cn(
-                  "text-xs font-bold transition-colors pb-1.5 relative whitespace-nowrap",
+                  "text-xs font-bold transition-colors pb-1.5 relative whitespace-nowrap flex items-center gap-1 group/chip-mobile",
                   isActive ? "text-white" : "text-zinc-500 hover:text-zinc-300"
                 )}
               >
-                {cat}
+                {getCategoryIcon(cat, isActive)}
+                <span>{cleanCategoryName(cat)}</span>
                 {isActive && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full" />
                 )}
@@ -3835,7 +3836,6 @@ function ProductList({
         <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
           {filteredProducts.map((prod) => {
             const isActive = prod.id === selectedProduct.id;
-            const emoji = getCategoryEmoji(prod.category, prod.label);
             return (
               <button
                 key={prod.id}
@@ -3857,7 +3857,9 @@ function ProductList({
                     alt={prod.label}
                     className="w-full h-full object-cover rounded-xl"
                   />
-                  <span className="absolute bottom-0.5 right-0.5 text-xs bg-black/60 px-1 py-0.5 rounded text-white">{emoji}</span>
+                  <span className="absolute bottom-0.5 right-0.5 bg-black/75 p-0.5 rounded text-white flex items-center justify-center">
+                    {getCategoryIcon(prod.category || "Top", true, "size-2.5")}
+                  </span>
                 </div>
                 <span className="text-[9px] font-bold tracking-tight text-center truncate w-full capitalize leading-tight">
                   {prod.label}
