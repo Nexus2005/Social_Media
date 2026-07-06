@@ -63,82 +63,119 @@ export default function FeedTabContent({ currentUserId }: FeedTabContentProps) {
     );
   }
 
-  // Spots vertical 9:16 grid gets the first 10 posts
-  const spotsVideos = posts.slice(0, 10);
-  // Recommended Videos horizontal 16:9 grid gets posts starting from index 10 (or first 6 if sparse)
-  const recommendedVideos = posts.length > 10 ? posts.slice(10) : posts.slice(0, 6);
+  // Segment the videos into alternating horizontal (16:9) and vertical (9:16) sections.
+  interface VideoSection {
+    type: "horizontal" | "vertical";
+    title: string;
+    videos: any[];
+  }
+
+  const sections: VideoSection[] = [];
+  
+  if (posts.length > 0) {
+    let tempPosts = [...posts];
+    
+    // Fallback if data is sparse to make sure we show both sections
+    if (tempPosts.length < 8) {
+      sections.push({ type: "horizontal", title: "Recommended Videos", videos: tempPosts.slice(0, 6) });
+      sections.push({ type: "vertical", title: "Spots", videos: tempPosts.slice(0, 5) });
+    } else {
+      let sectionIndex = 0;
+      while (tempPosts.length > 0) {
+        if (sectionIndex % 2 === 0) {
+          // Horizontal section (6 videos)
+          const chunk = tempPosts.splice(0, 6);
+          sections.push({
+            type: "horizontal",
+            title: sectionIndex === 0 ? "Recommended Videos" : "More Recommended Videos",
+            videos: chunk,
+          });
+        } else {
+          // Vertical section (5 videos)
+          const chunk = tempPosts.splice(0, 5);
+          sections.push({
+            type: "vertical",
+            title: "Spots",
+            videos: chunk,
+          });
+        }
+        sectionIndex++;
+      }
+    }
+  }
 
   return (
     <div className="space-y-10 pb-16 w-full select-none">
-      {/* SECTION 1: Spots (9:16 Vertical Grid - 5 in a row on desktop) */}
-      {spotsVideos.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+      {sections.map((section, sIdx) => {
+        const isFirst = sIdx === 0;
+
+        return (
+          <div key={sIdx} className="space-y-6">
+            {/* Divider between sections */}
+            {!isFirst && <div className="border-b border-zinc-800/60 pb-4" />}
+
+            {/* Section Header */}
             <div className="flex items-center gap-2.5">
-              {/* Play symbol styled icon to match Spots */}
-              <svg 
-                viewBox="0 0 24 24" 
-                className="size-6 text-indigo-500 fill-current"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
-              </svg>
-              <h3 className="text-base font-black text-white uppercase tracking-wider">
-                Spots
-              </h3>
+              {section.type === "horizontal" ? (
+                <>
+                  <span className="text-xl">🎥</span>
+                  <h3 className="text-base font-black text-white uppercase tracking-wider">
+                    {section.title}
+                  </h3>
+                </>
+              ) : (
+                <>
+                  <svg 
+                    viewBox="0 0 24 24" 
+                    className="size-6 text-indigo-500 fill-current"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+                  </svg>
+                  <h3 className="text-base font-black text-white uppercase tracking-wider">
+                    {section.title}
+                  </h3>
+                </>
+              )}
             </div>
+
+            {/* Section Grid */}
+            {section.type === "horizontal" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {section.videos.map((post) => {
+                  const videoMedia = post.attachments.find((a: any) => a.mediaType === "VIDEO");
+                  if (!videoMedia) return null;
+
+                  return (
+                    <HorizontalVideoCard 
+                      key={post.id} 
+                      post={post} 
+                      videoUrl={videoMedia.url} 
+                      router={router} 
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {section.videos.map((post) => {
+                  const videoMedia = post.attachments.find((a: any) => a.mediaType === "VIDEO");
+                  if (!videoMedia) return null;
+
+                  return (
+                    <VerticalShortsCard 
+                      key={post.id} 
+                      post={post} 
+                      videoUrl={videoMedia.url} 
+                      router={router} 
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {spotsVideos.map((post) => {
-              const videoMedia = post.attachments.find((a) => a.mediaType === "VIDEO");
-              if (!videoMedia) return null;
-
-              return (
-                <VerticalShortsCard 
-                  key={post.id} 
-                  post={post} 
-                  videoUrl={videoMedia.url} 
-                  router={router} 
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Divider */}
-      {spotsVideos.length > 0 && recommendedVideos.length > 0 && (
-        <div className="border-b border-zinc-800/60" />
-      )}
-
-      {/* SECTION 2: Recommended Videos (16:9 Grid) */}
-      {recommendedVideos.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🎥</span>
-            <h3 className="text-base font-black text-white uppercase tracking-wider">
-              Recommended Videos
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {recommendedVideos.map((post) => {
-              const videoMedia = post.attachments.find((a) => a.mediaType === "VIDEO");
-              if (!videoMedia) return null;
-
-              return (
-                <HorizontalVideoCard 
-                  key={post.id} 
-                  post={post} 
-                  videoUrl={videoMedia.url} 
-                  router={router} 
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
+        );
+      })}
 
       {/* Infinite scroll trigger / fetch next page button */}
       {hasNextPage && (
@@ -334,7 +371,7 @@ function VerticalShortsCard({ post, videoUrl, router }: { post: any; videoUrl: s
           </span>
         </div>
 
-        <button className="shrink-0 text-zinc-500 hover:text-zinc-355 p-0.5 rounded-full hover:bg-zinc-900 transition-colors mt-0.5">
+        <button className="shrink-0 text-zinc-500 hover:text-zinc-350 p-0.5 rounded-full hover:bg-zinc-900 transition-colors mt-0.5">
           <MoreVertical className="size-3.5" />
         </button>
       </div>
