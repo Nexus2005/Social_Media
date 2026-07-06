@@ -152,9 +152,8 @@ export default function CartlySidebar({
     {
       icon: (props: any) => <ShoppingBag {...props} />,
       label: "Shop",
-      href: "#",
-      onClick: () => {},
-      active: false,
+      href: "/shop",
+      active: pathname.startsWith("/shop"),
     },
 
     {
