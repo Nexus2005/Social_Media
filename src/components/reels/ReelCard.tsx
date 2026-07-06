@@ -815,8 +815,8 @@ export default function ReelCard({
   }, [detectedProducts, desktopActiveCategory]);
 
   const hasAttachedProducts = useMemo(() => {
-    return creatorAssignedProducts.length > 0 || approvedProducts.length > 0 || verifiedDetectedProducts.length > 0;
-  }, [creatorAssignedProducts, approvedProducts, verifiedDetectedProducts]);
+    return creatorAssignedProducts.length > 0 || approvedProducts.length > 0 || detectedProducts.length > 0;
+  }, [creatorAssignedProducts, approvedProducts, detectedProducts]);
 
   const isAdmin = loggedInUser?.username === "Omkar2005" || (loggedInUser as any)?.verified === true;
 

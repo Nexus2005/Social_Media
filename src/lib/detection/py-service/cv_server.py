@@ -16,17 +16,17 @@ try:
     from ultralytics import YOLO
     YOLO_AVAILABLE = True
     logger.info("ultralytics (YOLO) is available.")
-except ImportError:
+except Exception as e:
     YOLO_AVAILABLE = False
-    logger.warning("ultralytics not installed. YOLO detection disabled — Cloud VLM will be used instead.")
+    logger.warning(f"ultralytics load failed ({e}). YOLO detection disabled — Cloud VLM will be used instead.")
 
 try:
     import easyocr
     OCR_AVAILABLE = True
     logger.info("easyocr is available.")
-except ImportError:
+except Exception as e:
     OCR_AVAILABLE = False
-    logger.warning("easyocr not installed. OCR disabled.")
+    logger.warning(f"easyocr load failed ({e}). OCR disabled.")
 
 try:
     from pyzbar import pyzbar
@@ -34,27 +34,29 @@ try:
     import io as _io
     BARCODE_AVAILABLE = True
     logger.info("pyzbar is available.")
-except ImportError:
+except Exception as e:
     BARCODE_AVAILABLE = False
-    logger.warning("pyzbar or Pillow not installed. Barcode detection disabled.")
+    logger.warning(f"pyzbar load failed ({e}). Barcode detection disabled.")
 
 try:
     import cv2
     CV2_AVAILABLE = True
     logger.info("OpenCV (cv2) is available.")
-except ImportError:
+except Exception as e:
     CV2_AVAILABLE = False
-    logger.warning("opencv-python not installed. Crop quality and scene detection disabled.")
+    logger.warning(f"OpenCV load failed ({e}). Crop quality and scene detection disabled.")
 
 # ─────────────────────────────────────────────
 # Global model instances
 # ─────────────────────────────────────────────
-yolo_model = None
+yolo_openimages = None
+yolo_fashionpedia = None
 ocr_reader = None
+clip_model = None
+clip_processor = None
 
-# Cartly v3 — Curated shoppable classes (~35 categories)
-# Only objects worth shopping for are returned. Excludes person, dog, cat, etc.
-SHOPPABLE_CLASSES = {
+# OpenImages classes
+OPENIMAGES_SHOPPABLE = {
     "backpack", "handbag", "suitcase", "umbrella", "tie",
     "cell phone", "laptop", "remote", "keyboard", "mouse", "tv",
     "chair", "couch", "bed", "dining table",
@@ -62,6 +64,40 @@ SHOPPABLE_CLASSES = {
     "book", "scissors",
     "sports ball", "tennis racket", "skateboard", "surfboard",
     "snowboard", "skis", "bicycle", "motorcycle",
+    "clothing", "coat", "dress", "earrings", "footwear", "glasses",
+    "jacket", "necklace", "shirt", "suit", "sunglasses", "watch", "boot",
+    "luggage and bags", "hat", "scarf", "belt"
+}
+
+# Fashionpedia classes mapped to standard Cartly labels
+FASHIONPEDIA_MAP = {
+    0: "Shirt",
+    1: "T-Shirt",
+    2: "Sweater",
+    3: "Cardigan",
+    4: "Jacket",
+    5: "Vest",
+    6: "Pants",
+    7: "Shorts",
+    8: "Skirt",
+    9: "Coat",
+    10: "Dress",
+    11: "Jumpsuit",
+    12: "Cape",
+    13: "Sunglasses",
+    14: "Hat",
+    15: "Hair Accessory",
+    16: "Tie",
+    17: "Glove",
+    18: "Watch",
+    19: "Belt",
+    20: "Leg Warmer",
+    21: "Stockings",
+    22: "Socks",
+    23: "Shoes",
+    24: "Bag",
+    25: "Scarf",
+    26: "Umbrella"
 }
 
 # Known brand words for logo detection
@@ -87,14 +123,24 @@ KNOWN_BRANDS_MULTI = [
 
 
 def init_models():
-    global yolo_model, ocr_reader
+    global yolo_openimages, yolo_fashionpedia, ocr_reader
 
     if YOLO_AVAILABLE:
         try:
-            yolo_model = YOLO("yolov8n.pt")
-            logger.info("YOLOv8 Nano model loaded.")
+            yolo_openimages = YOLO("yolov8n-oiv7.pt")
+            logger.info("YOLOv8 Nano OpenImages model loaded.")
         except Exception as e:
-            logger.error(f"Failed to load YOLO: {e}")
+            logger.error(f"Failed to load OpenImages model: {e}")
+
+        try:
+            onnx_path = "yolov8n-fashionpedia.onnx"
+            if os.path.exists(onnx_path):
+                yolo_fashionpedia = YOLO(onnx_path)
+                logger.info("YOLOv8 Nano Fashionpedia model loaded from ONNX.")
+            else:
+                logger.warning("yolov8n-fashionpedia.onnx not found. Fashionpedia detector disabled.")
+        except Exception as e:
+            logger.error(f"Failed to load Fashionpedia model: {e}")
 
     if OCR_AVAILABLE:
         try:
@@ -102,6 +148,71 @@ def init_models():
             logger.info("EasyOCR Reader loaded.")
         except Exception as e:
             logger.error(f"Failed to load EasyOCR: {e}")
+
+
+def init_clip():
+    global clip_model, clip_processor
+    if clip_model is not None:
+        return
+    try:
+        from transformers import CLIPModel, CLIPProcessor
+        logger.info("Loading CLIP model 'openai/clip-vit-base-patch32'...")
+        clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        logger.info("CLIP model loaded successfully!")
+    except Exception as e:
+        logger.warning(f"Failed to load CLIP model: {e}")
+
+
+def get_crop_hsv(img, box):
+    if img is None:
+        return [0.0, 0.0, 0.0]
+    try:
+        x1, y1, x2, y2 = map(int, box)
+        h, w = img.shape[:2]
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+        crop = img[y1:y2, x1:x2]
+        if crop.size == 0:
+            return [0.0, 0.0, 0.0]
+        hsv_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+        h_mean = float(np.mean(hsv_crop[:, :, 0]))
+        s_mean = float(np.mean(hsv_crop[:, :, 1]))
+        v_mean = float(np.mean(hsv_crop[:, :, 2]))
+        return [round(h_mean, 1), round(s_mean, 1), round(v_mean, 1)]
+    except Exception:
+        return [0.0, 0.0, 0.0]
+
+
+def get_adaptive_threshold(label, box, frame_w, frame_h):
+    # Base threshold
+    thresh = 0.25
+    
+    # Adjust by class category
+    label_lower = label.lower()
+    # Accessories (high false positives on small areas)
+    if label_lower in ["watch", "belt", "tie", "glove", "glasses", "sunglasses", "hair accessory"]:
+        thresh = 0.35
+    # Shoes and bags
+    elif label_lower in ["shoe", "shoes", "bag", "wallet"]:
+        thresh = 0.30
+    # Large garments
+    elif label_lower in ["jacket", "coat", "dress", "suit", "jumpsuit"]:
+        thresh = 0.20
+
+    # Adjust by size (relative to frame area)
+    x1, y1, x2, y2 = box
+    box_area = (x2 - x1) * (y2 - y1)
+    frame_area = frame_w * frame_h
+    if frame_area > 0:
+        rel_area = box_area / frame_area
+        if rel_area > 0.15: # Large object
+            thresh -= 0.05
+        elif rel_area < 0.02: # Tiny object
+            thresh += 0.05
+
+    return max(0.15, min(0.50, thresh))
+
 
 
 # ─────────────────────────────────────────────
@@ -270,7 +381,8 @@ class CVRequestHandler(BaseHTTPRequestHandler):
             img_b64 = req_body.get('image', '')
 
             if self.path == '/detect':
-                self.handle_detect(img_b64)
+                provider = req_body.get('provider', 'openimages')
+                self.handle_detect(img_b64, provider)
             elif self.path == '/crop-quality':
                 self.handle_crop_quality(img_b64)
             elif self.path == '/logo-detect':
@@ -281,6 +393,8 @@ class CVRequestHandler(BaseHTTPRequestHandler):
                 self.handle_barcode_crop(img_b64)
             elif self.path == '/attributes':
                 self.handle_attributes(img_b64)
+            elif self.path == '/clip-similarity':
+                self.handle_clip_similarity(req_body)
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -291,52 +405,14 @@ class CVRequestHandler(BaseHTTPRequestHandler):
 
     # ─── /detect — YOLO detection (shoppable classes only) ─────────────
 
-    def handle_detect(self, img_b64):
+    def handle_detect(self, img_b64, provider='openimages'):
         if not img_b64:
             self.send_json(400, {"error": "Missing base64 image"})
             return
 
         img_bytes = base64.b64decode(img_b64)
-        objects = []
-
-        if YOLO_AVAILABLE and yolo_model:
-            try:
-                temp_path = "tmp_cv_frame.jpg"
-                with open(temp_path, "wb") as f:
-                    f.write(img_bytes)
-
-                # Set threshold to 0.20 to catch more potential fashion items
-                conf_threshold = 0.20
-                logger.info(f"[YOLO] Running detection with yolov8n.pt (threshold: {conf_threshold})")
-                results = yolo_model(temp_path, conf=conf_threshold, verbose=False)
-                
-                raw_count = 0
-                for r in results:
-                    for box in r.boxes:
-                        raw_count += 1
-                        label = r.names[int(box.cls[0])]
-                        conf = float(box.conf[0])
-                        coords = box.xyxy[0].tolist()
-
-                        is_shoppable = label.lower() in SHOPPABLE_CLASSES
-                        if is_shoppable:
-                            logger.info(f"  ├─ RAW DETECT: class=\"{label}\" conf={conf:.2f} -> PASS (Shoppable)")
-                            objects.append({
-                                "box": coords,
-                                "label": label,
-                                "confidence": conf,
-                            })
-                        else:
-                            logger.info(f"  ├─ RAW DETECT: class=\"{label}\" conf={conf:.2f} -> FILTERED (Not Shoppable)")
-
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-
-                logger.info(f"[YOLO] Done: {raw_count} raw detected, {len(objects)} shoppable objects kept.")
-            except Exception as e:
-                logger.error(f"[YOLO] Detection failed: {e}")
-
-        self.send_json(200, {"objects": objects})
+        objects, debug_info = self._detect_and_debug(img_bytes, provider)
+        self.send_json(200, {"objects": objects, "debug": debug_info})
 
     # ─── /crop-quality — Assess crop quality ───────────────────────────
 
@@ -410,6 +486,165 @@ class CVRequestHandler(BaseHTTPRequestHandler):
         img_bytes = base64.b64decode(img_b64)
         result = extract_attributes(img_bytes)
         self.send_json(200, result)
+
+    # ─── /clip-similarity — CLIP-based Visual Similarity ────────────────
+
+    def handle_clip_similarity(self, req_body):
+        crop_b64 = req_body.get('crop', '')
+        candidates_b64 = req_body.get('candidates', [])
+
+        if not crop_b64 or not candidates_b64:
+            self.send_json(400, {"error": "Missing crop or candidates in request"})
+            return
+
+        try:
+            crop_bytes = base64.b64decode(crop_b64)
+            candidates_bytes = [base64.b64decode(c) for c in candidates_b64]
+
+            # Lazy load CLIP on demand
+            if clip_model is None or clip_processor is None:
+                init_clip()
+
+            if clip_model is None or clip_processor is None:
+                # Return neutral similarity if CLIP is unavailable
+                self.send_json(200, {"similarities": [0.5] * len(candidates_b64)})
+                return
+
+            from PIL import Image
+            import io as _io
+            import torch
+
+            crop_pil = Image.open(_io.BytesIO(crop_bytes)).convert("RGB")
+            candidates_pil = [Image.open(_io.BytesIO(cb)).convert("RGB") for cb in candidates_bytes]
+
+            inputs = clip_processor(images=[crop_pil] + candidates_pil, return_tensors="pt", padding=True)
+            with torch.no_grad():
+                image_features = clip_model.get_image_features(**inputs)
+
+            # Normalize features
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
+            crop_feat = image_features[0:1] # shape (1, dim)
+            cand_feats = image_features[1:] # shape (N, dim)
+
+            similarities = torch.nn.functional.cosine_similarity(crop_feat, cand_feats, dim=-1)
+            results = [round(float(s), 4) for s in similarities]
+            self.send_json(200, {"similarities": results})
+
+        except Exception as e:
+            logger.error(f"[CLIP] Similarity failed: {e}")
+            self.send_json(200, {"similarities": [0.5] * len(candidates_b64)})
+
+    def _detect_and_debug(self, img_bytes, provider="openimages"):
+        objects = []
+        debug_info = {}
+
+        model = yolo_openimages
+        if provider == "fashionpedia":
+            model = yolo_fashionpedia
+            if model is None:
+                logger.warning("Fashionpedia requested but unavailable. Falling back to OpenImages.")
+                model = yolo_openimages
+                provider = "openimages"
+
+        if YOLO_AVAILABLE and model:
+            try:
+                temp_path = "tmp_cv_frame.jpg"
+                with open(temp_path, "wb") as f:
+                    f.write(img_bytes)
+
+                h, w = 0, 0
+                if CV2_AVAILABLE:
+                    img = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+                    if img is not None:
+                        h, w = img.shape[:2]
+
+                results = model(temp_path, conf=0.05, verbose=False, device="cpu")
+
+                raw_detections = []
+                after_conf = []
+                after_shoppable = []
+
+                for r in results:
+                    for box in r.boxes:
+                        cls_idx = int(box.cls[0])
+                        label = r.names[cls_idx]
+                        conf = float(box.conf[0])
+                        coords = box.xyxy[0].tolist()
+
+                        raw_det = {
+                            "class": label,
+                            "confidence": round(conf, 4),
+                            "box": [round(c, 1) for c in coords]
+                        }
+                        raw_detections.append(raw_det)
+
+                        is_shoppable = False
+                        mapped_label = label
+
+                        if provider == "fashionpedia":
+                            if cls_idx in FASHIONPEDIA_MAP:
+                                is_shoppable = True
+                                mapped_label = FASHIONPEDIA_MAP[cls_idx]
+                        else:
+                            if label.lower() in OPENIMAGES_SHOPPABLE:
+                                is_shoppable = True
+
+                        thresh = get_adaptive_threshold(mapped_label, coords, w, h)
+
+                        if conf >= thresh:
+                            after_conf.append(raw_det)
+                            if is_shoppable:
+                                after_shoppable.append(raw_det)
+                                avg_hsv = get_crop_hsv(img, coords) if CV2_AVAILABLE else [0.0, 0.0, 0.0]
+                                objects.append({
+                                    "box": coords,
+                                    "label": mapped_label,
+                                    "confidence": conf,
+                                    "avg_hsv": avg_hsv
+                                })
+
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+
+                debug_log = []
+                debug_log.append("========== YOLO DEBUG ==========")
+                debug_log.append(f"Model: {provider.capitalize()}")
+                debug_log.append(f"Image size: {w}x{h}")
+                debug_log.append("")
+                debug_log.append("Raw detections:")
+                for rd in raw_detections:
+                    debug_log.append(f"  Class: {rd['class']}, Confidence: {rd['confidence']:.2f}, Bounding Box: {rd['box']}")
+                debug_log.append("")
+                debug_log.append("After confidence filtering:")
+                for ac in after_conf:
+                    debug_log.append(f"  Class: {ac['class']}, Confidence: {ac['confidence']:.2f}, Bounding Box: {ac['box']}")
+                debug_log.append("")
+                debug_log.append("After shoppable filtering:")
+                for as_det in after_shoppable:
+                    debug_log.append(f"  Class: {as_det['class']}, Confidence: {as_det['confidence']:.2f}, Bounding Box: {as_det['box']}")
+                debug_log.append("")
+                debug_log.append("Final detections:")
+                for obj in objects:
+                    debug_log.append(f"  Class: {obj['label']}, Confidence: {obj['confidence']:.2f}, Bounding Box: {[round(c, 1) for c in obj['box']]}")
+                debug_log.append("================================")
+
+                debug_log_str = "\n".join(debug_log)
+                logger.info(debug_log_str)
+
+                debug_info = {
+                    "model": provider,
+                    "image_size": f"{w}x{h}",
+                    "raw_detections": raw_detections,
+                    "after_confidence": after_conf,
+                    "after_shoppable": after_shoppable,
+                    "final_detections": objects,
+                    "debug_log_str": debug_log_str
+                }
+            except Exception as e:
+                logger.error(f"[YOLO] Detection failed: {e}")
+        return objects, debug_info
+
 
     # ─── Utility ───────────────────────────────────────────────────────
 

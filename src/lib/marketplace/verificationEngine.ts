@@ -147,40 +147,71 @@ function ocrModelMatch(ocrText: string, title: string): number {
   return ocrWords.length > 0 ? Math.min(1.0, matches / ocrWords.length) : 0;
 }
 
-// ─── Image Grayscale Fingerprint Matching ─────────────────────────────────────
+// ─── Image Visual Similarity (dHash Fingerprint) ─────────────────────────────
 
-async function computeGrayscaleFingerprint(imageBufferOrUrl: Buffer | string): Promise<number[] | null> {
+async function computeGrayscaleFingerprint(imageBufferOrUrl: Buffer | string): Promise<string | null> {
   try {
     let buffer: Buffer;
     if (typeof imageBufferOrUrl === "string") {
-      const res = await fetch(imageBufferOrUrl);
+      const res = await fetch(imageBufferOrUrl, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return null;
       buffer = Buffer.from(await res.arrayBuffer());
     } else {
       buffer = imageBufferOrUrl;
     }
-    
-    // Resize to 8x8 grayscaled raw pixels
-    const rawPixels = await sharp(buffer)
-      .resize(8, 8, { fit: "fill" })
+
+    // Compute dHash (9x8 grayscale → 64-bit difference hash)
+    const raw = await sharp(buffer)
+      .resize(9, 8, { fit: "fill" })
       .grayscale()
       .raw()
       .toBuffer();
-      
-    return Array.from(rawPixels);
-  } catch (err) {
+
+    let hash = "";
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const left = raw[row * 9 + col];
+        const right = raw[row * 9 + col + 1];
+        hash += left < right ? "1" : "0";
+      }
+    }
+    let hex = "";
+    for (let i = 0; i < hash.length; i += 4) {
+      hex += parseInt(hash.slice(i, i + 4), 2).toString(16);
+    }
+    return hex;
+  } catch {
     return null;
   }
 }
 
-function compareFingerprints(fp1: number[], fp2: number[]): number {
-  if (fp1.length !== fp2.length) return 0;
-  let totalDiff = 0;
+function compareDHashFingerprints(fp1: string | null, fp2: string | null): number {
+  if (!fp1 || !fp2 || fp1.length !== fp2.length || fp1.length === 0) return 0.5; // neutral
+
+  // Compute bit-level Hamming distance between hex hashes
+  let dist = 0;
   for (let i = 0; i < fp1.length; i++) {
-    totalDiff += Math.abs(fp1[i] - fp2[i]);
+    const a = parseInt(fp1[i], 16);
+    const b = parseInt(fp2[i], 16);
+    let xor = a ^ b;
+    while (xor > 0) {
+      dist += xor & 1;
+      xor >>= 1;
+    }
   }
-  const avgDiff = totalDiff / fp1.length;
-  return Math.max(0, 1 - avgDiff / 50); // diff of 50+ is completely dissimilar
+
+  // Total bits = fp1.length * 4 (each hex char = 4 bits)
+  const totalBits = fp1.length * 4;
+  // Similarity: 0 distance = 1.0, max distance = 0.0
+  return Math.max(0, 1 - (dist / totalBits) * 2); // scale so 50% bit diff = 0 similarity
+}
+
+function materialMatch(detectedMaterial: string | null, title: string): number {
+  if (!detectedMaterial || detectedMaterial === "none" || detectedMaterial === "unknown") return 1.0;
+  const lower = detectedMaterial.toLowerCase();
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes(lower)) return 1.0;
+  return 0.2;
 }
 
 // ─── Verification Engine ─────────────────────────────────────────────────────
@@ -190,6 +221,7 @@ export async function verifyMarketplaceResults(
   results: MarketplaceProduct[],
   cropBuffer: Buffer | null = null,
   limit = 10,
+  precomputedVisualSimilarities?: Map<string, number>,
 ): Promise<VerifiedMatch[]> {
   if (results.length === 0) return [];
 
@@ -209,7 +241,7 @@ export async function verifyMarketplaceResults(
   const verifiedPromises = results.map(async (product) => {
     const cleanedTitle = cleanMarketplaceTitle(product.title);
 
-    // 1. Title Similarity (Jaccard) — 25%
+    // 1. Title Similarity (Jaccard) — 20%
     const titleSimilarity = tokenJaccard(queryString, cleanedTitle);
 
     // 2. Brand Match — 15%
@@ -219,13 +251,14 @@ export async function verifyMarketplaceResults(
         ? 1.0
         : 0;
 
-    // 3. Image Similarity — 15%
+    // 3. Image Similarity (dHash/CLIP comparison) — 30%
     let visualSimilarity = 0.5; // neutral fallback
-    if (cropFingerprint && product.thumbnail) {
+    const key = product.itemId || product.link;
+    if (precomputedVisualSimilarities && precomputedVisualSimilarities.has(key)) {
+      visualSimilarity = precomputedVisualSimilarities.get(key)!;
+    } else if (cropFingerprint && product.thumbnail) {
       const thumbFingerprint = await computeGrayscaleFingerprint(product.thumbnail);
-      if (thumbFingerprint) {
-        visualSimilarity = compareFingerprints(cropFingerprint, thumbFingerprint);
-      }
+      visualSimilarity = compareDHashFingerprints(cropFingerprint, thumbFingerprint);
     }
 
     // 4. Category/Subcategory — 10%
@@ -234,35 +267,40 @@ export async function verifyMarketplaceResults(
     // 5. Color Match — 10%
     const colorM = colorMatch(evidence.colorDetected, cleanedTitle);
 
-    // 6. Material Match — 5%
-    const materialM = wordIncludesMatch(cleanedTitle, evidence.materialDetected);
+    // 6. Material Match — 10%
+    const materialM = materialMatch(evidence.materialDetected || null, cleanedTitle);
 
-    // 7. Gender Match — 5%
-    const genderM = wordIncludesMatch(cleanedTitle, evidence.gender || null);
-
-    // 8. Neckline & Sleeve Match — 5%
-    const neckM = wordIncludesMatch(cleanedTitle, evidence.neckline || null);
-    const sleeveM = wordIncludesMatch(cleanedTitle, evidence.sleeve || null);
-    const neckSleeveMatch = (neckM + sleeveM) / 2;
-
-    // 9. Price Sanity — 5%
+    // 7. Price Sanity — 5%
     const priceM = priceSanity(product.numericPrice, evidence.yoloLabel);
 
-    // 10. Gemini VLM / Crop Confidence — 5%
-    const geminiConfidence = evidence.yoloConfidence || 0.85;
-
-    // Composite scoring
-    const marketplaceConfidence =
-      titleSimilarity * 0.25 +
+    // Reweighted Confidence Score:
+    // Visual: 30% | Title: 20% | Brand: 15% | Category: 10% | Color: 10% | Material: 10% | Price: 5%
+    const baseConfidence =
+      visualSimilarity * 0.30 +
+      titleSimilarity * 0.20 +
       brandMatch * 0.15 +
-      visualSimilarity * 0.15 +
       categoryM * 0.10 +
       colorM * 0.10 +
-      materialM * 0.05 +
-      genderM * 0.05 +
-      neckSleeveMatch * 0.05 +
-      priceM * 0.05 +
-      geminiConfidence * 0.05;
+      materialM * 0.10 +
+      priceM * 0.05;
+
+    // 8. Seller Quality & Popularity multipliers
+    let sellerQuality = 1.0;
+    if (product.sellerRating !== undefined) {
+      if (product.sellerRating < 4.5) { // scale out of 5.0
+        sellerQuality = 0.85; // penalize poor sellers
+      } else {
+        sellerQuality = 1.05; // boost trusted sellers
+      }
+    }
+
+    let popularity = 1.0;
+    if (product.rating !== undefined && product.rating > 0) {
+      if (product.rating >= 4.0) popularity = 1.05;
+      else if (product.rating < 3.0) popularity = 0.90;
+    }
+
+    const marketplaceConfidence = Math.min(1.0, Math.max(0.0, baseConfidence * sellerQuality * popularity));
 
     // Assign tiers based on final composite confidence
     let tier: VerificationTier;
@@ -311,4 +349,29 @@ export function isVerificationSufficient(results: VerifiedMatch[]): boolean {
   if (results.length === 0) return false;
   return results[0].marketplaceConfidence >= 0.75;
 }
+
+export function calculateVerificationConfidence(
+  evidence: CropEvidence,
+  match: VerifiedMatch,
+): number {
+  const yoloScore = evidence.yoloConfidence;
+  const brandScore = match.breakdown.brandMatch || 0;
+  const ocrScore = match.breakdown.ocrMatch || 0;
+  const visualScore = match.breakdown.visualSimilarity || 0.5;
+  const titleScore = match.breakdown.titleSimilarity || 0;
+
+  // Marketplace visual + title score
+  const marketScore = (visualScore * 0.6 + titleScore * 0.4);
+
+  // Composite Verification Score:
+  // YOLO: 40% | Brand Logo: 20% | OCR match: 20% | Marketplace (Visual+Title): 20%
+  const compositeScore =
+    yoloScore * 0.40 +
+    brandScore * 0.20 +
+    ocrScore * 0.20 +
+    marketScore * 0.20;
+
+  return Math.min(1.0, Math.max(0.0, compositeScore));
+}
+
 

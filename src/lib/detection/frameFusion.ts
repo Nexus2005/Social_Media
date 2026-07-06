@@ -4,20 +4,10 @@
  * Tracks the same object across multiple video frames to prevent
  * duplicate detections. Instead of treating each frame independently,
  * this module merges detections of the same object across frames.
- *
- * Match criteria (any 2 of 3 must pass):
- * - IoU (Intersection over Union) of bounding boxes ≥ 0.3
- * - Color histogram similarity ≥ 0.7
- * - Same YOLO class label
- *
- * Produces TrackedObjects with:
- * - Best crop (highest quality score across frames)
- * - Union of all evidence (OCR, logos, barcodes)
- * - All frame timestamps (for Product Timeline)
- * - Frame appearance count (boosts confidence)
  */
 
 import crypto from "crypto";
+import { IObjectTracker, StageMetrics } from "./interfaces";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +22,13 @@ export interface DetectedObject {
   confidence: number;
   cropBuffer?: Buffer;
   cropQuality?: number;
+  avg_hsv?: number[];
+}
+
+export interface TrackedCrop {
+  buffer: Buffer;
+  quality: number;
+  timestamp: number;
 }
 
 export interface TrackedObject {
@@ -48,9 +45,13 @@ export interface TrackedObject {
   mergedOcrText: string;
   mergedLogos: string[];
   mergedBarcodes: string[];
+
+  // Multi-frame crops and visual color descriptor
+  crops?: TrackedCrop[];
+  avg_hsv?: number[];
 }
 
-// ─── IoU Calculation ──────────────────────────────────────────────────────────
+// ─── Classical IoU / Proximity Helpers ────────────────────────────────────────
 
 function calculateIoU(boxA: number[], boxB: number[]): number {
   const [ax1, ay1, ax2, ay2] = boxA;
@@ -73,17 +74,12 @@ function calculateIoU(boxA: number[], boxB: number[]): number {
   return intersectArea / unionArea;
 }
 
-// ─── Relative Position Similarity ─────────────────────────────────────────────
-// For reels with moving cameras, IoU may be low even for the same object.
-// Check if the object occupies a similar relative position in the frame.
-
 function relativePositionSimilarity(boxA: number[], boxB: number[]): number {
   const centerAx = (boxA[0] + boxA[2]) / 2;
   const centerAy = (boxA[1] + boxA[3]) / 2;
   const centerBx = (boxB[0] + boxB[2]) / 2;
   const centerBy = (boxB[1] + boxB[3]) / 2;
 
-  // Normalize by box size (use average of both boxes)
   const avgWidth = ((boxA[2] - boxA[0]) + (boxB[2] - boxB[0])) / 2;
   const avgHeight = ((boxA[3] - boxA[1]) + (boxB[3] - boxB[1])) / 2;
 
@@ -92,129 +88,302 @@ function relativePositionSimilarity(boxA: number[], boxB: number[]): number {
   const dx = Math.abs(centerAx - centerBx) / avgWidth;
   const dy = Math.abs(centerAy - centerBy) / avgHeight;
 
-  // If centers are within 2x the object size, consider them similar
   const distance = Math.sqrt(dx * dx + dy * dy);
   return Math.max(0, 1 - distance / 2);
 }
-
-// ─── Size Similarity ──────────────────────────────────────────────────────────
 
 function sizeSimilarity(boxA: number[], boxB: number[]): number {
   const areaA = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1]);
   const areaB = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1]);
 
   if (areaA <= 0 || areaB <= 0) return 0;
-
-  const ratio = Math.min(areaA, areaB) / Math.max(areaA, areaB);
-  return ratio; // 1.0 = same size, 0.0 = very different
+  return Math.min(areaA, areaB) / Math.max(areaA, areaB);
 }
 
-// ─── Match Decision ───────────────────────────────────────────────────────────
+// ─── Color Similarity ────────────────────────────────────────────────────────
 
-function isLikelyMatch(
+function colorSimilarity(hsvA: number[], hsvB: number[]): number {
+  const [h1, s1, v1] = hsvA;
+  const [h2, s2, v2] = hsvB;
+
+  // Hue distance in circular 180-degree space
+  let dh = Math.abs(h1 - h2);
+  if (dh > 90) dh = 180 - dh;
+  const nh = dh / 90;
+
+  const ds = Math.abs(s1 - s2) / 255;
+  const dv = Math.abs(v1 - v2) / 255;
+
+  const distance = Math.sqrt(nh * nh + ds * ds + dv * dv);
+  return Math.max(0, 1 - distance / Math.sqrt(3));
+}
+
+// ─── Match Decision Functions ───────────────────────────────────────────────
+
+function isLikelyClassicalMatch(
   tracked: TrackedObject,
   detection: DetectedObject,
 ): boolean {
   let matchSignals = 0;
 
-  // Signal 1: Same YOLO class
   if (tracked.yoloLabel === detection.label) {
     matchSignals++;
   }
 
-  // Signal 2: IoU or relative position overlap
   const iou = calculateIoU(tracked.bestBox, detection.box);
   const positionSim = relativePositionSimilarity(tracked.bestBox, detection.box);
   if (iou >= 0.3 || positionSim >= 0.6) {
     matchSignals++;
   }
 
-  // Signal 3: Size similarity
   const sizeSim = sizeSimilarity(tracked.bestBox, detection.box);
   if (sizeSim >= 0.5) {
     matchSignals++;
   }
 
-  // Need at least 2 of 3 signals
   return matchSignals >= 2;
 }
 
-// ─── Frame Fusion ─────────────────────────────────────────────────────────────
+function isLikelyEnhancedMatch(
+  tracked: TrackedObject,
+  detection: DetectedObject,
+): boolean {
+  const iou = calculateIoU(tracked.bestBox, detection.box);
+  const positionSim = relativePositionSimilarity(tracked.bestBox, detection.box);
 
-/**
- * Fuse detections across multiple frames into tracked objects.
- *
- * @param frames Array of frame detections (each frame contains multiple objects)
- * @returns Array of TrackedObjects, each representing a unique real-world object
- */
-export function fuseFrameDetections(frames: FrameDetection[]): TrackedObject[] {
-  const tracked: TrackedObject[] = [];
+  // GATING 1: Spatial consistency check is mandatory
+  const hasSpatialConsistency = iou >= 0.15 || positionSim >= 0.5;
+  if (!hasSpatialConsistency) {
+    return false;
+  }
 
-  for (const frame of frames) {
-    for (const detection of frame.objects) {
-      // Try to match this detection to an existing tracked object
-      let matched = false;
-
-      for (const existing of tracked) {
-        if (isLikelyMatch(existing, detection)) {
-          // Merge into existing tracked object
-          existing.frameTimestamps.push(frame.frameTimestamp);
-          existing.frameAppearances++;
-
-          // Keep best confidence
-          if (detection.confidence > existing.bestConfidence) {
-            existing.bestConfidence = detection.confidence;
-            existing.bestBox = detection.box;
-          }
-
-          // Keep best crop (highest quality)
-          const detectionQuality = detection.cropQuality ?? 0;
-          if (detection.cropBuffer && detectionQuality > existing.bestCropQuality) {
-            existing.bestCrop = detection.cropBuffer;
-            existing.bestCropQuality = detectionQuality;
-          }
-
-          matched = true;
-          break;
-        }
-      }
-
-      if (!matched) {
-        // New tracked object
-        tracked.push({
-          trackingId: `trk_${crypto.randomUUID().slice(0, 8)}`,
-          bestCrop: detection.cropBuffer || null,
-          bestCropQuality: detection.cropQuality ?? 0,
-          bestBox: detection.box,
-          frameTimestamps: [frame.frameTimestamp],
-          frameAppearances: 1,
-          yoloLabel: detection.label,
-          bestConfidence: detection.confidence,
-          mergedOcrText: "",
-          mergedLogos: [],
-          mergedBarcodes: [],
-        });
-      }
+  // GATING 2: Circular HSV color visual similarity check
+  if (
+    tracked.avg_hsv && detection.avg_hsv &&
+    tracked.avg_hsv.some(v => v > 0) && detection.avg_hsv.some(v => v > 0)
+  ) {
+    const colorSim = colorSimilarity(tracked.avg_hsv, detection.avg_hsv);
+    if (colorSim < 0.70) {
+      return false; // Reject match between different colored objects
     }
   }
 
-  console.log(`[FrameFusion] ${frames.length} frames → ${tracked.length} unique tracked objects`);
-  for (const obj of tracked) {
-    console.log(`  ├─ ${obj.trackingId}: "${obj.yoloLabel}" × ${obj.frameAppearances} frames, conf=${obj.bestConfidence.toFixed(2)}`);
+  let matchSignals = 0;
+
+  if (tracked.yoloLabel === detection.label) {
+    matchSignals++;
   }
 
+  if (iou >= 0.3 || positionSim >= 0.65) {
+    matchSignals++;
+  }
+
+  const sizeSim = sizeSimilarity(tracked.bestBox, detection.box);
+  if (sizeSim >= 0.5) {
+    matchSignals++;
+  }
+
+  return matchSignals >= 2;
+}
+
+// ─── Classical Tracker implementation ────────────────────────────────────────
+
+export class ClassicalTracker implements IObjectTracker {
+  fuse(frames: FrameDetection[]): { tracked: TrackedObject[]; metrics: StageMetrics } {
+    const startTime = Date.now();
+    const tracked: TrackedObject[] = [];
+
+    for (const frame of frames) {
+      for (const detection of frame.objects) {
+        let matched = false;
+        for (const existing of tracked) {
+          if (isLikelyClassicalMatch(existing, detection)) {
+            existing.frameTimestamps.push(frame.frameTimestamp);
+            existing.frameAppearances++;
+
+            if (detection.confidence > existing.bestConfidence) {
+              existing.bestConfidence = detection.confidence;
+              existing.bestBox = detection.box;
+            }
+
+            const detectionQuality = detection.cropQuality ?? 0;
+            if (detection.cropBuffer && detectionQuality > existing.bestCropQuality) {
+              existing.bestCrop = detection.cropBuffer;
+              existing.bestCropQuality = detectionQuality;
+            }
+
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
+          tracked.push({
+            trackingId: `trk_${crypto.randomUUID().slice(0, 8)}`,
+            bestCrop: detection.cropBuffer || null,
+            bestCropQuality: detection.cropQuality ?? 0,
+            bestBox: detection.box,
+            frameTimestamps: [frame.frameTimestamp],
+            frameAppearances: 1,
+            yoloLabel: detection.label,
+            bestConfidence: detection.confidence,
+            mergedOcrText: "",
+            mergedLogos: [],
+            mergedBarcodes: [],
+          });
+        }
+      }
+    }
+
+    return {
+      tracked,
+      metrics: {
+        latencyMs: Date.now() - startTime,
+        success: true,
+        metadata: { tracker: "classical", trackedCount: tracked.length },
+      },
+    };
+  }
+
+  filter(tracked: TrackedObject[]): { filtered: TrackedObject[]; metrics: StageMetrics } {
+    const startTime = Date.now();
+    const filtered = tracked.filter((obj) => {
+      if (obj.frameAppearances >= 2) return true;
+      if (obj.bestConfidence >= 0.7) return true;
+      return false;
+    });
+
+    return {
+      filtered,
+      metrics: {
+        latencyMs: Date.now() - startTime,
+        success: true,
+        metadata: { filteredCount: filtered.length },
+      },
+    };
+  }
+}
+
+// ─── Enhanced Tracker implementation ─────────────────────────────────────────
+
+export class EnhancedTracker implements IObjectTracker {
+  fuse(frames: FrameDetection[]): { tracked: TrackedObject[]; metrics: StageMetrics } {
+    const startTime = Date.now();
+    const tracked: TrackedObject[] = [];
+
+    for (const frame of frames) {
+      for (const detection of frame.objects) {
+        let matched = false;
+        for (const existing of tracked) {
+          if (isLikelyEnhancedMatch(existing, detection)) {
+            existing.frameTimestamps.push(frame.frameTimestamp);
+            existing.frameAppearances++;
+
+            if (detection.confidence > existing.bestConfidence) {
+              existing.bestConfidence = detection.confidence;
+              existing.bestBox = detection.box;
+            }
+
+            // Save crop to multi-crop collection (limit to top 3 by quality score)
+            if (detection.cropBuffer) {
+              const quality = detection.cropQuality ?? 0;
+              if (!existing.crops) {
+                existing.crops = [];
+              }
+              existing.crops.push({
+                buffer: detection.cropBuffer,
+                quality,
+                timestamp: frame.frameTimestamp,
+              });
+              existing.crops.sort((a, b) => b.quality - a.quality);
+              existing.crops = existing.crops.slice(0, 3);
+
+              // Update best crop
+              if (quality > existing.bestCropQuality) {
+                existing.bestCrop = detection.cropBuffer;
+                existing.bestCropQuality = quality;
+              }
+            }
+
+            // Update average HSV representation
+            if (detection.avg_hsv && detection.avg_hsv.some(v => v > 0)) {
+              existing.avg_hsv = detection.avg_hsv;
+            }
+
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
+          const initialCrops: TrackedCrop[] = [];
+          if (detection.cropBuffer) {
+            initialCrops.push({
+              buffer: detection.cropBuffer,
+              quality: detection.cropQuality ?? 0,
+              timestamp: frame.frameTimestamp,
+            });
+          }
+
+          tracked.push({
+            trackingId: `trk_${crypto.randomUUID().slice(0, 8)}`,
+            bestCrop: detection.cropBuffer || null,
+            bestCropQuality: detection.cropQuality ?? 0,
+            bestBox: detection.box,
+            frameTimestamps: [frame.frameTimestamp],
+            frameAppearances: 1,
+            yoloLabel: detection.label,
+            bestConfidence: detection.confidence,
+            mergedOcrText: "",
+            mergedLogos: [],
+            mergedBarcodes: [],
+            crops: initialCrops,
+            avg_hsv: detection.avg_hsv || [0, 0, 0],
+          });
+        }
+      }
+    }
+
+    return {
+      tracked,
+      metrics: {
+        latencyMs: Date.now() - startTime,
+        success: true,
+        metadata: { tracker: "enhanced", trackedCount: tracked.length },
+      },
+    };
+  }
+
+  filter(tracked: TrackedObject[]): { filtered: TrackedObject[]; metrics: StageMetrics } {
+    const startTime = Date.now();
+    const filtered = tracked.filter((obj) => {
+      // Keep if appears in >=2 frames OR has high single-frame confidence
+      if (obj.frameAppearances >= 2) return true;
+      if (obj.bestConfidence >= 0.7) return true;
+      return false;
+    });
+
+    return {
+      filtered,
+      metrics: {
+        latencyMs: Date.now() - startTime,
+        success: true,
+        metadata: { filteredCount: filtered.length },
+      },
+    };
+  }
+}
+
+// ─── Backward Compatibility Exports ──────────────────────────────────────────
+
+export function fuseFrameDetections(frames: FrameDetection[]): TrackedObject[] {
+  const tracker = new ClassicalTracker();
+  const { tracked } = tracker.fuse(frames);
   return tracked;
 }
 
-/**
- * Filter tracked objects: only keep objects that appear in ≥2 frames
- * OR have high single-frame confidence (≥ 0.7).
- */
 export function filterTrackedObjects(tracked: TrackedObject[]): TrackedObject[] {
-  return tracked.filter((obj) => {
-    if (obj.frameAppearances >= 2) return true;
-    if (obj.bestConfidence >= 0.7) return true;
-    console.log(`  └─ Filtered out: "${obj.yoloLabel}" (${obj.frameAppearances} frame, conf=${obj.bestConfidence.toFixed(2)})`);
-    return false;
-  });
+  const tracker = new ClassicalTracker();
+  const { filtered } = tracker.filter(tracked);
+  return filtered;
 }

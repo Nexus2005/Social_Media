@@ -12,15 +12,19 @@
  */
 
 import { EBayProvider } from "./eBayProvider";
-import { AliExpressProvider } from "./aliexpressProvider";
+// AliExpress removed for Phase 1 — eBay is the sole marketplace provider
 import { MarketplaceProduct, MarketplaceProvider } from "./types";
 import prisma from "../prisma";
 
 export class SearchManager {
+  // Phase 1: eBay exclusive — AliExpress removed for speed & reliability
   private static providers: MarketplaceProvider[] = [
     new EBayProvider(),
-    new AliExpressProvider(),
   ];
+
+  // In-memory query deduplication to prevent duplicate eBay API calls within a single pipeline run
+  private static activeQueries = new Map<string, Promise<MarketplaceProduct[]>>();
+
 
   // Token intersection similarity (Jaccard)
   private static getTitleSimilarity(str1: string, str2: string): number {
@@ -67,9 +71,9 @@ export class SearchManager {
 
       if (!cache) return null;
 
-      // 6-hour TTL check
+      // 24-hour TTL check
       const ageMs = Date.now() - new Date(cache.updatedAt).getTime();
-      if (ageMs > 6 * 60 * 60 * 1000) {
+      if (ageMs > 24 * 60 * 60 * 1000) {
         console.log(`[SearchCache] Expired cached results for query: "${query}" on ${marketplace}`);
         return null;
       }
@@ -134,7 +138,8 @@ export class SearchManager {
 
   /**
    * Search all marketplace providers for a single query.
-   * Returns raw results (unverified).
+   * Returns raw results (unverified). Uses in-flight deduplication to avoid
+   * calling eBay twice for the same query within a single pipeline run.
    */
   static async search(
     query: string,
@@ -151,32 +156,50 @@ export class SearchManager {
     const currency = options?.currency || "USD";
     const language = options?.language || "en";
 
-    // Search all providers IN PARALLEL
-    const results = await Promise.all(
-      this.providers.map(async (provider) => {
-        try {
-          // Check DB Cache first
-          const cached = await this.getCachedResults(query, provider.name, country, currency, language);
-          if (cached) {
-            console.log(`[SearchManager] DB Cache hit for: "${query}" on ${provider.name} (${cached.length} results)`);
-            return cached;
+    // In-flight deduplication: if same query is already being fetched, reuse the promise
+    const dedupeKey = `${query.toLowerCase().trim()}:${country}:${currency}`;
+    const inflight = this.activeQueries.get(dedupeKey);
+    if (inflight) {
+      console.log(`[SearchManager] In-flight dedup hit for: "${query}"`);
+      return inflight;
+    }
+
+    const fetchPromise = (async () => {
+      // Search all providers IN PARALLEL
+      const results = await Promise.all(
+        this.providers.map(async (provider) => {
+          try {
+            // Check DB Cache first
+            const cached = await this.getCachedResults(query, provider.name, country, currency, language);
+            if (cached) {
+              console.log(`[SearchManager] DB Cache hit for: "${query}" on ${provider.name} (${cached.length} results)`);
+              return cached;
+            }
+
+            const providerResults = await provider.search(query, limit);
+            console.log(`  ├─ ${provider.name}: ${providerResults.length} results`);
+
+            // Cache results (including eBay item IDs for cross-reel reuse)
+            await this.setCachedResults(query, provider.name, providerResults, country, currency, language);
+            return providerResults;
+          } catch (err) {
+            console.error(`  ├─ ${provider.name}: FAILED`, err);
+            return [] as MarketplaceProduct[];
           }
+        }),
+      );
 
-          const providerResults = await provider.search(query, limit);
-          console.log(`  ├─ ${provider.name}: ${providerResults.length} results`);
+      return results.flat();
+    })();
 
-          // Cache results
-          await this.setCachedResults(query, provider.name, providerResults, country, currency, language);
-          return providerResults;
-        } catch (err) {
-          console.error(`  ├─ ${provider.name}: FAILED`, err);
-          return [] as MarketplaceProduct[];
-        }
-      }),
-    );
-
-    return results.flat();
+    this.activeQueries.set(dedupeKey, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.activeQueries.delete(dedupeKey);
+    }
   }
+
 
   /**
    * Search multiple queries across all providers IN PARALLEL.
@@ -299,5 +322,13 @@ export class SearchManager {
       console.error(`[SearchManager] getItemDetails failed for ${merchant}/${itemId}:`, err);
       return null;
     }
+  }
+
+  /**
+   * Clear in-flight query deduplication map.
+   * Call at the start of each pipeline run.
+   */
+  static clearActiveQueries(): void {
+    this.activeQueries.clear();
   }
 }

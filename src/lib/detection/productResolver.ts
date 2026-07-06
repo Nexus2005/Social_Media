@@ -1,18 +1,21 @@
 /**
- * Cartly v3 — Multi-Query Product Resolver
+ * Cartly v3 — Multi-Query Product Resolver (Phase 1)
  *
  * Generates 4 query variants from detection evidence (most specific → broadest).
  * All queries are searched in parallel. The Verification Engine picks the winner.
  *
- * Example for a Nike Air Max shoe:
- *   1. "Nike Air Max SYSTM White Blue Running Shoes"  (specific)
- *   2. "Nike Air Max White"                            (brand + model + color)
- *   3. "White Running Shoes Nike"                      (color + category + brand)
- *   4. "Running Shoes"                                 (category only fallback)
+ * Phase 1 Enhancement: Now incorporates video captions, hashtags, and
+ * creator tags alongside YOLO, OCR, and logo evidence.
+ *
+ * Example for a Nike Air Max shoe in a reel with #adidas #football:
+ *   1. "Adidas Predator White Football Boots"   (brand from hashtag + color + category)
+ *   2. "Adidas White Football Boots"             (brand + color + category)
+ *   3. "White Football Boots"                    (color + category)
+ *   4. "Football Boots"                          (category only fallback)
  *
  * Key design decisions:
- * - No BARCODE_REGISTRY — resolve via evidence only
- * - Logo/brand from detection pipeline is primary signal
+ * - Video captions/hashtags can override or supplement logo-detected brands
+ * - Hashtag brands take priority when no logo was detected
  * - OCR model codes are included verbatim (e.g., "S24", "A15")
  * - Query quality score (0-1) measures specificity
  */
@@ -67,6 +70,59 @@ const LABEL_TO_CATEGORY: Record<string, string> = {
   cosmetics: "Cosmetics", "gaming console": "Gaming Console",
 };
 
+// ─── Hashtag / Caption Parsing ───────────────────────────────────────────
+
+// Known fashion/product brands to detect in hashtags and captions
+const KNOWN_BRANDS = new Set([
+  "nike", "adidas", "puma", "reebok", "converse", "vans", "newbalance",
+  "gucci", "prada", "chanel", "louisvuitton", "lv", "hermes", "dior", "versace",
+  "zara", "hm", "uniqlo", "gap", "levis", "tommy", "calvin", "armani",
+  "samsung", "apple", "sony", "bose", "jbl", "beats", "xiaomi", "oneplus",
+  "rolex", "casio", "seiko", "omega", "tissot", "fossil",
+  "rayban", "oakley", "carrera",
+  "supreme", "offwhite", "balenciaga", "yeezy", "jordan",
+  "underarmour", "northface", "patagonia", "columbia",
+]);
+
+// Product-relevant keywords to extract from captions
+const PRODUCT_KEYWORDS = new Set([
+  "football", "soccer", "running", "basketball", "tennis", "gym", "training",
+  "vintage", "retro", "classic", "limited", "edition", "premium",
+  "leather", "cotton", "silk", "denim", "linen", "wool",
+  "oversized", "slim", "skinny", "loose", "cropped",
+  "streetwear", "casual", "formal", "sporty", "athletic",
+]);
+
+function extractBrandsFromHashtags(hashtags: string[]): string[] {
+  const found: string[] = [];
+  for (const tag of hashtags) {
+    const clean = tag.replace(/^#/, "").toLowerCase().trim();
+    if (KNOWN_BRANDS.has(clean)) {
+      // Capitalize properly
+      found.push(clean.charAt(0).toUpperCase() + clean.slice(1));
+    }
+  }
+  return [...new Set(found)];
+}
+
+function extractProductKeywordsFromCaption(caption: string): string[] {
+  if (!caption) return [];
+  const words = caption.toLowerCase().split(/[\s#@,.:;!?]+/).filter(Boolean);
+  const found: string[] = [];
+  for (const word of words) {
+    if (PRODUCT_KEYWORDS.has(word)) {
+      found.push(word.charAt(0).toUpperCase() + word.slice(1));
+    }
+  }
+  return [...new Set(found)];
+}
+
+function extractHashtagBrands(captionText: string): string[] {
+  // Extract all #hashtags from caption text
+  const hashtags = captionText.match(/#[\w]+/g) || [];
+  return extractBrandsFromHashtags(hashtags);
+}
+
 // ─── OCR Cleaning ─────────────────────────────────────────────────────────────
 
 const SKIP_WORDS = new Set([
@@ -94,15 +150,23 @@ function cleanOcrForQuery(text: string, brand: string | null): string {
     .join(" ");
 }
 
-// ─── Query Generation ─────────────────────────────────────────────────────────
+// ─── Query Generation ───────────────────────────────────────────────────────
 
 /**
- * Generate 4 search query variants from detection evidence.
- * Returns queries from most specific to broadest.
+ * Generate search query variants from detection evidence + video context.
+ *
+ * @param evidence - Detection evidence from the crop analysis pipeline
+ * @param captionText - Optional video caption/description (may contain hashtags)
+ * @param hashtags - Optional array of hashtags from the video post
+ * @returns Queries from most specific to broadest
  */
-export function resolveQueries(evidence: CropEvidence): ResolverResult {
+export function resolveQueries(
+  evidence: CropEvidence,
+  captionText?: string,
+  hashtags?: string[],
+): ResolverResult {
   // Extract fields with normalization
-  const brand = evidence.brand || evidence.logo || null;
+  const logoBrand = evidence.brand || evidence.logo || null;
   const category = LABEL_TO_CATEGORY[evidence.yoloLabel.toLowerCase()] || evidence.yoloLabel;
   const subcategory = evidence.subcategory && evidence.subcategory !== "none" && evidence.subcategory !== "unknown" ? evidence.subcategory : null;
   const gender = evidence.gender && evidence.gender !== "none" && evidence.gender !== "unknown" ? evidence.gender : null;
@@ -112,13 +176,42 @@ export function resolveQueries(evidence: CropEvidence): ResolverResult {
   const sleeve = evidence.sleeve && evidence.sleeve !== "none" && evidence.sleeve !== "unknown" ? evidence.sleeve : null;
   const fit = evidence.fit && evidence.fit !== "none" && evidence.fit !== "unknown" ? evidence.fit : null;
   const pattern = evidence.pattern && evidence.pattern !== "none" && evidence.pattern !== "unknown" ? evidence.pattern : null;
-  const cleanedOcr = cleanOcrForQuery(evidence.ocrText, brand);
+  const cleanedOcr = cleanOcrForQuery(evidence.ocrText, logoBrand);
+
+  // ── Enrich brand from video context (captions & hashtags) ─────────────────
+  let brand = logoBrand;
+  const captionKeywords: string[] = [];
+
+  // Extract brands from hashtags
+  if (hashtags && hashtags.length > 0) {
+    const hashtagBrands = extractBrandsFromHashtags(hashtags);
+    if (!brand && hashtagBrands.length > 0) {
+      brand = hashtagBrands[0]; // Use first detected brand from hashtags
+      console.log(`[ProductResolver] Brand from hashtag: "${brand}"`);
+    }
+  }
+
+  // Extract brands and keywords from caption text
+  if (captionText) {
+    const captionBrands = extractHashtagBrands(captionText);
+    if (!brand && captionBrands.length > 0) {
+      brand = captionBrands[0];
+      console.log(`[ProductResolver] Brand from caption hashtag: "${brand}"`);
+    }
+
+    // Extract product-relevant keywords from caption
+    const keywords = extractProductKeywordsFromCaption(captionText);
+    captionKeywords.push(...keywords);
+    if (keywords.length > 0) {
+      console.log(`[ProductResolver] Caption keywords: ${keywords.join(", ")}`);
+    }
+  }
 
   const productType = subcategory || category;
 
   const queries: string[] = [];
 
-  // ── Query 1: Most specific (gender + color + fit + pattern + neckline + sleeve + material + productType + brand + OCR) ──
+  // ── Query 1: Most specific (gender + color + fit + pattern + neckline + sleeve + material + productType + brand + OCR + caption keywords) ──
   const q1Parts: string[] = [];
   if (gender) q1Parts.push(gender);
   if (color) q1Parts.push(color);
@@ -130,6 +223,12 @@ export function resolveQueries(evidence: CropEvidence): ResolverResult {
   if (brand) q1Parts.push(brand);
   q1Parts.push(productType);
   if (cleanedOcr) q1Parts.push(cleanedOcr);
+  // Add up to 2 caption keywords for extra specificity
+  for (const kw of captionKeywords.slice(0, 2)) {
+    if (!q1Parts.some(p => p.toLowerCase() === kw.toLowerCase())) {
+      q1Parts.push(kw);
+    }
+  }
 
   const specific = dedup(q1Parts).join(" ");
   if (specific.length >= 3) queries.push(specific);
@@ -172,9 +271,13 @@ export function resolveQueries(evidence: CropEvidence): ResolverResult {
   if (fit || pattern) quality += 0.15;
   if (material) quality += 0.10;
   if (subcategory) quality += 0.15;
+  if (captionKeywords.length > 0) quality += 0.05;
   quality = Math.min(1.0, quality);
 
   console.log(`[ProductResolver] Evidence: brand="${brand}" gender="${gender}" neckline="${neckline}" sleeve="${sleeve}" fit="${fit}" pattern="${pattern}" color="${color}" category="${category}"`);
+  if (captionKeywords.length > 0) {
+    console.log(`[ProductResolver] Caption context: ${captionKeywords.join(", ")}`);
+  }
   console.log(`[ProductResolver] Queries (${queries.length}): ${queries.map(q => `"${q}"`).join(" → ")}`);
   console.log(`[ProductResolver] Query quality: ${quality.toFixed(2)}`);
 
@@ -194,3 +297,34 @@ function dedup(words: string[]): string[] {
     return true;
   });
 }
+
+import { IProductResolver, ResolutionResult } from "./interfaces";
+import { calculateVerificationConfidence } from "../marketplace/verificationEngine";
+import { VerifiedMatch } from "../marketplace/types";
+import { PluginRegistry } from "./pluginRegistry";
+
+export class ProductResolverPlugin implements IProductResolver {
+  async resolve(
+    evidence: CropEvidence,
+    results: VerifiedMatch[],
+    crops: Buffer[],
+  ): Promise<ResolutionResult> {
+    const startTime = Date.now();
+    const bestMatch = results.length > 0 ? results[0] : null;
+    const confidenceScore = bestMatch ? calculateVerificationConfidence(evidence, bestMatch) : 0.0;
+    const threshold = PluginRegistry.getVerifyThreshold();
+    const isGeminiNeeded = !bestMatch || confidenceScore < threshold;
+
+    return {
+      resolvedMatch: bestMatch,
+      confidenceScore,
+      isGeminiNeeded,
+      metrics: {
+        latencyMs: Date.now() - startTime,
+        success: true,
+        metadata: { confidenceScore, threshold, isGeminiNeeded },
+      },
+    };
+  }
+}
+

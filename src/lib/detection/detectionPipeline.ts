@@ -1,23 +1,26 @@
 /**
- * Cartly v3 — Detection Pipeline
+ * Cartly v3 — Detection Pipeline (Phase 1)
  *
- * Per-crop processing pipeline with reordered stages:
- *   1. Crop Quality Filter → skip bad crops
- *   2. Brand/Logo Detection → identify brand FIRST
- *   3. OCR (informed by known brand) → find model numbers
- *   4. Barcode (bonus only) → near-certain if found
- *   5. Visual Attributes (color, shape)
- *   6. Confidence Scoring (visual-first, barcode bonus)
+ * Per-crop processing pipeline with confidence gating and selective OCR:
+ *   1. Confidence Gating (< 0.45 → reject, 0.45–0.65 → needs evidence, ≥ 0.65 → direct)
+ *   2. Crop Quality Filter → skip bad crops
+ *   3. Brand/Logo Detection → identify brand FIRST
+ *   4. Selective OCR (only on text-benefiting categories)
+ *   5. Barcode (bonus only) → near-certain if found
+ *   6. Visual Attributes (color, shape)
+ *   7. Confidence Scoring (visual-first, barcode bonus)
  *
  * Key design decisions:
+ * - Confidence gating saves API calls by rejecting low-confidence detections early
+ * - OCR only runs on categories that benefit from text recognition (shoes, watches, phones, electronics, bottles)
  * - Logo detection runs BEFORE OCR so OCR is brand-informed
  * - Barcode is a bonus signal — no penalty when absent
- * - Confidence weighting: 35% visual, 20% logo, 20% OCR, 15% category, 10% color
  * - Returns detection confidence separate from marketplace confidence
  */
 
 import sharp from "sharp";
 import { assessCropQuality, CropQualityResult } from "./cropQualityFilter";
+import { IObjectDetector, YoloDetection, StageMetrics } from "./interfaces";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,30 +80,102 @@ export interface PipelineResult {
 
 const CV_SERVICE_URL = "http://localhost:5000";
 
-interface YoloDetection {
-  box: number[];
-  label: string;
-  confidence: number;
+export class OpenImagesDetector implements IObjectDetector {
+  async detect(frameBuffer: Buffer): Promise<{ detections: YoloDetection[]; metrics: StageMetrics }> {
+    const startTime = Date.now();
+    try {
+      const response = await fetch(`${CV_SERVICE_URL}/detect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: frameBuffer.toString("base64"),
+          provider: "openimages"
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`YOLO OpenImages detection failed with status ${response.status}`);
+      }
+
+      const body = await response.json();
+      if (body.debug?.debug_log_str) {
+        console.log(body.debug.debug_log_str);
+      }
+
+      return {
+        detections: (body.objects || []) as YoloDetection[],
+        metrics: {
+          latencyMs: Date.now() - startTime,
+          success: true,
+          metadata: { provider: "openimages", count: body.objects?.length || 0 }
+        }
+      };
+    } catch (err: any) {
+      console.warn("[OpenImagesDetector] failed:", err);
+      return {
+        detections: [],
+        metrics: {
+          latencyMs: Date.now() - startTime,
+          success: false,
+          metadata: { provider: "openimages", error: err.message }
+        }
+      };
+    }
+  }
+}
+
+export class FashionpediaDetector implements IObjectDetector {
+  async detect(frameBuffer: Buffer): Promise<{ detections: YoloDetection[]; metrics: StageMetrics }> {
+    const startTime = Date.now();
+    try {
+      const response = await fetch(`${CV_SERVICE_URL}/detect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: frameBuffer.toString("base64"),
+          provider: "fashionpedia"
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`YOLO Fashionpedia detection failed with status ${response.status}`);
+      }
+
+      const body = await response.json();
+      if (body.debug?.debug_log_str) {
+        console.log(body.debug.debug_log_str);
+      }
+
+      return {
+        detections: (body.objects || []) as YoloDetection[],
+        metrics: {
+          latencyMs: Date.now() - startTime,
+          success: true,
+          metadata: { provider: "fashionpedia", count: body.objects?.length || 0 }
+        }
+      };
+    } catch (err: any) {
+      console.warn("[FashionpediaDetector] failed:", err);
+      return {
+        detections: [],
+        metrics: {
+          latencyMs: Date.now() - startTime,
+          success: false,
+          metadata: { provider: "fashionpedia", error: err.message }
+        }
+      };
+    }
+  }
 }
 
 /**
- * Run YOLO detection on a full frame. Returns all shoppable objects detected.
+ * Run YOLO detection on a full frame. Returns all shoppable objects detected (Default OpenImages implementation).
  */
 export async function detectObjectsInFrame(frameBuffer: Buffer): Promise<YoloDetection[]> {
   try {
-    const response = await fetch(`${CV_SERVICE_URL}/detect`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: frameBuffer.toString("base64") }),
-    });
-
-    if (!response.ok) {
-      console.warn(`[DetectionPipeline] YOLO detection failed: ${response.status}`);
-      return [];
-    }
-
-    const body = await response.json();
-    return (body.objects || []) as YoloDetection[];
+    const detector = new OpenImagesDetector();
+    const { detections } = await detector.detect(frameBuffer);
+    return detections;
   } catch (error) {
     console.warn("[DetectionPipeline] CV service unavailable for YOLO:", error);
     return [];
@@ -121,10 +196,16 @@ export async function cropObjectFromFrame(
     const width = metadata.width || 1;
     const height = metadata.height || 1;
 
-    const left = Math.max(0, Math.round(x1));
-    const top = Math.max(0, Math.round(y1));
-    const cropWidth = Math.max(1, Math.min(Math.round(x2 - x1), width - left));
-    const cropHeight = Math.max(1, Math.min(Math.round(y2 - y1), height - top));
+    // Pad by 15% of width/height on each side to avoid clipping sleeves or shoes
+    const w = x2 - x1;
+    const h = y2 - y1;
+    const padX = w * 0.15;
+    const padY = h * 0.15;
+
+    const left = Math.max(0, Math.round(x1 - padX));
+    const top = Math.max(0, Math.round(y1 - padY));
+    const cropWidth = Math.max(1, Math.min(Math.round(x2 + padX - left), width - left));
+    const cropHeight = Math.max(1, Math.min(Math.round(y2 + padY - top), height - top));
 
     return await image
       .extract({ left, top, width: cropWidth, height: cropHeight })
@@ -136,11 +217,65 @@ export async function cropObjectFromFrame(
   }
 }
 
+// ─── Confidence Gating Thresholds ─────────────────────────────────────────────
+
+const CONFIDENCE_REJECT = 0.25;    // Lowered to match the specialized fashion model
+const CONFIDENCE_NEEDS_EVIDENCE = 0.55; // Lowered to align with the better model
+
+// ─── Selective OCR Categories ─────────────────────────────────────────────────
+// OCR is slow. Only run it on categories that benefit from text recognition.
+
+const OCR_BENEFICIAL_CATEGORIES = new Set([
+  // Footwear (model numbers, brand names on sole/tongue)
+  "shoe", "shoes", "sneaker", "sneakers", "boot", "boots",
+  // Watches (brand names, model)
+  "watch", "smartwatch",
+  // Electronics (model numbers, specs)
+  "phone", "cell phone", "laptop", "tablet", "keyboard", "camera", "headphones",
+  // Drinkware (brand names)
+  "bottle", "cup", "mug",
+  // Bags with logos
+  "handbag", "backpack", "bag",
+  // Eyewear with brand names
+  "sunglasses", "glasses",
+]);
+
+// Wearable fashion items that should bypass the evidence check (logo/OCR is not mandatory)
+const FASHION_CATEGORIES = new Set([
+  "clothing", "coat", "dress", "footwear", "jacket", "shirt", "suit", "trousers", "jeans",
+  "pants", "skirt", "sweater", "boot", "sneaker", "shoes", "shoe", "hat", "scarf", "belt",
+  "necklace", "earrings", "glasses", "sunglasses"
+]);
+
+function shouldRunOCR(yoloLabel: string, hasLogo: boolean, yoloConfidence: number): boolean {
+  // Always run OCR if logo was detected (likely has brand text)
+  if (hasLogo) return true;
+
+  // Run OCR on text-benefiting categories
+  if (OCR_BENEFICIAL_CATEGORIES.has(yoloLabel.toLowerCase())) return true;
+
+  // High-confidence detections on any category: skip OCR to save time
+  if (yoloConfidence >= 0.80) return false;
+
+  // For medium-confidence detections, OCR might help identify the product
+  if (yoloConfidence >= CONFIDENCE_NEEDS_EVIDENCE) return false;
+
+  return false;
+}
+
 // ─── Per-Crop Evidence Collection ─────────────────────────────────────────────
 
 /**
  * Run the complete evidence collection pipeline on a single crop.
- * Order: Quality → Logo → OCR → Barcode → Attributes
+ *
+ * Confidence Gating:
+ *   < 0.45 → Reject (don't waste API calls)
+ *   0.45–0.65 → Needs logo or OCR evidence to proceed
+ *   ≥ 0.65 → Direct marketplace search
+ *
+ * Selective OCR: Only runs on categories that benefit from text recognition.
+ *
+ * Order: Gating → Quality → Logo → OCR (selective) → Barcode → Attributes
  */
 export async function collectCropEvidence(
   cropBuffer: Buffer,
@@ -148,6 +283,22 @@ export async function collectCropEvidence(
   yoloConfidence: number,
   frameAppearances: number,
 ): Promise<PipelineResult | null> {
+  // ── Step 0: Confidence Gating ─────────────────────────────────────────────
+  if (yoloConfidence < CONFIDENCE_REJECT) {
+    console.log(`  ├─ REJECT: YOLO confidence ${yoloConfidence.toFixed(2)} < ${CONFIDENCE_REJECT} threshold for "${yoloLabel}"`);
+    return null;
+  }
+
+  const needsEvidence = yoloConfidence < CONFIDENCE_NEEDS_EVIDENCE;
+  const isFashion = FASHION_CATEGORIES.has(yoloLabel.toLowerCase());
+  if (needsEvidence) {
+    if (isFashion) {
+      console.log(`  ├─ GATED: YOLO confidence ${yoloConfidence.toFixed(2)} for fashion item "${yoloLabel}" (bypassing evidence requirements)`);
+    } else {
+      console.log(`  ├─ GATED: YOLO confidence ${yoloConfidence.toFixed(2)} (needs logo/OCR evidence to proceed)`);
+    }
+  }
+
   const base64Crop = cropBuffer.toString("base64");
 
   // ── Step 1: Crop Quality Filter ───────────────────────────────────────────
@@ -175,33 +326,55 @@ export async function collectCropEvidence(
     // Logo detection unavailable — continue without it
   }
 
-  // ── Step 3: OCR (informed by known brand) ─────────────────────────────────
+  // ── Step 2b: Evidence Gate Check ───────────────────────────────────────────
+  // For low-confidence detections, reject if no logo was found (unless it is fashion)
+  if (needsEvidence && !logo && !isFashion) {
+    // Still allow if we detect OCR text in a beneficial category
+    if (!OCR_BENEFICIAL_CATEGORIES.has(yoloLabel.toLowerCase())) {
+      console.log(`  ├─ REJECT: Low confidence (${yoloConfidence.toFixed(2)}) + no logo + non-OCR category "${yoloLabel}"`);
+      return null;
+    }
+  }
+
+  // ── Step 3: Selective OCR (informed by known brand) ───────────────────────
   let ocrText = "";
   let meaningfulOcrWords = 0;
   let ocrPreview = "";
-  try {
-    const ocrResponse = await fetch(`${CV_SERVICE_URL}/ocr-crop`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64Crop, knownBrand: logo }),
-    });
-    if (ocrResponse.ok) {
-      const ocrResult = await ocrResponse.json();
-      ocrText = ocrResult.text || "";
 
-      // Count meaningful words (exclude generic/noise words)
-      const genericWords = new Set([
-        "the", "and", "for", "with", "made", "in", "by", "of", "a", "an",
-        "to", "is", "it", "or", "at", "on", "no", "be", "do",
-      ]);
-      const words = ocrText.split(/\s+/).filter((w: string) => w.length > 2);
-      meaningfulOcrWords = words.filter(
-        (w: string) => !genericWords.has(w.toLowerCase()),
-      ).length;
-      ocrPreview = words.slice(0, 4).join(" ");
+  if (shouldRunOCR(yoloLabel, !!logo, yoloConfidence)) {
+    try {
+      const ocrResponse = await fetch(`${CV_SERVICE_URL}/ocr-crop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64Crop, knownBrand: logo }),
+      });
+      if (ocrResponse.ok) {
+        const ocrResult = await ocrResponse.json();
+        ocrText = ocrResult.text || "";
+
+        // Count meaningful words (exclude generic/noise words)
+        const genericWords = new Set([
+          "the", "and", "for", "with", "made", "in", "by", "of", "a", "an",
+          "to", "is", "it", "or", "at", "on", "no", "be", "do",
+        ]);
+        const words = ocrText.split(/\s+/).filter((w: string) => w.length > 2);
+        meaningfulOcrWords = words.filter(
+          (w: string) => !genericWords.has(w.toLowerCase()),
+        ).length;
+        ocrPreview = words.slice(0, 4).join(" ");
+      }
+    } catch {
+      // OCR unavailable — continue without it
     }
-  } catch {
-    // OCR unavailable — continue without it
+  } else {
+    console.log(`  ├─ OCR skipped: category "${yoloLabel}" does not benefit from text recognition`);
+  }
+
+  // ── Step 3b: Final Evidence Gate Check ─────────────────────────────────────
+  // For gated detections: reject if we have neither logo nor OCR text (unless it is fashion)
+  if (needsEvidence && !logo && meaningfulOcrWords === 0 && !isFashion) {
+    console.log(`  ├─ REJECT: Gated detection (${yoloConfidence.toFixed(2)}) with no logo and no OCR evidence`);
+    return null;
   }
 
   // ── Step 4: Barcode Detection (bonus only) ────────────────────────────────
@@ -264,7 +437,8 @@ export async function collectCropEvidence(
   const confidence = calculateDetectionConfidence(evidence);
 
   // Log evidence summary
-  console.log(`  ├─ Evidence: logo="${logo || "(none)"}" ocr="${ocrPreview || "(none)"}" barcode="${barcode || "(none)"}" color="${colorDetected || "(none)"}" quality=${cropQuality.score.toFixed(2)}`);
+  const ocrStatus = shouldRunOCR(yoloLabel, !!logo, yoloConfidence) ? `ocr="${ocrPreview || "(none)"}"` : "ocr=SKIPPED";
+  console.log(`  ├─ Evidence: logo="${logo || "(none)"}" ${ocrStatus} barcode="${barcode || "(none)"}" color="${colorDetected || "(none)"}" quality=${cropQuality.score.toFixed(2)}`);
   console.log(`  ├─ Detection confidence: ${confidence.detection.toFixed(2)} — ${confidence.detectionReasons.join(" | ")}`);
 
   return {
@@ -295,7 +469,7 @@ function calculateDetectionConfidence(evidence: CropEvidence): DetectionConfiden
   const reasons: string[] = [];
 
   // ── Visual (35 max) ─────────────────────────────────────────────────────
-  if (evidence.yoloConfidence > 0.5) {
+  if (evidence.yoloConfidence >= CONFIDENCE_REJECT) {
     const visualPoints = Math.round(evidence.yoloConfidence * 20); // up to 20
     score += visualPoints;
     reasons.push(`YOLO: "${evidence.yoloLabel}" conf=${evidence.yoloConfidence.toFixed(2)} (+${visualPoints})`);
@@ -362,7 +536,7 @@ const SHOPPABLE_LABELS = new Set([
   "sports ball", "tennis racket", "skateboard", "surfboard",
   "snowboard", "skis", "bicycle", "motorcycle",
   // VLM-detected categories (not in COCO but detected by Gemini)
-  "shoe", "shoes", "sneaker", "sneakers", "boot", "boots", "sandal", "sandals",
+  "clothing", "shoe", "shoes", "sneaker", "sneakers", "boot", "boots", "sandal", "sandals",
   "shirt", "t-shirt", "top", "dress", "jacket", "coat", "hoodie", "sweater",
   "jeans", "pants", "shorts", "skirt", "suit",
   "watch", "smartwatch", "sunglasses", "glasses",

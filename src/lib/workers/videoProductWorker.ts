@@ -54,9 +54,13 @@ import {
 import { assessCropQuality } from "../detection/cropQualityFilter";
 import { mergeProducts, MergedProduct } from "../detection/duplicateMerger";
 import { selectBestMatch } from "../detection/productKnowledgeGraph";
-import { verifyMarketplaceResults, isVerificationSufficient } from "../marketplace/verificationEngine";
+import { verifyMarketplaceResults, isVerificationSufficient, calculateVerificationConfidence } from "../marketplace/verificationEngine";
 import { cleanMarketplaceTitle } from "../marketplace/titleCleaner";
 import { VerifiedMatch, MarketplaceProduct } from "../marketplace/types";
+import { PluginRegistry } from "../detection/pluginRegistry";
+import { DiscoveryEngine } from "../detection/discoveryEngine";
+import { LocalizationEngine } from "../detection/localization";
+import { ProductMemoryProvider } from "../detection/productMemory";
 
 // ─── Environment Loading ──────────────────────────────────────────────────────
 
@@ -254,6 +258,22 @@ function getHammingDistance(h1: string, h2: string): number {
   return dist;
 }
 
+function getHighResEbayUrl(url: string): string {
+  if (url && url.includes("i.ebayimg.com")) {
+    return url.replace(/\/s-l\d+\.(jpg|png|jpeg|webp)/i, "/s-l500.$1");
+  }
+  return url;
+}
+
+async function verifyUrlExists(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(3000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function downloadAndCacheGallery(
   matchId: string,
   urls: string[]
@@ -266,29 +286,60 @@ async function downloadAndCacheGallery(
   const uploadedUrls: string[] = [];
   const seenHashes: string[] = [];
 
-  await limitConcurrency(targetUrls, 3, async (url) => {
+  await limitConcurrency(targetUrls, 3, async (originalUrl) => {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      let url = originalUrl;
+      let response = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!response.ok) return;
 
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      // Objective checks via sharp
-      const image = sharp(buffer);
-      const metadata = await image.metadata();
+      let arrayBuffer = await response.arrayBuffer();
+      let buffer = Buffer.from(arrayBuffer);
+      let image = sharp(buffer);
+      let metadata = await image.metadata();
 
       if (!metadata.width || !metadata.height) return;
 
-      // 1. Min resolution check (e.g. 300px width/height)
-      if (metadata.width < 300 || metadata.height < 300) {
-        console.log(`[Sharp] Image ignored: low resolution ${metadata.width}x${metadata.height} for ${url}`);
+      let width = metadata.width;
+      let height = metadata.height;
+
+      let passesStrict = width >= 300 && height >= 300;
+      let passesRelaxed = width >= 100 && height >= 100;
+
+      // 1. eBay URL rewrite fallback if strict fails
+      if (!passesStrict && url.includes("i.ebayimg.com")) {
+        const highResUrl = getHighResEbayUrl(url);
+        if (highResUrl !== url && await verifyUrlExists(highResUrl)) {
+          const highResResponse = await fetch(highResUrl, { signal: AbortSignal.timeout(10000) });
+          if (highResResponse.ok) {
+            const hrArrayBuffer = await highResResponse.arrayBuffer();
+            const hrBuffer = Buffer.from(hrArrayBuffer);
+            const hrImage = sharp(hrBuffer);
+            const hrMetadata = await hrImage.metadata();
+            if (hrMetadata.width && hrMetadata.height && hrMetadata.width >= 300 && hrMetadata.height >= 300) {
+              url = highResUrl;
+              response = highResResponse;
+              buffer = hrBuffer;
+              image = hrImage;
+              metadata = hrMetadata;
+              width = hrMetadata.width;
+              height = hrMetadata.height;
+              passesStrict = true;
+            }
+          }
+        }
+      }
+
+      // 2. Reject if it fails relaxed check
+      if (!passesStrict && !passesRelaxed) {
+        console.log(`[Sharp] Image ignored: extremely low resolution ${width}x${height} for ${url}`);
         return;
       }
 
-      // 2. Aspect Ratio check (bounds 0.5 to 2.0)
-      const ratio = metadata.width / metadata.height;
-      if (ratio < 0.5 || ratio > 2.0) {
+      // Aspect Ratio check
+      const ratio = width / height;
+      const minRatio = passesStrict ? 0.5 : 0.3;
+      const maxRatio = passesStrict ? 2.0 : 3.0;
+      if (ratio < minRatio || ratio > maxRatio) {
         console.log(`[Sharp] Image ignored: bad aspect ratio ${ratio.toFixed(2)} for ${url}`);
         return;
       }
@@ -327,7 +378,7 @@ async function downloadAndCacheGallery(
         console.error(`[Supabase Upload Error] ${error.message} for ${url}`);
       }
     } catch (err: any) {
-      console.error(`[Supabase Archiver] Failed to download/process ${url}: ${err.message}`);
+      console.error(`[Supabase Archiver] Failed to download/process ${originalUrl}: ${err.message}`);
     }
   });
 
@@ -337,11 +388,11 @@ async function downloadAndCacheGallery(
   };
 }
 
-async function queryGeminiForCrop(
-  cropBase64: string,
+async function queryGeminiForCrops(
+  cropsBase64: string[],
   evidence: CropEvidence,
 ): Promise<GeminiCropStructuredResult | null> {
-  const promptText = `Analyze this product image and identify exactly what this product is.
+  const promptText = `Analyze the provided product crop image(s) (which show different views/frames of the same item) and identify exactly what this product is.
 You MUST return a JSON object matching this schema:
 {
   "category": "Clothing | Shoes | Bags | Watches | Jewelry | Accessories | Electronics | Furniture | Home | Kitchen | Beauty | Sports",
@@ -365,7 +416,7 @@ Known evidence so far:
 - Color: "${evidence.colorDetected || "unknown"}"`;
 
   try {
-    const result = await VisionProviderManager.analyzeImage(cropBase64, promptText);
+    const result = await VisionProviderManager.analyzeImages(cropsBase64, promptText);
     if (!result) return null;
     let text = typeof result === "string" ? result : JSON.stringify(result);
     text = text.replace(/```json/i, "").replace(/```/g, "").trim();
@@ -472,13 +523,21 @@ async function runVideoProcessor(videoId: string, jobId: string) {
     extractedFrames = await extractFramesFromVideo(tempVideoPath);
     console.log(`  ├─ ${extractedFrames.length} frames extracted`);
 
-    // ── Stage 4: YOLO Detection on each frame ───────────────────────
+    // ── Stage 4: Pluggable YOLO Detection on each frame ─────────────
     console.log(`[Stage 4] Running YOLO detection on ${extractedFrames.length} frames...`);
     const frameDetections: FrameDetection[] = [];
 
+    // Dynamic modular plugins initialization
+    const yoloDetector = PluginRegistry.getDetector();
+    const tracker = PluginRegistry.getTracker();
+    const visualMatcher = PluginRegistry.getVisualMatcher();
+    const productResolver = PluginRegistry.getProductResolver();
+    const marketplaceMatcher = PluginRegistry.getMarketplaceMatcher();
+
     for (const frame of extractedFrames) {
       const frameBuffer = await fs.promises.readFile(frame.path);
-      const objects = await detectObjectsInFrame(frameBuffer);
+      // Pluggable detector call
+      const { detections: objects } = await yoloDetector.detect(frameBuffer);
 
       // Crop each detected object
       const detectedObjects = [];
@@ -503,6 +562,7 @@ async function runVideoProcessor(videoId: string, jobId: string) {
           confidence: obj.confidence,
           cropBuffer: cropBuffer || undefined,
           cropQuality,
+          avg_hsv: obj.avg_hsv,
         });
       }
 
@@ -518,16 +578,180 @@ async function runVideoProcessor(videoId: string, jobId: string) {
 
     // ── Stage 5: Frame Fusion ───────────────────────────────────────
     console.log(`[Stage 5] Frame fusion — tracking objects across frames...`);
-    let trackedObjects = fuseFrameDetections(frameDetections);
-    trackedObjects = filterTrackedObjects(trackedObjects);
+    const { tracked: fusedTracked } = tracker.fuse(frameDetections);
+    let trackedObjects = tracker.filter(fusedTracked).filtered;
     console.log(`  ├─ ${trackedObjects.length} unique tracked objects after fusion`);
 
-    // ── Stages 6-11: Per-Crop Evidence Collection ───────────────────
-    console.log(`[Stages 6-11] Running per-crop evidence pipeline...`);
+    // ── Stage 5b: Discovery Engine (Adaptive Keyframes & Gemini VLM) ──
+    console.log(`[Stage 5b] Discovery Engine — running adaptive VLM frame discovery...`);
+    const duration = extractedFrames.length; // 1 fps
+    const selectedFrames = await DiscoveryEngine.selectAdaptiveKeyframes(extractedFrames, frameDetections, duration);
+    
+    const vlmDiscoveredObjects: TrackedObject[] = [];
     const evidenceMap = new Map<string, CropEvidence>();
     const confidenceMap = new Map<string, number>();
 
+    // Bounding box helper functions
+    function normalizedToPixelBox(box2d: number[], w: number, h: number): [number, number, number, number] {
+      return [
+        Math.round((box2d[1] / 1000) * w),
+        Math.round((box2d[0] / 1000) * h),
+        Math.round((box2d[3] / 1000) * w),
+        Math.round((box2d[2] / 1000) * h)
+      ];
+    }
+
+    function getIoU(boxA: number[], boxB: number[]): number {
+      const xA = Math.max(boxA[0], boxB[0]);
+      const yA = Math.max(boxA[1], boxB[1]);
+      const xB = Math.min(boxA[2], boxB[2]);
+      const yB = Math.min(boxA[3], boxB[3]);
+      const interArea = Math.max(0, xB - xA) * Math.max(0, yB - yA);
+      const boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1]);
+      const boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1]);
+      const unionArea = boxAArea + boxBArea - interArea;
+      return unionArea > 0 ? interArea / unionArea : 0;
+    }
+
+    for (const frame of selectedFrames) {
+      if (!fs.existsSync(frame.path)) continue;
+      const frameBuffer = await fs.promises.readFile(frame.path);
+      const metadata = await sharp(frameBuffer).metadata();
+      const width = metadata.width || 736;
+      const height = metadata.height || 414;
+
+      console.log(`  ├─ Running VLM discovery on Frame @${frame.timestamp}s...`);
+      const discovered = await DiscoveryEngine.discoverProductsFullFrame(frameBuffer, frame.timestamp);
+      geminiCallCount++;
+
+      for (const prod of discovered) {
+        console.log(`  │   ├─ Discovered: "${prod.subcategory}" (${prod.category})`);
+
+        let cropBuf: Buffer | null = null;
+        let pixelBox: [number, number, number, number] = [0, 0, 0, 0];
+
+        if (prod.box_2d) {
+          cropBuf = await LocalizationEngine.cropFromNormalizedBox(frameBuffer, prod.box_2d);
+          pixelBox = normalizedToPixelBox(prod.box_2d, width, height);
+        }
+
+        if (!cropBuf) {
+          cropBuf = frameBuffer;
+        }
+
+        let isDuplicate = false;
+        if (prod.box_2d) {
+          for (const tracked of trackedObjects) {
+            if (tracked.bestBox && tracked.bestBox[2] > 0) {
+              const iou = getIoU(tracked.bestBox, pixelBox);
+              if (iou >= 0.25) {
+                console.log(`  │   │   └─ Duplicate of YOLO tracked object ${tracked.trackingId} (IoU: ${iou.toFixed(2)}) — Merging attributes`);
+                tracked.mergedLogos.push(prod.brand);
+                (tracked as any).vlmAttributes = prod;
+                isDuplicate = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!isDuplicate) {
+          const trackingId = `vlm-${crypto.randomUUID().slice(0, 8)}`;
+          const evidence: CropEvidence = {
+            yoloLabel: prod.category,
+            yoloConfidence: prod.confidence,
+            isShoppableCategory: true,
+            logo: prod.brand !== "none" ? prod.brand : null,
+            logoConfidence: prod.brand !== "none" ? 0.90 : 0,
+            ocrText: "",
+            meaningfulOcrWords: 0,
+            ocrPreview: "",
+            barcode: null,
+            colorDetected: prod.color || "unknown",
+            materialDetected: prod.material || "unknown",
+            shapeCategory: null,
+            frameAppearances: 1,
+            cropQuality: {
+              score: 0.85,
+              pass: true,
+              breakdown: { size: 0.85, blur: 0.85, brightness: 0.85, edges: 0.85 }
+            },
+            gender: prod.gender !== "none" ? prod.gender : undefined,
+            brand: prod.brand !== "none" ? prod.brand : undefined,
+          };
+
+          vlmDiscoveredObjects.push({
+            trackingId,
+            yoloLabel: prod.category,
+            bestConfidence: prod.confidence,
+            bestBox: pixelBox,
+            frameAppearances: 1,
+            frameTimestamps: [frame.timestamp],
+            bestCropQuality: 0.85,
+            bestCrop: cropBuf,
+            mergedLogos: prod.brand !== "none" ? [prod.brand] : [],
+            mergedBarcodes: [],
+            mergedOcrText: "",
+            vlmAttributes: prod,
+          } as any);
+
+          evidenceMap.set(trackingId, evidence);
+          confidenceMap.set(trackingId, prod.confidence);
+        }
+      }
+    }
+
+    trackedObjects = [...trackedObjects, ...vlmDiscoveredObjects];
+    console.log(`  └─ Discovery complete. Total products to process: ${trackedObjects.length}`);
+
+    // ── Stage 5c: Product Memory Lookup ──────────────────────────────
+    console.log(`[Stage 5c] Product Memory Lookup — checking visual fingerprints in memory cache...`);
+    const resolvedMemoryMatches = new Set<string>();
+    const memoryResolvedMap = new Map<string, { evidence: CropEvidence, matches: VerifiedMatch[], confidence: number }>();
+
     for (const tracked of trackedObjects) {
+      if (!tracked.bestCrop) continue;
+
+      const memMatch = await ProductMemoryProvider.findMatch(tracked.bestCrop);
+      if (memMatch.isMatch) {
+        resolvedMemoryMatches.add(tracked.trackingId);
+
+        // Populate maps directly
+        evidenceMap.set(tracked.trackingId, memMatch.evidence);
+        confidenceMap.set(tracked.trackingId, memMatch.confidence);
+
+        const verifiedMatches: VerifiedMatch[] = memMatch.matches.map(m => ({
+          product: m,
+          marketplaceConfidence: 0.95,
+          tier: "exact",
+          breakdown: {
+            titleSimilarity: 1.0,
+            brandMatch: 1.0,
+            colorMatch: 1.0,
+            categoryMatch: 1.0,
+            visualSimilarity: 1.0,
+            priceSanity: 1.0,
+            ocrMatch: 1.0
+          }
+        }));
+
+        memoryResolvedMap.set(tracked.trackingId, {
+          evidence: memMatch.evidence,
+          matches: verifiedMatches,
+          confidence: memMatch.confidence
+        });
+      }
+    }
+
+    // ── Stages 6-11: Per-Crop Evidence Collection ───────────────────
+    console.log(`[Stages 6-11] Running per-crop evidence pipeline...`);
+
+    for (const tracked of trackedObjects) {
+      if (resolvedMemoryMatches.has(tracked.trackingId)) {
+        console.log(`  ├─ ${tracked.trackingId}: Visual match found in product memory — bypassing evidence pipeline`);
+        continue;
+      }
+
       if (!tracked.bestCrop) {
         console.log(`  ├─ ${tracked.trackingId}: No crop available — skipping`);
         continue;
@@ -535,19 +759,34 @@ async function runVideoProcessor(videoId: string, jobId: string) {
 
       console.log(`  ├─ ${tracked.trackingId}: "${tracked.yoloLabel}" × ${tracked.frameAppearances} frames`);
 
+      // If enriched by VLM discovery, we merge VLM attributes into the YOLO label
+      const vlmAttr = (tracked as any).vlmAttributes;
+      const labelToUse = vlmAttr ? vlmAttr.category : tracked.yoloLabel;
+
       const result = await collectCropEvidence(
         tracked.bestCrop,
-        tracked.yoloLabel,
+        labelToUse,
         tracked.bestConfidence,
         tracked.frameAppearances,
       );
 
       if (!result) {
-        // Crop quality filter rejected this crop
         continue;
       }
 
-      // Merge evidence back into tracked object
+      // If we have VLM attributes, let's enrich the collected evidence
+      if (vlmAttr) {
+        result.evidence.brand = vlmAttr.brand !== "none" ? vlmAttr.brand : result.evidence.logo || undefined;
+        result.evidence.subcategory = vlmAttr.subcategory !== "none" ? vlmAttr.subcategory : undefined;
+        result.evidence.gender = vlmAttr.gender !== "none" ? vlmAttr.gender : undefined;
+        result.evidence.colorDetected = vlmAttr.color !== "unknown" ? vlmAttr.color : result.evidence.colorDetected;
+        result.evidence.materialDetected = vlmAttr.material !== "none" ? vlmAttr.material : result.evidence.materialDetected;
+        result.evidence.neckline = vlmAttr.neckline !== "none" ? vlmAttr.neckline : undefined;
+        result.evidence.sleeve = vlmAttr.sleeve !== "none" ? vlmAttr.sleeve : undefined;
+        result.evidence.fit = vlmAttr.fit !== "none" ? vlmAttr.fit : undefined;
+        result.evidence.pattern = vlmAttr.pattern !== "none" ? vlmAttr.pattern : undefined;
+      }
+
       if (result.evidence.logo) tracked.mergedLogos.push(result.evidence.logo);
       if (result.evidence.ocrText) tracked.mergedOcrText = result.evidence.ocrText;
       if (result.evidence.barcode) tracked.mergedBarcodes.push(result.evidence.barcode);
@@ -556,122 +795,12 @@ async function runVideoProcessor(videoId: string, jobId: string) {
       confidenceMap.set(tracked.trackingId, result.confidence.detection);
     }
 
-    // ── VLM Fallback: Run full-frame analysis if no shoppable objects were tracked ──
-    if (evidenceMap.size === 0 && extractedFrames.length > 0) {
-      console.log(`[VLM Fallback] YOLO/Fusion detected 0 shoppable products. Running full-frame Gemini VLM fallback...`);
-      // Select up to 3 frames: first, middle, last
-      const indicesToQuery = [
-        0,
-        Math.floor(extractedFrames.length / 2),
-        extractedFrames.length - 1
-      ].filter((v, i, a) => a.indexOf(v) === i && v < extractedFrames.length);
-
-      for (const idx of indicesToQuery) {
-        const frame = extractedFrames[idx];
-        console.log(`  ├─ Querying Gemini VLM for Frame @${frame.timestamp}s...`);
-        try {
-          const frameBuffer = await fs.promises.readFile(frame.path);
-          const base64Frame = frameBuffer.toString("base64");
-          geminiCallCount++;
-
-          const promptText = `Analyze this image and identify all visible, purchaseable fashion products. Return ONLY a JSON object matching this structure:
-{
-  "products": [
-    {
-      "category": "Clothing | Shoes | Bags | Watches | Jewelry | Accessories | Electronics | Furniture | Home | Kitchen | Beauty | Sports",
-      "subcategory": "specific category (e.g., 'Sneakers', 'T-Shirt', 'Halter Top', 'Hoodie', 'Handbag')",
-      "gender": "Men | Women | Unisex | Kids",
-      "color": "primary color name",
-      "neckline": "e.g., 'Halter Neck', 'V-Neck', 'Crew Neck', 'Asymmetrical', 'none'",
-      "sleeve": "e.g., 'Sleeveless', 'Short Sleeve', 'Long Sleeve', 'none'",
-      "fit": "e.g., 'Slim Fit', 'Loose', 'Oversized', 'Regular', 'none'",
-      "pattern": "e.g., 'Solid', 'Striped', 'Floral', 'Knit', 'none'",
-      "material": "e.g., 'Knit', 'Leather', 'Cotton', 'Mesh', 'Denim', 'none'",
-      "brand": "e.g., 'Nike', 'Adidas', 'Zara', 'none'",
-      "confidence": 0.0 to 1.0 (float)
-    }
-  ]
-}
-
-Only return products a user could realistically purchase online.
-Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.`;
-
-          const response = await VisionProviderManager.analyzeImage(base64Frame, promptText);
-          if (response && Array.isArray(response.products)) {
-            console.log(`  │   └─ VLM found ${response.products.length} products on Frame @${frame.timestamp}s`);
-            for (const prod of response.products) {
-              const desc = prod.subcategory || prod.category || "Clothing";
-              if (desc.toLowerCase() === "none") continue;
-
-              const trackingId = `vlm-${crypto.randomUUID().slice(0, 8)}`;
-              const category = prod.category || "Clothing";
-              const confidence = prod.confidence || 0.85;
-
-              console.log(`  │       ├─ Product: "${desc}" (${category})`);
-
-              // Construct CropEvidence for this VLM product
-              const evidence: CropEvidence = {
-                yoloLabel: category,
-                yoloConfidence: confidence,
-                isShoppableCategory: true,
-                logo: prod.brand && prod.brand !== "none" ? prod.brand : null,
-                logoConfidence: prod.brand && prod.brand !== "none" ? 0.90 : 0,
-                ocrText: "",
-                meaningfulOcrWords: 0,
-                ocrPreview: "",
-                barcode: null,
-                colorDetected: prod.color || "unknown",
-                materialDetected: prod.material || "unknown",
-                shapeCategory: null,
-                frameAppearances: 1,
-                cropQuality: {
-                  score: 0.85,
-                  pass: true,
-                  breakdown: { size: 0.85, blur: 0.85, brightness: 0.85, edges: 0.85 }
-                },
-                // Structured fashion details
-                brand: prod.brand && prod.brand !== "none" ? prod.brand : undefined,
-                subcategory: prod.subcategory && prod.subcategory !== "none" ? prod.subcategory : undefined,
-                gender: prod.gender && prod.gender !== "none" ? prod.gender : undefined,
-                neckline: prod.neckline && prod.neckline !== "none" ? prod.neckline : undefined,
-                sleeve: prod.sleeve && prod.sleeve !== "none" ? prod.sleeve : undefined,
-                fit: prod.fit && prod.fit !== "none" ? prod.fit : undefined,
-                pattern: prod.pattern && prod.pattern !== "none" ? prod.pattern : undefined,
-              };
-
-              // Register in maps
-              evidenceMap.set(trackingId, evidence);
-              confidenceMap.set(trackingId, confidence);
-
-              // Add to trackedObjects
-              trackedObjects.push({
-                trackingId,
-                yoloLabel: category,
-                bestConfidence: confidence,
-                bestBox: [0, 0, 0, 0],
-                frameAppearances: 1,
-                frameTimestamps: [frame.timestamp],
-                bestCropQuality: 0.85,
-                bestCrop: frameBuffer, // use the full frame buffer as best crop
-                mergedLogos: prod.brand && prod.brand !== "none" ? [prod.brand] : [],
-                mergedBarcodes: [],
-                mergedOcrText: ""
-              });
-            }
-          } else {
-            console.log(`  │   └─ No products found by VLM on Frame @${frame.timestamp}s`);
-          }
-        } catch (err) {
-          console.error(`  │   └─ Gemini VLM query failed:`, err);
-        }
-      }
-    }
-
     // ── Stage 12: Multi-Query Product Resolver ──────────────────────
     console.log(`[Stage 12] Generating marketplace queries...`);
     const queriesByTrackingId = new Map<string, string[]>();
 
     for (const [trackingId, evidence] of evidenceMap) {
+      if (resolvedMemoryMatches.has(trackingId)) continue;
       const resolverResult = resolveQueries(evidence);
       queriesByTrackingId.set(trackingId, resolverResult.queries);
     }
@@ -681,11 +810,12 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
     const matchesByTrackingId = new Map<string, VerifiedMatch[]>();
 
     for (const [trackingId, queries] of queriesByTrackingId) {
+      if (resolvedMemoryMatches.has(trackingId)) continue;
       const evidence = evidenceMap.get(trackingId)!;
       const tracked = trackedObjects.find((t) => t.trackingId === trackingId);
 
-      // Search all queries across all providers in parallel
-      const { results, cacheHits } = await SearchManager.searchMultiQuery(queries, 20);
+      // Search queries using the pluggable marketplace search matcher
+      const { results, cacheHits } = await marketplaceMatcher.search(queries);
       cacheHitCount += cacheHits;
 
       if (results.length === 0) {
@@ -694,31 +824,53 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
         continue;
       }
 
-      // ── Stage 15: Title Cleaner ─────────────────────────────────
-      // (Verification Engine uses cleanMarketplaceTitle internally)
+      // ── Pluggable Visual Matching (dHash / CLIP) ──────────────────
+      const cropBuf = tracked?.bestCrop || null;
+      const precomputedSims = new Map<string, number>();
+      if (cropBuf && results.length > 0) {
+        const { results: visResults } = await visualMatcher.compare(cropBuf, results);
+        for (const item of visResults) {
+          precomputedSims.set(item.product.itemId || item.product.link, item.visualSimilarity);
+        }
+      }
 
       // ── Stage 16: Marketplace Verification Engine ───────────────
-      const verified = await verifyMarketplaceResults(evidence, results, tracked?.bestCrop || null, 15);
+      const verified = await verifyMarketplaceResults(evidence, results, cropBuf, 15, precomputedSims);
 
-      // ── Stage 17: Product Knowledge Graph ───────────────────────
-      const bestMatch = selectBestMatch(
-        {
-          yoloLabel: evidence.yoloLabel,
-          logo: evidence.logo || undefined,
-          ocrText: evidence.ocrText || undefined,
-          color: evidence.colorDetected || undefined,
-        },
-        verified,
-      );
+      // ── Stage 18: Product Resolver Stage ──────────────────────────
+      // Pluggable resolve call gathers multiple crops if available
+      const cropsToResolve = tracked?.crops?.map(c => c.buffer) || (cropBuf ? [cropBuf] : []);
+      const resolution = await productResolver.resolve(evidence, verified, cropsToResolve);
 
-      // ── Stage 18: Gemini Decision ───────────────────────────────
-      if (!isVerificationSufficient(verified) && tracked_has_crop(trackedObjects, trackingId)) {
-        console.log(`  ├─ ${trackingId}: Verification insufficient. Invoking Gemini Vision...`);
+      const isVlmSourced = trackingId.startsWith("vlm-") || !!(tracked as any)?.vlmAttributes;
+      if (!isVlmSourced && resolution.isGeminiNeeded && cropsToResolve.length > 0) {
+        console.log(`  ├─ ${trackingId}: Resolution confidence (${resolution.confidenceScore.toFixed(2)}) below threshold (${PluginRegistry.getVerifyThreshold()}). Invoking Gemini Vision...`);
         geminiCallCount++;
 
-        if (tracked?.bestCrop) {
-          const cropBase64 = tracked.bestCrop.toString("base64");
-          const geminiResult = await queryGeminiForCrop(cropBase64, evidence);
+        // Convert top crops to base64 for multi-view verification
+        const topCropsB64 = cropsToResolve.slice(0, 2).map(c => c.toString("base64"));
+
+        if (cropBuf) {
+          // Save debug crop
+          const debugDir = path.join(process.cwd(), "debug", "crops");
+          if (!fs.existsSync(debugDir)) {
+            fs.mkdirSync(debugDir, { recursive: true });
+          }
+
+          const cropHash = crypto.createHash("sha256").update(cropBuf).digest("hex");
+          const cropFilename = `product_${trackingId}_${evidence.yoloLabel.toLowerCase()}.jpg`;
+          const cropPath = path.join(debugDir, cropFilename);
+          await fs.promises.writeFile(cropPath, cropBuf);
+
+          console.log(`\n========== GEMINI VERIFICATION REQUEST ==========`);
+          console.log(`Product ID: ${trackingId}`);
+          console.log(`Product Type: ${evidence.yoloLabel}`);
+          console.log(`Crops Sent: ${topCropsB64.length}`);
+          console.log(`Crop Path: ${cropPath}`);
+          console.log(`Crop Hash: ${cropHash}`);
+          console.log(`=================================================\n`);
+
+          const geminiResult = await queryGeminiForCrops(topCropsB64, evidence);
 
           if (geminiResult) {
             console.log(`  ├─ ${trackingId}: Gemini returned structured attributes:`, JSON.stringify(geminiResult));
@@ -740,12 +892,16 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
 
             // Re-search with Gemini's improved description
             const { results: reResults, cacheHits: reCacheHits } =
-              await SearchManager.searchMultiQuery(resolverResult.queries, 20);
+              await marketplaceMatcher.search(resolverResult.queries);
             cacheHitCount += reCacheHits;
 
             if (reResults.length > 0) {
-              // Re-verify with new results
-              const reVerified = await verifyMarketplaceResults(evidence, reResults, tracked.bestCrop, 15);
+              const { results: reVisualSimResults } = await visualMatcher.compare(cropBuf, reResults);
+              const rePrecomputedSims = new Map<string, number>();
+              for (const item of reVisualSimResults) {
+                rePrecomputedSims.set(item.product.itemId || item.product.link, item.visualSimilarity);
+              }
+              const reVerified = await verifyMarketplaceResults(evidence, reResults, cropBuf, 15, rePrecomputedSims);
 
               // Merge with original results, keep best
               const allVerified = [...verified, ...reVerified]
@@ -759,6 +915,12 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
       }
 
       matchesByTrackingId.set(trackingId, verified);
+    }
+
+    // Merge memory-matched items into maps before duplicate merger
+    for (const [trackingId, mem] of memoryResolvedMap) {
+      matchesByTrackingId.set(trackingId, mem.matches);
+      queriesByTrackingId.set(trackingId, [mem.evidence.yoloLabel]);
     }
 
     // ── Stage 19: Duplicate Product Merger ───────────────────────────
@@ -870,6 +1032,10 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
         category
       );
 
+      const cropDHash = product.detection.bestCrop
+        ? await ProductMemoryProvider.computeDHash(product.detection.bestCrop)
+        : null;
+
       // Create DetectedProduct (detection layer)
       const detectedProduct = await prisma.detectedProduct.create({
         data: {
@@ -893,11 +1059,15 @@ Ignore: people, faces, backgrounds, trees, buildings, furniture, pets, vehicles.
           ocrText: evidence.ocrText || undefined,
           detectedLogo: evidence.logo || undefined,
           detectedBarcode: evidence.barcode || undefined,
-          confidenceBreakdown: product.detection ? {
-            frameAppearances: product.detection.frameAppearances,
-            yoloLabel: evidence.yoloLabel,
-            yoloConfidence: evidence.yoloConfidence,
-          } : undefined,
+          confidenceBreakdown: {
+            dHash: cropDHash || undefined,
+            detectorConfidence: evidence.yoloConfidence,
+            discoveryConfidence: product.detectionConfidence,
+            marketplaceConfidence: product.marketplaceConfidence,
+            visualMatchConfidence: product.bestMatch?.marketplaceConfidence || 0.5,
+            finalConfidence: product.detectionConfidence,
+            confidenceVersion: "v3",
+          } as any,
           resolvedQueries: product.resolvedQueries,
           boundingBox: product.detection.bestBox ? {
             x1: product.detection.bestBox[0],
