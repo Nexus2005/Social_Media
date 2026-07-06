@@ -1,0 +1,16 @@
+{
+  "name": "@cartly/medusa-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Medusa E-Commerce Backend Engine for Cartly",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Medusa build complete'"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
