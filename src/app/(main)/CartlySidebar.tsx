@@ -149,6 +149,13 @@ export default function CartlySidebar({
       href: "/reels",
       active: pathname === "/reels",
     },
+    {
+      icon: (props: any) => <ShoppingBag {...props} />,
+      label: "Shop",
+      href: "#",
+      onClick: () => {},
+      active: false,
+    },
 
     {
       icon: (props: any) => <Mail {...props} />,
