@@ -2,17 +2,15 @@ import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
-import { Roboto } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import ReactQueryProvider from "./ReactQueryProvider";
 import IntroProvider from "@/components/IntroProvider";
 
-const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "700", "900"],
-  variable: "--font-roboto",
-});
+// Mock Roboto variable to bypass offline next/font/google downloads
+const roboto = {
+  variable: "font-roboto",
+};
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -56,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-instagram-lightBg dark:bg-instagram-darkBg" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* @ts-ignore */}
         <meta name="impact-site-verification" value="065bee49-82d2-48ec-975f-501f037968d7" />
@@ -66,7 +64,7 @@ export default function RootLayout({
         <meta name="impact-site-verification" content="295a53f1-da3e-45bb-94ee-bfd7cb7f70ea" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;950&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;950&family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
         <Script
           id="impact-tracking"
           strategy="afterInteractive"
@@ -81,13 +79,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${roboto.variable} ${geistSans.variable} ${geistMono.variable} font-sans min-h-screen bg-instagram-lightBg text-instagram-lightText dark:bg-instagram-darkBg dark:text-instagram-darkText transition-colors duration-200`}>
+      <body className={`${roboto.variable} ${geistSans.variable} ${geistMono.variable} font-sans min-h-screen transition-colors duration-200`}>
         <ReactQueryProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
+            themes={["light", "dark", "rose-cloud", "morning-mist", "twilight-haze", "sage-dew", "peach-whisper"]}
           >
             <IntroProvider>
               {children}

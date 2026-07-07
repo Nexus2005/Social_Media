@@ -47,6 +47,15 @@ export interface LineItem {
   thumbnail?: string;
   price: number;
   quantity: number;
+  selected: boolean;
+  recentlyAdded: boolean;
+  snapTitle?: string;
+  snapBrand?: string;
+  snapThumbnailUrl?: string;
+  snapVariantTitle?: string;
+  snapSku?: string;
+  snapPrice?: number;
+  sellerId?: string;
 }
 
 export interface Cart {
@@ -59,6 +68,13 @@ export interface Cart {
   email?: string;
   shippingAddress?: ShippingAddress;
   shippingOption?: ShippingOption;
+  totalMrp: number;
+  discountOnMrp: number;
+  couponDiscount: number;
+  platformFee: number;
+  savings: number;
+  itemsCount: number;
+  selectedItemsCount: number;
 }
 
 export interface ShippingAddress {
@@ -105,3 +121,6 @@ export interface Category {
   name: string;
   handle: string;
 }
+
+export type CartlyProduct = Product;
+

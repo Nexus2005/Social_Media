@@ -77,7 +77,7 @@ export default function MobileNavigation({
     refetchInterval: 60 * 1000,
   });
 
-  if (pathname === "/create") return null;
+  if (pathname === "/create" || pathname.startsWith("/shop")) return null;
 
   const isHome = pathname === "/";
   const isProfile = pathname.startsWith("/users/") && !pathname.includes("/followers") && !pathname.includes("/following");

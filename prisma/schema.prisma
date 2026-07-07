@@ -1,6 +1,7 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearch", "relationJoins"]
+  output          = "../src/generated/client"
 }
 
 datasource db {
@@ -71,6 +72,11 @@ model User {
   blocks                  UserBlock[]             @relation("UserBlocks")
   mutedBy                 UserMute[]              @relation("UserMutedBy")
   mutes                   UserMute[]              @relation("UserMutes")
+  userRoles               UserRole[]
+  shopOrders              ShopOrder[]
+  shopReviews             ShopReview[]
+  shopCarts               ShopCart[]
+  shopNotifications       ShopCommerceNotification[]
 
   @@map("users")
 }
@@ -646,11 +652,15 @@ model Merchant {
 }
 
 model Brand {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  logoUrl   String?    @map("logo_url")
-  createdAt DateTime   @default(now()) @map("created_at")
-  campaigns Campaign[]
+  id           String        @id @default(cuid())
+  name         String        @unique
+  slug         String?       @unique
+  logoUrl      String?       @map("logo_url")
+  description  String?
+  featured     Boolean       @default(false)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  campaigns    Campaign[]
+  shopProducts ShopProduct[]
 
   @@map("brands")
 }
@@ -1070,4 +1080,599 @@ enum ContentFormat {
 enum FollowStatus {
   PENDING
   ACCEPTED
+}
+
+model ShopBanner {
+  id              String    @id @default(cuid())
+  title           String
+  subtitle        String
+  imageUrl        String    @map("image_url")
+  desktopImageUrl String?   @map("desktop_image_url")
+  mobileImageUrl  String?   @map("mobile_image_url")
+  tabletImageUrl  String?   @map("tablet_image_url")
+  ctaText         String    @map("cta_text")
+  ctaLink         String    @map("cta_link")
+  active          Boolean   @default(true)
+  startAt         DateTime? @map("start_at")
+  endAt           DateTime? @map("end_at")
+  order           Int       @default(0)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("shop_banners")
+}
+
+model ShopHomepageSection {
+  id               String    @id @default(cuid())
+  type             String    // HERO, FEATURE_STRIP, CREATOR_PICKS, DEALS, CATEGORIES, PRODUCT_GRID
+  title            String?
+  subtitle         String?
+  layout           String?
+  columns          Int       @default(4)
+  background       String?
+  icon             String?
+  cta              String?
+  visible          Boolean   @default(true)
+  priority         Int       @default(0)
+  desktopVisible   Boolean   @default(true) @map("desktop_visible")
+  tabletVisible    Boolean   @default(true) @map("tablet_visible")
+  mobileVisible    Boolean   @default(true) @map("mobile_visible")
+  startDate        DateTime? @map("start_date")
+  endDate          DateTime? @map("end_date")
+  active           Boolean   @default(true)
+  order            Int       @default(0)
+  configuration    Json?     // custom config for the section
+  items            Json?     // section-specific product/creator IDs
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@map("shop_homepage_sections")
+}
+
+model ShopDeal {
+  id             String      @id @default(cuid())
+  productId      String      @map("product_id")
+  originalPrice  Float       @map("original_price")
+  dealPrice      Float       @map("deal_price")
+  soldCount      Int         @default(0) @map("sold_count")
+  totalCount     Int         @map("total_count")
+  startAt        DateTime    @map("start_at")
+  endAt          DateTime    @map("end_at")
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  product        ShopProduct? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("shop_deals")
+}
+
+model ShopCreatorPick {
+  id             String      @id @default(cuid())
+  creatorId      String      @map("creator_id")
+  productId      String      @map("product_id")
+  discountLabel  String?     @map("discount_label") // e.g. "17% OFF"
+  active         Boolean     @default(true)
+  order          Int         @default(0)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  product        ShopProduct? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("shop_creator_picks")
+}
+
+model ShopSeller {
+  id              String        @id @default(cuid())
+  userId          String        @unique @map("user_id")
+  storeName       String        @map("store_name")
+  slug            String?       @unique
+  logoUrl         String?       @map("logo_url")
+  bannerUrl       String?       @map("banner_url")
+  description     String?
+  status          String        @default("PENDING") // PENDING, APPROVED, SUSPENDED
+  commissionRate  Float         @default(10.0) @map("commission_rate")
+  verified        Boolean       @default(false)
+  kycSubmitted    Boolean       @default(false) @map("kyc_submitted")
+  kycData         Json?         @map("kyc_data")
+  payoutBalance   Float         @default(0) @map("payout_balance")
+  payoutEmail     String?       @map("payout_email")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at")
+  products        ShopProduct[]
+  orders          ShopOrder[]
+  coupons         ShopCoupon[]
+
+  @@map("shop_sellers")
+}
+
+model ShopWishlist {
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  productId      String      @map("product_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  product        ShopProduct? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("shop_wishlists")
+}
+
+model ShopAddress {
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  firstName      String?     @map("first_name")
+  lastName       String?     @map("last_name")
+  addressLine    String      @map("address_line")
+  addressLine2   String?     @map("address_line_2")
+  city           String
+  state          String?
+  postalCode     String      @map("postal_code")
+  countryCode    String      @map("country_code")
+  phone          String?
+  isDefault      Boolean     @default(false) @map("is_default")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  orders         ShopOrder[]
+
+  @@map("shop_addresses")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CARTLY COMMERCE CORE — New Enums
+// ─────────────────────────────────────────────────────────────
+
+enum ShopProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  CHANGES_REQUESTED
+  REJECTED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ShopOrderStatus {
+  PENDING
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+  REFUNDED
+}
+
+enum RefundStatus {
+  NONE
+  REQUESTED
+  PROCESSING
+  COMPLETED
+  DENIED
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+  BUY_X_GET_Y
+  FREE_SHIPPING
+}
+
+enum ReviewStatus {
+  REVIEW_PENDING
+  REVIEW_APPROVED
+  REVIEW_REJECTED
+  REVIEW_FEATURED
+}
+
+enum UserRoleEnum {
+  SUPER_ADMIN
+  ADMIN
+  SELLER
+  CREATOR
+  SUPPORT
+  USER
+}
+
+enum InventoryChangeType {
+  ADDED
+  SOLD
+  RETURNED
+  ADJUSTED
+  BULK_UPDATE
+}
+
+enum AnalyticsEventType {
+  PRODUCT_VIEW
+  PRODUCT_CLICK
+  ADD_TO_CART
+  PURCHASE
+  SEARCH
+  CATEGORY_VIEW
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ─────────────────────────────────────────────────────────────
+// CARTLY COMMERCE CORE — New Models
+// ─────────────────────────────────────────────────────────────
+
+model ShopProduct {
+  id                String              @id @default(cuid())
+  title             String
+  slug              String              @unique
+  description       String?
+  shortDescription  String?             @map("short_description")
+  specifications    Json?               // structured specs
+  features          Json?               // feature bullet points
+  price             Float
+  salePrice         Float?              @map("sale_price")
+  costPrice         Float?              @map("cost_price")
+  sku               String?             @unique
+  barcode           String?
+  weight            Float?              // in grams
+  width             Float?              // cm
+  height            Float?              // cm
+  length            Float?              // cm
+  brandId           String?             @map("brand_id")
+  categoryId        String?             @map("category_id")
+  sellerId          String?             @map("seller_id")
+  status            ShopProductStatus   @default(DRAFT)
+  featured          Boolean             @default(false)
+  trending          Boolean             @default(false)
+  seoTitle          String?             @map("seo_title")
+  seoDescription    String?             @map("seo_description")
+  seoKeywords       String?             @map("seo_keywords")
+  metaData          Json?               @map("meta_data")
+  viewCount         Int                 @default(0) @map("view_count")
+  salesCount        Int                 @default(0) @map("sales_count")
+  publishedAt       DateTime?           @map("published_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  brand             Brand?              @relation(fields: [brandId], references: [id])
+  category          ShopCategory?       @relation(fields: [categoryId], references: [id])
+  seller            ShopSeller?         @relation(fields: [sellerId], references: [id])
+  images            ShopProductImage[]
+  variants          ShopProductVariant[]
+  collections       ShopCollectionProduct[]
+  deals             ShopDeal[]
+  creatorPicks      ShopCreatorPick[]
+  wishlists         ShopWishlist[]
+  cartItems         ShopCartItem[]
+  orderItems        ShopOrderItem[]
+  reviews           ShopReview[]
+  inventoryHistory  ShopInventoryHistory[]
+  analyticsEvents   ShopAnalyticsEvent[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([status])
+  @@map("shop_products")
+}
+
+model ShopProductImage {
+  id            String      @id @default(cuid())
+  productId     String      @map("product_id")
+  originalUrl   String      @map("original_url")
+  thumbnailUrl  String?     @map("thumbnail_url")
+  webpUrl       String?     @map("webp_url")
+  blurHash      String?     @map("blur_hash")
+  alt           String?
+  width         Int?
+  height        Int?
+  displayOrder  Int         @default(0) @map("display_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  product       ShopProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("shop_product_images")
+}
+
+model ShopProductVariant {
+  id                String                @id @default(cuid())
+  productId         String                @map("product_id")
+  title             String
+  sku               String?               @unique
+  barcode           String?
+  price             Float
+  salePrice         Float?                @map("sale_price")
+  stock             Int                   @default(0)
+  lowStockThreshold Int                   @default(5) @map("low_stock_threshold")
+  weight            Float?
+  isDefault         Boolean               @default(false) @map("is_default")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  product           ShopProduct           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributes        ShopVariantAttribute[]
+  cartItems         ShopCartItem[]
+  orderItems        ShopOrderItem[]
+  inventoryHistory  ShopInventoryHistory[]
+
+  @@index([productId])
+  @@map("shop_product_variants")
+}
+
+model ShopVariantAttribute {
+  id        String             @id @default(cuid())
+  variantId String             @map("variant_id")
+  key       String             // e.g. "Size", "Color", "Material", "Storage", "RAM", "Pack Size"
+  value     String             // e.g. "XL", "Midnight Blue", "Cotton", "256GB"
+  variant   ShopProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId])
+  @@map("shop_variant_attributes")
+}
+
+model ShopCategory {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  description String?
+  imageUrl    String?        @map("image_url")
+  iconUrl     String?        @map("icon_url")
+  parentId    String?        @map("parent_id")
+  order       Int            @default(0)
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  parent      ShopCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ShopCategory[] @relation("CategoryHierarchy")
+  products    ShopProduct[]
+
+  @@index([parentId])
+  @@map("shop_categories")
+}
+
+model ShopCollection {
+  id          String                  @id @default(cuid())
+  name        String
+  slug        String                  @unique
+  description String?
+  imageUrl    String?                 @map("image_url")
+  active      Boolean                 @default(true)
+  order       Int                     @default(0)
+  createdAt   DateTime                @default(now()) @map("created_at")
+  products    ShopCollectionProduct[]
+
+  @@map("shop_collections")
+}
+
+model ShopCollectionProduct {
+  id           String         @id @default(cuid())
+  collectionId String         @map("collection_id")
+  productId    String         @map("product_id")
+  order        Int            @default(0)
+  collection   ShopCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      ShopProduct    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, productId])
+  @@map("shop_collection_products")
+}
+
+model ShopCart {
+  id           String        @id @default(cuid())
+  userId       String?       @map("user_id")
+  sessionId    String?       @map("session_id")
+  countryCode  String        @default("IN") @map("country_code")
+  currencyCode String        @default("INR") @map("currency_code")
+  couponId     String?       @map("coupon_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  user         User?         @relation(fields: [userId], references: [id])
+  coupon       ShopCoupon?   @relation(fields: [couponId], references: [id])
+  items        ShopCartItem[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("shop_carts")
+}
+
+model ShopCartItem {
+  id               String              @id @default(cuid())
+  cartId           String              @map("cart_id")
+  productId        String              @map("product_id")
+  variantId        String?             @map("variant_id")
+  quantity         Int                 @default(1)
+  unitPrice        Float               @map("unit_price")
+  selected         Boolean             @default(true)
+  recentlyAdded    Boolean             @default(false)
+  snapTitle        String?             @map("snap_title")
+  snapBrand        String?             @map("snap_brand")
+  snapThumbnailUrl String?             @map("snap_thumbnail_url")
+  snapVariantTitle String?             @map("snap_variant_title")
+  snapSku          String?             @map("snap_sku")
+  snapPrice        Float?              @map("snap_price")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  cart             ShopCart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product          ShopProduct         @relation(fields: [productId], references: [id])
+  variant          ShopProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([cartId])
+  @@map("shop_cart_items")
+}
+
+model ShopOrder {
+  id                  String          @id @default(cuid())
+  orderNumber         Int             @unique @default(autoincrement()) @map("order_number")
+  userId              String          @map("user_id")
+  sellerId            String?         @map("seller_id")
+  subtotal            Float
+  shippingTotal       Float           @default(0) @map("shipping_total")
+  taxTotal            Float           @default(0) @map("tax_total")
+  discountTotal       Float           @default(0) @map("discount_total")
+  total               Float
+  status              ShopOrderStatus @default(PENDING)
+  shippingAddressId   String?         @map("shipping_address_id")
+  trackingNumber      String?         @map("tracking_number")
+  courier             String?
+  estimatedDeliveryAt DateTime?       @map("estimated_delivery_at")
+  deliveredAt         DateTime?       @map("delivered_at")
+  cancelledAt         DateTime?       @map("cancelled_at")
+  cancelReason        String?         @map("cancel_reason")
+  refundStatus        RefundStatus    @default(NONE) @map("refund_status")
+  refundAmount        Float?          @map("refund_amount")
+  notes               String?
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  user                User            @relation(fields: [userId], references: [id])
+  seller              ShopSeller?     @relation(fields: [sellerId], references: [id])
+  shippingAddress     ShopAddress?    @relation(fields: [shippingAddressId], references: [id])
+  items               ShopOrderItem[]
+  inventoryHistory    ShopInventoryHistory[]
+
+  @@index([userId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("shop_orders")
+}
+
+model ShopOrderItem {
+  id            String              @id @default(cuid())
+  orderId       String              @map("order_id")
+  productId     String              @map("product_id")
+  variantId     String?             @map("variant_id")
+  productTitle  String              @map("product_title")   // snapshot
+  variantTitle  String?             @map("variant_title")   // snapshot
+  thumbnailUrl  String?             @map("thumbnail_url")   // snapshot
+  quantity      Int
+  unitPrice     Float               @map("unit_price")
+  totalPrice    Float               @map("total_price")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  order         ShopOrder           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       ShopProduct         @relation(fields: [productId], references: [id])
+  variant       ShopProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("shop_order_items")
+}
+
+model ShopCoupon {
+  id               String     @id @default(cuid())
+  code             String     @unique
+  name             String
+  description      String?
+  type             CouponType
+  value            Float               // percentage or fixed amount
+  minOrderAmount   Float?              @map("min_order_amount")
+  maxDiscountAmount Float?             @map("max_discount_amount")
+  maxUses          Int?                @map("max_uses")
+  usedCount        Int                 @default(0) @map("used_count")
+  sellerId         String?             @map("seller_id") // null = platform-wide
+  startAt          DateTime?           @map("start_at")
+  endAt            DateTime?           @map("end_at")
+  active           Boolean             @default(true)
+  createdAt        DateTime            @default(now()) @map("created_at")
+  seller           ShopSeller?         @relation(fields: [sellerId], references: [id])
+  carts            ShopCart[]
+
+  @@index([sellerId])
+  @@map("shop_coupons")
+}
+
+model ShopReview {
+  id           String       @id @default(cuid())
+  productId    String       @map("product_id")
+  userId       String       @map("user_id")
+  rating       Int          // 1-5
+  title        String?
+  body         String?
+  images       String[]     // array of image URLs
+  status       ReviewStatus @default(REVIEW_PENDING)
+  adminNote    String?      @map("admin_note")
+  helpfulCount Int          @default(0) @map("helpful_count")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  product      ShopProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([userId])
+  @@map("shop_reviews")
+}
+
+model ShopCommerceNotification {
+  id        String               @id @default(cuid())
+  userId    String               @map("user_id")
+  type      String               // ORDER_PLACED, ORDER_SHIPPED, PRODUCT_APPROVED, PRICE_DROP, etc.
+  title     String
+  body      String?
+  icon      String?
+  actionUrl String?              @map("action_url")
+  priority  NotificationPriority @default(NORMAL)
+  read      Boolean              @default(false)
+  readAt    DateTime?            @map("read_at")
+  metadata  Json?
+  createdAt DateTime             @default(now()) @map("created_at")
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("shop_commerce_notifications")
+}
+
+model UserRole {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  role      UserRoleEnum
+  createdAt DateTime     @default(now()) @map("created_at")
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([userId])
+  @@map("user_roles")
+}
+
+model ShopInventoryHistory {
+  id             String              @id @default(cuid())
+  productId      String              @map("product_id")
+  variantId      String?             @map("variant_id")
+  changeType     InventoryChangeType @map("change_type")
+  quantityBefore Int                 @map("quantity_before")
+  quantityAfter  Int                 @map("quantity_after")
+  quantityDelta  Int                 @map("quantity_delta")
+  reason         String?
+  performedBy    String?             @map("performed_by") // userId
+  orderId        String?             @map("order_id")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  product        ShopProduct         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant        ShopProductVariant? @relation(fields: [variantId], references: [id])
+  order          ShopOrder?          @relation(fields: [orderId], references: [id])
+
+  @@index([productId])
+  @@index([variantId])
+  @@index([orderId])
+  @@map("shop_inventory_history")
+}
+
+model ShopAnalyticsEvent {
+  id         String             @id @default(cuid())
+  eventType  AnalyticsEventType @map("event_type")
+  productId  String?            @map("product_id")
+  categoryId String?            @map("category_id")
+  sellerId   String?            @map("seller_id")
+  userId     String?            @map("user_id")
+  sessionId  String?            @map("session_id")
+  metadata   Json?
+  revenue    Float?
+  createdAt  DateTime           @default(now()) @map("created_at")
+  product    ShopProduct?       @relation(fields: [productId], references: [id])
+
+  @@index([eventType])
+  @@index([productId])
+  @@index([createdAt])
+  @@map("shop_analytics_events")
+}
+
+model ShopCartAuditLog {
+  id        String   @id @default(cuid())
+  cartId    String   @map("cart_id")
+  userId    String?  @map("user_id")
+  action    String   // ADD_ITEM, REMOVE_ITEM, UPDATE_QTY, APPLY_COUPON, REMOVE_COUPON, CHECKOUT, MOVE_WISHLIST
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("shop_cart_audit_logs")
+}
+
+model ShopAdminSetting {
+  key       String   @id
+  value     String   // JSON string or plain text value
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("shop_admin_settings")
 }

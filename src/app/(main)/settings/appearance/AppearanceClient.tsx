@@ -18,8 +18,38 @@ export default function AppearanceClient() {
   const themeOptions = [
     {
       id: "light",
-      label: "Light Mode",
+      label: "Classic Light",
       desc: "Clean white background with dark typography.",
+      icon: Sun,
+    },
+    {
+      id: "rose-cloud",
+      label: "Rose Cloud",
+      desc: "Soft rose cloud background with berry rose text.",
+      icon: Sun,
+    },
+    {
+      id: "morning-mist",
+      label: "Morning Mist",
+      desc: "Cool slate blue mist background with dark slate text.",
+      icon: Sun,
+    },
+    {
+      id: "twilight-haze",
+      label: "Twilight Haze",
+      desc: "Cozy twilight haze background with dark indigo text.",
+      icon: Sun,
+    },
+    {
+      id: "sage-dew",
+      label: "Sage Dew",
+      desc: "Fresh sage background with dark olive green text.",
+      icon: Sun,
+    },
+    {
+      id: "peach-whisper",
+      label: "Peach Whisper",
+      desc: "Warm peach background with dark terracotta text.",
       icon: Sun,
     },
     {
@@ -115,7 +145,7 @@ export default function AppearanceClient() {
                         : "border-zinc-500 hover:border-zinc-400"
                     }`}
                   >
-                    {isActive && <Check className="size-3 text-white" strokeWidth={3} />}
+                    {isActive && <Check className="size-3 text-primary-foreground" strokeWidth={3} />}
                   </div>
                 </div>
               </button>

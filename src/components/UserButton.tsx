@@ -56,19 +56,44 @@ export default function UserButton({ className }: UserButtonProps) {
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
               <DropdownMenuItem onClick={() => setTheme("system")}>
-                <Monitor className="mr-2 size-4" />
-                System default
-                {theme === "system" && <Check className="ms-2 size-4" />}
+                <Monitor className="mr-2 size-4" strokeWidth={2} />
+                System Default
+                {theme === "system" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setTheme("light")}>
-                <Sun className="mr-2 size-4" />
-                Light
-                {theme === "light" && <Check className="ms-2 size-4" />}
+                <Sun className="mr-2 size-4 text-amber-500" strokeWidth={2} />
+                Classic Light
+                {theme === "light" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("rose-cloud")}>
+                <Sun className="mr-2 size-4 text-pink-400" strokeWidth={2} />
+                Rose Cloud
+                {theme === "rose-cloud" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("morning-mist")}>
+                <Sun className="mr-2 size-4 text-sky-400" strokeWidth={2} />
+                Morning Mist
+                {theme === "morning-mist" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("twilight-haze")}>
+                <Sun className="mr-2 size-4 text-indigo-400" strokeWidth={2} />
+                Twilight Haze
+                {theme === "twilight-haze" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("sage-dew")}>
+                <Sun className="mr-2 size-4 text-emerald-400" strokeWidth={2} />
+                Sage Dew
+                {theme === "sage-dew" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("peach-whisper")}>
+                <Sun className="mr-2 size-4 text-orange-400" strokeWidth={2} />
+                Peach Whisper
+                {theme === "peach-whisper" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setTheme("dark")}>
-                <Moon className="mr-2 size-4" />
-                Dark
-                {theme === "dark" && <Check className="ms-2 size-4" />}
+                <Moon className="mr-2 size-4 text-indigo-500" strokeWidth={2} />
+                Dark Mode
+                {theme === "dark" && <Check className="ms-2 size-4 text-primary" strokeWidth={3} />}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuPortal>

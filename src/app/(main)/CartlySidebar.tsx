@@ -13,6 +13,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -95,11 +99,11 @@ export default function CartlySidebar({
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
 
-  const shouldMinimizeDefault = pathname.startsWith("/messages") || pathname.startsWith("/users/");
+  const shouldMinimizeDefault = pathname.startsWith("/messages") || pathname.startsWith("/users/") || pathname.startsWith("/shop");
   const [isMinimized, setIsMinimized] = useState(shouldMinimizeDefault);
 
   useEffect(() => {
-    setIsMinimized(pathname.startsWith("/messages") || pathname.startsWith("/users/"));
+    setIsMinimized(pathname.startsWith("/messages") || pathname.startsWith("/users/") || pathname.startsWith("/shop"));
   }, [pathname]);
 
   // Queries for real-time counts
@@ -184,7 +188,7 @@ export default function CartlySidebar({
     },
   ];
 
-  if (pathname === "/create" || pathname.includes("/customization")) return null;
+  if (pathname === "/create" || pathname.includes("/customization") || pathname.startsWith("/shop")) return null;
 
   const isReels = false; // Always expanded on desktop
 
@@ -387,13 +391,61 @@ export default function CartlySidebar({
                   <span>Saved</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="flex items-center gap-3 p-3 cursor-pointer"
-              >
-                {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
-                <span>Switch appearance</span>
-              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="flex items-center gap-3 p-3 cursor-pointer">
+                  {theme === "dark" ? <Moon className="size-5 text-indigo-400" /> : <Sun className="size-5 text-amber-500" />}
+                  <span>Switch appearance</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-56 p-1.5 shadow-2xl rounded-2xl border border-border/45 bg-card select-none">
+                    <DropdownMenuItem onClick={() => setTheme("system")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span>System Default</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("light")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-white border border-zinc-300" />
+                        Classic Light
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("rose-cloud")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-[#F5D0D7] border border-pink-300" />
+                        Rose Cloud
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("morning-mist")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-[#B7D7E8] border border-sky-300" />
+                        Morning Mist
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("twilight-haze")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-[#A7B7E7] border border-indigo-300" />
+                        Twilight Haze
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("sage-dew")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-[#D8EAD7] border border-emerald-300" />
+                        Sage Dew
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("peach-whisper")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-[#FFDCC2] border border-orange-300" />
+                        Peach Whisper
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("dark")} className="cursor-pointer flex items-center justify-between p-2.5">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full bg-black border border-zinc-700" />
+                        Dark Mode
+                      </span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
               <DropdownMenuItem className="flex items-center gap-3 p-3 cursor-pointer">
                 <AlertCircle className="size-5" />
                 <span>Report a problem</span>

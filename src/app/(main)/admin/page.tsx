@@ -45,9 +45,5 @@ export default async function AdminPage() {
     );
   }
 
-  return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8">
-      <AdminDashboard />
-    </div>
-  );
+  return <AdminDashboard />;
 }
