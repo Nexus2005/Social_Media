@@ -288,7 +288,7 @@ export default function ShopCartPage() {
 
           {cart && cart.subtotal >= 1000 && (
             <div className="flex items-center gap-2 text-[#10b981] font-semibold text-[12px] mb-4 select-none animate-in fade-in duration-300">
-              <CheckCircle2 className="size-3.5" /> You're eligible for FREE Delivery
+              <CheckCircle2 className="size-3.5" /> You&apos;re eligible for FREE Delivery
             </div>
           )}
 

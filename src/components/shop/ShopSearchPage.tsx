@@ -389,7 +389,7 @@ export default function ShopSearchPage() {
         {/* Right Content Area */}
         <section className="flex-1">
           {/* Search Title */}
-          <h1 className="text-lg font-semibold mb-1">Search results for "{query}"</h1>
+          <h1 className="text-lg font-semibold mb-1">Search results for &ldquo;{query}&rdquo;</h1>
           <p className="text-xs text-zinc-500 mb-4">{products.length.toLocaleString()} products found</p>
 
           {/* Active Filter Chips */}
