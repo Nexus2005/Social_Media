@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { 
   Search, ShoppingCart, Bell, Heart, ChevronLeft, ChevronRight, 
   ShieldCheck, RotateCcw, Truck, Check, Edit3, ShoppingBag,
-  Trash2, X, ArrowRight
+  Trash2, X, ArrowRight, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";

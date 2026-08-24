@@ -59,11 +59,13 @@ export async function submitComment({
     if (parentComment && parentComment.userId !== user.id) {
       notifyReply(user.id, parentComment.userId, postId, {
         commentPreview: contentValidated.slice(0, 80),
+        commentId: newComment.id,
       }).catch(console.error);
     }
   } else if (postUserId !== user.id) {
     notifyComment(user.id, postUserId, postId, {
       commentPreview: contentValidated.slice(0, 80),
+      commentId: newComment.id,
     }).catch(console.error);
   }
 
@@ -109,6 +111,38 @@ export async function deleteComment(id: string) {
   return toPlainObject(deletedComment);
 }
 
+export async function editComment({
+  commentId,
+  content,
+}: {
+  commentId: string;
+  content: string;
+}) {
+  const { user } = await validateRequest();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { userId: true, postId: true, createdAt: true },
+  });
+
+  if (!comment) throw new Error("Comment not found");
+  if (comment.userId !== user.id) throw new Error("Unauthorized");
+
+  const { content: contentValidated } = createCommentSchema.parse({ content });
+
+  // Comments remain editable; the client shows an "edited" indicator when
+  // updatedAt differs from createdAt.
+  const updated = await prisma.comment.update({
+    where: { id: commentId },
+    data: { content: contentValidated },
+    include: getCommentDataInclude(user.id),
+  });
+
+  return toPlainObject(updated);
+}
+
 export async function likeComment(commentId: string) {
   const { user } = await validateRequest();
 
@@ -139,6 +173,7 @@ export async function likeComment(commentId: string) {
   if (comment.userId !== user.id) {
     notifyCommentLike(user.id, comment.userId, comment.postId, {
       commentPreview: comment.content?.slice(0, 80),
+      commentId,
     }).catch(console.error);
   }
 }

@@ -3,20 +3,34 @@ import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import UserAvatar from "@/components/UserAvatar";
+import {
+  Flame,
+  Bookmark,
+  Plane,
+  Footprints,
+  Star,
+  Clock,
+  ShoppingBag,
+  BadgeCheck,
+} from "lucide-react";
 
 interface ProductShelfProps {
   title: string;
   subtitle: string;
   products: any[];
+  icon?: React.ReactNode;
 }
 
-function ProductShelf({ title, subtitle, products }: ProductShelfProps) {
+function ProductShelf({ title, subtitle, products, icon }: ProductShelfProps) {
   if (!products || products.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-3 py-4 select-none animate-in fade-in duration-300">
       <div>
-        <h2 className="text-lg font-black text-white tracking-tight">{title}</h2>
+        <h2 className="flex items-center gap-2 text-lg font-black text-white tracking-tight">
+          {icon && <span className="text-indigo-400">{icon}</span>}
+          {title}
+        </h2>
         <p className="text-xs text-zinc-400 font-medium">{subtitle}</p>
       </div>
 
@@ -38,13 +52,16 @@ function ProductShelf({ title, subtitle, products }: ProductShelfProps) {
                 <img
                   src={item.thumbnailUrl || item.sourceFrameUrl || "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&auto=format&fit=crop&q=60"}
                   alt={item.label}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 
                 {/* Verified badge */}
                 {item.isVerifiedMatch && (
-                  <span className="absolute top-2 left-2 text-[8px] font-extrabold text-amber-500 bg-black/85 px-1.5 py-0.5 rounded-md border border-amber-500/20 uppercase tracking-wide">
-                    ✓ Verified
+                  <span className="absolute top-2 left-2 text-[8px] font-extrabold text-amber-500 bg-black/85 px-1.5 py-0.5 rounded-md border border-amber-500/20 uppercase tracking-wide flex items-center gap-0.5">
+                    <BadgeCheck className="size-3" />
+                    Verified
                   </span>
                 )}
               </div>
@@ -286,8 +303,8 @@ export default async function Page() {
   return (
     <div className="mx-auto w-full max-w-[600px] bg-background border-x border-border/40 min-h-screen px-4 md:px-6 py-6 pb-20 sm:pb-6">
       {/* Shop Header renamed to Explore / Shop Hub */}
-      <div className="flex items-center gap-2 mb-6 border-b border-border/30 pb-4">
-        <span className="text-2xl leading-none">🛍</span>
+      <div className="flex items-center gap-2.5 mb-6 border-b border-border/30 pb-4">
+        <ShoppingBag className="size-7 text-white shrink-0" strokeWidth={2} />
         <div>
           <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">Explore Shop Hub</h1>
           <p className="text-xs text-zinc-400 font-bold">Discover shoppable looks from creator videos</p>
@@ -297,37 +314,43 @@ export default async function Page() {
       {/* Visual Discovery Shelves */}
       <div className="flex flex-col gap-4">
         <ProductShelf
-          title="🔥 Trending Looks"
+          title="Trending Looks"
+          icon={<Flame className="size-5 fill-current" />}
           subtitle="Most popular items shopped today"
           products={trending}
         />
         <div className="border-b border-zinc-900/60 my-1" />
         <ProductShelf
-          title="📂 Most Saved"
+          title="Most Saved"
+          icon={<Bookmark className="size-5" />}
           subtitle="Top fashion items saved to boards"
           products={mostSaved}
         />
         <div className="border-b border-zinc-900/60 my-1" />
         <ProductShelf
-          title="✈️ Travel Style"
+          title="Travel Style"
+          icon={<Plane className="size-5" />}
           subtitle="Travel-ready apparel and accessories"
           products={travel}
         />
         <div className="border-b border-zinc-900/60 my-1" />
         <ProductShelf
-          title="👟 Streetwear Styles"
+          title="Streetwear Styles"
+          icon={<Footprints className="size-5" />}
           subtitle="Oversized fits and trending sneakers"
           products={streetwear}
         />
         <div className="border-b border-zinc-900/60 my-1" />
         <ProductShelf
-          title="⭐️ Creator Picks"
+          title="Creator Picks"
+          icon={<Star className="size-5 fill-current" />}
           subtitle="Curated styles from verified fashion creators"
           products={creatorPicks}
         />
         <div className="border-b border-zinc-900/60 my-1" />
         <ProductShelf
-          title="⏰ Recently Detected"
+          title="Recently Detected"
+          icon={<Clock className="size-5" />}
           subtitle="Fresh looks straight out of the processing queue"
           products={recent}
         />

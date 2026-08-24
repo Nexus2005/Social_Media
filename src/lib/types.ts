@@ -303,6 +303,8 @@ export interface FollowerInfo {
   followers: number;
   isFollowedByUser: boolean;
   followsYou?: boolean;
+  /** PENDING when the target account is private and the request is not yet accepted */
+  status?: "PENDING" | "ACCEPTED" | null;
 }
 
 export interface LikeInfo {

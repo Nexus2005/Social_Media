@@ -1,4 +1,4 @@
-import { PrismaClient, MediaType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { hash } from "@node-rs/argon2";
 import { loadEnvConfig } from "@next/env";
 

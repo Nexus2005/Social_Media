@@ -4,7 +4,7 @@ import Script from "next/script";
 
 import { createPortal } from "react-dom";
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { ArrowLeft, MoreVertical, MoreHorizontal, Paperclip, Smile, Mic, MicOff, VideoOff, PhoneOff, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search, Users, List, Heart, Key, Link, Shield, Lock } from "lucide-react";
+import { ArrowLeft, MoreVertical, MoreHorizontal, Paperclip, Smile, Mic, MicOff, VideoOff, PhoneOff, Send, X, Pin, MessageSquare, Volume2, VolumeX, AlertCircle, Loader2, ShoppingBag, Copy, Edit2, Share2, Trash2, Film, BookOpen, Layers, User, Image as ImageIcon, FileText, Check, CornerUpLeft, Star, Phone, Plus, Video, Play, CheckCheck, Globe, Bell, BellOff, UserPlus, LogOut, Search, Users, List, Heart, Key, Link, Shield, Lock, Headphones, MessageSquareText } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -596,9 +596,9 @@ const MessageBubbleContainer = React.memo(({
               ) : (
                 channel.state.read[otherMember?.id || ""]?.last_read && 
                 new Date(channel.state.read[otherMember?.id || ""]?.last_read || "").getTime() >= new Date(message.created_at || "").getTime() ? (
-                  <span className="text-[#38bdf8] font-bold">✓✓</span>
+                  <CheckCheck className="size-3.5 text-[#38bdf8] shrink-0" aria-label="Read" />
                 ) : (
-                  <span className={cn(isAttachmentOnly ? "text-white" : "opacity-75 text-white")}>✓</span>
+                  <Check className={cn("size-3.5 shrink-0", isAttachmentOnly ? "text-white" : "text-white opacity-75")} aria-label="Sent" />
                 )
               )
             )}
@@ -3085,7 +3085,7 @@ export default function ChatChannel() {
                             </>
                           ) : (
                             <div className="w-[160px] h-[110px] bg-transparent flex items-center justify-center">
-                              <span className="text-4xl animate-bounce">🎧</span>
+                              <Headphones className="size-12 text-white animate-bounce" />
                             </div>
                           )}
                         </div>
@@ -4442,7 +4442,7 @@ export default function ChatChannel() {
                       {/* Left Blue Bubble */}
                       <div className="absolute top-2 left-2 size-16 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg transform -rotate-12">
                         <div className="size-6 rounded bg-white/20 flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">◆</span>
+                          <MessageSquareText className="size-3.5 text-white" />
                         </div>
                       </div>
                       {/* Right Purple Bubble */}
@@ -5604,9 +5604,9 @@ function ShareCardAttachment({
                 ) : (
                   channel?.state?.read?.[otherMember?.id || ""]?.last_read && 
                   new Date(channel.state.read[otherMember.id || ""].last_read).getTime() >= new Date(message.created_at || "").getTime() ? (
-                    <span className="text-[#38bdf8] font-bold">✓✓</span>
+                    <CheckCheck className="size-3.5 text-[#38bdf8] shrink-0" aria-label="Read" />
                   ) : (
-                    <span className="opacity-75">✓</span>
+                    <Check className="size-3.5 opacity-75 shrink-0" aria-label="Sent" />
                   )
                 )
               )}

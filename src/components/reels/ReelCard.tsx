@@ -51,7 +51,10 @@ import {
   Watch,
   Gem,
   Shirt,
-  Tag
+  Tag,
+  BadgeCheck,
+  Star,
+  Plus
 } from "lucide-react";
 import Link from "next/link";
 import CommentsBottomSheet from "@/components/comments/CommentsBottomSheet";
@@ -3757,20 +3760,6 @@ function ProductList({
   const bestMatch = sortedMatches[0];
   const otherMatches = sortedMatches.slice(1);
 
-  // Helper: category emoji
-  const getCategoryEmoji = (category: string, label: string): string => {
-    const cat = category.toLowerCase();
-    const lbl = label.toLowerCase();
-    if (cat.includes("sunglass") || lbl.includes("glass") || lbl.includes("spectacles")) return "🕶";
-    if (cat.includes("bag") || cat.includes("backpack") || lbl.includes("backpack") || lbl.includes("bag")) return "🎒";
-    if (cat.includes("watch") || lbl.includes("watch")) return "⌚";
-    if (cat.includes("shoe") || cat.includes("footwear") || lbl.includes("sneaker") || lbl.includes("shoes") || lbl.includes("boot") || lbl.includes("boots")) return "👟";
-    if (cat.includes("jewelry") || lbl.includes("ring") || lbl.includes("necklace") || lbl.includes("earring")) return "💍";
-    if (lbl.includes("pants") || lbl.includes("jeans") || lbl.includes("shorts") || lbl.includes("trouser")) return "👖";
-    if (cat.includes("clothing") || lbl.includes("shirt") || lbl.includes("tee") || lbl.includes("jacket") || lbl.includes("hoodie") || lbl.includes("coat") || lbl.includes("sweater") || lbl.includes("top") || lbl.includes("dress")) return "👕";
-    return "🛍";
-  };
-
   const handleBuyClick = async (e: React.MouseEvent, matchId: string, fallbackUrl: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -3906,7 +3895,8 @@ function ProductList({
                 </span>
                 {selectedProduct.isVerifiedMatch && (
                   <span className="text-[9px] font-extrabold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/30 flex items-center gap-0.5">
-                    ✓ Verified
+                    <BadgeCheck className="size-3" />
+                    Verified
                   </span>
                 )}
               </div>
@@ -3945,7 +3935,11 @@ function ProductList({
                           className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold text-zinc-300 hover:bg-zinc-900 hover:text-white"
                         >
                           <span className="truncate max-w-[120px]">{col.name}</span>
-                          <span className="text-xs">{col.saved ? "❤️" : "🤍"}</span>
+                          {col.saved ? (
+                            <Check className="size-3.5 text-rose-500 shrink-0" />
+                          ) : (
+                            <Plus className="size-3.5 text-zinc-500 shrink-0" />
+                          )}
                         </button>
                       ))}
                     </div>
@@ -4032,8 +4026,8 @@ function ProductList({
                       <img src={bestMatch.imageUrl} alt={bestMatch.sourceStore} className="w-full h-full object-cover" />
                     </div>
                   ) : (
-                    <div className="w-11 h-11 rounded-lg bg-zinc-850 flex items-center justify-center text-xs text-zinc-500 flex-shrink-0">
-                      🛒
+                    <div className="w-11 h-11 rounded-lg bg-zinc-850 flex items-center justify-center flex-shrink-0">
+                      <ShoppingBag className="size-5 text-zinc-500" />
                     </div>
                   )}
                   <div className="min-w-0 flex flex-col justify-center">
@@ -4043,7 +4037,8 @@ function ProductList({
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {bestMatch.merchant?.rating && (
                         <span className="text-[10px] text-amber-500 font-bold flex items-center gap-0.5">
-                          ★ {bestMatch.merchant.rating}
+                          <Star className="size-3 fill-current" />
+                          {bestMatch.merchant.rating}
                         </span>
                       )}
                       <span className="text-[10px] text-zinc-400 font-medium">
@@ -4110,8 +4105,8 @@ function ProductList({
                           <img src={match.imageUrl} alt={match.sourceStore} className="w-full h-full object-cover" />
                         </div>
                       ) : (
-                        <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center text-[10px] text-zinc-500 flex-shrink-0">
-                          🛒
+                        <div className="w-8 h-8 rounded-md bg-zinc-850 flex items-center justify-center flex-shrink-0">
+                          <ShoppingBag className="size-4 text-zinc-500" />
                         </div>
                       )}
                       <div className="min-w-0">
@@ -4121,7 +4116,8 @@ function ProductList({
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {match.merchant?.rating && (
                             <span className="text-[10px] text-amber-500 font-bold flex items-center gap-0.5">
-                              ★ {match.merchant.rating}
+                              <Star className="size-3 fill-current" />
+                              {match.merchant.rating}
                             </span>
                           )}
                           <span className="text-[10px] font-medium text-zinc-500">

@@ -46,6 +46,7 @@ import UserAvatar from "@/components/UserAvatar";
 import FollowButton from "@/components/FollowButton";
 import InfiniteScrollContainer from "@/components/InfiniteScrollContainer";
 import Post from "@/components/posts/Post";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { cn } from "@/lib/utils";
 
 // Staggered grid media item component for Pinterest-style masonry
@@ -774,9 +775,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-xs hover:underline">{acc.displayName}</span>
                         {acc.verified && (
-                          <span className="size-3.5 rounded-full bg-blue-500 text-[8px] text-white flex items-center justify-center font-bold select-none shrink-0">
-                            ✓
-                          </span>
+                          <VerifiedBadge size={13} />
                         )}
                         {acc.followsYou && (
                           <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1 rounded">
@@ -1494,7 +1493,7 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                         <div className="flex flex-col min-w-0 text-start">
                           <span className="font-bold text-[12px] text-foreground truncate flex items-center gap-1 leading-tight">
                             {creator.name}
-                            <span className="size-3 rounded-full bg-blue-500 text-[7px] text-white flex items-center justify-center font-bold">✓</span>
+                            <VerifiedBadge size={12} />
                           </span>
                           <span className="text-[9.5px] text-muted-foreground mt-0.5 leading-none">
                             {creator.tag} · {creator.category}
@@ -1591,10 +1590,8 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
                             <span className="font-bold text-sm hover:underline text-current">
                               {acc.displayName}
                             </span>
-                            {(acc.followers?.length > 0 || acc.username === "Omkar") && (
-                              <span className="size-4 rounded-full bg-blue-500 text-[10px] text-white flex items-center justify-center font-bold select-none">
-                                ✓
-                              </span>
+                            {acc.verified && (
+                              <VerifiedBadge size={14} />
                             )}
                           </div>
                           <span className="text-xs text-muted-foreground">@{acc.username}</span>

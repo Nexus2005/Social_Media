@@ -8,13 +8,14 @@ import { useSubmitPostMutation } from "@/components/posts/editor/mutations";
 import useMediaUpload from "@/components/posts/editor/useMediaUpload";
 import { useToast } from "@/components/ui/use-toast";
 import PostEditor from "@/components/posts/editor/PostEditor";
-import { 
-  X, Globe, ChevronDown, MoreHorizontal, Image as ImageIcon, 
-  CheckSquare, Camera, RotateCw, Mic, MicOff, Video as VideoIcon, 
-  VideoOff, Smartphone, Calendar, Share2, Sparkles, Music, 
+import {
+  X, Globe, ChevronDown, MoreHorizontal, Image as ImageIcon,
+  CheckSquare, Camera, RotateCw, Mic, MicOff, Video as VideoIcon,
+  VideoOff, Smartphone, Calendar, Share2, Sparkles, Music,
   Play, Pause, Plus, Loader2, Pencil, Trash2, Check, ArrowRight, Clock, AlignLeft,
   ArrowLeft, Edit3, Smile, FileText, CheckCircle2, Lock, AlertTriangle, Volume2,
-  Users, MapPin, ListPlus, MessageSquare, Download, ChevronUp, Info, ArrowUp
+  Users, MapPin, ListPlus, MessageSquare, Download, ChevronUp, Info, ArrowUp,
+  Eye, HelpCircle, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1478,8 +1479,9 @@ export default function CreatePage() {
                         <span className="size-1.5 rounded-full bg-white block" />
                         LIVE
                       </span>
-                      <span className="bg-black/40 border border-white/5 backdrop-blur-md px-2 py-0.5 rounded text-[11px] font-bold text-white select-none">
-                        👁 {liveViews}
+                      <span className="bg-black/40 border border-white/5 backdrop-blur-md px-2 py-0.5 rounded text-[11px] font-bold text-white select-none flex items-center gap-1">
+                        <Eye className="size-3.5" />
+                        {liveViews}
                       </span>
                     </div>
                   )}
@@ -1831,7 +1833,7 @@ export default function CreatePage() {
                   )}
                   {item.type === "addyours" && (
                     <div className="flex items-center gap-1.5 justify-center py-1">
-                      <span className="text-md">📷</span>
+                      <Camera className="size-4 text-rose-500" />
                       <span className="text-xs font-black tracking-wide text-rose-500 uppercase">{item.title}</span>
                     </div>
                   )}
@@ -2198,7 +2200,7 @@ export default function CreatePage() {
                     )}
                     {item.type === "addyours" && (
                       <div className="flex items-center gap-1.5 justify-center py-1">
-                        <span className="text-md">📷</span>
+                        <Camera className="size-4 text-rose-500" />
                         <span className="text-xs font-black tracking-wide text-rose-500 uppercase">{item.title}</span>
                       </div>
                     )}
@@ -2583,7 +2585,7 @@ export default function CreatePage() {
                       onClick={() => setIsSelectingStickerImage(true)}
                       className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
                     >
-                      <span className="text-xl">🖼️</span>
+                      <ImageIcon className="size-5.5 text-white" />
                       <span className="text-xs font-bold text-white uppercase tracking-wider">Image Sticker</span>
                     </button>
 
@@ -2591,7 +2593,7 @@ export default function CreatePage() {
                       onClick={() => handleAddSticker("qa")}
                       className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
                     >
-                      <span className="text-xl">💬</span>
+                      <MessageSquare className="size-5.5 text-white" />
                       <span className="text-xs font-bold text-white uppercase tracking-wider">Q&A Widget</span>
                     </button>
 
@@ -2599,7 +2601,7 @@ export default function CreatePage() {
                       onClick={() => handleAddSticker("addyours")}
                       className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
                     >
-                      <span className="text-xl">📸</span>
+                      <Camera className="size-5.5 text-white" />
                       <span className="text-xs font-bold text-white uppercase tracking-wider">Add yours</span>
                     </button>
 
@@ -2607,7 +2609,7 @@ export default function CreatePage() {
                       onClick={() => handleAddSticker("poll")}
                       className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center"
                     >
-                      <span className="text-xl">📊</span>
+                      <BarChart3 className="size-5.5 text-white" />
                       <span className="text-xs font-bold text-white uppercase tracking-wider">Poll Sticker</span>
                     </button>
 
@@ -2615,7 +2617,7 @@ export default function CreatePage() {
                       onClick={() => handleAddSticker("quiz")}
                       className="bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 rounded-2xl p-4 flex-col items-center justify-center gap-2.5 shadow-md transition-all active:scale-95 text-center col-span-2 flex"
                     >
-                      <span className="text-xl">❓</span>
+                      <HelpCircle className="size-5.5 text-white" />
                       <span className="text-xs font-bold text-white uppercase tracking-wider">Interactive Quiz</span>
                     </button>
                   </div>

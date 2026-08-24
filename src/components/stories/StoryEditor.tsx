@@ -19,7 +19,10 @@ import {
   Heart,
   Undo2,
   Trash2,
-  Maximize2
+  Maximize2,
+  AtSign,
+  Hash,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GifPicker from "./GifPicker";
@@ -819,7 +822,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                   }}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">👤</span>
+                  <AtSign className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Mention</span>
                 </button>
                 <button
@@ -829,14 +832,14 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                   }}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">#️⃣</span>
+                  <Hash className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Hashtag</span>
                 </button>
                 <button
                   onClick={() => setActivePanel("location")}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">📍</span>
+                  <MapPin className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Location</span>
                 </button>
                 <button
@@ -846,7 +849,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                   }}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">🎵</span>
+                  <Music className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Music</span>
                 </button>
                 <button
@@ -856,7 +859,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                   }}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">📊</span>
+                  <BarChart3 className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Poll</span>
                 </button>
                 <button
@@ -866,7 +869,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                   }}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">❓</span>
+                  <HelpCircle className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Question</span>
                 </button>
                 <button
@@ -876,7 +879,7 @@ export default function StoryEditor({ file, onClose, onComplete }: StoryEditorPr
                   }}
                   className="p-3 bg-neutral-900 border border-neutral-850 hover:border-neutral-700 rounded-2xl flex flex-col items-center justify-center gap-1.5"
                 >
-                  <span className="text-lg">⏰</span>
+                  <Clock className="size-5 text-white" />
                   <span className="text-[10px] font-bold text-neutral-300">Countdown</span>
                 </button>
               </div>

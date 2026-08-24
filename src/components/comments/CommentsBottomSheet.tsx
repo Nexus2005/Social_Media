@@ -2,7 +2,7 @@
 
 import { useSession } from "@/app/(main)/SessionProvider";
 import { CommentsPage, PostData } from "@/lib/types";
-import { formatRelativeDate } from "@/lib/utils";
+import { cn, formatRelativeDate } from "@/lib/utils";
 import { useInfiniteQuery, useQueryClient, useMutation, QueryKey } from "@tanstack/react-query";
 import useFollowerInfo from "@/hooks/useFollowerInfo";
 import {
@@ -25,6 +25,9 @@ import {
   UserMinus,
   BellOff,
   Volume2,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -38,6 +41,8 @@ import {
   likeComment,
   unlikeComment,
   submitComment,
+  editComment as editCommentAction,
+  deleteComment as deleteCommentAction,
   repostComment,
   unrepostComment,
   bookmarkComment,
@@ -56,6 +61,8 @@ interface CommentsBottomSheetProps {
   post: PostData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When provided, scrolls to and temporarily highlights this comment */
+  highlightCommentId?: string | null;
 }
 
 type SortOption = "top" | "newest" | "oldest";
@@ -84,7 +91,7 @@ function CommentFollowOption({
 
   const { mutate } = useMutation({
     mutationFn: () =>
-      data.isFollowedByUser
+      data?.isFollowedByUser
         ? kyInstance.delete(`/api/users/${user.id}/followers`)
         : kyInstance.post(`/api/users/${user.id}/followers`),
     onMutate: async () => {
@@ -124,7 +131,7 @@ function CommentFollowOption({
       }}
       className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
     >
-      {data.isFollowedByUser ? (
+      {data?.isFollowedByUser ? (
         <>
           <UserMinus className="size-5 text-zinc-400" />
           <span>Unfollow @{user.username}</span>
@@ -143,6 +150,7 @@ export default function CommentsBottomSheet({
   post,
   open,
   onOpenChange,
+  highlightCommentId,
 }: CommentsBottomSheetProps) {
   const { user: loggedInUser } = useSession();
   const queryClient = useQueryClient();
@@ -163,8 +171,12 @@ export default function CommentsBottomSheet({
   // Options Sheet comment target
   const [optionComment, setOptionComment] = useState<any | null>(null);
 
+  // Comment currently being edited inline
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+
   // Share Dialog Integration
   const [sharePostData, setSharePostData] = useState<PostData | null>(null);
+  const [commentToDelete, setCommentToDelete] = useState<any | null>(null);
 
   // Infinite Query for comments (only fetched when the sheet is open)
   const { data, fetchNextPage, hasNextPage, isFetching, status } =
@@ -242,6 +254,34 @@ export default function CommentsBottomSheet({
       document.body.style.overflow = originalOverflow;
     };
   }, [open]);
+
+  // Scroll to and highlight a deep-linked comment once comments have loaded
+  useEffect(() => {
+    if (!open || status !== "success" || !highlightCommentId) return;
+
+    let attempts = 0;
+    let rafId: number | null = null;
+
+    const tryScroll = () => {
+      const el = document.querySelector(
+        `[data-comment-id="${highlightCommentId}"]`,
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("comment-highlight-flash");
+        window.setTimeout(() => el.classList.remove("comment-highlight-flash"), 2600);
+      } else if (attempts < 20) {
+        attempts += 1;
+        rafId = window.requestAnimationFrame(tryScroll);
+      }
+    };
+
+    // Give the sheet one frame to mount its content
+    rafId = window.requestAnimationFrame(tryScroll);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [open, status, highlightCommentId]);
 
   // Drag Gesture Evaluator
   const handleDragEnd = (event: any, info: any) => {
@@ -411,7 +451,11 @@ export default function CommentsBottomSheet({
                   comment={comment}
                   postUserId={post.user.id}
                   loggedInUser={loggedInUser}
+                  highlightCommentId={highlightCommentId}
+                  isEditing={editingCommentId === comment.id}
+                  onCancelEdit={() => setEditingCommentId(null)}
                   onReply={(c) => {
+                    setEditingCommentId(null);
                     setReplyToComment(c);
                     setCommentText(`@${c.user.username} `);
                   }}
@@ -574,12 +618,42 @@ export default function CommentsBottomSheet({
               
               {/* Menu items */}
               <div className="flex flex-col mt-2 divide-y divide-zinc-900/60">
-                {/* Follow / Unfollow */}
-                <CommentFollowOption
-                  user={optionComment.user}
-                  loggedInUserId={loggedInUser?.id || ""}
-                  onDone={() => setOptionComment(null)}
-                />
+                {/* Edit — only for own comments */}
+                {optionComment.user.id === loggedInUser?.id && (
+                  <button
+                    onClick={() => {
+                      setEditingCommentId(optionComment.id);
+                      setOptionComment(null);
+                    }}
+                    className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-white active:bg-zinc-900/40"
+                  >
+                    <Pencil className="size-5 text-zinc-400" />
+                    <span>Edit</span>
+                  </button>
+                )}
+
+                {/* Delete — only for own comments */}
+                {optionComment.user.id === loggedInUser?.id && (
+                  <button
+                    onClick={() => {
+                      setCommentToDelete(optionComment);
+                      setOptionComment(null);
+                    }}
+                    className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-red-500 active:bg-zinc-900/40"
+                  >
+                    <Trash2 className="size-5 text-red-500" />
+                    <span>Delete</span>
+                  </button>
+                )}
+
+                {/* Follow / Unfollow (hidden on own comments) */}
+                {optionComment.user.id !== loggedInUser?.id && (
+                  <CommentFollowOption
+                    user={optionComment.user}
+                    loggedInUserId={loggedInUser?.id || ""}
+                    onDone={() => setOptionComment(null)}
+                  />
+                )}
 
                 {/* Mute user */}
                 <button
@@ -654,25 +728,95 @@ export default function CommentsBottomSheet({
                   <span>Block @{optionComment.user.username}</span>
                 </button>
 
-                {/* Divider line before Report post */}
+                {/* Divider line before Report */}
                 <div className="h-px bg-zinc-850/70 w-full my-2" />
 
-                {/* Report post */}
+                {/* Report comment */}
                 <button
                   onClick={async () => {
                     try {
-                      await reportContent({ postId: post.id, reason: "Inappropriate content" });
-                      toast({ description: "Post has been reported successfully." });
+                      await reportContent({
+                        commentId: optionComment.id,
+                        postId: post.id,
+                        reason: "Inappropriate content",
+                      });
+                      toast({ description: "Comment has been reported successfully." });
                     } catch (err) {
                       console.error(err);
-                      toast({ variant: "destructive", description: "Failed to report post." });
+                      toast({ variant: "destructive", description: "Failed to report comment." });
                     }
                     setOptionComment(null);
                   }}
                   className="flex items-center gap-3.5 py-4 w-full text-left text-[15px] font-semibold text-red-500 active:bg-zinc-900/40"
                 >
                   <Flag className="size-5 text-red-500" />
-                  <span>Report post</span>
+                  <span>Report comment</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Delete confirmation dialog */}
+      <AnimatePresence>
+        {commentToDelete && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[130] transition-opacity duration-300 pointer-events-auto"
+              onClick={() => setCommentToDelete(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 260 }}
+              className="fixed left-4 right-4 bottom-0 z-[140] w-auto md:max-w-sm md:mx-auto bg-[#121212] border border-zinc-800 rounded-t-[24px] md:rounded-[24px] md:bottom-auto md:top-1/2 md:-translate-y-1/2 p-5 flex flex-col gap-3 text-white shadow-2xl"
+              role="alertdialog"
+              aria-label="Delete comment"
+            >
+              <h3 className="font-bold text-lg">Delete comment?</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                This will permanently remove your comment{commentToDelete.replies?.length ? " and its replies" : ""}. This action cannot be undone.
+              </p>
+              <div className="flex gap-2.5 mt-1">
+                <button
+                  onClick={() => setCommentToDelete(null)}
+                  className="flex-1 h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const target = commentToDelete;
+                    setCommentToDelete(null);
+                    try {
+                      await deleteCommentAction(target.id);
+                      // Remove from cache across pages and reply trees
+                      queryClient.setQueryData(["comments", post.id], (oldData: any) => {
+                        if (!oldData) return oldData;
+                        return {
+                          ...oldData,
+                          pages: oldData.pages.map((page: any) => ({
+                            ...page,
+                            comments: page.comments
+                              .filter((c: any) => c.id !== target.id)
+                              .map((c: any) => ({
+                                ...c,
+                                replies: (c.replies || []).filter((r: any) => r.id !== target.id),
+                              })),
+                          })),
+                        };
+                      });
+                      toast({ description: "Comment deleted." });
+                    } catch (err) {
+                      console.error(err);
+                      toast({ variant: "destructive", description: "Failed to delete comment." });
+                    }
+                  }}
+                  className="flex-1 h-11 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors cursor-pointer"
+                >
+                  Delete
                 </button>
               </div>
             </motion.div>
@@ -689,23 +833,88 @@ interface CommentNodeProps {
   comment: any;
   postUserId: string;
   loggedInUser: any;
+  parentAuthorUsername?: string;
+  isEditing?: boolean;
+  onCancelEdit?: () => void;
   onReply: (comment: any) => void;
   onShareClick: (comment: any) => void;
   onShowOptions: (comment: any) => void;
   queryClient: any;
+  highlightCommentId?: string | null;
 }
 
 function CommentNode({
   comment,
   postUserId,
   loggedInUser,
+  parentAuthorUsername,
+  isEditing = false,
+  onCancelEdit,
   onReply,
   onShareClick,
   onShowOptions,
   queryClient,
+  highlightCommentId,
 }: CommentNodeProps) {
   const { toast } = useToast();
   const [showReplies, setShowReplies] = useState(false);
+
+  // Auto-expand the thread when the deep-linked comment is a nested reply
+  const hasHighlightedReply =
+    !!highlightCommentId &&
+    (comment.replies || []).some((r: any) => r.id === highlightCommentId);
+  useEffect(() => {
+    if (hasHighlightedReply) setShowReplies(true);
+  }, [hasHighlightedReply]);
+
+  // Inline edit state
+  const [editText, setEditText] = useState(comment.content);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  useEffect(() => {
+    if (isEditing) setEditText(comment.content);
+  }, [isEditing, comment.content]);
+
+  const handleSaveEdit = async () => {
+    if (!editText.trim() || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      const updated: any = await editCommentAction({
+        commentId: comment.id,
+        content: editText.trim(),
+      });
+      // Update the cached comment content across pages and reply trees
+      queryClient.setQueryData(["comments", comment.postId], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            comments: page.comments.map((c: any) => {
+              if (c.id === updated.id) return { ...c, ...updated };
+              return {
+                ...c,
+                replies: (c.replies || []).map((r: any) =>
+                  r.id === updated.id ? { ...r, ...updated } : r,
+                ),
+              };
+            }),
+          })),
+        };
+      });
+      toast({ description: "Comment updated." });
+      onCancelEdit?.();
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", description: "Failed to update comment." });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // Whether the comment has been edited since creation
+  const wasEdited =
+    !!comment.updatedAt &&
+    new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000;
 
   // Real Database fields (100% live state mappings)
   const isLiked = comment.likes?.some((like: any) => like.userId === loggedInUser?.id);
@@ -884,7 +1093,13 @@ function CommentNode({
   };
 
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        "relative rounded-2xl transition-colors duration-500",
+        highlightCommentId === comment.id && "comment-highlight-flash",
+      )}
+      data-comment-id={comment.id}
+    >
       
       {/* Visual Thread connector line connecting parent to replies */}
       {showReplies && comment.replies && comment.replies.length > 0 && (
@@ -915,30 +1130,70 @@ function CommentNode({
               <span className="text-zinc-550">@{comment.user.username}</span>
               <span className="text-zinc-650 select-none">•</span>
               <span>{formatRelativeDate(comment.createdAt)}</span>
+              {wasEdited && (
+                <span className="text-zinc-550 text-[11px] italic">(edited)</span>
+              )}
             </div>
-            
+
             {/* Options button */}
-            <button 
+            <button
               onClick={() => onShowOptions(comment)}
+              aria-label="Comment options"
               className="text-zinc-550 hover:text-white select-none px-1 py-0.5 active:opacity-70 transition-opacity"
             >
-              <span className="text-sm font-bold">•••</span>
+              <MoreHorizontal className="size-4.5" />
             </button>
           </div>
 
-          {/* Replying indicator */}
+          {/* Replying indicator — shows the parent comment author, not self */}
           {comment.parentCommentId && (
             <div className="text-[12.5px] text-zinc-550">
-              Replying to <span className="text-sky-400 font-medium">@{comment.user.username}</span>
+              Replying to{" "}
+              <span className="text-sky-400 font-medium">
+                @{parentAuthorUsername || comment.user.username}
+              </span>
             </div>
           )}
 
-          {/* Content */}
-          <Linkify>
-            <div className="text-[15px] break-words text-zinc-150 leading-relaxed pr-2">
-              {comment.content}
+          {/* Content / Inline edit composer */}
+          {isEditing ? (
+            <div className="mt-1 pr-2">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                rows={2}
+                autoFocus
+                maxLength={1000}
+                aria-label="Edit comment"
+                className="w-full bg-zinc-900/80 border border-zinc-700 focus:border-sky-500 rounded-xl px-3 py-2 text-[14px] text-white placeholder-zinc-500 outline-none resize-none transition-colors"
+              />
+              <div className="flex items-center justify-between mt-1.5">
+                <span className="text-[11px] text-zinc-600">{editText.length}/1000</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onCancelEdit?.()}
+                    className="h-8 px-3.5 rounded-full bg-transparent border border-zinc-700 hover:bg-zinc-800 text-xs font-semibold text-zinc-300 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={!editText.trim() || isSavingEdit}
+                    className="h-8 px-4 rounded-full bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-xs font-bold text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    {isSavingEdit && <Loader2 className="size-3 animate-spin" />}
+                    Save
+                  </button>
+                </div>
+              </div>
             </div>
-          </Linkify>
+          ) : (
+            <Linkify>
+              <div className="text-[15px] break-words text-zinc-150 leading-relaxed pr-2">
+                {comment.content}
+              </div>
+            </Linkify>
+          )}
 
           {/* Action toolbar matching user mockup */}
           <div className="flex items-center justify-between text-zinc-500 text-[13px] py-2 select-none pr-3 max-w-sm">
@@ -946,6 +1201,7 @@ function CommentNode({
             {/* Replies button */}
             <button
               onClick={() => onReply(comment)}
+              aria-label="Reply to comment"
               className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors"
             >
               <Reply className="size-4.5 transform scale-x-[-1]" />
@@ -955,6 +1211,7 @@ function CommentNode({
             {/* Repost button */}
             <button
               onClick={handleRepost}
+              aria-label="Repost comment"
               className={`flex items-center gap-1.5 transition-colors ${
                 localIsReposted ? "text-green-500" : "hover:text-green-500"
               }`}
@@ -966,6 +1223,7 @@ function CommentNode({
             {/* Like button */}
             <button
               onClick={handleLike}
+              aria-label="Like comment"
               className={`flex items-center gap-1.5 transition-colors ${
                 localIsLiked ? "text-red-500" : "hover:text-red-500"
               }`}
@@ -983,6 +1241,7 @@ function CommentNode({
             {/* Bookmark button */}
             <button
               onClick={handleBookmark}
+              aria-label="Save comment"
               className={`transition-colors ${localIsBookmarked ? "text-yellow-500" : "hover:text-yellow-500"}`}
             >
               <Bookmark className={`size-4.5 ${localIsBookmarked ? "fill-yellow-500" : ""}`} />
@@ -991,6 +1250,7 @@ function CommentNode({
             {/* Share button */}
             <button
               onClick={() => onShareClick(comment)}
+              aria-label="Share comment"
               className="hover:text-zinc-300 transition-colors"
             >
               <Share2 className="size-4.5" />
@@ -1021,6 +1281,8 @@ function CommentNode({
               comment={reply}
               postUserId={postUserId}
               loggedInUser={loggedInUser}
+              parentAuthorUsername={comment.user.username}
+              highlightCommentId={highlightCommentId === comment.id ? null : highlightCommentId}
               onReply={onReply}
               onShareClick={onShareClick}
               onShowOptions={onShowOptions}

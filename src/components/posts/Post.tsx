@@ -283,6 +283,23 @@ export default function Post({ post }: PostProps) {
   const chatClient = useChat();
 
   const [showComments, setShowComments] = useState(false);
+  // Deep-linked comment thread (from notifications: /posts/{id}?comment={commentId})
+  const [highlightCommentId, setHighlightCommentId] = useState<string | null>(null);
+
+  // Auto-open the comment sheet when deep-linked from a notification
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const target = params.get("comment");
+      if (target) {
+        setHighlightCommentId(target);
+        setShowComments(true);
+      }
+    } catch {
+      // Ignore malformed URLs
+    }
+  }, []);
+
   const [isNotInterested, setIsNotInterested] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
 
@@ -655,12 +672,14 @@ export default function Post({ post }: PostProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {post.user.id !== user.id && !followerData.isFollowedByUser && (
+          {post.user.id !== user.id && (
             <FollowButton
               userId={post.user.id}
               initialState={{
                 followers: post.user._count.followers,
-                isFollowedByUser: false,
+                isFollowedByUser: Array.isArray((post.user as any).followers)
+                  ? (post.user as any).followers.some((f: any) => f.followerId === user.id)
+                  : false,
               }}
               variant="post-header"
             />
@@ -965,6 +984,7 @@ export default function Post({ post }: PostProps) {
         post={post}
         open={showComments}
         onOpenChange={setShowComments}
+        highlightCommentId={highlightCommentId}
       />
 
       {/* Media Fullscreen Viewer */}

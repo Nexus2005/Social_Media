@@ -8,7 +8,8 @@ import { CartlyAdapter } from "@/features/shop/adapters/cartlyAdapter";
 import CartlyProductCard from "@/features/shop/components/CartlyProductCard";
 import { 
   Sparkles, Brain, Users, RefreshCw, Clock, ArrowRight, 
-  ShoppingBag, Shield, CheckCircle, Flame, ArrowRightLeft, Star, Heart, Tag
+  ShoppingBag, Shield, CheckCircle, Flame, ArrowRightLeft, Star, Heart, Tag,
+  ChevronRight
 } from "lucide-react";
 import { useCart } from "@/features/shop/contexts/CartContext";
 
@@ -386,12 +387,12 @@ export default function ShopDiscoveryHome() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-black tracking-tight text-white capitalize font-nunito flex items-center gap-2">
-              Creator Picks ✨
+              Creator Picks
             </h2>
             <p className="text-xs text-zinc-500 mt-1">Products handpicked by your favorite creators</p>
           </div>
           <button className="text-xs text-violet-400 font-bold hover:underline flex items-center gap-1 cursor-pointer">
-            View all <span className="text-[14px] font-black">&gt;</span>
+            View all <ChevronRight className="size-3.5" />
           </button>
         </div>
 

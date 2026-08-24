@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 
 export default function useFollowerInfo(
   userId: string,
-  initialState: FollowerInfo,
+  initialState?: FollowerInfo,
 ) {
   const query = useQuery({
     queryKey: ["follower-info", userId],
     queryFn: () =>
       kyInstance.get(`/api/users/${userId}/followers`).json<FollowerInfo>(),
+    // Only trust server-provided initial data; when absent, fetch real state
     initialData: initialState,
-    staleTime: Infinity,
+    enabled: !!userId,
   });
 
   return query;

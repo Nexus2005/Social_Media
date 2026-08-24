@@ -363,7 +363,7 @@ export default function ShopCartPage() {
                           
                           <div className="flex items-center gap-3 text-[11px] mt-1.5">
                             <span className="text-[#fbbf24] font-bold flex items-center gap-0.5">
-                              4.6 ★ <span className="text-slate-500 font-normal">(12.4K reviews)</span>
+                              4.6 <Star className="size-3 fill-current" /> <span className="text-slate-500 font-normal">(12.4K reviews)</span>
                             </span>
                             <span className="bg-[#1e1b4b] text-[#6366f1] text-[10px] px-1.5 py-0.5 rounded-[4px] font-semibold tracking-wide">Assured</span>
                           </div>
@@ -619,7 +619,7 @@ export default function ShopCartPage() {
             {recommendations.creatorPicks?.length > 0 && (
               <div className="mb-10 text-left">
                 <h2 className="text-base font-black tracking-tight text-white flex items-center gap-2 mb-5">
-                  <Star className="size-4.5 text-[#fbbf24]" /> Handpicked Creator Favorites ✨
+                  <Star className="size-4.5 text-[#fbbf24]" /> Handpicked Creator Favorites
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
                   {recommendations.creatorPicks.map((prod) => (

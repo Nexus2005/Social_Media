@@ -168,13 +168,10 @@ export default function Notification({ notification, isUnread }: NotificationPro
       case "FOLLOW_REQUEST":
       case "FOLLOW_ACCEPTED":
         if (notification.issuer.id) {
+          // No fake initial state — the hook fetches the real follow status
           return (
             <FollowButton
               userId={notification.issuer.id}
-              initialState={{
-                followers: 0,
-                isFollowedByUser: false,
-              }}
               variant="notification-pill"
             />
           );

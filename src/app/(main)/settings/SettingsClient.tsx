@@ -16,7 +16,8 @@ import {
   LogOut, 
   HelpCircle,
   Activity,
-  Sparkles
+  Sparkles,
+  Check
 } from "lucide-react";
 
 interface SettingRowProps {
@@ -117,16 +118,16 @@ export default function SettingsClient() {
             
             <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground font-semibold">
               <li className="flex items-center gap-2">
-                <span className="text-yellow-500 font-bold text-sm">✔</span> Advanced performance analytics
+                <Check className="size-4 text-yellow-500 shrink-0" /> Advanced performance analytics
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-500 font-bold text-sm">✔</span> Up to 5x higher reach on stories and feed
+                <Check className="size-4 text-yellow-500 shrink-0" /> Up to 5x higher reach on stories and feed
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-500 font-bold text-sm">✔</span> Dynamic custom theme panel settings
+                <Check className="size-4 text-yellow-500 shrink-0" /> Dynamic custom theme panel settings
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-yellow-500 font-bold text-sm">✔</span> Gold verification badge next to your username
+                <Check className="size-4 text-yellow-500 shrink-0" /> Gold verification badge next to your username
               </li>
             </ul>
           </div>

@@ -294,14 +294,16 @@ export async function notifyComment(
   issuerId: string,
   recipientId: string,
   postId: string,
-  metadata?: { commentPreview?: string; thumbnail?: string },
+  metadata?: { commentPreview?: string; thumbnail?: string; commentId?: string },
 ): Promise<void> {
   await createNotification({
     recipientId,
     issuerId,
     type: "COMMENT",
     postId,
-    deepLink: `/posts/${postId}`,
+    deepLink: metadata?.commentId
+      ? `/posts/${postId}?comment=${metadata.commentId}`
+      : `/posts/${postId}`,
     metadata: metadata || null,
   });
 }
@@ -310,14 +312,16 @@ export async function notifyReply(
   issuerId: string,
   recipientId: string,
   postId: string,
-  metadata?: { commentPreview?: string; thumbnail?: string },
+  metadata?: { commentPreview?: string; thumbnail?: string; commentId?: string },
 ): Promise<void> {
   await createNotification({
     recipientId,
     issuerId,
     type: "REPLY",
     postId,
-    deepLink: `/posts/${postId}`,
+    deepLink: metadata?.commentId
+      ? `/posts/${postId}?comment=${metadata.commentId}`
+      : `/posts/${postId}`,
     metadata: metadata || null,
   });
 }
@@ -326,14 +330,16 @@ export async function notifyCommentLike(
   issuerId: string,
   recipientId: string,
   postId: string,
-  metadata?: { commentPreview?: string },
+  metadata?: { commentPreview?: string; commentId?: string },
 ): Promise<void> {
   await createNotification({
     recipientId,
     issuerId,
     type: "COMMENT_LIKE",
     postId,
-    deepLink: `/posts/${postId}`,
+    deepLink: metadata?.commentId
+      ? `/posts/${postId}?comment=${metadata.commentId}`
+      : `/posts/${postId}`,
     metadata: metadata || null,
   });
 }

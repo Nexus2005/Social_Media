@@ -27,7 +27,7 @@ export default function ProfileFollowsInfo({
       <span>@{username}</span>
       <span className="text-zinc-600 dark:text-zinc-700">•</span>
       <Link href={`/users/${username}/followers`} className="hover:underline hover:text-foreground text-zinc-700 dark:text-zinc-300 transition-colors">
-        <span className="font-extrabold text-zinc-950 dark:text-foreground mr-1">{formatNumber(followerData.followers)}</span>
+        <span className="font-extrabold text-zinc-950 dark:text-foreground mr-1">{formatNumber(followerData?.followers ?? initialFollowerState.followers)}</span>
         followers
       </Link>
       <span className="text-zinc-600 dark:text-zinc-700">•</span>

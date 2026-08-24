@@ -2013,3 +2013,21 @@ body:has(.shop-full-width-container) aside {
 .animate-play-pause-icon {
   animation: playPausePulse 0.6s ease-out forwards;
 }
+
+/* Deep-linked comment highlight flash */
+@keyframes commentHighlightFlash {
+  0% { background-color: rgba(56, 189, 248, 0.22); }
+  70% { background-color: rgba(56, 189, 248, 0.14); }
+  100% { background-color: transparent; }
+}
+.comment-highlight-flash {
+  animation: commentHighlightFlash 2.6s ease-out forwards;
+  border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comment-highlight-flash {
+    animation: none;
+    background-color: rgba(56, 189, 248, 0.12);
+  }
+}

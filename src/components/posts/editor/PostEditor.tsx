@@ -57,6 +57,8 @@ import {
   HeartOff,
   UserCheck,
   AtSign,
+  Eye,
+  MapPin,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
@@ -1552,8 +1554,9 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
                   <span className="bg-red-650 text-white font-black text-[10px] tracking-widest px-2.5 py-0.5 rounded uppercase animate-pulse">
                     LIVE
                   </span>
-                  <span className="bg-black/50 text-[11px] text-white px-2 py-0.5 rounded backdrop-blur-sm">
-                    👁 1.2K
+                  <span className="bg-black/50 text-[11px] text-white px-2 py-0.5 rounded backdrop-blur-sm flex items-center gap-1">
+                    <Eye className="size-3.5" />
+                    1.2K
                   </span>
                 </div>
 
@@ -2028,7 +2031,7 @@ export default function PostEditor({ onClose, className, postToEdit }: PostEdito
         {selectedLocation && (
           <div className="pl-[52px] flex justify-start select-none">
             <span className="flex items-center gap-2 text-xs bg-[#1c1c1e] border border-[#262626] text-white rounded-full py-1.5 px-3">
-              <span>📍 {selectedLocation.name}</span>
+              <span className="flex items-center gap-1"><MapPin className="size-3.5" /> {selectedLocation.name}</span>
               <button 
                 onClick={() => setSelectedLocation(null)}
                 className="text-[#A1A1AA] hover:text-white p-0.5"
