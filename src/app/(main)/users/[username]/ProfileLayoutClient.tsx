@@ -92,7 +92,7 @@ export default function ProfileLayoutClient({
   const followerInfo: FollowerInfo = {
     followers: user._count.followers,
     isFollowedByUser: user.followers.some(
-      ({ followerId }) => followerId === loggedInUserId
+      (f: any) => f.followerId === loggedInUserId
     ),
   };
 

@@ -102,7 +102,7 @@ export default function SuggestedFollowsCard({
         <div className="flex flex-col gap-3.5">
           {displayedUsers.map((suggestedUser) => {
             const isFollowed = suggestedUser.followers.some(
-              ({ followerId }) => followerId === currentUserId
+              (f: any) => f.followerId === currentUserId
             );
 
             return (
