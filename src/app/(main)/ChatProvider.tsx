@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext } from "react";
-import { StreamChat } from "stream-chat";
+import type { StreamChat } from "stream-chat";
 import useInitializeChatClient from "./messages/useInitializeChatClient";
 
 const ChatContext = createContext<StreamChat | null>(null);

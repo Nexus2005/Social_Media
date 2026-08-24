@@ -15,23 +15,9 @@ export async function GET(req: NextRequest) {
     }
 
     let focusedPost: any = null;
-    if (focusedPostId && !cursor) {
-      focusedPost = await prisma.post.findUnique({
-        where: { id: focusedPostId },
-        select: {
-          id: true,
-          createdAt: true,
-          videoJob: {
-            select: {
-              status: true,
-            },
-          },
-        },
-      });
-    }
 
-    // 1. Fetch recent 200 reels with minimal fields for status sorting
-    const reelsMinimal = await prisma.post.findMany({
+    // 1. Fetch recent 50 reels with minimal fields for status sorting
+    const reelsMinimalQuery = prisma.post.findMany({
       where: {
         contentFormat: "SPOT",
         ...(focusedPostId ? { id: { not: focusedPostId } } : {}),
@@ -48,6 +34,29 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
+
+    // The focused post lookup is independent — run it in parallel
+    const focusedPostQuery = focusedPostId && !cursor
+      ? prisma.post.findUnique({
+          where: { id: focusedPostId },
+          select: {
+            id: true,
+            createdAt: true,
+            videoJob: {
+              select: {
+                status: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve(null);
+
+    const [reelsMinimalResult, focusedPostResult] = await Promise.all([
+      reelsMinimalQuery,
+      focusedPostQuery,
+    ]);
+    const reelsMinimal = reelsMinimalResult;
+    focusedPost = focusedPostResult;
 
     // Priority mapping for statuses
     const statusOrder: Record<string, number> = {

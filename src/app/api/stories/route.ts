@@ -12,69 +12,85 @@ export async function GET(req: Request) {
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Fetch stories of user themselves or users they follow, created in the last 24 hours
-    const stories = await prisma.story.findMany({
-      where: {
-        createdAt: {
-          gt: twentyFourHoursAgo,
-        },
-        OR: [
-          { userId: loggedInUser.id },
-          {
-            user: {
-              followers: {
-                some: {
-                  followerId: loggedInUser.id,
+    // Fetch stories of user themselves or users they follow, created in the
+    // last 24 hours. Views/likes are heavy payloads that are only rendered for
+    // the user's OWN stories, so they are fetched separately and merged below.
+    const [stories, ownStories] = await Promise.all([
+      prisma.story.findMany({
+        where: {
+          createdAt: {
+            gt: twentyFourHoursAgo,
+          },
+          OR: [
+            { userId: loggedInUser.id },
+            {
+              user: {
+                followers: {
+                  some: {
+                    followerId: loggedInUser.id,
+                  },
                 },
               },
             },
-          },
-        ],
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+          ],
         },
-        views: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
             },
           },
-          orderBy: {
-            viewedAt: "desc",
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      }),
+      prisma.story.findMany({
+        where: {
+          userId: loggedInUser.id,
+          createdAt: {
+            gt: twentyFourHoursAgo,
           },
         },
-        likes: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
+        include: {
+          views: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
               },
             },
+            orderBy: {
+              viewedAt: "desc",
+            },
           },
-          orderBy: {
-            createdAt: "desc",
+          likes: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
+      }),
+    ]);
+
+    const ownStoryDetails = new Map(ownStories.map((s) => [s.id, s]));
 
     // Group stories by user
     const groupedStoriesMap = new Map<string, { user: any; stories: any[] }>();
@@ -89,21 +105,22 @@ export async function GET(req: Request) {
       }
 
       const isOwnStory = userId === loggedInUser.id;
+      const details = isOwnStory ? ownStoryDetails.get(story.id) : undefined;
 
       groupedStoriesMap.get(userId)!.stories.push({
         id: story.id,
         mediaUrl: story.mediaUrl,
         mediaType: story.mediaType,
         createdAt: story.createdAt,
-        views: isOwnStory
-          ? story.views.map((v) => ({
+        views: details
+          ? details.views.map((v) => ({
               id: v.id,
               viewedAt: v.viewedAt,
               user: v.user,
             }))
           : undefined,
-        likes: isOwnStory
-          ? story.likes.map((l) => ({
+        likes: details
+          ? details.likes.map((l) => ({
               id: l.id,
               createdAt: l.createdAt,
               user: l.user,

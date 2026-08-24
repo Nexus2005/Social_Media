@@ -144,8 +144,10 @@ def init_models():
 
     if OCR_AVAILABLE:
         try:
-            ocr_reader = easyocr.Reader(['en'], gpu=False)
-            logger.info("EasyOCR Reader loaded.")
+            import torch
+            use_gpu = torch.cuda.is_available()
+            ocr_reader = easyocr.Reader(['en'], gpu=use_gpu)
+            logger.info(f"EasyOCR Reader loaded (GPU={use_gpu}).")
         except Exception as e:
             logger.error(f"Failed to load EasyOCR: {e}")
 
@@ -559,7 +561,9 @@ class CVRequestHandler(BaseHTTPRequestHandler):
                     if img is not None:
                         h, w = img.shape[:2]
 
-                results = model(temp_path, conf=0.05, verbose=False, device="cpu")
+                import torch
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                results = model(temp_path, conf=0.05, verbose=False, device=device)
 
                 raw_detections = []
                 after_conf = []

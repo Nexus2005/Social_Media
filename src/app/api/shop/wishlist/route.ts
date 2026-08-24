@@ -20,14 +20,14 @@ export async function GET() {
       return NextResponse.json({ wishlist: [] });
     }
 
+    // Fetch exactly the wishlisted products instead of scanning the catalog
     const dbProducts = await ProductService.list({
+      ids: productIds,
       status: "PUBLISHED",
-      limit: 100
+      limit: productIds.length,
     });
 
-    const wishlistedProducts = dbProducts.items
-      .filter(p => productIds.includes(p.id))
-      .map(mapDbProductToFrontendProduct);
+    const wishlistedProducts = dbProducts.items.map(mapDbProductToFrontendProduct);
 
     return NextResponse.json({ wishlist: wishlistedProducts });
   } catch (error: any) {

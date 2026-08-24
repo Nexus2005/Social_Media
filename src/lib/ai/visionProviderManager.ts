@@ -1,5 +1,18 @@
 import { ConfigManager } from "./configManager";
 
+async function fetchWithTimeout(url: string, options: any, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 export class VisionProviderManager {
   private static cooldownKeys = new Map<string, number>(); // key -> expiration timestamp
   private static currentKeyIndex = 0;
@@ -60,7 +73,7 @@ export class VisionProviderManager {
           })),
         ];
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+        const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -114,7 +127,7 @@ export class VisionProviderManager {
     if (nvidiaConfig.enabled && nvidiaKey) {
       console.log("[VisionProviderManager] All Gemini keys exhausted. Falling back to NVIDIA Vision API...");
       try {
-        const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        const response = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${nvidiaKey}`,
@@ -174,7 +187,7 @@ export class VisionProviderManager {
       usedKeys.add(geminiKey);
       try {
         console.log(`[VisionProviderManager] Querying Gemini using key ending in ...${geminiKey.slice(-5)} (Attempt ${attempts}/${maxAttempts})`);
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+        const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -243,7 +256,7 @@ export class VisionProviderManager {
     if (nvidiaConfig.enabled && nvidiaKey) {
       console.log("[VisionProviderManager] All Gemini keys exhausted or overloaded. Falling back to NVIDIA Vision API...");
       try {
-        const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        const response = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${nvidiaKey}`,

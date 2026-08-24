@@ -66,6 +66,7 @@ export class CartlyAdapter implements CommerceAdapter, SearchAdapter, Recommenda
 
   async getCategories(): Promise<Category[]> {
     try {
+      // Cached in-browser via Cache-Control set by /api/shop/categories
       const response = await fetch("/api/shop/categories");
       const data = await response.json();
       return data.categories || [];

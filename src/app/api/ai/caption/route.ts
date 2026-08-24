@@ -53,6 +53,7 @@ export async function POST(req: Request) {
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",

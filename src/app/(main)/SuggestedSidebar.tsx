@@ -2,6 +2,7 @@ import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
 import { getUserDataSelect } from "@/lib/types";
 import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import UserAvatar from "@/components/UserAvatar";
 import UserTooltip from "@/components/UserTooltip";
@@ -78,40 +79,49 @@ export async function SuggestionsList() {
   );
 }
 
+// Hashtag aggregation is identical for every user — cache it across requests
+// so the home page does not run a content scan on every render
+const getTopHashtags = unstable_cache(
+  async (): Promise<{ hashtag: string; count: number }[]> => {
+    const recentPosts = await prisma.post.findMany({
+      where: {
+        content: {
+          contains: "#",
+        },
+      },
+      select: {
+        content: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 100,
+    });
+
+    const hashtagCounts: Record<string, number> = {};
+    recentPosts.forEach((p) => {
+      const tags = p.content.match(/#[a-zA-Z0-9_]+/g);
+      if (tags) {
+        tags.forEach((tag) => {
+          hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+        });
+      }
+    });
+
+    return Object.entries(hashtagCounts)
+      .map(([hashtag, count]) => ({ hashtag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 2);
+  },
+  ["trending-hashtags"],
+  { revalidate: 300 }
+);
+
 export async function TrendingSection() {
   const { user } = await validateRequest();
   if (!user) return null;
 
-  // Fetch recent posts to extract hashtags dynamically
-  const recentPosts = await prisma.post.findMany({
-    where: {
-      content: {
-        contains: "#",
-      },
-    },
-    select: {
-      content: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 100,
-  });
-
-  const hashtagCounts: Record<string, number> = {};
-  recentPosts.forEach((p) => {
-    const tags = p.content.match(/#[a-zA-Z0-9_]+/g);
-    if (tags) {
-      tags.forEach((tag) => {
-        hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
-      });
-    }
-  });
-
-  const hashtags = Object.entries(hashtagCounts)
-    .map(([hashtag, count]) => ({ hashtag, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 2);
+  const hashtags = await getTopHashtags();
 
   return <TrendingAndSportsCard hashtags={hashtags} />;
 }

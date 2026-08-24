@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" style="background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+  <style>
+    .title { fill: #f8fafc; font-size: 16px; font-weight: 700; }
+    .label { fill: #94a3b8; font-size: 11px; }
+    .grid { stroke: #334155; stroke-dasharray: 2 2; stroke-width: 0.5; }
+    .axis { stroke: #475569; stroke-width: 1; }
+    .bar { fill: url(#barGrad); rx: 3; }
+    .bar-hover:hover { fill: #60a5fa; }
+    .legend-text { fill: #cbd5e1; font-size: 11px; }
+  </style>
+  <defs>
+    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="barGradSecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#be185d" />
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <text x="20" y="30" class="title">Pipeline Frame Throughput (FPS)</text>
+  <line x1="80" y1="340" x2="560" y2="340" class="grid" />
+  <text x="70" y="344" class="label" text-anchor="end">0.0 FPS</text>
+  <line x1="80" y1="284" x2="560" y2="284" class="grid" />
+  <text x="70" y="288" class="label" text-anchor="end">1.0 FPS</text>
+  <line x1="80" y1="228" x2="560" y2="228" class="grid" />
+  <text x="70" y="232" class="label" text-anchor="end">2.0 FPS</text>
+  <line x1="80" y1="172" x2="560" y2="172" class="grid" />
+  <text x="70" y="176" class="label" text-anchor="end">3.0 FPS</text>
+  <line x1="80" y1="116" x2="560" y2="116" class="grid" />
+  <text x="70" y="120" class="label" text-anchor="end">4.0 FPS</text>
+  <line x1="80" y1="60" x2="560" y2="60" class="grid" />
+  <text x="70" y="64" class="label" text-anchor="end">5.0 FPS</text>
+  <rect x="92.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="110" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="110" y="356" class="label" text-anchor="middle" style="font-size: 8px;">ONLY</text>
+  <rect x="152.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="170" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="170" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR</text>
+  <rect x="212.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="230" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="230" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR_AMEF</text>
+  <rect x="272.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="290" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="290" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR_GEMINI</text>
+  <rect x="332.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="350" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="350" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR_MARKETPLACE</text>
+  <rect x="392.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="410" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="410" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR_TRACKING</text>
+  <rect x="452.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="470" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="470" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR_ADAPTIVE</text>
+  <rect x="512.5" y="340" width="35" height="0" fill="#10b981" rx="2" />
+  <text x="530" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 9px;">0.0</text>
+  <text x="530" y="356" class="label" text-anchor="middle" style="font-size: 8px;">BASELINE</text>
+</svg>

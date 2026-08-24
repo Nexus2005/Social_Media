@@ -67,39 +67,33 @@ export default function ShopDiscoveryHome() {
     return () => clearInterval(timer);
   }, [nextSlide]);
 
-  // Load all CMS and e-commerce data
+  // Load all CMS and e-commerce data (all requests in parallel)
   const loadData = async () => {
     setIsLoading(true);
     setIsError(false);
     try {
-      // 1. Fetch CMS homepage layout structure
-      const sectionsRes = await fetch("/api/shop/cms/sections");
-      const sectionsData = await sectionsRes.json();
-      setSections(sectionsData.sections || []);
-
-      // 2. Fetch Banners
-      const bannersRes = await fetch("/api/shop/banners");
-      const bannersData = await bannersRes.json();
-      setBanners(bannersData.banners || []);
-
-      // 3. Fetch Flash Deals
-      const dealsRes = await fetch("/api/shop/deals");
-      const dealsData = await dealsRes.json();
-      setDeals(dealsData.deals || []);
-
-      // 4. Fetch Creator Picks
-      const creatorsRes = await fetch("/api/shop/creators");
-      const creatorsData = await creatorsRes.json();
-      setCreators(creatorsData.picks || []);
-
-      // 5. Fetch Traditional products catalog & categories
-      const [prodList, catList] = await Promise.all([
-        cartlyAdapter.getProducts({ limit: 40 }),
-        cartlyAdapter.getCategories()
+      const [
+        sectionsData,
+        bannersData,
+        dealsData,
+        creatorsData,
+        prodList,
+        catList,
+      ] = await Promise.all([
+        fetch("/api/shop/cms/sections").then((r) => r.json()).catch(() => ({ sections: [] })),
+        fetch("/api/shop/banners").then((r) => r.json()).catch(() => ({ banners: [] })),
+        fetch("/api/shop/deals").then((r) => r.json()).catch(() => ({ deals: [] })),
+        fetch("/api/shop/creators").then((r) => r.json()).catch(() => ({ picks: [] })),
+        cartlyAdapter.getProducts({ limit: 40 }).catch(() => [] as Product[]),
+        cartlyAdapter.getCategories().catch(() => [] as Category[]),
       ]);
+
+      setSections(sectionsData.sections || []);
+      setBanners(bannersData.banners || []);
+      setDeals(dealsData.deals || []);
+      setCreators(creatorsData.picks || []);
       setCatalogProducts(prodList);
       setCategories(catList);
-
     } catch (e) {
       console.error("Failed to fetch shop discovery data:", e);
       setIsError(true);

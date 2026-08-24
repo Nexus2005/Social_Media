@@ -14,6 +14,7 @@ export function slugify(text: string): string {
 }
 
 export interface ListProductsParams {
+  ids?: string[];
   categoryId?: string;
   brandId?: string;
   sellerId?: string;
@@ -37,6 +38,7 @@ export class ProductService {
    */
   static async list(params: ListProductsParams) {
     const {
+      ids,
       categoryId,
       brandId,
       sellerId,
@@ -57,6 +59,10 @@ export class ProductService {
 
     // Build filters
     const where: Prisma.ShopProductWhereInput = {};
+
+    if (ids && ids.length > 0) {
+      where.id = { in: ids };
+    }
 
     if (status) {
       where.status = status;

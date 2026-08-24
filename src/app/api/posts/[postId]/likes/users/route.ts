@@ -15,6 +15,7 @@ export async function GET(
 
     const likes = await prisma.like.findMany({
       where: { postId },
+      take: 20,
       select: {
         user: {
           select: getUserDataSelect(loggedInUser.id),

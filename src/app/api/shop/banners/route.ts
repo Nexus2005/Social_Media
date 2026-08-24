@@ -40,11 +40,11 @@ export async function GET() {
         }
       ];
 
-      for (const banner of defaultBanners) {
-        await prisma.shopBanner.create({
-          data: banner
-        });
-      }
+      // Single batch insert avoids N sequential round-trips and races
+      await prisma.shopBanner.createMany({
+        data: defaultBanners,
+        skipDuplicates: true,
+      });
 
       banners = await prisma.shopBanner.findMany({
         where: { active: true },
@@ -52,7 +52,12 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ banners });
+    return NextResponse.json({ banners }, {
+      headers: {
+        // Banners are CMS content that rarely changes
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+      },
+    });
   } catch (error: any) {
     console.error("API shop/banners GET error:", error);
     return NextResponse.json({ error: "Failed to fetch banners" }, { status: 500 });

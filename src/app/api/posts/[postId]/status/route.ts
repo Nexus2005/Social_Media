@@ -49,7 +49,7 @@ export async function GET(
           include: {
             matches: {
               include: {
-                variants: true,
+                merchant: true,
               },
             },
           },
@@ -63,10 +63,13 @@ export async function GET(
 
     const aiStatus = (post.videoJob?.status || "pending").toUpperCase();
 
-    const processingLog = await prisma.videoProcessingLog.findFirst({
-      where: { videoId: postId },
-      orderBy: { createdAt: "desc" },
-    });
+    // The processing log is only relevant while work is in flight
+    const processingLog = ["pending", "processing"].includes(aiStatus.toLowerCase())
+      ? await prisma.videoProcessingLog.findFirst({
+          where: { videoId: postId },
+          orderBy: { createdAt: "desc" },
+        })
+      : null;
 
     return NextResponse.json({
       aiStatus,

@@ -10,9 +10,10 @@ interface VideoPlayerProps {
   src: string;
   className?: string;
   postId?: string;
+  poster?: string;
 }
 
-export default function VideoPlayer({ src, className, postId }: VideoPlayerProps) {
+export default function VideoPlayer({ src, className, postId, poster }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -20,6 +21,8 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [overlayIcon, setOverlayIcon] = useState<"play" | "pause" | null>(null);
+  // Only start fetching video bytes once the player is near the viewport
+  const [shouldLoad, setShouldLoad] = useState(false);
 
   // Play/pause toggle
   const togglePlay = () => {
@@ -55,10 +58,29 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
     setIsMuted(video.muted);
   };
 
+  // Lazy-load: attach the source only when near the viewport (300px margin)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || shouldLoad) return;
+
+    const loader = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          loader.disconnect();
+        }
+      },
+      { rootMargin: "300px 0px" }
+    );
+
+    loader.observe(video);
+    return () => loader.disconnect();
+  }, [shouldLoad]);
+
   // Viewport-aware autoplay and pause on scroll
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !shouldLoad) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -83,7 +105,7 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
       observer.unobserve(video);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [shouldLoad]);
 
   // Sync state if video events trigger play/pause outside of click
   useEffect(() => {
@@ -110,6 +132,8 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
     let totalWatchTime = 0;
     let lastTime = video.currentTime;
     let completedSent = false;
+    // Avoid duplicate view writes: only POST when watch time meaningfully advanced
+    let lastSentSeconds = 0;
 
     const handleTimeUpdate = () => {
       if (video.paused) return;
@@ -124,6 +148,7 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
         const progress = current / video.duration;
         if (progress >= 0.9 && !completedSent) {
           completedSent = true;
+          lastSentSeconds = Math.round(totalWatchTime);
           kyInstance
             .post(`/api/posts/${postId}/views`, {
               json: { watchDuration: Math.round(totalWatchTime), completed: true },
@@ -134,10 +159,12 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
     };
 
     const handlePauseOrUnmount = () => {
-      if (totalWatchTime > 0) {
+      const rounded = Math.round(totalWatchTime);
+      if (rounded > 0 && rounded > lastSentSeconds) {
+        lastSentSeconds = rounded;
         kyInstance
           .post(`/api/posts/${postId}/views`, {
-            json: { watchDuration: Math.round(totalWatchTime), completed: completedSent },
+            json: { watchDuration: rounded, completed: completedSent },
           })
           .catch((err) => console.error("Error logging watch duration:", err));
       }
@@ -162,26 +189,14 @@ export default function VideoPlayer({ src, className, postId }: VideoPlayerProps
         className
       )}
     >
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @keyframes playPausePulse {
-            0% { transform: scale(0.6); opacity: 0; }
-            40% { transform: scale(1.1); opacity: 0.9; }
-            100% { transform: scale(1); opacity: 0; }
-          }
-          .animate-play-pause-icon {
-            animation: playPausePulse 0.6s ease-out forwards;
-          }
-        `
-      }} />
-
       <video
         ref={videoRef}
-        src={src}
+        src={shouldLoad ? src : undefined}
+        poster={poster}
         loop
         muted={isMuted}
         playsInline
-        preload="metadata"
+        preload={shouldLoad ? "metadata" : "none"}
         className="w-full h-full object-cover"
       />
 

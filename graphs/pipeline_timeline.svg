@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" style="background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+  <style>
+    .title { fill: #f8fafc; font-size: 16px; font-weight: 700; }
+    .label { fill: #94a3b8; font-size: 11px; }
+    .grid { stroke: #334155; stroke-dasharray: 2 2; stroke-width: 0.5; }
+    .axis { stroke: #475569; stroke-width: 1; }
+    .bar { fill: url(#barGrad); rx: 3; }
+    .bar-hover:hover { fill: #60a5fa; }
+    .legend-text { fill: #cbd5e1; font-size: 11px; }
+  </style>
+  <defs>
+    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="barGradSecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#be185d" />
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <text x="20" y="30" class="title">Pipeline Execution Timeline (Run: ${baseRu)</text>
+  <text x="90" y="74" class="label" text-anchor="end">DOWNLOAD</text>
+  <rect x="100" y="60" width="194.11208255697292" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="302.11208255697295" y="74" class="label" style="fill: #e2e8f0;">3078 ms</text>
+  <text x="90" y="114" class="label" text-anchor="end">EXTRACTION</text>
+  <rect x="294.11208255697295" y="100" width="124.17371363050023" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="426.2857961874732" y="114" class="label" style="fill: #e2e8f0;">1969 ms</text>
+  <text x="90" y="154" class="label" text-anchor="end">YOLO</text>
+  <rect x="418.2857961874731" y="140" width="45.72165687258134" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="472.00745306005444" y="154" class="label" style="fill: #e2e8f0;">725 ms</text>
+  <text x="90" y="194" class="label" text-anchor="end">TRACKING</text>
+  <rect x="464.00745306005444" y="180" width="19.54994983517271" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="491.55740289522714" y="194" class="label" style="fill: #e2e8f0;">310 ms</text>
+  <text x="90" y="234" class="label" text-anchor="end">OCR</text>
+  <rect x="483.55740289522714" y="220" width="18.793177583488607" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="510.35058047871576" y="234" class="label" style="fill: #e2e8f0;">298 ms</text>
+  <text x="90" y="274" class="label" text-anchor="end">SEARCH</text>
+  <rect x="502.3505804787158" y="260" width="18.730113229181597" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="529.0806937078974" y="274" class="label" style="fill: #e2e8f0;">297 ms</text>
+  <text x="90" y="314" class="label" text-anchor="end">VERIFICATION</text>
+  <rect x="521.0806937078974" y="300" width="18.919306292102625" height="20" fill="url(#barGrad)" rx="2" />
+  <text x="548" y="314" class="label" style="fill: #e2e8f0;">300 ms</text>
+</svg>

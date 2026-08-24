@@ -29,7 +29,11 @@ google-vision-key.json
 
 # temporary background worker files
 tmp/
+debug/
+scratch/
+.kiro/
 
 # dynamic product downloads
 public/uploads/
+
 

@@ -11,12 +11,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Cart ID required" }, { status: 400 });
     }
 
-    const dbCart = await CartService.getById(cartId);
+    const [dbCart, totals] = await Promise.all([
+      CartService.getById(cartId),
+      CartService.calculateTotals(cartId),
+    ]);
     if (!dbCart) {
       return NextResponse.json({ error: "Cart not found" }, { status: 404 });
     }
-
-    const totals = await CartService.calculateTotals(cartId);
     const cart = mapDbCartToFrontendCart(dbCart, totals);
 
     return NextResponse.json({ cart });
@@ -43,19 +44,23 @@ export async function POST(request: Request) {
     // Case 2: Update item quantity if lineItemId is provided
     if (cartId && lineItemId) {
       await CartService.updateItem(cartId, lineItemId, quantity);
-      const dbCart = await CartService.getById(cartId);
-      const totals = await CartService.calculateTotals(cartId);
+      const [dbCart, totals] = await Promise.all([
+        CartService.getById(cartId),
+        CartService.calculateTotals(cartId),
+      ]);
       const cart = mapDbCartToFrontendCart(dbCart, totals);
       return NextResponse.json({ cart });
     }
 
     // Case 3: Update email & shipping details in response
     if (cartId && (email || shippingAddress || shippingOption)) {
-      const dbCart = await CartService.getById(cartId);
+      const [dbCart, totals] = await Promise.all([
+        CartService.getById(cartId),
+        CartService.calculateTotals(cartId),
+      ]);
       if (!dbCart) {
         return NextResponse.json({ error: "Cart not found" }, { status: 404 });
       }
-      const totals = await CartService.calculateTotals(cartId);
       const cart = mapDbCartToFrontendCart(dbCart, totals);
       
       // Attach in-memory values for client persistence
@@ -78,8 +83,10 @@ export async function POST(request: Request) {
 
       await CartService.addItem(cartId, variant.productId, variantId, quantity || 1);
 
-      const dbCart = await CartService.getById(cartId);
-      const totals = await CartService.calculateTotals(cartId);
+      const [dbCart, totals] = await Promise.all([
+        CartService.getById(cartId),
+        CartService.calculateTotals(cartId),
+      ]);
       const cart = mapDbCartToFrontendCart(dbCart, totals);
 
       return NextResponse.json({ cart });
@@ -103,8 +110,10 @@ export async function PUT(request: Request) {
 
     await CartService.updateItem(cartId, lineItemId, quantity);
 
-    const dbCart = await CartService.getById(cartId);
-    const totals = await CartService.calculateTotals(cartId);
+    const [dbCart, totals] = await Promise.all([
+      CartService.getById(cartId),
+      CartService.calculateTotals(cartId),
+    ]);
     const cart = mapDbCartToFrontendCart(dbCart, totals);
 
     return NextResponse.json({ cart });
@@ -134,8 +143,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "lineItemId or batchIds are required" }, { status: 400 });
     }
 
-    const dbCart = await CartService.getById(cartId);
-    const totals = await CartService.calculateTotals(cartId);
+    const [dbCart, totals] = await Promise.all([
+      CartService.getById(cartId),
+      CartService.calculateTotals(cartId),
+    ]);
     const cart = mapDbCartToFrontendCart(dbCart, totals);
 
     return NextResponse.json({ cart });

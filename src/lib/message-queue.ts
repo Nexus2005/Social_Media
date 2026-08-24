@@ -1,4 +1,4 @@
-import { Channel } from "stream-chat";
+import type { Channel } from "stream-chat";
 
 export type QueueMessageStatus = "PENDING" | "SENDING" | "FAILED" | "SENT";
 

@@ -200,7 +200,6 @@ export default function StoriesCarousel() {
                         fill
                         sizes="72px"
                         className="object-cover"
-                        unoptimized
                       />
                     ) : (
                       item.user.username[0]

@@ -831,7 +831,6 @@ export default function StoryViewer({
                 sizes="420px"
                 className="object-contain"
                 priority
-                unoptimized
               />
             </div>
           ) : (

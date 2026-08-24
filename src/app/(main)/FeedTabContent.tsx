@@ -206,11 +206,44 @@ export default function FeedTabContent({ currentUserId }: FeedTabContentProps) {
   );
 }
 
+// Attach the video source only when the card approaches the viewport so that
+// off-screen feed videos never consume bandwidth or decoder resources
+function useNearViewport<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [isNear, setIsNear] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || isNear) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setIsNear(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsNear(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "500px 0px" }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isNear]);
+
+  return { ref, isNear };
+}
+
 // 16:9 Horizontal Video Card Component
 function HorizontalVideoCard({ post, videoUrl, router }: { post: any; videoUrl: string; router: any }) {
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { ref: containerRef, isNear } = useNearViewport<HTMLDivElement>();
 
   useEffect(() => {
     if (isHovered) {
@@ -246,18 +279,19 @@ function HorizontalVideoCard({ post, videoUrl, router }: { post: any; videoUrl: 
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 16:9 Thumbnail container */}
-      <div 
+      <div
+        ref={containerRef}
         onClick={() => router.push(`/reels?focusedPostId=${post.id}`)}
         className="w-full aspect-video rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-850 hover:border-zinc-700 relative cursor-pointer shadow-lg transition-all duration-300"
       >
-        <video 
+        <video
           ref={videoRef}
-          src={videoUrl} 
-          preload="metadata" 
-          muted 
-          loop 
-          playsInline 
-          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300" 
+          src={isNear ? videoUrl : undefined}
+          preload={isNear ? "metadata" : "none"}
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
         />
         
         {/* Play Icon Badge */}
@@ -309,6 +343,7 @@ function VerticalShortsCard({ post, videoUrl, router }: { post: any; videoUrl: s
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { ref: containerRef, isNear } = useNearViewport<HTMLDivElement>();
 
   useEffect(() => {
     if (isHovered) {
@@ -344,18 +379,19 @@ function VerticalShortsCard({ post, videoUrl, router }: { post: any; videoUrl: s
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 9:16 rounded thumbnail card */}
-      <div 
+      <div
+        ref={containerRef}
         onClick={() => router.push(`/reels?focusedPostId=${post.id}`)}
         className="w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-850 hover:border-zinc-700 relative cursor-pointer shadow-lg transition-all duration-300"
       >
-        <video 
+        <video
           ref={videoRef}
-          src={videoUrl} 
-          preload="metadata" 
-          muted 
-          loop 
-          playsInline 
-          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300" 
+          src={isNear ? videoUrl : undefined}
+          preload={isNear ? "metadata" : "none"}
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
         />
         
         {/* Play Icon Badge */}

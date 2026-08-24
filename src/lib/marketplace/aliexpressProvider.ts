@@ -101,6 +101,7 @@ export class AliExpressProvider implements MarketplaceProvider {
 
       const response = await fetch(url, {
         method: "POST",
+        signal: AbortSignal.timeout(12000),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
@@ -225,6 +226,7 @@ export class AliExpressProvider implements MarketplaceProvider {
 
       const response = await fetch(url, {
         method: "POST",
+        signal: AbortSignal.timeout(12000),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 

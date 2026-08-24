@@ -462,6 +462,13 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
   const [activeSport, setActiveSport] = useState<"cricket" | "football">("cricket");
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
 
+  // Debounced query so typing does not fire an autocomplete request per keystroke
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const liveScrollRef = useRef<HTMLDivElement>(null);
 
@@ -551,16 +558,17 @@ export default function SearchPageClient({ initialQuery = "" }: SearchPageClient
     }
   };
 
-  // Query suggestions dynamically while typing
+  // Query suggestions dynamically while typing (debounced)
   const { data: autocompleteData } = useQuery<any>({
-    queryKey: ["search-autocomplete", searchQuery],
+    queryKey: ["search-autocomplete", debouncedQuery],
     queryFn: () =>
       kyInstance
         .get("/api/search/autocomplete", {
-          searchParams: { q: searchQuery },
+          searchParams: { q: debouncedQuery },
         })
         .json<any>(),
-    enabled: !!searchQuery.trim() && showRecentDropdown,
+    enabled: !!debouncedQuery.trim() && showRecentDropdown,
+    placeholderData: (prev: any) => prev,
   });
 
   const autocompleteUsers = autocompleteData?.users || [];

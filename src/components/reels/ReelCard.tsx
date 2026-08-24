@@ -704,7 +704,11 @@ export default function ReelCard({
     },
     refetchInterval: (query) => {
       const currentStatus = query.state.data?.aiStatus || "PENDING";
-      return currentStatus === "PENDING" || currentStatus === "PROCESSING" ? 3000 : false;
+      if (currentStatus !== "PENDING" && currentStatus !== "PROCESSING") return false;
+      // Exponential backoff by poll count: 3s → 6s → 12s (capped at 15s)
+      // so long AI jobs don't hammer the API from every visible reel
+      const polls = query.state.dataUpdateCount || 0;
+      return Math.min(3000 * Math.pow(2, Math.floor(polls / 4)), 15000);
     },
     enabled: !post.videoJob || post.videoJob.status === "pending" || post.videoJob.status === "processing",
   });

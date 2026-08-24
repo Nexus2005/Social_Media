@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" style="background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+  <style>
+    .title { fill: #f8fafc; font-size: 16px; font-weight: 700; }
+    .label { fill: #94a3b8; font-size: 11px; }
+    .grid { stroke: #334155; stroke-dasharray: 2 2; stroke-width: 0.5; }
+    .axis { stroke: #475569; stroke-width: 1; }
+    .bar { fill: url(#barGrad); rx: 3; }
+    .bar-hover:hover { fill: #60a5fa; }
+    .legend-text { fill: #cbd5e1; font-size: 11px; }
+  </style>
+  <defs>
+    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="barGradSecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#be185d" />
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <text x="20" y="30" class="title">Pipeline Latency Breakdown (Mean ms)</text>
+  <line x1="80" y1="340" x2="560" y2="340" class="grid" />
+  <text x="70" y="344" class="label" text-anchor="end">0</text>
+  <line x1="80" y1="284" x2="560" y2="284" class="grid" />
+  <text x="70" y="288" class="label" text-anchor="end">5236</text>
+  <line x1="80" y1="228" x2="560" y2="228" class="grid" />
+  <text x="70" y="232" class="label" text-anchor="end">10472</text>
+  <line x1="80" y1="172" x2="560" y2="172" class="grid" />
+  <text x="70" y="176" class="label" text-anchor="end">15708</text>
+  <line x1="80" y1="116" x2="560" y2="116" class="grid" />
+  <text x="70" y="120" class="label" text-anchor="end">20945</text>
+  <line x1="80" y1="60" x2="560" y2="60" class="grid" />
+  <text x="70" y="64" class="label" text-anchor="end">26181</text>
+  <rect x="94.28571428571428" y="60" width="40" height="280" class="bar bar-hover" />
+  <text x="114.28571428571428" y="54" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">26181</text>
+  <text x="114.28571428571428" y="356" class="label" text-anchor="middle">DOWNLOAD</text>
+  <rect x="162.85714285714283" y="306.88048749686374" width="40" height="33.11951250313626" class="bar bar-hover" />
+  <text x="182.85714285714283" y="300.88048749686374" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">3097</text>
+  <text x="182.85714285714283" y="356" class="label" text-anchor="middle">EXTRACTION</text>
+  <rect x="231.42857142857142" y="331.09459002332113" width="40" height="8.905409976678891" class="bar bar-hover" />
+  <text x="251.42857142857142" y="325.09459002332113" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">833</text>
+  <text x="251.42857142857142" y="356" class="label" text-anchor="middle">YOLO</text>
+  <rect x="300" y="192.97782310382013" width="40" height="147.02217689617987" class="bar bar-hover" />
+  <text x="320" y="186.97782310382013" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">13747</text>
+  <text x="320" y="356" class="label" text-anchor="middle">TRACKING</text>
+  <rect x="368.57142857142856" y="333.0474402762151" width="40" height="6.952559723784879" class="bar bar-hover" />
+  <text x="388.57142857142856" y="327.0474402762151" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">650</text>
+  <text x="388.57142857142856" y="356" class="label" text-anchor="middle">OCR</text>
+  <rect x="437.1428571428571" y="313.05864223834897" width="40" height="26.941357761651062" class="bar bar-hover" />
+  <text x="457.1428571428571" y="307.05864223834897" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">2519</text>
+  <text x="457.1428571428571" y="356" class="label" text-anchor="middle">SEARCH</text>
+  <rect x="505.7142857142857" y="338.0811194513894" width="40" height="1.9188805486106284" class="bar bar-hover" />
+  <text x="525.7142857142858" y="332.0811194513894" class="label" text-anchor="middle" style="fill: #f1f5f9; font-weight: bold;">179</text>
+  <text x="525.7142857142858" y="356" class="label" text-anchor="middle">VERIFICATION</text>
+  <line x1="80" y1="340" x2="560" y2="340" class="axis" />
+  <line x1="80" y1="60" x2="80" y2="340" class="axis" />
+</svg>

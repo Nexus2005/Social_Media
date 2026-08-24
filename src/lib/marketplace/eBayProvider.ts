@@ -91,6 +91,7 @@ export class EBayProvider implements MarketplaceProvider {
       const searchUrl = `${baseUrl}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=${limit}`;
       const response = await fetch(searchUrl, {
         method: "GET",
+        signal: AbortSignal.timeout(12000),
         headers: {
           "Authorization": `Bearer ${token}`,
           "X-EBAY-C-MARKETPLACE-ID": "EBAY-US",

@@ -54,8 +54,8 @@ export default function ShopHeader() {
       if (data.success) {
         setLocation({ postcode: data.postcode, city: data.city });
         setShowLocationDropdown(false);
-        // Reload page to update catalog delivery context if needed
-        window.location.reload();
+        // Soft refresh to update catalog delivery context without a full document reload
+        router.refresh();
       }
     } catch (err) {
       console.error("Error updating location", err);

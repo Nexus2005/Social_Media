@@ -11,7 +11,8 @@
     "postinstall": "prisma generate",
     "seed:social": "npx tsx prisma/seed-social-network.ts",
     "worker": "npx tsx src/lib/workers/videoProductWorker.ts",
-    "reprocess": "npx tsx src/lib/workers/reprocess.ts"
+    "reprocess": "npx tsx src/lib/workers/reprocess.ts",
+    "benchmark:run": "npx tsx benchmark/run_experiments.ts"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.7",
@@ -53,6 +54,7 @@
     "lucide-react": "^0.402.0",
     "next": "15.0.0-rc.0",
     "next-themes": "^0.3.0",
+    "pdfkit": "^0.19.1",
     "prisma": "^5.16.1",
     "react": "19.0.0-rc-f994737d14-20240522",
     "react-cropper": "^2.3.3",
@@ -74,6 +76,7 @@
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.6",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "concurrently": "^8.2.2",

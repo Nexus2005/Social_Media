@@ -28,16 +28,24 @@ export default function ShopCollectionPage({ params }: CollectionPageProps) {
       setIsLoading(true);
       setIsError(false);
       try {
-        const collections = await cartlyAdapter.getCollections();
+        // Collections lookup and product fetch are independent — run in parallel
+        const [collections, data] = await Promise.all([
+          cartlyAdapter.getCollections().catch(() => []),
+          cartlyAdapter.getProducts({ collection_id: slug }),
+        ]);
         const matched = collections.find(c => c.handle === slug || c.id === slug);
-        const collectionId = matched ? matched.id : slug;
-        
+
         if (matched) {
           setColTitle(matched.title);
+          // If the slug was a handle rather than the id, refetch with the id
+          if (matched.id !== slug) {
+            setProducts(await cartlyAdapter.getProducts({ collection_id: matched.id }));
+          } else {
+            setProducts(data);
+          }
+        } else {
+          setProducts(data);
         }
-
-        const data = await cartlyAdapter.getProducts({ collection_id: collectionId });
-        setProducts(data);
       } catch (e) {
         console.warn("Failed to fetch collection products:", e);
         setIsError(true);

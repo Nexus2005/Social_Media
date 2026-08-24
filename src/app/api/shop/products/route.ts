@@ -20,7 +20,12 @@ export async function GET(request: Request) {
 
     const products = dbProducts.items.map(mapDbProductToFrontendProduct);
 
-    return NextResponse.json({ products });
+    return NextResponse.json({ products }, {
+      headers: {
+        // Public catalog data — short CDN/browser cache with background refresh
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error: any) {
     console.error("API shop/products GET error:", error);
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });

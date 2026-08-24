@@ -9,7 +9,12 @@ export async function GET() {
       name: c.name,
       handle: c.slug,
     }));
-    return NextResponse.json({ categories });
+    return NextResponse.json({ categories }, {
+      headers: {
+        // Categories are near-static — cache aggressively
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    });
   } catch (error: any) {
     console.error("API shop/categories GET error:", error);
     return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });

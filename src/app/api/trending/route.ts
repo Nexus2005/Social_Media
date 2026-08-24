@@ -9,15 +9,28 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch all posts with their likes, comments, and reposts counts
+    // Aggregate hashtag stats over a bounded recent window using _count
+    // aggregates instead of loading every like/comment/repost row.
+    // Trending is inherently a recency signal, so 60 days is plenty.
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
     const posts = await prisma.post.findMany({
+      where: {
+        createdAt: { gte: sixtyDaysAgo },
+        content: { contains: "#" },
+      },
       select: {
         content: true,
         createdAt: true,
-        likes: { select: { userId: true } },
-        comments: { select: { id: true } },
-        reposts: { select: { userId: true } },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+            reposts: true,
+          },
+        },
       },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
     });
 
     const hashtagStats: Record<string, {
@@ -34,13 +47,17 @@ export async function GET(req: Request) {
 
     for (const post of posts) {
       if (!post.content) continue;
-      
+
       // Parse hashtags (words starting with # followed by alphanumeric or underscores)
       const hashtags = post.content.match(/#[a-zA-Z0-9_]+/g);
       if (!hashtags) continue;
 
       // De-duplicate tags per post and normalize to lowercase for aggregation
       const uniqueTags = Array.from(new Set(hashtags.map(t => t.toLowerCase())));
+
+      const likesCount = post._count.likes;
+      const commentsCount = post._count.comments;
+      const repostsCount = post._count.reposts;
 
       for (const tag of uniqueTags) {
         if (!hashtagStats[tag]) {
@@ -56,10 +73,10 @@ export async function GET(req: Request) {
         }
         const stats = hashtagStats[tag];
         stats.totalPosts += 1;
-        stats.likes += post.likes.length;
-        stats.comments += post.comments.length;
-        stats.reposts += post.reposts.length;
-        stats.totalEngagement += post.likes.length + post.comments.length + post.reposts.length;
+        stats.likes += likesCount;
+        stats.comments += commentsCount;
+        stats.reposts += repostsCount;
+        stats.totalEngagement += likesCount + commentsCount + repostsCount;
         if (post.createdAt >= oneWeekAgo) {
           stats.recentActivity += 1;
         }
@@ -74,7 +91,12 @@ export async function GET(req: Request) {
       return b.totalEngagement - a.totalEngagement;
     });
 
-    return NextResponse.json(sortedTrends);
+    return NextResponse.json(sortedTrends, {
+      headers: {
+        // Same trending data for all users — cache briefly in the browser
+        "Cache-Control": "private, max-age=300",
+      },
+    });
   } catch (error) {
     console.error("Error in trending API route:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

@@ -15,6 +15,9 @@ export class FeedRankingService {
    * Ranks an array of posts based on engagement metrics, author follow affinity, and time decay.
    */
   static rankPosts(posts: any[], loggedInUserId: string, followedUserIds: string[]): any[] {
+    // Set lookup keeps affinity checks O(1) instead of O(followed) per post
+    const followedSet = new Set(followedUserIds);
+
     const scoredPosts = posts.map((post) => {
       const likesCount = post._count?.likes ?? 0;
       const commentsCount = post._count?.comments ?? 0;
@@ -28,7 +31,7 @@ export class FeedRankingService {
         viewsCount * this.viewsWeight;
 
       // Author follow affinity check
-      const isFollowed = followedUserIds.includes(post.userId);
+      const isFollowed = followedSet.has(post.userId);
       const affinityScore = isFollowed ? this.affinityWeight : 0;
 
       // Shopping Boost Score

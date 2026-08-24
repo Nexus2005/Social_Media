@@ -535,6 +535,8 @@ export default function Post({ post }: PostProps) {
     queryFn: () =>
       kyInstance.get(`/api/posts/${post.id}/likes/users`).json<any[]>(),
     staleTime: 60 * 1000,
+    // Only fetch when the likes banner is actually rendered
+    enabled: !post.hideLikes && post._count.likes > 0,
   });
 
   const { showStory, groupedStories } = useStoryViewer();
@@ -898,6 +900,8 @@ export default function Post({ post }: PostProps) {
                       className="inline-block size-5 rounded-full ring-1 ring-white dark:ring-instagram-darkBg object-cover shrink-0"
                       src={u.avatarUrl || "/avatar-placeholder.png"}
                       alt={u.username}
+                      loading="lazy"
+                      decoding="async"
                     />
                   ))}
               </div>
@@ -939,6 +943,7 @@ export default function Post({ post }: PostProps) {
                   <video
                     src={post.quotedPost.attachments[0].url}
                     className="w-full max-h-[200px] object-contain"
+                    preload="none"
                     controls
                   />
                 ) : (
@@ -946,6 +951,8 @@ export default function Post({ post }: PostProps) {
                     src={post.quotedPost.attachments[0].url}
                     alt="Quoted attachment"
                     className="w-full max-h-[200px] object-contain"
+                    loading="lazy"
+                    decoding="async"
                   />
                 )}
               </div>
@@ -1030,78 +1037,8 @@ export default function Post({ post }: PostProps) {
         />
       )}
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @keyframes reelsHeartPulse {
-            0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.2); opacity: 0.9; }
-            80% { transform: scale(0.9); opacity: 0.9; }
-            100% { transform: scale(1); opacity: 0; }
-          }
-          .animate-reels-heart {
-            animation: reelsHeartPulse 0.8s ease-out forwards;
-          }
-          @keyframes reel-bloom-out {
-            0% { transform: translate(0,0) scale(0) rotate(0deg); opacity: 1; }
-            100% { transform: translate(var(--btx), var(--bty)) scale(var(--bs)) rotate(var(--br)); opacity: 0; }
-          }
-          .reel-petal {
-            position: absolute;
-            pointer-events: none;
-            opacity: 0;
-            top: 0; left: 0;
-            z-index: 99;
-          }
-          .reel-effusion-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            outline: none;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
-          }
-          .reel-effusion-btn:active { transform: scale(0.8); }
-
-          /* alexroumi view-all button — blue platform fill sweep */
-          .reel-view-all-btn {
-            border: unset;
-            border-radius: 12px;
-            color: #212121;
-            z-index: 1;
-            background: #e8e8e8;
-            position: relative;
-            font-weight: 800;
-            font-size: 12px;
-            box-shadow: 4px 8px 19px -3px rgba(0,0,0,0.27);
-            transition: all 250ms;
-            overflow: hidden;
-            cursor: pointer;
-            letter-spacing: 0.05em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-          }
-          .reel-view-all-btn::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0;
-            height: 100%;
-            width: 0;
-            border-radius: 12px;
-            background-color: #4f46e5;
-            z-index: -1;
-            box-shadow: 4px 8px 19px -3px rgba(79,70,229,0.35);
-            transition: all 250ms;
-          }
-          .reel-view-all-btn:hover { color: #ffffff; }
-          .reel-view-all-btn:hover::before { width: 100%; }
-        `
-      }} />
+      {/* Feed post CSS (reelsHeartPulse, reel-petal, reel-view-all-btn, etc.)
+          now lives in globals.css instead of being duplicated per post */}
     </article>
 
     {/* Right Sidebar Panel Drawer (Viewport-level Overlay: fixed) */}
@@ -2029,8 +1966,8 @@ function MediaCarousel({ attachments, tags, altText, onImageClick, postId }: Med
             alt={altText || "Attachment"}
             width={600}
             height={600}
+            sizes="(max-width: 640px) 100vw, 600px"
             className="w-full h-full object-cover"
-            unoptimized
           />
         )}
 
@@ -2112,12 +2049,17 @@ interface PollWidgetProps {
     options: {
       id: string;
       text: string;
+      _count?: { votes: number };
       votes: {
         userId: string;
       }[];
     }[];
   };
   userId: string;
+}
+
+function getPollOptionVoteCount(option: any): number {
+  return option._count?.votes ?? option.votes.length;
 }
 
 function PollWidget({ poll, userId }: PollWidgetProps) {
@@ -2128,7 +2070,7 @@ function PollWidget({ poll, userId }: PollWidgetProps) {
   const expiresDate = new Date(localPoll.expiresAt);
   const isExpired = expiresDate < new Date();
 
-  const totalVotes = localPoll.options.reduce((acc, opt) => acc + opt.votes.length, 0);
+  const totalVotes = localPoll.options.reduce((acc, opt) => acc + getPollOptionVoteCount(opt), 0);
 
   const userVote = localPoll.options.find((opt) =>
     opt.votes.some((v) => v.userId === userId)
@@ -2175,7 +2117,7 @@ function PollWidget({ poll, userId }: PollWidgetProps) {
 
       <div className="flex flex-col gap-2.5">
         {localPoll.options.map((option) => {
-          const voteCount = option.votes.length;
+          const voteCount = getPollOptionVoteCount(option);
           const pct = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
           const isSelected = userVote?.id === option.id;
 

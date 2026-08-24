@@ -72,12 +72,6 @@ export default function RootLayout({
             __html: `(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7440804-9415-4ac8-a5ee-7ddfc9d9452a1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');`,
           }}
         />
-        <script
-          type="text/javascript"
-          dangerouslySetInnerHTML={{
-            __html: `(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7440804-9415-4ac8-a5ee-7ddfc9d9452a1.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');`,
-          }}
-        />
       </head>
       <body className={`${roboto.variable} ${geistSans.variable} ${geistMono.variable} font-sans min-h-screen transition-colors duration-200`}>
         <ReactQueryProvider>

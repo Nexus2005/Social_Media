@@ -59,10 +59,22 @@ export async function POST(req: Request) {
     // Return the updated poll data including options and counts
     const updatedPoll = await prisma.poll.findUnique({
       where: { id: poll.id },
-      include: {
+      select: {
+        id: true,
+        expiresAt: true,
         options: {
-          include: {
-            votes: true,
+          select: {
+            id: true,
+            text: true,
+            _count: {
+              select: {
+                votes: true,
+              },
+            },
+            votes: {
+              where: { userId: user.id },
+              select: { userId: true },
+            },
           },
         },
       },

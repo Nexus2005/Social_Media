@@ -86,6 +86,7 @@ export class OpenImagesDetector implements IObjectDetector {
     try {
       const response = await fetch(`${CV_SERVICE_URL}/detect`, {
         method: "POST",
+        signal: AbortSignal.timeout(30000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: frameBuffer.toString("base64"),
@@ -130,6 +131,7 @@ export class FashionpediaDetector implements IObjectDetector {
     try {
       const response = await fetch(`${CV_SERVICE_URL}/detect`, {
         method: "POST",
+        signal: AbortSignal.timeout(30000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: frameBuffer.toString("base64"),
@@ -248,6 +250,7 @@ const FASHION_CATEGORIES = new Set([
 ]);
 
 function shouldRunOCR(yoloLabel: string, hasLogo: boolean, yoloConfidence: number): boolean {
+  if (process.env.DISABLE_OCR === "true") return false;
   // Always run OCR if logo was detected (likely has brand text)
   if (hasLogo) return true;
 
@@ -312,15 +315,18 @@ export async function collectCropEvidence(
   let logo: string | null = null;
   let logoConfidence = 0;
   try {
-    const logoResponse = await fetch(`${CV_SERVICE_URL}/logo-detect`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64Crop }),
-    });
-    if (logoResponse.ok) {
-      const logoResult = await logoResponse.json();
-      logo = logoResult.brand || null;
-      logoConfidence = logoResult.confidence || 0;
+    if (process.env.DISABLE_BRAND !== "true") {
+      const logoResponse = await fetch(`${CV_SERVICE_URL}/logo-detect`, {
+        method: "POST",
+        signal: AbortSignal.timeout(20000),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64Crop }),
+      });
+      if (logoResponse.ok) {
+        const logoResult = await logoResponse.json();
+        logo = logoResult.brand || null;
+        logoConfidence = logoResult.confidence || 0;
+      }
     }
   } catch {
     // Logo detection unavailable — continue without it
@@ -345,6 +351,7 @@ export async function collectCropEvidence(
     try {
       const ocrResponse = await fetch(`${CV_SERVICE_URL}/ocr-crop`, {
         method: "POST",
+        signal: AbortSignal.timeout(20000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: base64Crop, knownBrand: logo }),
       });
@@ -382,6 +389,7 @@ export async function collectCropEvidence(
   try {
     const barcodeResponse = await fetch(`${CV_SERVICE_URL}/barcode-crop`, {
       method: "POST",
+      signal: AbortSignal.timeout(15000),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: base64Crop }),
     });
@@ -400,6 +408,7 @@ export async function collectCropEvidence(
   try {
     const attrResponse = await fetch(`${CV_SERVICE_URL}/attributes`, {
       method: "POST",
+      signal: AbortSignal.timeout(15000),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: base64Crop }),
     });

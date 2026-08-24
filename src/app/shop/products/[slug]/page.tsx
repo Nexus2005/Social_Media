@@ -80,12 +80,12 @@ export default function ShopProductDetailsPage({ params }: ProductPageProps) {
           brand: prod.brand
         });
 
-        // Load alternative offers via MarketplaceComparisonAdapter
-        const offers = await marketplaceComparisonAdapter.getAlternativeOffers(prod.id);
+        // Load alternative offers and related items in parallel (independent)
+        const [offers, list] = await Promise.all([
+          marketplaceComparisonAdapter.getAlternativeOffers(prod.id),
+          cartlyAdapter.getProducts({ limit: 4 }),
+        ]);
         setComparisonOffers(offers);
-
-        // Load related items as fallback
-        const list = await cartlyAdapter.getProducts({ limit: 4 });
         setRelatedProducts(list.filter(p => p.id !== prod.id));
 
         // Load mock "Found In" videos mapping

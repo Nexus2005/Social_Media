@@ -166,7 +166,7 @@ export default function CommentsBottomSheet({
   // Share Dialog Integration
   const [sharePostData, setSharePostData] = useState<PostData | null>(null);
 
-  // Infinite Query for comments
+  // Infinite Query for comments (only fetched when the sheet is open)
   const { data, fetchNextPage, hasNextPage, isFetching, status } =
     useInfiniteQuery({
       queryKey: ["comments", post.id],
@@ -179,6 +179,7 @@ export default function CommentsBottomSheet({
           .json<CommentsPage>(),
       initialPageParam: null as string | null,
       getNextPageParam: (firstPage) => firstPage.previousCursor,
+      enabled: open,
       select: (data) => ({
         pages: [...data.pages].reverse(),
         pageParams: [...data.pageParams].reverse(),

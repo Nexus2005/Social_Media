@@ -95,10 +95,27 @@ export function getPostDataInclude(loggedInUserId: string) {
       },
     },
     poll: {
-      include: {
+      select: {
+        id: true,
+        expiresAt: true,
         options: {
-          include: {
-            votes: true,
+          select: {
+            id: true,
+            text: true,
+            _count: {
+              select: {
+                votes: true,
+              },
+            },
+            // Only the current user's vote row is needed client-side
+            votes: {
+              where: {
+                userId: loggedInUserId,
+              },
+              select: {
+                userId: true,
+              },
+            },
           },
         },
       },
@@ -131,13 +148,12 @@ export function getPostDataInclude(loggedInUserId: string) {
       },
       include: {
         matches: {
+          // Marketplace matches for feed/shop drawers only need merchant info,
+          // not variants or price history timelines
           include: {
             merchant: true,
-            variants: true,
-            priceHistories: true,
           },
         },
-        timeline: true,
       },
     },
   } satisfies Prisma.PostInclude;

@@ -28,16 +28,24 @@ export default function ShopCategoryPage({ params }: CategoryPageProps) {
       setIsLoading(true);
       setIsError(false);
       try {
-        const categories = await cartlyAdapter.getCategories();
+        // Categories lookup and product fetch are independent — run in parallel
+        const [categories, data] = await Promise.all([
+          cartlyAdapter.getCategories().catch(() => []),
+          cartlyAdapter.getProducts({ category_id: slug }),
+        ]);
         const matched = categories.find(c => c.handle === slug || c.id === slug);
-        const categoryId = matched ? matched.id : slug;
-        
+
         if (matched) {
           setCatName(matched.name);
+          // If the slug was a handle rather than the id, refetch with the id
+          if (matched.id !== slug) {
+            setProducts(await cartlyAdapter.getProducts({ category_id: matched.id }));
+          } else {
+            setProducts(data);
+          }
+        } else {
+          setProducts(data);
         }
-
-        const data = await cartlyAdapter.getProducts({ category_id: categoryId });
-        setProducts(data);
       } catch (e) {
         console.warn("Failed to fetch category products:", e);
         setIsError(true);

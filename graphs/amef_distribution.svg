@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" style="background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+  <style>
+    .title { fill: #f8fafc; font-size: 16px; font-weight: 700; }
+    .label { fill: #94a3b8; font-size: 11px; }
+    .grid { stroke: #334155; stroke-dasharray: 2 2; stroke-width: 0.5; }
+    .axis { stroke: #475569; stroke-width: 1; }
+    .bar { fill: url(#barGrad); rx: 3; }
+    .bar-hover:hover { fill: #60a5fa; }
+    .legend-text { fill: #cbd5e1; font-size: 11px; }
+  </style>
+  <defs>
+    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="barGradSecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#be185d" />
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <text x="20" y="30" class="title">AMEF Score (Verification Confidence) Distribution</text>
+  <line x1="80" y1="340" x2="560" y2="340" class="grid" />
+  <text x="70" y="344" class="label" text-anchor="end">0</text>
+  <line x1="80" y1="284" x2="560" y2="284" class="grid" />
+  <text x="70" y="288" class="label" text-anchor="end">115</text>
+  <line x1="80" y1="228" x2="560" y2="228" class="grid" />
+  <text x="70" y="232" class="label" text-anchor="end">230</text>
+  <line x1="80" y1="172" x2="560" y2="172" class="grid" />
+  <text x="70" y="176" class="label" text-anchor="end">346</text>
+  <line x1="80" y1="116" x2="560" y2="116" class="grid" />
+  <text x="70" y="120" class="label" text-anchor="end">461</text>
+  <line x1="80" y1="60" x2="560" y2="60" class="grid" />
+  <text x="70" y="64" class="label" text-anchor="end">576</text>
+  <rect x="103" y="60" width="50" height="280" fill="#6366f1" rx="2" />
+  <text x="128" y="56" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 10px;">576</text>
+  <text x="128" y="356" class="label" text-anchor="middle">0.0-0.2</text>
+  <rect x="199" y="340" width="50" height="0" fill="#6366f1" rx="2" />
+  <text x="224" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 10px;">0</text>
+  <text x="224" y="356" class="label" text-anchor="middle">0.2-0.4</text>
+  <rect x="295" y="233.54166666666669" width="50" height="106.45833333333333" fill="#6366f1" rx="2" />
+  <text x="320" y="229.54166666666669" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 10px;">219</text>
+  <text x="320" y="356" class="label" text-anchor="middle">0.4-0.6</text>
+  <rect x="391" y="337.56944444444446" width="50" height="2.430555555555556" fill="#6366f1" rx="2" />
+  <text x="416" y="333.56944444444446" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 10px;">5</text>
+  <text x="416" y="356" class="label" text-anchor="middle">0.6-0.8</text>
+  <rect x="487" y="340" width="50" height="0" fill="#6366f1" rx="2" />
+  <text x="512" y="336" class="label" text-anchor="middle" style="fill: #f8fafc; font-size: 10px;">0</text>
+  <text x="512" y="356" class="label" text-anchor="middle">0.8-1.0</text>
+</svg>

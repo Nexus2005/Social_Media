@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" style="background-color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+  <style>
+    .title { fill: #f8fafc; font-size: 16px; font-weight: 700; }
+    .label { fill: #94a3b8; font-size: 11px; }
+    .grid { stroke: #334155; stroke-dasharray: 2 2; stroke-width: 0.5; }
+    .axis { stroke: #475569; stroke-width: 1; }
+    .bar { fill: url(#barGrad); rx: 3; }
+    .bar-hover:hover { fill: #60a5fa; }
+    .legend-text { fill: #cbd5e1; font-size: 11px; }
+  </style>
+  <defs>
+    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="barGradSecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#be185d" />
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <text x="20" y="30" class="title">Memory consumption (RAM vs GPU VRAM)</text>
+  <line x1="80" y1="340" x2="560" y2="340" class="grid" />
+  <text x="70" y="344" class="label" text-anchor="end">0 MB</text>
+  <line x1="80" y1="284" x2="560" y2="284" class="grid" />
+  <text x="70" y="288" class="label" text-anchor="end">2903 MB</text>
+  <line x1="80" y1="228" x2="560" y2="228" class="grid" />
+  <text x="70" y="232" class="label" text-anchor="end">5807 MB</text>
+  <line x1="80" y1="172" x2="560" y2="172" class="grid" />
+  <text x="70" y="176" class="label" text-anchor="end">8710 MB</text>
+  <line x1="80" y1="116" x2="560" y2="116" class="grid" />
+  <text x="70" y="120" class="label" text-anchor="end">11614 MB</text>
+  <line x1="80" y1="60" x2="560" y2="60" class="grid" />
+  <text x="70" y="64" class="label" text-anchor="end">14517 MB</text>
+  <circle cx="80" cy="70.39128480575596" r="3" fill="#a855f7" />
+  <circle cx="80" cy="315.01063395598663" r="3" fill="#f43f5e" />
+  <text x="80" y="356" class="label" text-anchor="middle" style="font-size: 8px;">DOWNLOAD</text>
+  <circle cx="160" cy="68.57932070116948" r="3" fill="#a855f7" />
+  <circle cx="160" cy="315.46215431032556" r="3" fill="#f43f5e" />
+  <text x="160" y="356" class="label" text-anchor="middle" style="font-size: 8px;">EXTRACTION</text>
+  <circle cx="240" cy="74.988243236029" r="3" fill="#a855f7" />
+  <circle cx="240" cy="316.05977747047893" r="3" fill="#f43f5e" />
+  <text x="240" y="356" class="label" text-anchor="middle" style="font-size: 8px;">YOLO</text>
+  <circle cx="320" cy="75.66549965816353" r="3" fill="#a855f7" />
+  <circle cx="320" cy="315.52838276041996" r="3" fill="#f43f5e" />
+  <text x="320" y="356" class="label" text-anchor="middle" style="font-size: 8px;">TRACKING</text>
+  <circle cx="400" cy="69.82604053474591" r="3" fill="#a855f7" />
+  <circle cx="400" cy="314.5878760847066" r="3" fill="#f43f5e" />
+  <text x="400" y="356" class="label" text-anchor="middle" style="font-size: 8px;">OCR</text>
+  <circle cx="480" cy="69.2014630945759" r="3" fill="#a855f7" />
+  <circle cx="480" cy="313.8324329630248" r="3" fill="#f43f5e" />
+  <text x="480" y="356" class="label" text-anchor="middle" style="font-size: 8px;">SEARCH</text>
+  <circle cx="560" cy="60" r="3" fill="#a855f7" />
+  <circle cx="560" cy="312.7536590280134" r="3" fill="#f43f5e" />
+  <text x="560" y="356" class="label" text-anchor="middle" style="font-size: 8px;">VERIFICATION</text>
+  <path d="M 80 70.39128480575596L 160 68.57932070116948L 240 74.988243236029L 320 75.66549965816353L 400 69.82604053474591L 480 69.2014630945759L 560 60" fill="none" stroke="#a855f7" stroke-width="2" />
+  <path d="M 80 315.01063395598663L 160 315.46215431032556L 240 316.05977747047893L 320 315.52838276041996L 400 314.5878760847066L 480 313.8324329630248L 560 312.7536590280134" fill="none" stroke="#f43f5e" stroke-width="2" />
+  <rect x="420" y="20" width="10" height="10" fill="#a855f7" />
+  <text x="435" y="29" class="legend-text">RAM Usage</text>
+  <rect x="500" y="20" width="10" height="10" fill="#f43f5e" />
+  <text x="515" y="29" class="legend-text">GPU VRAM</text>
+</svg>
