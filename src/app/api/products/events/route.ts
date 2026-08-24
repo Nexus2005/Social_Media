@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { validateRequest } from "@/auth";
-import { ProductEventType } from "@prisma/client";
+import { ProductEventType } from "@/generated/client";
 
 export const dynamic = "force-dynamic";
 

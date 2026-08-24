@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 
-import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@prisma/client";
+import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@/generated/client";
 
 export type ProductMatch = Omit<PrismaShoppingMatch, "variants"> & {
   variants?: any[];

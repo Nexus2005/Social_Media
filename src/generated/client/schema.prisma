@@ -87,6 +87,7 @@ model Session {
   expiresAt DateTime
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -98,6 +99,7 @@ model Follow {
   following   User         @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
+  @@index([followingId, status])
   @@map("follows")
 }
 
@@ -146,6 +148,8 @@ model Post {
   @@index([userId])
   @@index([createdAt])
   @@index([contentFormat])
+  @@index([userId, createdAt])
+  @@index([quotedPostId])
   @@map("posts")
 }
 
@@ -170,6 +174,7 @@ model Comment {
   userId             String
   postId             String
   createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @default(now()) @updatedAt
   parentCommentId    String?
   viewsCount         Int                 @default(0) @map("views_count")
   bookmarks          CommentBookmark[]
@@ -185,6 +190,7 @@ model Comment {
   @@index([postId])
   @@index([userId])
   @@index([parentCommentId])
+  @@index([postId, createdAt])
   @@map("comments")
 }
 
@@ -195,6 +201,7 @@ model Like {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
+  @@index([postId])
   @@map("likes")
 }
 

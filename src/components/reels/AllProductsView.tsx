@@ -37,7 +37,7 @@ import UserAvatar from "@/components/UserAvatar";
 import FullScreenProductDetail from "@/components/reels/FullScreenProductDetail";
 import { createPortal } from "react-dom";
 
-import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@prisma/client";
+import { DetectedProduct as PrismaDetectedProduct, ShoppingMatch as PrismaShoppingMatch, ProductVariant } from "@/generated/client";
 
 export type ProductMatch = PrismaShoppingMatch & {
   variants?: ProductVariant[];

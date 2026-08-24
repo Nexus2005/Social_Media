@@ -13,7 +13,7 @@
 
 import prisma from "@/lib/prisma";
 import { realtime } from "@/lib/realtime";
-import { NotificationType, Prisma } from "@prisma/client";
+import { NotificationType, Prisma } from "@/generated/client";
 
 // ─── Preference Category Mapping ─────────────────────────────────────────────
 

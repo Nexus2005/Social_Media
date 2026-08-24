@@ -16568,6 +16568,7 @@ export namespace Prisma {
     userId: string | null
     postId: string | null
     createdAt: Date | null
+    updatedAt: Date | null
     parentCommentId: string | null
     viewsCount: number | null
   }
@@ -16578,6 +16579,7 @@ export namespace Prisma {
     userId: string | null
     postId: string | null
     createdAt: Date | null
+    updatedAt: Date | null
     parentCommentId: string | null
     viewsCount: number | null
   }
@@ -16588,6 +16590,7 @@ export namespace Prisma {
     userId: number
     postId: number
     createdAt: number
+    updatedAt: number
     parentCommentId: number
     viewsCount: number
     _all: number
@@ -16608,6 +16611,7 @@ export namespace Prisma {
     userId?: true
     postId?: true
     createdAt?: true
+    updatedAt?: true
     parentCommentId?: true
     viewsCount?: true
   }
@@ -16618,6 +16622,7 @@ export namespace Prisma {
     userId?: true
     postId?: true
     createdAt?: true
+    updatedAt?: true
     parentCommentId?: true
     viewsCount?: true
   }
@@ -16628,6 +16633,7 @@ export namespace Prisma {
     userId?: true
     postId?: true
     createdAt?: true
+    updatedAt?: true
     parentCommentId?: true
     viewsCount?: true
     _all?: true
@@ -16725,6 +16731,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt: Date
+    updatedAt: Date
     parentCommentId: string | null
     viewsCount: number
     _count: CommentCountAggregateOutputType | null
@@ -16754,6 +16761,7 @@ export namespace Prisma {
     userId?: boolean
     postId?: boolean
     createdAt?: boolean
+    updatedAt?: boolean
     parentCommentId?: boolean
     viewsCount?: boolean
     bookmarks?: boolean | Comment$bookmarksArgs<ExtArgs>
@@ -16774,6 +16782,7 @@ export namespace Prisma {
     userId?: boolean
     postId?: boolean
     createdAt?: boolean
+    updatedAt?: boolean
     parentCommentId?: boolean
     viewsCount?: boolean
     parentComment?: boolean | Comment$parentCommentArgs<ExtArgs>
@@ -16787,6 +16796,7 @@ export namespace Prisma {
     userId?: boolean
     postId?: boolean
     createdAt?: boolean
+    updatedAt?: boolean
     parentCommentId?: boolean
     viewsCount?: boolean
   }
@@ -16828,6 +16838,7 @@ export namespace Prisma {
       userId: string
       postId: string
       createdAt: Date
+      updatedAt: Date
       parentCommentId: string | null
       viewsCount: number
     }, ExtArgs["result"]["comment"]>
@@ -17237,6 +17248,7 @@ export namespace Prisma {
     readonly userId: FieldRef<"Comment", 'String'>
     readonly postId: FieldRef<"Comment", 'String'>
     readonly createdAt: FieldRef<"Comment", 'DateTime'>
+    readonly updatedAt: FieldRef<"Comment", 'DateTime'>
     readonly parentCommentId: FieldRef<"Comment", 'String'>
     readonly viewsCount: FieldRef<"Comment", 'Int'>
   }
@@ -96676,6 +96688,7 @@ export namespace Prisma {
     userId: 'userId',
     postId: 'postId',
     createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
     parentCommentId: 'parentCommentId',
     viewsCount: 'viewsCount'
   };
@@ -99820,6 +99833,7 @@ export namespace Prisma {
     userId?: StringFilter<"Comment"> | string
     postId?: StringFilter<"Comment"> | string
     createdAt?: DateTimeFilter<"Comment"> | Date | string
+    updatedAt?: DateTimeFilter<"Comment"> | Date | string
     parentCommentId?: StringNullableFilter<"Comment"> | string | null
     viewsCount?: IntFilter<"Comment"> | number
     bookmarks?: CommentBookmarkListRelationFilter
@@ -99839,6 +99853,7 @@ export namespace Prisma {
     userId?: SortOrder
     postId?: SortOrder
     createdAt?: SortOrder
+    updatedAt?: SortOrder
     parentCommentId?: SortOrderInput | SortOrder
     viewsCount?: SortOrder
     bookmarks?: CommentBookmarkOrderByRelationAggregateInput
@@ -99862,6 +99877,7 @@ export namespace Prisma {
     userId?: StringFilter<"Comment"> | string
     postId?: StringFilter<"Comment"> | string
     createdAt?: DateTimeFilter<"Comment"> | Date | string
+    updatedAt?: DateTimeFilter<"Comment"> | Date | string
     parentCommentId?: StringNullableFilter<"Comment"> | string | null
     viewsCount?: IntFilter<"Comment"> | number
     bookmarks?: CommentBookmarkListRelationFilter
@@ -99881,6 +99897,7 @@ export namespace Prisma {
     userId?: SortOrder
     postId?: SortOrder
     createdAt?: SortOrder
+    updatedAt?: SortOrder
     parentCommentId?: SortOrderInput | SortOrder
     viewsCount?: SortOrder
     _count?: CommentCountOrderByAggregateInput
@@ -99899,6 +99916,7 @@ export namespace Prisma {
     userId?: StringWithAggregatesFilter<"Comment"> | string
     postId?: StringWithAggregatesFilter<"Comment"> | string
     createdAt?: DateTimeWithAggregatesFilter<"Comment"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Comment"> | Date | string
     parentCommentId?: StringNullableWithAggregatesFilter<"Comment"> | string | null
     viewsCount?: IntWithAggregatesFilter<"Comment"> | number
   }
@@ -106785,6 +106803,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -106803,6 +106822,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -106817,6 +106837,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -106835,6 +106856,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -106851,6 +106873,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
   }
@@ -106859,6 +106882,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
   }
 
@@ -106868,6 +106892,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
   }
@@ -114461,6 +114486,7 @@ export namespace Prisma {
     userId?: SortOrder
     postId?: SortOrder
     createdAt?: SortOrder
+    updatedAt?: SortOrder
     parentCommentId?: SortOrder
     viewsCount?: SortOrder
   }
@@ -114475,6 +114501,7 @@ export namespace Prisma {
     userId?: SortOrder
     postId?: SortOrder
     createdAt?: SortOrder
+    updatedAt?: SortOrder
     parentCommentId?: SortOrder
     viewsCount?: SortOrder
   }
@@ -114485,6 +114512,7 @@ export namespace Prisma {
     userId?: SortOrder
     postId?: SortOrder
     createdAt?: SortOrder
+    updatedAt?: SortOrder
     parentCommentId?: SortOrder
     viewsCount?: SortOrder
   }
@@ -126794,6 +126822,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -126810,6 +126839,7 @@ export namespace Prisma {
     content: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -128283,6 +128313,7 @@ export namespace Prisma {
     userId?: StringFilter<"Comment"> | string
     postId?: StringFilter<"Comment"> | string
     createdAt?: DateTimeFilter<"Comment"> | Date | string
+    updatedAt?: DateTimeFilter<"Comment"> | Date | string
     parentCommentId?: StringNullableFilter<"Comment"> | string | null
     viewsCount?: IntFilter<"Comment"> | number
   }
@@ -130246,6 +130277,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -130262,6 +130294,7 @@ export namespace Prisma {
     content: string
     userId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -131962,6 +131995,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -131979,6 +132013,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -131997,6 +132032,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -132014,6 +132050,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
     likes?: CommentLikeUncheckedCreateNestedManyWithoutCommentInput
@@ -132360,6 +132397,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -132377,6 +132415,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -139478,6 +139517,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     reports?: CommentReportCreateNestedManyWithoutCommentInput
@@ -139495,6 +139535,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -139665,6 +139706,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     reports?: CommentReportUpdateManyWithoutCommentNestedInput
@@ -139682,6 +139724,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -146274,6 +146317,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -146291,6 +146335,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -146461,6 +146506,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -146478,6 +146524,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -146638,6 +146685,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
     reports?: CommentReportCreateNestedManyWithoutCommentInput
@@ -146655,6 +146703,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     likes?: CommentLikeUncheckedCreateNestedManyWithoutCommentInput
@@ -146825,6 +146874,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
     reports?: CommentReportUpdateManyWithoutCommentNestedInput
@@ -146842,6 +146892,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     likes?: CommentLikeUncheckedUpdateManyWithoutCommentNestedInput
@@ -148154,6 +148205,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -148171,6 +148223,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -148341,6 +148394,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -148358,6 +148412,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -148518,6 +148573,7 @@ export namespace Prisma {
     id?: string
     content: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
     bookmarks?: CommentBookmarkCreateNestedManyWithoutCommentInput
     likes?: CommentLikeCreateNestedManyWithoutCommentInput
@@ -148535,6 +148591,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
     bookmarks?: CommentBookmarkUncheckedCreateNestedManyWithoutCommentInput
@@ -148790,6 +148847,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -148807,6 +148865,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -157095,6 +157154,7 @@ export namespace Prisma {
     content: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
   }
@@ -157668,6 +157728,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -157684,6 +157745,7 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -157699,6 +157761,7 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
   }
@@ -158827,6 +158890,7 @@ export namespace Prisma {
     content: string
     userId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     parentCommentId?: string | null
     viewsCount?: number
   }
@@ -159049,6 +159113,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -159065,6 +159130,7 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
@@ -159080,6 +159146,7 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
     viewsCount?: IntFieldUpdateOperationsInput | number
   }
@@ -159682,6 +159749,7 @@ export namespace Prisma {
     userId: string
     postId: string
     createdAt?: Date | string
+    updatedAt?: Date | string
     viewsCount?: number
   }
 
@@ -159773,6 +159841,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUpdateManyWithoutCommentNestedInput
@@ -159790,6 +159859,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
     bookmarks?: CommentBookmarkUncheckedUpdateManyWithoutCommentNestedInput
     likes?: CommentLikeUncheckedUpdateManyWithoutCommentNestedInput
@@ -159805,6 +159875,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     postId?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     viewsCount?: IntFieldUpdateOperationsInput | number
   }
 

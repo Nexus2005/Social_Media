@@ -1,7 +1,7 @@
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { ProductEventType } from "@prisma/client";
+import { ProductEventType } from "@/generated/client";
 
 export async function GET(
   req: NextRequest,

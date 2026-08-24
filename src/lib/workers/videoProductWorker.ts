@@ -26,7 +26,7 @@
  * 20.  Persist to DB (detection layer + marketplace layer + timeline)
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/client";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";

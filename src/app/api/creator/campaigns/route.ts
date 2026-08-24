@@ -1,7 +1,7 @@
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { CampaignStatus } from "@prisma/client";
+import { CampaignStatus } from "@/generated/client";
 
 export async function GET(req: NextRequest) {
   try {

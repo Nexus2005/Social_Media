@@ -3,7 +3,7 @@
 import { useSession } from "@/app/(main)/SessionProvider";
 import { PostData } from "@/lib/types";
 import { cn, formatRelativeDate } from "@/lib/utils";
-import { Media } from "@prisma/client";
+import { Media } from "@/generated/client";
 import {
   MapPin,
   ChevronLeft,
